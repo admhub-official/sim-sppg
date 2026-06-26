@@ -4069,6 +4069,59 @@
 
 <script>
 // ============================================================
+// 0. POLYFILL: google.script.run -> fetch() ke Web App URL
+//    (Diperlukan karena file ini di-host di GitHub Pages,
+//     bukan di dalam Apps Script HtmlService)
+// ============================================================
+(function() {
+  var WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxFdL-BWnFCNpLhLXiiukEVk18DSFNriMCGKVC5yeUWr0WZ0rr9bCha9YC1kjIt-Cz7/exec';
+
+  function createScriptRunProxy(successHandler, failureHandler) {
+    return new Proxy({}, {
+      get: function(target, propName) {
+        if (propName === 'withSuccessHandler') {
+          return function(fn) { return createScriptRunProxy(fn, failureHandler); };
+        }
+        if (propName === 'withFailureHandler') {
+          return function(fn) { return createScriptRunProxy(successHandler, fn); };
+        }
+        if (propName === 'withUserObject') {
+          // Tidak didukung dalam mode fetch; diabaikan agar tidak error
+          return function() { return createScriptRunProxy(successHandler, failureHandler); };
+        }
+        // Properti lain dianggap sebagai NAMA FUNGSI yang dipanggil ke Code.gs
+        return function() {
+          var args = Array.prototype.slice.call(arguments);
+          fetch(WEBAPP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ function: propName, parameters: args })
+          })
+          .then(function(res) { return res.json(); })
+          .then(function(json) {
+            if (json && json.error) {
+              if (failureHandler) failureHandler(new Error(json.error));
+              else console.error('google.script.run error (' + propName + '):', json.error);
+              return;
+            }
+            var result = (json && Object.prototype.hasOwnProperty.call(json, 'result')) ? json.result : json;
+            if (successHandler) successHandler(result);
+          })
+          .catch(function(err) {
+            if (failureHandler) failureHandler(err);
+            else console.error('google.script.run fetch failed (' + propName + '):', err);
+          });
+        };
+      }
+    });
+  }
+
+  window.google = window.google || {};
+  window.google.script = window.google.script || {};
+  window.google.script.run = createScriptRunProxy(null, null);
+})();
+
+// ============================================================
 // 1. STATE MANAGEMENT
 // ============================================================
 var SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 jam
