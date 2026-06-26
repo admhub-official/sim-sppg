@@ -43,7 +43,15 @@
 })();
 </script>
 
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="https://drive.google.com/thumbnail?id=1HiSRf2viKBxwNOp0Ffph2g89Fj7y7sU4&sz=w64">
+<link rel="apple-touch-icon" href="https://drive.google.com/thumbnail?id=1HiSRf2viKBxwNOp0Ffph2g89Fj7y7sU4&sz=w192">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22SIM-SPPG%22%2C%22short_name%22%3A%22SIM-SPPG%22%2C%22description%22%3A%22Sistem%20Informasi%20Manajemen%20SPPG%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231e6f9c%22%2C%22theme_color%22%3A%22%231e6f9c%22%2C%22orientation%22%3A%22portrait-primary%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fdrive.google.com%2Fthumbnail%3Fid%3D1HiSRf2viKBxwNOp0Ffph2g89Fj7y7sU4%26sz%3Dw192%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fdrive.google.com%2Fthumbnail%3Fid%3D1HiSRf2viKBxwNOp0Ffph2g89Fj7y7sU4%26sz%3Dw512%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+<meta name="theme-color" content="#1e6f9c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SIM-SPPG">
+<meta name="mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     /* ============================================================
@@ -161,6 +169,39 @@
       flex-shrink: 0;
     }
     body.dark-mode .theme-toggle-btn { background: #1e293b; border-color: #334155; color: #fbbf24; }
+
+    .btn-install-pwa {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 8px;
+      border: 1px solid var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      animation: pulse-install 2s infinite;
+    }
+    .btn-install-pwa.show { display: flex; }
+    .btn-install-pwa:hover { background: var(--primary); color: white; }
+    .btn-install-pwa i { font-size: 13px; }
+    body.dark-mode .btn-install-pwa { background: rgba(30,111,156,0.2); border-color: #38bdf8; color: #38bdf8; }
+    body.dark-mode .btn-install-pwa:hover { background: #1e6f9c; color: white; }
+
+    @keyframes pulse-install {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(30,111,156,0.4); }
+      50% { box-shadow: 0 0 0 4px rgba(30,111,156,0); }
+    }
+
+    @media (max-width: 360px) {
+      .btn-install-pwa span { display: none; }
+      .btn-install-pwa { padding: 7px 10px; }
+    }
 
     /* ============================================================
        DARK MODE — LANJUTAN (melengkapi cakupan teks yang sebelumnya bolong)
@@ -2232,6 +2273,10 @@
         <h2 class="topbar-title" id="pageTitle">Dashboard</h2>
       </div>
       <div class="topbar-right">
+        <button id="btnInstallPWA" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install sebagai Aplikasi">
+          <i class="fas fa-download"></i>
+          <span>Install App</span>
+        </button>
         <button onclick="toggleDarkMode()" class="theme-toggle-btn" id="themeToggleBtn" title="Mode Gelap/Terang">
           <i class="fas fa-moon" id="themeToggleIcon"></i>
         </button>
@@ -8940,6 +8985,130 @@ function goToLoginFromRecovery() {
   // Tambahkan listener fokus ke semua modal
   document.addEventListener('focusin', onFocusInModal, true);
 })();
+
+  // ============================================================
+  // PWA — Install Prompt & Service Worker Registration
+  // ============================================================
+  var _pwaInstallEvent = null;
+  var _pwaInstalled = false;
+
+  // Tangkap event beforeinstallprompt (Chrome/Edge/Android)
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    _pwaInstallEvent = e;
+    // Tampilkan tombol install hanya jika belum terinstall
+    if (!_pwaInstalled) {
+      var btn = document.getElementById('btnInstallPWA');
+      if (btn) btn.classList.add('show');
+    }
+  });
+
+  // Deteksi jika sudah berjalan sebagai PWA standalone
+  (function() {
+    var isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true ||
+      document.referrer.indexOf('android-app://') === 0;
+    if (isStandalone) {
+      _pwaInstalled = true;
+      var btn = document.getElementById('btnInstallPWA');
+      if (btn) btn.classList.remove('show');
+    }
+  })();
+
+  // Setelah install berhasil, sembunyikan tombol
+  window.addEventListener('appinstalled', function() {
+    _pwaInstalled = true;
+    var btn = document.getElementById('btnInstallPWA');
+    if (btn) btn.classList.remove('show');
+    showToast('success', 'Berhasil Diinstall!', 'SIM-SPPG kini dapat dibuka seperti aplikasi native.');
+    _pwaInstallEvent = null;
+  });
+
+  function triggerPWAInstall() {
+    if (_pwaInstallEvent) {
+      _pwaInstallEvent.prompt();
+      _pwaInstallEvent.userChoice.then(function(result) {
+        if (result.outcome === 'accepted') {
+          showToast('success', 'Menginstall...', 'SIM-SPPG sedang ditambahkan ke layar utama.');
+        } else {
+          showToast('warning', 'Dibatalkan', 'Install dibatalkan. Kamu bisa install kapan saja.');
+        }
+        _pwaInstallEvent = null;
+        var btn = document.getElementById('btnInstallPWA');
+        if (btn) btn.classList.remove('show');
+      });
+    } else {
+      // Fallback manual untuk iOS Safari & browser lain yang tidak support prompt
+      showIOSInstallGuide();
+    }
+  }
+
+  function showIOSInstallGuide() {
+    var ua = navigator.userAgent;
+    var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    var isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+    var isAndroid = /android/i.test(ua);
+
+    var msg = '';
+    if (isIOS && isSafari) {
+      msg = 'Di Safari: ketuk ikon Bagikan (⬆️) → pilih "Tambahkan ke Layar Utama" → ketuk Tambahkan.';
+    } else if (isAndroid) {
+      msg = 'Di Chrome: ketuk menu ⋮ → pilih "Tambahkan ke layar utama" atau "Install aplikasi".';
+    } else {
+      msg = 'Di Chrome Desktop: klik ikon ⊕ di address bar, atau menu ⋮ → "Install SIM-SPPG".';
+    }
+
+    // Tampilkan sebagai toast informatif
+    var container = document.getElementById('toastContainer');
+    var toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.style.borderLeftColor = '#3b82f6';
+    toast.innerHTML =
+      '<div class="toast-icon" style="background:#dbeafe;color:#1e40af;"><i class="fas fa-mobile-alt"></i></div>' +
+      '<div class="toast-content">' +
+        '<h4>Cara Install Manual</h4>' +
+        '<p style="font-size:11px;line-height:1.5;">' + msg + '</p>' +
+      '</div>';
+    container.appendChild(toast);
+    requestAnimationFrame(function() { toast.classList.add('show'); });
+    setTimeout(function() {
+      toast.classList.remove('show');
+      setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 400);
+    }, 8000); // tampilkan lebih lama karena instruksi panjang
+  }
+
+  // Register Service Worker (hanya jika berjalan di https / GitHub Pages)
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    // SW inline — tidak perlu file terpisah, digenerate dari JS
+    var swContent = [
+      'const CACHE = "simsppg-v1";',
+      'const ASSETS = ["/"];',
+      'self.addEventListener("install", e => {',
+      '  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));',
+      '});',
+      'self.addEventListener("activate", e => {',
+      '  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));',
+      '});',
+      'self.addEventListener("fetch", e => {',
+      '  if (e.request.method !== "GET") return;',
+      '  if (e.request.url.indexOf("script.google.com") > -1) return;',
+      '  if (e.request.url.indexOf("drive.google.com") > -1) return;',
+      '  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));',
+      '});'
+    ].join('\n');
+
+    var swBlob = new Blob([swContent], { type: 'application/javascript' });
+    var swUrl  = URL.createObjectURL(swBlob);
+
+    navigator.serviceWorker.register(swUrl)
+      .then(function(reg) {
+        // SW terdaftar — tidak perlu log ke console produksi
+      })
+      .catch(function(err) {
+        // SW gagal daftar — fitur PWA tidak tersedia, app tetap berjalan normal
+      });
+  }
 
   document.addEventListener('DOMContentLoaded', function() {
     var lpwd = document.getElementById('loginPassword');
