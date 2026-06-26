@@ -4650,9 +4650,13 @@ function showRegister() {
 }
 function togglePw(fieldId, btn) {
   var input = $(fieldId);
-  var icon = btn.querySelector('i');
-  if (input.type === 'password') { input.type = 'text'; icon.className = 'fas fa-eye-slash'; }
-  else { input.type = 'password'; icon.className = 'fas fa-eye'; }
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+  } else {
+    input.type = 'password';
+    btn.innerHTML = '<i class="fas fa-eye"></i>';
+  }
 }
 function checkPasswordStrength() {
   var pw = $('regPassword').value;
