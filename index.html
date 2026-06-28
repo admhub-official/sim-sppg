@@ -1363,7 +1363,6 @@
   isolation: isolate;
   will-change: auto;
 }
-@keyframes slideUp { 0% { transform: translateY(100%); } 100% { transform: translateY(0); } }
 .modal-box::before { display: none; }
 .modal-box.modal-wide { max-width: 100%; }
 .modal-box.modal-xl { max-width: 100%; }
@@ -1445,9 +1444,6 @@
       overscroll-behavior: contain;
       padding-bottom: 24px;
       scroll-padding-bottom: 80px;
-    }
-    @media (min-width: 640px) {
-      .modal-body { padding: 24px; padding-bottom: 24px; }
     }
     @media (min-width: 640px) {
       .modal-body { padding: 24px; }
@@ -2696,7 +2692,7 @@ body.dark-mode .bnav-item.active i {
             <canvas id="cashFlowChart"></canvas>
           </div>
         </div>
-        <div class="stats-carousel-dots" id="statsCarouselDots"></div>
+        <!-- dots carousel dihapus — scroll snap ditangani CSS native -->
       </div>
 
       <!-- ==================== PROFIL PAGE ==================== -->
@@ -5060,9 +5056,6 @@ function checkPasswordStrength() {
     bars[i].className = score <= 2 ? 'weak' : score === 3 ? 'medium' : 'strong';
   }
 }
-function updateRegRole() {
-  // Auto-updated by backend based on jabatan
-}
 function previewRegFoto(input) {
   var file = input.files[0];
   if (file) {
@@ -5489,20 +5482,8 @@ function syncApprovalBadgeToQuickAccess() {
   dst.style.display = (parseInt(src.textContent) > 0) ? 'flex' : 'none';
 }
 
-// ── Carousel dots untuk stat-card di mobile ──
 function initStatsCarouselDots() {
-  var grid = $('dashboardStats');
-  var dotsWrap = $('statsCarouselDots');
-  if (!grid || !dotsWrap || window.innerWidth >= 480) { if (dotsWrap) dotsWrap.innerHTML = ''; return; }
-  var cards = grid.querySelectorAll('.stat-card');
-  if (!cards.length) return;
-  var html = '';
-  cards.forEach(function(c, i) { html += '<span class="' + (i === 0 ? 'active' : '') + '"></span>'; });
-  dotsWrap.innerHTML = html;
-  grid.onscroll = function() {
-    var idx = Math.round(grid.scrollLeft / (grid.clientWidth * 0.78));
-    dotsWrap.querySelectorAll('span').forEach(function(d, i) { d.classList.toggle('active', i === idx); });
-  };
+  // Dots digantikan oleh CSS scroll-snap native — tidak perlu JS
 }
 
 function switchPage(page, el) {
@@ -5815,7 +5796,6 @@ function loadDashboardData() {
         if (badge) { badge.textContent = result.antrianApproval || 0; badge.style.display = (result.antrianApproval > 0) ? 'inline-flex' : 'none'; }
         syncApprovalBadgeToBottomNav();
         syncApprovalBadgeToQuickAccess();
-        setTimeout(initStatsCarouselDots, 100);
       }
     })
     .withFailureHandler(function(err) { showLoading(false); })
@@ -7897,12 +7877,6 @@ function renderSupplierTable() {
   renderPagination('supplierPagination', supplierPage, totalPages, 'goSupplierPage');
 }
 function goSupplierPage(p) { supplierPage = p; renderSupplierTable(); }
-function viewSupplierDetail(rowNum) { openDetailSupplier(rowNum); }
-
-function populateMasterBBSelect() {
-  // Data bahan baku tersedia di dropdownOptions.bahanBaku untuk autocomplete
-}
-
 function openDetailSurvei(rowNum) {
   var s = allSurvei.find(function(x){ return x._row === rowNum; });
   if (!s) return;
@@ -8144,7 +8118,6 @@ function openAddSurveiModal() {
   openModal('modalAddSurvei');
 }
 
-var selectedBB = null;
 function handleBahanBakuAutocomplete(input) {
   var dropdown = $('bbAutocompleteDropdown');
   var val = input.value.trim().toLowerCase();
@@ -8535,7 +8508,34 @@ function exportMenuMBG(format) {
     printCurrentPage();
   }
 }
-function showMenuDetail(idx) { showToast('info', 'Info', 'Detail menu dapat ditampilkan di sini'); }
+function showMenuDetail(idx) {
+  var m = allMenuMBG[idx];
+  if (!m) return;
+  resetDetailModalFooter();
+  var detailHtml = '';
+  if (m.detail && m.detail.length) {
+    m.detail.forEach(function(d) {
+      detailHtml += '<div class="detail-doc-item doc-ok">' +
+        '<div class="detail-doc-icon"><i class="fas fa-utensils"></i></div>' +
+        '<div><div class="detail-doc-label">' + esc(d.namaItem) + '</div>' +
+        '<div class="detail-doc-status">' + d.jumlah + ' ' + esc(d.satuan) + ' — ' + formatRupiah(d.totalHarga) + '</div></div>' +
+        '</div>';
+    });
+  } else {
+    detailHtml = '<p style="color:var(--slate-400);font-size:13px;">Tidak ada detail item.</p>';
+  }
+  $('detailBody').innerHTML =
+    '<div class="info-card">' +
+      infoRow('Tanggal', esc(m.tanggal)) +
+      infoRow('Jumlah KPM', (m.jumlahKpm || 0) + ' orang') +
+      infoRow('Menu', esc(m.menu)) +
+    '</div>' +
+    '<div class="detail-section-title"><i class="fas fa-list" style="margin-right:6px;"></i>Detail Item</div>' +
+    detailHtml;
+  $('modalDetail').querySelector('.modal-header h3').innerHTML = '<i class="fas fa-utensils" style="color:var(--primary);margin-right:8px;"></i>Detail Menu MBG';
+  $('modalDetail').querySelector('.modal-header p').textContent = 'Detail bahan baku dan item menu';
+  openModal('modalDetail');
+}
 
 function openAddMenuMBGModal() {
   $('addMenuTanggal').value = formatDateInput();
