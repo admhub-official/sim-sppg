@@ -65,6 +65,8 @@
       --emerald-light: #d1fae5;
       --rose: #f43f5e;
       --rose-light: #ffe4e6;
+            --orange: #f97316;
+      --orange-light: #ffedd5;
       --amber: #f59e0b;
       --amber-light: #fef3c7;
       --blue: #3b82f6;
@@ -75,8 +77,8 @@
       --slate-100: #f1f5f9;
       --slate-200: #e2e8f0;
       --slate-300: #cbd5e1;
-      --slate-400: #94a3b8;
-      --slate-500: #64748b;
+      --slate-400: #64748b;
+      --slate-500: #475569;
       --slate-600: #475569;
       --slate-700: #334155;
       --slate-800: #1e293b;
@@ -284,6 +286,7 @@
 
     /* Toggle switch wrap (Upload Mandiri ON/OFF) */
     body.dark-mode .toggle-switch-wrap { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+    body.dark-mode .badge-orange { background: rgba(249,115,22,0.15); color: #fb923c; border-color: #9a3412; }
 
     /* Panah dropdown <select> — SVG sebelumnya hardcode stroke abu gelap, nyaris tak terlihat di field gelap */
     body.dark-mode select.form-input {
@@ -591,13 +594,27 @@
       font-weight: 600;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-    .menu-item.active::before {
+        .menu-item.active::before {
       content: '';
       position: absolute;
       left: 0; top: 8px; bottom: 8px;
       width: 3px;
       background: white;
       border-radius: 0 4px 4px 0;
+    }
+    .sidebar.collapsed .menu-item.active::after {
+      content: '';
+      position: absolute;
+      left: calc(var(--sidebar-collapsed-width) - 2px);
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 6px;
+      background: var(--emerald);
+      border-radius: 50%;
+      border: 2px solid var(--slate-800);
+      z-index: 101;
+      box-shadow: 0 0 0 2px rgba(16,185,129,0.3);
     }
     .menu-item i { width: 20px; text-align: center; font-size: 14px; flex-shrink: 0; }
     .menu-item-text { transition: opacity 0.2s; }
@@ -616,12 +633,12 @@
       transition: opacity 0.2s;
     }
     .sidebar.collapsed .menu-badge { opacity: 0; }
-    .menu-item .sidebar-tooltip {
-      display: none;
+        .menu-item .sidebar-tooltip {
+      display: block;
       position: absolute;
-      left: calc(var(--sidebar-collapsed-width) + 8px);
+      left: calc(var(--sidebar-collapsed-width) + 4px);
       top: 50%;
-      transform: translateY(-50%);
+      transform: translateY(-50%) translateX(-4px);
       background: var(--slate-800);
       color: white;
       font-size: 12px;
@@ -631,8 +648,13 @@
       pointer-events: none;
       z-index: 100;
       box-shadow: var(--shadow-lg);
+      opacity: 0;
+      transition: opacity 0.15s ease, transform 0.15s ease;
     }
-    .sidebar.collapsed .menu-item:hover .sidebar-tooltip { display: block; }
+    .sidebar.collapsed .menu-item:hover .sidebar-tooltip {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
+    }
 
     /* ============================================================
        MAIN LAYOUT — Mobile-First
@@ -815,7 +837,35 @@
       .page-title { font-size: 20px; }
     }
     .page-desc { font-size: 13px; color: var(--slate-500); margin-bottom: 0; line-height: 1.5; }
-    .page-section { margin-bottom: 24px; }
+        .page-section { margin-bottom: 24px; }
+    /* R4: Breadcrumb Navigation */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--slate-400);
+      margin-bottom: 12px;
+      padding: 0 2px;
+      flex-wrap: wrap;
+    }
+    .breadcrumb a {
+      color: var(--primary);
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .breadcrumb a:hover { color: var(--primary-dark); text-decoration: underline; }
+    .breadcrumb span { color: var(--slate-600); font-weight: 600; }
+    .breadcrumb .separator { color: var(--slate-300); font-weight: 400; }
+    @media (min-width: 768px) {
+      .breadcrumb { font-size: 13px; margin-bottom: 16px; }
+    }
+    body.dark-mode .breadcrumb { color: #64748b; }
+    body.dark-mode .breadcrumb a { color: #38bdf8; }
+    body.dark-mode .breadcrumb span { color: #94a3b8; }
+    body.dark-mode .breadcrumb .separator { color: #475569; }
 
     /* ============================================================
        STAT CARDS
@@ -1074,8 +1124,19 @@
     tbody tr { transition: background 0.15s; }
     tbody tr:hover { background: var(--slate-50); }
     tbody tr:last-child td { border-bottom: none; }
-    tbody tr.row-paid { background: rgba(16, 185, 129, 0.06); }
+        tbody tr.row-paid { background: rgba(16, 185, 129, 0.06); }
     tbody tr.row-paid:hover { background: rgba(16, 185, 129, 0.1); }
+    /* R2: Status indicator left border — hanya pada tabel approval */
+    .approval-table tbody tr.status-belum-bayar { border-left: 4px solid var(--rose); }
+    .approval-table tbody tr.status-menunggu-verifikasi { border-left: 4px solid var(--orange); }
+    .approval-table tbody tr.status-belum-lunas { border-left: 4px solid var(--amber); }
+    .approval-table tbody tr.status-transfer { border-left: 4px solid var(--blue); }
+    .approval-table tbody tr.status-cash { border-left: 4px solid var(--emerald); }
+    /* Pastikan padding tetap rapi saat ada border kiri */
+    .approval-table tbody td:first-child { padding-left: 12px; }
+    @media (min-width: 768px) {
+      .approval-table tbody td:first-child { padding-left: 16px; }
+    }
 
     /* ============================================================
        BADGES
@@ -1096,6 +1157,7 @@
     .badge-red { background: var(--rose-light); color: #be123c; }
     .badge-blue { background: var(--blue-light); color: #1e40af; }
     .badge-purple { background: var(--purple-light); color: #6d28d9; }
+    .badge-orange { background: var(--orange-light); color: #c2410c; }
     .badge-slate { background: var(--slate-100); color: var(--slate-500); }
     .badge-outline { background: transparent; border: 1px solid var(--slate-200); color: var(--slate-500); }
 
@@ -1111,9 +1173,9 @@
       transition: opacity 0.2s;
     }
     tr:hover .action-group { opacity: 1; }
-    .action-btn {
-      width: 36px;
-      height: 36px;
+      .action-btn {
+      width: 40px;
+      height: 40px;
       border-radius: 8px;
       border: none;
       cursor: pointer;
@@ -1697,6 +1759,77 @@
     .toast-content h4 { font-size: 14px; font-weight: 600; color: var(--slate-800); margin-bottom: 2px; }
     .toast-content p { font-size: 12px; color: var(--slate-500); line-height: 1.4; }
 
+        /* ============================================================
+       SKELETON SCREEN — R3
+       ============================================================ */
+    .skeleton-screen {
+      padding: 16px;
+    }
+    .skeleton-line {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--slate-200) 25%, var(--slate-100) 50%, var(--slate-200) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      margin-bottom: 8px;
+    }
+    .skeleton-line.short { width: 40%; }
+    .skeleton-line.medium { width: 60%; }
+    .skeleton-line.long { width: 85%; }
+    .skeleton-stat-card {
+      background: white;
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius);
+      padding: 14px 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-height: 80px;
+    }
+    .skeleton-stat-card .skeleton-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      background: var(--slate-200);
+      animation: shimmer 1.5s infinite;
+      background: linear-gradient(90deg, var(--slate-200) 25%, var(--slate-100) 50%, var(--slate-200) 75%);
+      background-size: 200% 100%;
+      flex-shrink: 0;
+    }
+    .skeleton-stat-card .skeleton-info { flex: 1; }
+    .skeleton-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-100);
+    }
+    .skeleton-row:last-child { border-bottom: none; }
+    .skeleton-row-cell {
+      height: 14px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--slate-200) 25%, var(--slate-100) 50%, var(--slate-200) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      flex: 1;
+      margin-right: 16px;
+    }
+    .skeleton-row-cell:last-child { margin-right: 0; }
+    .skeleton-row-cell.w-40 { flex: 0 0 40px; }
+    .skeleton-row-cell.w-80 { flex: 0 0 80px; }
+    .skeleton-row-cell.w-120 { flex: 0 0 120px; }
+    @keyframes shimmer {
+      from { background-position: 200% 0; }
+      to { background-position: -200% 0; }
+    }
+    body.dark-mode .skeleton-line,
+    body.dark-mode .skeleton-row-cell,
+    body.dark-mode .skeleton-stat-card .skeleton-icon {
+      background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+      background-size: 200% 100%;
+    }
+    body.dark-mode .skeleton-stat-card {
+      background: #1e293b;
+      border-color: #334155;
+    }
     /* ============================================================
        LOADING
        ============================================================ */
@@ -2104,7 +2237,7 @@
 
     /* Mobile label hide */
     .btn-label-hide { display: inline; }
-    @media (max-width: 767px) {
+        @media (max-width: 767px) {
       .action-btn { width: 44px; height: 44px; font-size: 15px; }
       .action-group { gap: 6px; }
     }
@@ -2159,7 +2292,25 @@
     }
     .bnav-item i { font-size: 19px; }
     .bnav-item span { font-size: 10px; font-weight: 500; }
-    .bnav-item.active { color: var(--primary); }
+        .bnav-item.active { color: var(--primary); }
+    .bnav-item[data-page].active { color: var(--primary); }
+    /* R7: "Lainnya" button highlighted saat halaman aktif ada di more-sheet */
+    .bnav-item.is-more-active { color: var(--primary); }
+    .bnav-item.is-more-active i { background: var(--primary-light); border-radius: 16px; padding: 4px 14px; }
+    body.dark-mode .bnav-item.is-more-active { color: #38bdf8; }
+    body.dark-mode .bnav-item.is-more-active i { background: rgba(56,189,248,0.15); }
+    /* R7: Badge dot pada "Lainnya" saat ada notifikasi */
+    .bnav-item .bnav-lainnya-dot {
+      display: none;
+      position: absolute;
+      top: 2px; right: 22%;
+      width: 8px; height: 8px;
+      background: var(--rose);
+      border-radius: 50%;
+      border: 2px solid var(--white);
+    }
+    body.dark-mode .bnav-item .bnav-lainnya-dot { border-color: #1e293b; }
+    .bnav-item.has-dot .bnav-lainnya-dot { display: block; }
 .bnav-item.active i {
   background: var(--primary-light);
   border-radius: 16px;
@@ -2623,7 +2774,14 @@ body.dark-mode .bnav-item.active i {
       </div>
     </header>
 
-    <div class="content">
+        <div class="content">
+
+      <!-- R4: Breadcrumb Navigation -->
+      <nav class="breadcrumb" id="breadcrumbNav">
+        <a onclick="switchPage('dashboard')"><i class="fas fa-home" style="font-size:10px;"></i> Dashboard</a>
+        <span class="separator">/</span>
+        <span id="breadcrumbCurrent">Dashboard</span>
+      </nav>
 
       <!-- Print Header (visible only when printing) -->
       <div class="print-only print-header">
@@ -2706,6 +2864,15 @@ body.dark-mode .bnav-item.active i {
           </div>
           <div class="chart-canvas-wrap">
             <canvas id="cashFlowChart"></canvas>
+          </div>
+        </div>
+                <!-- R3: Skeleton Loading Container (ditampilkan saat data belum siap) -->
+        <div id="skeletonDashboard" class="skeleton-screen hidden" style="margin-bottom:16px;">
+          <div class="stats-grid">
+            <div class="skeleton-stat-card"><div class="skeleton-icon"></div><div class="skeleton-info"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+            <div class="skeleton-stat-card"><div class="skeleton-icon"></div><div class="skeleton-info"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+            <div class="skeleton-stat-card"><div class="skeleton-icon"></div><div class="skeleton-info"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
+            <div class="skeleton-stat-card"><div class="skeleton-icon"></div><div class="skeleton-info"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
           </div>
         </div>
         <!-- dots carousel dihapus — scroll snap ditangani CSS native -->
@@ -2897,7 +3064,7 @@ body.dark-mode .bnav-item.active i {
             <i class="fas fa-times"></i> Batal Pilih
           </button>
         </div>
-        <div class="table-container">
+                <div class="table-container approval-table">
           <div class="table-scroll">
             <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
             <table>
@@ -3294,9 +3461,14 @@ body.dark-mode .bnav-item.active i {
   </div><!-- /main-wrapper -->
 
   <!-- ==================== BOTTOM NAVIGATION (MOBILE) ==================== -->
-  <nav class="bottom-nav" id="bottomNav">
+    <nav class="bottom-nav" id="bottomNav">
     <div class="bottom-nav-inner" id="bottomNavInner"></div>
   </nav>
+  <!-- R7: Tombol "Lainnya" dengan dot indicator untuk notifikasi -->
+  <style>
+    #bottomNavInner .bnav-item:last-child { position: relative; }
+    #bottomNavInner .bnav-item:last-child .bnav-lainnya-dot { right: 18%; top: 0; }
+  </style>
 
   <!-- ==================== FAB TAMBAH (MOBILE) ==================== -->
   <button class="fab-add" id="fabAdd" onclick="handleFabAdd()" title="Tambah" aria-label="Tambah">
@@ -5455,6 +5627,39 @@ function updateFabVisibility() {
   fab.classList.toggle('show', shouldShow);
 }
 
+// R4: Breadcrumb Navigation — update berdasarkan halaman aktif
+function updateBreadcrumb(page, pageLabel) {
+  var breadcrumb = $('breadcrumbNav');
+  var current = $('breadcrumbCurrent');
+  if (!breadcrumb || !current) return;
+  // Dashboard = root, tidak perlu breadcrumb
+  if (page === 'dashboard') {
+    breadcrumb.style.display = 'none';
+    return;
+  }
+  breadcrumb.style.display = 'flex';
+  var html = '<a onclick="switchPage(\'dashboard\')"><i class="fas fa-home" style="font-size:10px;"></i> Dashboard</a><span class="separator">/</span>';
+  // Untuk halaman transaksi yang sedang detail, gunakan format spesial
+  html += '<span id="breadcrumbCurrent">' + esc(pageLabel) + '</span>';
+  breadcrumb.innerHTML = html;
+}
+
+// R7: Highlight tombol "Lainnya" saat halaman aktif ada di more-sheet
+function syncMoreButtonActive(page) {
+  var role = currentUser ? currentUser.role : '';
+  var mainTabs = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+  // Jika halaman tidak ada di bottom nav utama, berarti ada di "Lainnya"
+  var isInMainTabs = mainTabs.indexOf(page) > -1;
+  var moreBtn = document.querySelector('.bnav-item:last-child');
+  if (!moreBtn) return;
+  // Update dot indicator pada "Lainnya" jika ada approval pending
+  var approvalCountVal = parseInt($('approvalCount') ? $('approvalCount').textContent : '0') || 0;
+  var approvalInMore = mainTabs.indexOf('approval') === -1 && approvalCountVal > 0;
+  moreBtn.classList.toggle('has-dot', approvalInMore);
+  // Toggle active state
+  moreBtn.classList.toggle('is-more-active', !isInMainTabs);
+}
+
 // ── Quick Access grid di Dashboard ──
 var QUICK_ACCESS_CONFIG = {
   ADMIN:          ['approval', 'survei', 'master-supplier', 'serah-terima'],
@@ -5504,7 +5709,7 @@ function switchPage(page, el) {
   pages.forEach(function(p) { p.classList.add('hidden'); });
   // Show target page
   var target = $('page-' + page);
-  if (target) target.classList.remove('hidden');
+    if (target) { target.classList.remove('hidden'); target.style.animation = 'none'; target.offsetHeight; target.style.animation = ''; }
   // Update menu active
   document.querySelectorAll('.menu-item').forEach(function(m) { m.classList.remove('active'); });
   if (el) el.classList.add('active');
@@ -5524,6 +5729,10 @@ function switchPage(page, el) {
     'audit-log': 'Riwayat Aktivitas'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
+  // R4: Update breadcrumb
+  updateBreadcrumb(page, titles[page] || 'Dashboard');
+  // R7: Deteksi apakah halaman termasuk menu "Lainnya" di bottom nav
+  syncMoreButtonActive(page);
   closeMobileSidebar();
   updateBottomNavActive();
   updateFabVisibility();
@@ -5793,10 +6002,16 @@ function populatePendingTransaksiSelect() {
 // ============================================================
 function loadDashboardData() {
   if (!currentUser) return;
+  // R3: Tampilkan skeleton screen, sembunyikan stat cards sementara
+  var skeleton = $('skeletonDashboard');
+  var statCards = $('dashboardStats');
+  if (skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
   showLoading(true);
   google.script.run
     .withSuccessHandler(function(result) {
       showLoading(false);
+      // R3: Sembunyikan skeleton, tampilkan stat cards
+      if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
       if (result.success) {
         $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
         $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
@@ -6073,6 +6288,17 @@ function saveEditUser() {
 function loadTransactions() {
   if (!currentUser) return;
   showLoading(true);
+  // R3: Tampilkan skeleton placeholder di tabel body sementara
+  var tbody = $('transaksiTableBody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="skeleton-screen" style="padding:20px;">' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div></div>' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div></div>' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div></div>' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div></div>' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div></div>' +
+      '</div></td></tr>';
+  }
 
   var isAdmin = currentUser.role === 'ADMIN';
   var filters = {
@@ -6225,7 +6451,7 @@ function getMetodeBadge(m) {
   var metode = String(m || '').trim().toUpperCase();
   if (!metode || metode === '-') return '<span class="badge badge-slate">-</span>';
   if (metode === 'SUDAH_DIBAYAR') return '<span class="badge badge-green"><i class="fas fa-check-double" style="font-size:8px"></i> Sudah Dibayar</span>';
-  if (metode === 'MENUNGGU_VERIFIKASI') return '<span class="badge badge-purple"><i class="fas fa-stamp" style="font-size:8px"></i> Menunggu TTD Verifikator</span>';
+  if (metode === 'MENUNGGU_VERIFIKASI') return '<span class="badge badge-orange"><i class="fas fa-stamp" style="font-size:8px"></i> Menunggu TTD Verifikator</span>';
   if (metode === 'BELUM_LUNAS') return '<span class="badge badge-amber"><i class="fas fa-exclamation-circle" style="font-size:8px"></i> Belum Lunas</span>';
   if (metode === 'TRANSFER') return '<span class="badge badge-blue">Transfer</span>';
   if (metode === 'CASH') return '<span class="badge badge-green">Cash</span>';
@@ -6527,6 +6753,17 @@ function renderFilePreview(fileInfo, title, iconClass) {
 // ============================================================
 function loadApprovalData() {
   showLoading(true);
+  // R3: Tampilkan skeleton placeholder
+  var tbody = $('approvalTableBody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="skeleton-screen" style="padding:20px;">' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
+      '</div></td></tr>';
+  }
   selectedApprovalIds.clear();
   loadUploadBuktiMode();
   var filters = {
@@ -6566,10 +6803,21 @@ function renderApprovalTable() {
   var pageData = approvalData.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   var isAdmin = currentUser && currentUser.role === 'ADMIN';
+  // R2: Status class mapping untuk left border indicator
+  function getStatusRowClass(metode) {
+    var m = String(metode || '').trim().toUpperCase();
+    if (m === 'BELUM_BAYAR') return 'status-belum-bayar';
+    if (m === 'MENUNGGU_VERIFIKASI') return 'status-menunggu-verifikasi';
+    if (m === 'BELUM_LUNAS') return 'status-belum-lunas';
+    if (m === 'TRANSFER') return 'status-transfer';
+    if (m === 'CASH') return 'status-cash';
+    return '';
+  }
   pageData.forEach(function(tx, idx) {
     var no = start + idx + 1;
     var isChecked = selectedApprovalIds.has(tx.id);
-    html += '<tr data-id="' + esc(tx.id) + '">' +
+    var statusClass = getStatusRowClass(tx.metodeTransaksi);
+    html += '<tr data-id="' + esc(tx.id) + '" class="' + esc(statusClass) + '">' +
       '<td style="text-align:center;">' +
         (isAdmin ? '<input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onchange="toggleApprovalSelect(this)" ' + (isChecked ? 'checked' : '') + '>' : '') +
       '</td>' +
