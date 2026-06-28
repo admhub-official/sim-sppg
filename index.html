@@ -1887,8 +1887,9 @@
     /* ============================================================
        FILE INPUT
        ============================================================ */
-    .file-input-wrap { position: relative; }
-    .file-input-wrap input[type="file"] { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+    .file-input-wrap { position: relative; display: block; }
+    .file-input-wrap input[type="file"] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2; }
+    .file-input-label { position: relative; z-index: 1; }
     .file-input-label {
       display: flex;
       align-items: center;
@@ -2063,6 +2064,192 @@
     /* Page section animation */
     .page-section { animation: fadeInPage 0.25s ease; }
     @keyframes fadeInPage { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============================================================
+       BOTTOM NAVIGATION BAR — Mobile Only (Rekomendasi 1)
+       ============================================================ */
+    .bottom-nav {
+      display: none;
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      background: var(--white);
+      border-top: 1px solid var(--slate-200);
+      z-index: 55;
+      padding-bottom: var(--safe-bottom);
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+    }
+    @media (max-width: 767px) {
+      .bottom-nav { display: flex; }
+      .content { padding-bottom: 76px; }
+    }
+    .bottom-nav-inner {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      width: 100%;
+      padding: 6px 4px;
+    }
+    .bnav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      flex: 1;
+      padding: 6px 2px;
+      color: var(--slate-400);
+      cursor: pointer;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+      min-height: var(--touch-target);
+      border: none;
+      background: none;
+      font-family: 'Inter', sans-serif;
+    }
+    .bnav-item i { font-size: 19px; }
+    .bnav-item span { font-size: 10px; font-weight: 500; }
+    .bnav-item.active { color: var(--primary); }
+    .bnav-item .bnav-badge {
+      position: absolute;
+      top: 0; right: 18%;
+      background: var(--rose);
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      min-width: 15px;
+      height: 15px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+    }
+    body.dark-mode .bottom-nav { background: #1e293b; border-color: #334155; }
+    body.dark-mode .bnav-item { color: #64748b; }
+    body.dark-mode .bnav-item.active { color: #38bdf8; }
+
+    /* Bottom Sheet "Lainnya" */
+    .more-sheet-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(15,23,42,0.5);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .more-sheet-overlay.active { display: flex; }
+    .more-sheet-box {
+      background: var(--white);
+      width: 100%;
+      max-height: 70vh;
+      border-radius: 20px 20px 0 0;
+      padding: 8px 0 max(16px, var(--safe-bottom));
+      overflow-y: auto;
+      animation: slideUp 0.25s cubic-bezier(0.32,0.72,0,1) forwards;
+    }
+    .more-sheet-box::before {
+      content: '';
+      display: block;
+      width: 36px; height: 4px;
+      background: var(--slate-300);
+      border-radius: 2px;
+      margin: 4px auto 12px;
+    }
+    .more-sheet-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--slate-400);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 20px 10px;
+    }
+    .more-sheet-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--slate-700);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .more-sheet-item:active { background: var(--slate-50); }
+    .more-sheet-item i { width: 22px; text-align: center; font-size: 16px; color: var(--primary); }
+    body.dark-mode .more-sheet-box { background: #1e293b; }
+    body.dark-mode .more-sheet-item { color: #cbd5e1; }
+    body.dark-mode .more-sheet-title { color: #64748b; }
+
+    /* ============================================================
+       FLOATING ACTION BUTTON (Rekomendasi 2)
+       ============================================================ */
+    .fab-add {
+      display: none;
+      position: fixed;
+      right: 18px;
+      bottom: 84px;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border: none;
+      box-shadow: 0 6px 16px rgba(30,111,156,0.4);
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      z-index: 54;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s;
+    }
+    .fab-add:active { transform: scale(0.92); }
+    @media (max-width: 767px) {
+      .fab-add.show { display: flex; }
+    }
+
+    /* Topbar mobile: sembunyikan tombol sekunder, pindah ke dropdown titik-tiga */
+    @media (max-width: 767px) {
+      #refreshBtn, #btnInstallPWA.show { display: none !important; }
+      .topbar-more-btn { display: flex !important; }
+    }
+    .topbar-more-btn {
+      display: none;
+      width: var(--touch-target);
+      height: var(--touch-target);
+      border: 1px solid var(--slate-200);
+      border-radius: 8px;
+      background: white;
+      align-items: center;
+      justify-content: center;
+      color: var(--slate-500);
+      font-size: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body.dark-mode .topbar-more-btn { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+    .topbar-more-dropdown {
+      display: none;
+      position: absolute;
+      top: 52px;
+      right: 12px;
+      background: white;
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      min-width: 180px;
+      z-index: 60;
+      overflow: hidden;
+    }
+    .topbar-more-dropdown.active { display: block; }
+    .topbar-more-dropdown .tmd-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--slate-700);
 
     /* Touch device improvements */
     @media (hover: none) and (pointer: coarse) {
@@ -2285,12 +2472,26 @@
           <span>Refresh</span>
         </button>
         <div class="topbar-divider"></div>
+        <button class="topbar-more-btn" onclick="toggleTopbarMore(event)" title="Menu lainnya">
+          <i class="fas fa-ellipsis-v"></i>
+        </button>
         <div class="topbar-profile" onclick="switchPage('profil')">
           <div class="topbar-profile-text">
             <p class="name" id="topbarName">-</p>
             <p class="role" id="topbarRole">-</p>
           </div>
           <img id="topbarAvatar" src="" alt="Profile">
+        </div>
+      </div>
+      <div class="topbar-more-dropdown" id="topbarMoreDropdown">
+        <div class="tmd-item" onclick="toggleDarkMode();closeTopbarMore();">
+          <i class="fas fa-moon" id="tmdDarkIcon"></i><span>Mode Gelap/Terang</span>
+        </div>
+        <div class="tmd-item" onclick="refreshData();closeTopbarMore();">
+          <i class="fas fa-sync-alt"></i><span>Refresh Data</span>
+        </div>
+        <div class="tmd-item" id="tmdInstallPwa" onclick="triggerPWAInstall();closeTopbarMore();" style="display:none;">
+          <i class="fas fa-download"></i><span>Install App</span>
         </div>
       </div>
     </header>
@@ -2355,6 +2556,14 @@
           </div>
         </div>
 
+<!-- Quick Access (mobile-first navigation cards) -->
+        <div class="quick-access-section" id="quickAccessSection"></div>
+
+        <!-- Chart -->
+        <div class="chart-container">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-area"></i> Arus Kas Harian</h3>
+
         <!-- Chart -->
         <div class="chart-container">
           <div class="chart-header">
@@ -2377,6 +2586,7 @@
             <canvas id="cashFlowChart"></canvas>
           </div>
         </div>
+        <div class="stats-carousel-dots" id="statsCarouselDots"></div>
       </div>
 
       <!-- ==================== PROFIL PAGE ==================== -->
@@ -2960,6 +3170,22 @@
 
     </div><!-- /content -->
   </div><!-- /main-wrapper -->
+
+  <!-- ==================== BOTTOM NAVIGATION (MOBILE) ==================== -->
+  <nav class="bottom-nav" id="bottomNav">
+    <div class="bottom-nav-inner" id="bottomNavInner"></div>
+  </nav>
+
+  <!-- ==================== FAB TAMBAH (MOBILE) ==================== -->
+  <button class="fab-add" id="fabAdd" onclick="handleFabAdd()" title="Tambah" aria-label="Tambah">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <!-- ==================== BOTTOM SHEET "LAINNYA" ==================== -->
+  <div class="more-sheet-overlay" id="moreSheetOverlay" onclick="if(event.target===this)closeMoreSheet()">
+    <div class="more-sheet-box" id="moreSheetBox"></div>
+  </div>
+
 </div><!-- /appContainer -->
 
 <!-- ==================== MODAL DETAIL TRANSAKSI ==================== -->
@@ -3158,9 +3384,17 @@
         </div>
         <div class="form-group">
           <label class="form-label">Foto Profil</label>
-          <div class="file-input-wrap">
-            <input type="file" id="editFoto" accept="image/*" onchange="previewEditFoto(this)">
-            <div class="file-input-label"><i class="fas fa-camera"></i><span>Pilih foto baru</span></div>
+          <div class="file-input-wrap" style="min-height:48px;">
+            <input type="file" id="editFoto" accept="image/*" capture="user" onchange="previewEditFoto(this)" style="min-height:48px;">
+            <div class="file-input-label" id="editFotoLabel" style="min-height:48px;"><i class="fas fa-camera"></i><span>Pilih foto baru (Galeri / Kamera)</span></div>
+          </div>
+          <div style="margin-top:6px;display:flex;gap:8px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('editFoto').removeAttribute('capture');document.getElementById('editFoto').click();">
+              <i class="fas fa-images"></i> Galeri
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('editFoto').setAttribute('capture','user');document.getElementById('editFoto').click();">
+              <i class="fas fa-camera"></i> Kamera
+            </button>
           </div>
           <img id="editFotoPreview" class="img-preview hidden" alt="Preview">
         </div>
@@ -4730,11 +4964,18 @@ function previewRegFoto(input) {
 }
 function previewEditFoto(input) {
   var file = input.files[0];
-  if (file) {
-    var reader = new FileReader();
-    reader.onload = function(e) { $('editFotoPreview').src = e.target.result; $('editFotoPreview').classList.remove('hidden'); };
-    reader.readAsDataURL(file);
-  }
+  if (!file) return;
+  var label = $('editFotoLabel');
+  if (label) label.innerHTML = '<i class="fas fa-check-circle" style="color:var(--emerald);"></i><span>' + esc(file.name) + '</span>';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var preview = $('editFotoPreview');
+    preview.src = e.target.result;
+    preview.classList.remove('hidden');
+    preview.style.cursor = 'pointer';
+    preview.onclick = function() { openLightbox(e.target.result); };
+  };
+  reader.readAsDataURL(file);
 }
 
 function doLogin() {
@@ -4975,6 +5216,182 @@ function buildSidebar() {
   $('sidebarMenu').innerHTML = html;
 }
 
+// ============================================================
+// BOTTOM NAV, FAB, MORE-SHEET, QUICK ACCESS — Mobile Navigation
+// ============================================================
+
+// Tab utama per role (maksimal 4 + 1 "Lainnya"). Sisanya otomatis masuk ke more-sheet.
+var BOTTOM_NAV_CONFIG = {
+  ADMIN:          ['dashboard', 'transaksi', 'approval', 'profil'],
+  AKUNTAN:        ['dashboard', 'master-bahan', 'survei', 'profil'],
+  LAPANGAN:       ['dashboard', 'transaksi', 'approval', 'profil'],
+  WAKIL_LAPANGAN: ['dashboard', 'serah-terima', 'profil'],
+  AHLI_GIZI:      ['dashboard', 'menu-mbg', 'profil']
+};
+
+var BNAV_ICON_LABEL = {
+  'dashboard':       { icon: 'fa-th-large',        label: 'Beranda' },
+  'transaksi':        { icon: 'fa-exchange-alt',    label: 'Transaksi' },
+  'approval':         { icon: 'fa-clipboard-check', label: 'Approval' },
+  'profil':           { icon: 'fa-user-circle',     label: 'Profil' },
+  'master-bahan':     { icon: 'fa-boxes',           label: 'Bahan Baku' },
+  'survei':           { icon: 'fa-search-dollar',   label: 'Survei' },
+  'serah-terima':     { icon: 'fa-dolly',           label: 'Serah Trm' },
+  'menu-mbg':         { icon: 'fa-utensils',        label: 'Menu MBG' }
+};
+
+function buildBottomNav() {
+  if (!currentUser) return;
+  var role = currentUser.role;
+  var tabs = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+  var html = '';
+  tabs.forEach(function(page) {
+    var meta = BNAV_ICON_LABEL[page] || { icon: 'fa-circle', label: page };
+    var isActive = currentPage === page ? 'active' : '';
+    var badgeHtml = (page === 'approval') ? '<span class="bnav-badge" id="bnavApprovalBadge" style="display:none;">0</span>' : '';
+    html += '<button class="bnav-item ' + isActive + '" data-page="' + page + '" onclick="switchPage(\'' + page + '\')">' +
+      badgeHtml +
+      '<i class="fas ' + meta.icon + '"></i><span>' + meta.label + '</span></button>';
+  });
+  html += '<button class="bnav-item" onclick="openMoreSheet()"><i class="fas fa-th"></i><span>Lainnya</span></button>';
+  $('bottomNavInner').innerHTML = html;
+  syncApprovalBadgeToBottomNav();
+}
+
+function updateBottomNavActive() {
+  document.querySelectorAll('.bnav-item[data-page]').forEach(function(item) {
+    item.classList.toggle('active', item.getAttribute('data-page') === currentPage);
+  });
+}
+
+function syncApprovalBadgeToBottomNav() {
+  var src = $('approvalCount');
+  var dst = $('bnavApprovalBadge');
+  if (!src || !dst) return;
+  dst.textContent = src.textContent;
+  dst.style.display = (parseInt(src.textContent) > 0) ? 'flex' : 'none';
+}
+
+// ── Bottom Sheet "Lainnya" — sisa menu sesuai role yang tidak ada di bottom nav ──
+function openMoreSheet() {
+  if (!currentUser) return;
+  var role = currentUser.role;
+  var menus = MENU_CONFIG[role] || MENU_CONFIG['LAPANGAN'];
+  var mainTabs = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+  var html = '';
+  var currentGroup = '';
+  menus.forEach(function(item) {
+    if (item.isHeader) { currentGroup = item.label; return; }
+    if (item.action === 'logout') {
+      html += '<div class="more-sheet-title">AKUN</div>';
+      html += '<div class="more-sheet-item" onclick="closeMoreSheet();logout();"><i class="fas ' + item.icon + '"></i><span>' + esc(item.label) + '</span></div>';
+      return;
+    }
+    if (mainTabs.indexOf(item.page) > -1) return; // sudah ada di bottom nav, skip
+    html += '<div class="more-sheet-item" onclick="closeMoreSheet();switchPage(\'' + item.page + '\');"><i class="fas ' + item.icon + '"></i><span>' + esc(item.label) + '</span></div>';
+  });
+  $('moreSheetBox').innerHTML = '<div class="more-sheet-title">Menu Lainnya</div>' + html;
+  $('moreSheetOverlay').classList.add('active');
+}
+function closeMoreSheet() { $('moreSheetOverlay').classList.remove('active'); }
+
+// ── Topbar dropdown titik-tiga (mobile) ──
+function toggleTopbarMore(e) {
+  if (e) e.stopPropagation();
+  $('topbarMoreDropdown').classList.toggle('active');
+  var icon = $('themeToggleIcon');
+  var tmdIcon = $('tmdDarkIcon');
+  if (icon && tmdIcon) tmdIcon.className = icon.className;
+  var installBtn = $('btnInstallPWA');
+  var tmdInstall = $('tmdInstallPwa');
+  if (installBtn && tmdInstall) tmdInstall.style.display = installBtn.classList.contains('show') ? 'flex' : 'none';
+}
+function closeTopbarMore() { $('topbarMoreDropdown').classList.remove('active'); }
+document.addEventListener('click', function(e) {
+  var dd = $('topbarMoreDropdown');
+  var btn = document.querySelector('.topbar-more-btn');
+  if (dd && dd.classList.contains('active') && !dd.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+    closeTopbarMore();
+  }
+});
+
+// ── FAB "Tambah" — routing per halaman aktif ──
+var FAB_ACTION_MAP = {
+  'transaksi':     function() { openAddTransaksiModal(); },
+  'master-bahan':  function() { openAddMasterBBModal(); },
+  'master-supplier': function() { openAddSupplierModal(); },
+  'survei':        function() { openAddSurveiModal(); },
+  'serah-terima':  function() { openAddSerahTerimaModal(); },
+  'menu-mbg':      function() { openAddMenuMBGModal(); },
+  'pending-payment': function() { openAddPendingModal(); }
+};
+function handleFabAdd() {
+  var fn = FAB_ACTION_MAP[currentPage];
+  if (fn) fn();
+}
+function updateFabVisibility() {
+  var fab = $('fabAdd');
+  if (!fab) return;
+  var shouldShow = !!FAB_ACTION_MAP[currentPage];
+  fab.classList.toggle('show', shouldShow);
+}
+
+// ── Quick Access grid di Dashboard ──
+var QUICK_ACCESS_CONFIG = {
+  ADMIN:          ['approval', 'survei', 'master-supplier', 'serah-terima'],
+  AKUNTAN:        ['survei', 'master-supplier', 'serah-terima', 'menu-mbg'],
+  LAPANGAN:       ['approval', 'survei', 'serah-terima', 'master-supplier'],
+  WAKIL_LAPANGAN: ['serah-terima'],
+  AHLI_GIZI:      ['menu-mbg', 'master-bahan']
+};
+var QA_ICON_LABEL = {
+  'approval':         { icon: 'fa-clipboard-check', label: 'Approval' },
+  'survei':           { icon: 'fa-search-dollar',   label: 'Survei Harga' },
+  'master-supplier':  { icon: 'fa-truck',           label: 'Supplier' },
+  'serah-terima':     { icon: 'fa-dolly',           label: 'Serah Terima' },
+  'menu-mbg':         { icon: 'fa-utensils',        label: 'Menu MBG' },
+  'master-bahan':     { icon: 'fa-boxes',           label: 'Bahan Baku' }
+};
+function renderQuickAccess() {
+  var container = $('quickAccessSection');
+  if (!container || !currentUser) return;
+  var pages = QUICK_ACCESS_CONFIG[currentUser.role] || [];
+  if (!pages.length) { container.innerHTML = ''; return; }
+  var html = '<div class="quick-access-title">Akses Cepat</div><div class="quick-access-grid">';
+  pages.forEach(function(page) {
+    var meta = QA_ICON_LABEL[page] || { icon: 'fa-circle', label: page };
+    var badgeHtml = (page === 'approval') ? '<span class="qa-badge" id="qaApprovalBadge" style="display:none;">0</span>' : '';
+    html += '<div class="qa-card" onclick="switchPage(\'' + page + '\')">' + badgeHtml +
+      '<i class="fas ' + meta.icon + '"></i><span>' + meta.label + '</span></div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+  syncApprovalBadgeToQuickAccess();
+}
+function syncApprovalBadgeToQuickAccess() {
+  var src = $('approvalCount');
+  var dst = $('qaApprovalBadge');
+  if (!src || !dst) return;
+  dst.textContent = src.textContent;
+  dst.style.display = (parseInt(src.textContent) > 0) ? 'flex' : 'none';
+}
+
+// ── Carousel dots untuk stat-card di mobile ──
+function initStatsCarouselDots() {
+  var grid = $('dashboardStats');
+  var dotsWrap = $('statsCarouselDots');
+  if (!grid || !dotsWrap || window.innerWidth >= 480) { if (dotsWrap) dotsWrap.innerHTML = ''; return; }
+  var cards = grid.querySelectorAll('.stat-card');
+  if (!cards.length) return;
+  var html = '';
+  cards.forEach(function(c, i) { html += '<span class="' + (i === 0 ? 'active' : '') + '"></span>'; });
+  dotsWrap.innerHTML = html;
+  grid.onscroll = function() {
+    var idx = Math.round(grid.scrollLeft / (grid.clientWidth * 0.78));
+    dotsWrap.querySelectorAll('span').forEach(function(d, i) { d.classList.toggle('active', i === idx); });
+  };
+}
+
 function switchPage(page, el) {
   // Hide all pages
   var pages = document.querySelectorAll('.page-section');
@@ -5002,8 +5419,10 @@ function switchPage(page, el) {
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
   closeMobileSidebar();
+  updateBottomNavActive();
+  updateFabVisibility();
   // Page-specific init
-  if (page === 'dashboard') { loadDashboardData(); updateChart(); }
+  if (page === 'dashboard') { loadDashboardData(); updateChart(); renderQuickAccess(); }
   if (page === 'users' && currentUser.role === 'ADMIN') loadUsers();
   if (page === 'transaksi') loadTransactions();
   if (page === 'approval') loadApprovalData();
@@ -5176,8 +5595,11 @@ function initApp() {
   };
 
   buildSidebar();
+  buildBottomNav();
+  updateFabVisibility();
   initChart();
   loadDashboardData();
+  renderQuickAccess();
   loadDropdownOptions();
 
   if (currentUser.role === 'ADMIN') {
@@ -5278,6 +5700,9 @@ function loadDashboardData() {
         // Update badge
         var badge = $('approvalCount');
         if (badge) { badge.textContent = result.antrianApproval || 0; badge.style.display = (result.antrianApproval > 0) ? 'inline-flex' : 'none'; }
+        syncApprovalBadgeToBottomNav();
+        syncApprovalBadgeToQuickAccess();
+        setTimeout(initStatsCarouselDots, 100);
       }
     })
     .withFailureHandler(function(err) { showLoading(false); })
