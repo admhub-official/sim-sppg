@@ -2180,6 +2180,61 @@
     body.dark-mode .more-sheet-title { color: #64748b; }
 
     /* ============================================================
+       DASHBOARD QUICK ACCESS GRID
+       ============================================================ */
+    .quick-access-section { margin-bottom: 20px; }
+    .quick-access-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+    .quick-access-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    @media (min-width: 480px) {
+      .quick-access-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .qa-card {
+      background: white;
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      cursor: pointer;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .qa-card:active { transform: scale(0.96); }
+    .qa-card i { font-size: 19px; color: var(--primary); }
+    .qa-card span { font-size: 12px; font-weight: 600; color: var(--slate-700); }
+    .qa-card .qa-badge {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: var(--rose);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    body.dark-mode .qa-card { background: #1e293b; border-color: #334155; }
+    body.dark-mode .qa-card span { color: #f1f5f9; }
+    body.dark-mode .quick-access-title { color: #94a3b8; }
+
+    /* ============================================================
        FLOATING ACTION BUTTON (Rekomendasi 2)
        ============================================================ */
     .fab-add {
@@ -5362,8 +5417,11 @@ function renderQuickAccess() {
   pages.forEach(function(page) {
     var meta = QA_ICON_LABEL[page] || { icon: 'fa-circle', label: page };
     var badgeHtml = (page === 'approval') ? '<span class="qa-badge" id="qaApprovalBadge" style="display:none;">0</span>' : '';
-    html += '<div class="qa-card" onclick="switchPage(\'' + page + '\')">' + badgeHtml +
-      '<i class="fas ' + meta.icon + '"></i><span>' + meta.label + '</span></div>';
+    html += '<div class="qa-card" onclick="switchPage(\'' + page + '\')">' +
+      badgeHtml +
+      '<i class="fas ' + meta.icon + '"></i>' +
+      '<span>' + meta.label + '</span>' +
+      '</div>';
   });
   html += '</div>';
   container.innerHTML = html;
