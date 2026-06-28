@@ -2250,6 +2250,12 @@
       font-size: 13px;
       font-weight: 500;
       color: var(--slate-700);
+      cursor: pointer;
+    }
+    .topbar-more-dropdown .tmd-item:active { background: var(--slate-50); }
+    .topbar-more-dropdown .tmd-item i { width: 18px; font-size: 14px; color: var(--slate-500); }
+    body.dark-mode .topbar-more-dropdown { background: #1e293b; border-color: #334155; }
+    body.dark-mode .topbar-more-dropdown .tmd-item { color: #cbd5e1; }
 
     /* Touch device improvements */
     @media (hover: none) and (pointer: coarse) {
@@ -2558,11 +2564,6 @@
 
 <!-- Quick Access (mobile-first navigation cards) -->
         <div class="quick-access-section" id="quickAccessSection"></div>
-
-        <!-- Chart -->
-        <div class="chart-container">
-          <div class="chart-header">
-            <h3><i class="fas fa-chart-area"></i> Arus Kas Harian</h3>
 
         <!-- Chart -->
         <div class="chart-container">
