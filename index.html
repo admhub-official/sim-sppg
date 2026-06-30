@@ -6983,19 +6983,22 @@ var FAB_ACTION_MAP = {
 };
 function handleFabAdd() {
   var fn = FAB_ACTION_MAP[currentPage];
-  if (fn) fn();
+  if (fn) { fn(); return; }
+  // Fallback: jika halaman aktif tidak punya aksi tambah spesifik,
+  // arahkan ke Tambah Transaksi sebagai aksi default paling umum.
+  openAddTransaksiModal();
 }
 function updateFabVisibility() {
-  // Update floating FAB (jika masih digunakan di beberapa tempat)
+  // Tombol .fab-add (bulat mengambang lama) - hanya tampil jika ada aksi spesifik
   var fab = $('fabAdd');
-  if (!fab) return;
   var shouldShow = !!FAB_ACTION_MAP[currentPage];
-  fab.classList.toggle('show', shouldShow);
-  
-  // Update FAB di dalam bottom nav (bnav-fab) - selalu tampilkan jika ada aksi
+  if (fab) fab.classList.toggle('show', shouldShow);
+
+  // Tombol .bnav-fab (FAB tengah di bottom nav) - SELALU tampil di semua halaman,
+  // karena ini bagian tetap dari struktur navigasi, bukan tombol kontekstual.
   var bnavFabs = document.querySelectorAll('.bnav-fab');
   bnavFabs.forEach(function(bnavFab) {
-    bnavFab.style.display = shouldShow ? 'flex' : 'none';
+    bnavFab.style.display = 'flex';
   });
 }
 
