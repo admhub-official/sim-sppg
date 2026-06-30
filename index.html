@@ -2817,6 +2817,389 @@
     @media (prefers-reduced-motion: reduce) {
       * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
     }
+
+    /* ============================================================
+       MOBILE NATIVE-LIKE UI OPTIMIZATIONS (Antigravity)
+       ============================================================ */
+    @media (max-width: 767px) {
+      /* 1. Topbar Cleanup - Hide redundant hamburger menu button */
+      .mobile-menu-btn {
+        display: none !important;
+      }
+      .topbar {
+        padding: 0 16px;
+        height: 60px;
+      }
+      .topbar-title {
+        font-size: 19px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      
+      /* 2. Hide horizontal scroll hints since we are reflowing tables */
+      .table-scroll-hint {
+        display: none !important;
+      }
+      .table-scroll::after {
+        display: none !important;
+      }
+      .table-scroll {
+        overflow-x: visible !important;
+        background: transparent !important;
+      }
+
+      /* 3. Table to Card Reflow (Modern Mobile Layout) */
+      .table-container {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+      }
+      .table-container:hover {
+        transform: none !important;
+        box-shadow: none !important;
+      }
+      .table-container table {
+        display: block !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        border-spacing: 0 !important;
+      }
+      .table-container thead {
+        display: none !important;
+      }
+      .table-container tbody {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 14px !important;
+        padding: 4px 0 !important;
+      }
+      .table-container tbody tr {
+        display: grid !important;
+        background: var(--white) !important;
+        border: 1px solid var(--slate-200) !important;
+        border-radius: 20px !important;
+        padding: 16px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.02) !important;
+        gap: 10px !important;
+        align-items: center !important;
+        transition: transform 0.2s, box-shadow 0.2s !important;
+        margin-bottom: 0 !important;
+        border-left: none !important;
+      }
+      .table-container tbody tr:hover {
+        background: var(--white) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06) !important;
+      }
+      body.dark-mode .table-container tbody tr {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+      }
+      body.dark-mode .table-container tbody tr:hover {
+        background: #243048 !important;
+      }
+      .table-container tbody td {
+        padding: 0 !important;
+        border: none !important;
+        color: var(--slate-700) !important;
+      }
+      body.dark-mode .table-container tbody td {
+        color: #cbd5e1 !important;
+      }
+
+      /* Specific Table Mappings */
+      
+      /* --- Transaksi Table --- */
+      #transaksiTableBody tr {
+        grid-template-areas:
+          "kode tanggal"
+          "item item"
+          "nominal nominal"
+          "badge1 badge2"
+          "aksi aksi" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #transaksiTableBody tr td:nth-child(1) { display: none !important; } /* Hide No */
+      #transaksiTableBody tr td:nth-child(2) { grid-area: kode; text-align: left; }
+      #transaksiTableBody tr td:nth-child(3) { grid-area: tanggal; text-align: right; font-size: 12px !important; color: var(--slate-400) !important; }
+      #transaksiTableBody tr td:nth-child(4) { grid-area: badge1; text-align: left; }
+      #transaksiTableBody tr td:nth-child(5) { display: none !important; } /* Hide SPPG */
+      #transaksiTableBody tr td:nth-child(6) { grid-area: item; text-align: left; font-size: 15px !important; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode #transaksiTableBody tr td:nth-child(6) { color: #f1f5f9 !important; }
+      #transaksiTableBody tr td:nth-child(7) { grid-area: nominal; text-align: left; font-size: 18px !important; font-weight: 800 !important; color: var(--primary) !important; margin: 4px 0; }
+      body.dark-mode #transaksiTableBody tr td:nth-child(7) { color: #38bdf8 !important; }
+      #transaksiTableBody tr td:nth-child(8) { grid-area: badge2; text-align: right; }
+      #transaksiTableBody tr td:nth-child(9) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode #transaksiTableBody tr td:nth-child(9) { border-top-color: #334155 !important; }
+
+      /* --- Approval Table --- */
+      .approval-table tbody tr {
+        grid-template-areas:
+          "select kode tanggal"
+          "item item item"
+          "nominal nominal nominal"
+          "sppg penginput metode"
+          "aksi aksi aksi" !important;
+        grid-template-columns: auto 1fr auto !important;
+      }
+      /* R2: Status left border indicator simulated via colored top-left badge or shadow in mobile */
+      .approval-table tbody tr.status-belum-bayar { box-shadow: -4px 4px 12px rgba(244,63,94,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--rose) !important; }
+      .approval-table tbody tr.status-menunggu-verifikasi { box-shadow: -4px 4px 12px rgba(249,115,22,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--orange) !important; }
+      .approval-table tbody tr.status-belum-lunas { box-shadow: -4px 4px 12px rgba(245,158,11,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--amber) !important; }
+      .approval-table tbody tr.status-transfer { box-shadow: -4px 4px 12px rgba(59,130,246,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--blue) !important; }
+      .approval-table tbody tr.status-cash { box-shadow: -4px 4px 12px rgba(16,185,129,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--emerald) !important; }
+
+      .approval-table tbody tr td:nth-child(1) { grid-area: select; text-align: left; }
+      .approval-table tbody tr td:nth-child(2) { display: none !important; }
+      .approval-table tbody tr td:nth-child(3) { grid-area: kode; text-align: left; }
+      .approval-table tbody tr td:nth-child(4) { grid-area: tanggal; text-align: right; font-size: 12px !important; color: var(--slate-400) !important; }
+      .approval-table tbody tr td:nth-child(5) { grid-area: sppg; text-align: left; }
+      .approval-table tbody tr td:nth-child(6) { grid-area: item; text-align: left; font-size: 15px !important; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode .approval-table tbody tr td:nth-child(6) { color: #f1f5f9 !important; }
+      .approval-table tbody tr td:nth-child(7) { grid-area: nominal; text-align: left; font-size: 18px !important; font-weight: 800 !important; color: var(--emerald) !important; margin: 4px 0; }
+      .approval-table tbody tr td:nth-child(8) { grid-area: metode; text-align: right; }
+      .approval-table tbody tr td:nth-child(9) { grid-area: penginput; text-align: center; font-size: 12px !important; color: var(--slate-500) !important; }
+      .approval-table tbody tr td:nth-child(10) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode .approval-table tbody tr td:nth-child(10) { border-top-color: #334155 !important; }
+
+      /* --- Master Bahan Table --- */
+      #masterBBTableBody tr {
+        grid-template-areas:
+          "kode kategori"
+          "nama nama"
+          "harga satuan"
+          "aksi aksi" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #masterBBTableBody tr td:nth-child(1) { display: none !important; }
+      #masterBBTableBody tr td:nth-child(2) { grid-area: kode; text-align: left; }
+      #masterBBTableBody tr td:nth-child(3) { grid-area: kategori; text-align: right; }
+      #masterBBTableBody tr td:nth-child(4) { grid-area: nama; text-align: left; font-size: 15px !important; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode #masterBBTableBody tr td:nth-child(4) { color: #f1f5f9 !important; }
+      #masterBBTableBody tr td:nth-child(5) { grid-area: harga; text-align: left; font-size: 16px !important; font-weight: 800 !important; color: var(--primary) !important; }
+      body.dark-mode #masterBBTableBody tr td:nth-child(5) { color: #38bdf8 !important; }
+      #masterBBTableBody tr td:nth-child(6) { grid-area: satuan; text-align: right; font-weight: 600 !important; }
+      #masterBBTableBody tr td:nth-child(7) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode #masterBBTableBody tr td:nth-child(7) { border-top-color: #334155 !important; }
+
+      /* --- Supplier Table --- */
+      #supplierTableBody tr {
+        grid-template-areas:
+          "nama status"
+          "wa email"
+          "alamat alamat"
+          "aksi aksi" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #supplierTableBody tr td:nth-child(1) { display: none !important; }
+      #supplierTableBody tr td:nth-child(2) { grid-area: nama; text-align: left; font-size: 15px !important; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode #supplierTableBody tr td:nth-child(2) { color: #f1f5f9 !important; }
+      #supplierTableBody tr td:nth-child(3) { grid-area: wa; text-align: left; font-size: 13px !important; }
+      #supplierTableBody tr td:nth-child(4) { grid-area: email; text-align: right; font-size: 12px !important; color: var(--slate-400) !important; }
+      #supplierTableBody tr td:nth-child(5) { grid-area: alamat; text-align: left; font-size: 13px !important; color: var(--slate-500) !important; line-height: 1.4 !important; }
+      #supplierTableBody tr td:nth-child(6) { grid-area: status; text-align: right; }
+      #supplierTableBody tr td:nth-child(7) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode #supplierTableBody tr td:nth-child(7) { border-top-color: #334155 !important; }
+
+      /* --- Survei Table --- */
+      #surveiTableBody tr {
+        grid-template-areas:
+          "kode waktu"
+          "nama nama"
+          "hargaRAB hargaPasar"
+          "lokasi user"
+          "aksi aksi" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #surveiTableBody tr td:nth-child(1) { display: none !important; }
+      #surveiTableBody tr td:nth-child(2) { grid-area: kode; text-align: left; }
+      #surveiTableBody tr td:nth-child(3) { grid-area: waktu; text-align: right; font-size: 12px !important; color: var(--slate-400) !important; }
+      #surveiTableBody tr td:nth-child(4) { display: none !important; }
+      #surveiTableBody tr td:nth-child(5) { grid-area: nama; text-align: left; font-size: 15px !important; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode #surveiTableBody tr td:nth-child(5) { color: #f1f5f9 !important; }
+      #surveiTableBody tr td:nth-child(6) { grid-area: hargaRAB; text-align: left; font-size: 13px !important; color: var(--slate-500) !important; }
+      #surveiTableBody tr td:nth-child(7) { grid-area: hargaPasar; text-align: right; font-size: 15px !important; font-weight: 700 !important; color: var(--rose) !important; }
+      #surveiTableBody tr td:nth-child(8) { grid-area: lokasi; text-align: left; font-size: 12px !important; }
+      #surveiTableBody tr td:nth-child(9) { grid-area: user; text-align: right; font-size: 12px !important; color: var(--slate-400) !important; }
+      #surveiTableBody tr td:nth-child(10) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode #surveiTableBody tr td:nth-child(10) { border-top-color: #334155 !important; }
+
+      /* --- Serah Terima Table --- */
+      #serahTerimaTableBody tr {
+        grid-template-areas:
+          "kode kondisi"
+          "nama nama"
+          "penerima supplier"
+          "lokasi user"
+          "aksi aksi" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #serahTerimaTableBody tr td:nth-child(1) { display: none !important; }
+      #serahTerimaTableBody tr td:nth-child(2) { grid-area: kode; text-align: left; }
+      #serahTerimaTableBody tr td:nth-child(3) { grid-area: nama; text-align: left; font-size: 15px !important; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode #serahTerimaTableBody tr td:nth-child(3) { color: #f1f5f9 !important; }
+      #serahTerimaTableBody tr td:nth-child(4) { grid-area: penerima; text-align: left; font-size: 13px !important; }
+      #serahTerimaTableBody tr td:nth-child(5) { grid-area: supplier; text-align: right; font-size: 13px !important; }
+      #serahTerimaTableBody tr td:nth-child(6) { grid-area: kondisi; text-align: right; }
+      #serahTerimaTableBody tr td:nth-child(7) { grid-area: lokasi; text-align: left; font-size: 12px !important; }
+      #serahTerimaTableBody tr td:nth-child(8) { grid-area: user; text-align: right; font-size: 12px !important; color: var(--slate-400) !important; }
+      #serahTerimaTableBody tr td:nth-child(9) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode #serahTerimaTableBody tr td:nth-child(9) { border-top-color: #334155 !important; }
+
+      /* --- Menu MBG Table --- */
+      #menuMBGTableBody tr {
+        grid-template-areas:
+          "tanggal kpm"
+          "menu menu"
+          "detail detail"
+          "aksi aksi" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #menuMBGTableBody tr td:nth-child(1) { display: none !important; }
+      #menuMBGTableBody tr td:nth-child(2) { grid-area: tanggal; text-align: left; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode #menuMBGTableBody tr td:nth-child(2) { color: #f1f5f9 !important; }
+      #menuMBGTableBody tr td:nth-child(3) { grid-area: kpm; text-align: right; font-size: 13px !important; }
+      #menuMBGTableBody tr td:nth-child(4) { grid-area: menu; text-align: left; font-size: 15px !important; font-weight: 700 !important; color: var(--primary) !important; }
+      body.dark-mode #menuMBGTableBody tr td:nth-child(4) { color: #38bdf8 !important; }
+      #menuMBGTableBody tr td:nth-child(5) { grid-area: detail; text-align: left; font-size: 12px !important; color: var(--slate-500) !important; line-height: 1.4 !important; }
+      #menuMBGTableBody tr td:nth-child(6) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode #menuMBGTableBody tr td:nth-child(6) { border-top-color: #334155 !important; }
+
+      /* --- Pending Payment Table --- */
+      #pendingTableBody tr {
+        grid-template-areas:
+          "id status"
+          "ref ref"
+          "desc desc"
+          "tgl1 tgl2"
+          "aksi aksi" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #pendingTableBody tr td:nth-child(1) { display: none !important; }
+      #pendingTableBody tr td:nth-child(2) { grid-area: id; text-align: left; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode #pendingTableBody tr td:nth-child(2) { color: #f1f5f9 !important; }
+      #pendingTableBody tr td:nth-child(3) { grid-area: ref; text-align: left; font-size: 12px !important; color: var(--slate-500) !important; }
+      #pendingTableBody tr td:nth-child(4) { grid-area: desc; text-align: left; font-size: 14px !important; font-weight: 600 !important; }
+      #pendingTableBody tr td:nth-child(5) { grid-area: tgl1; text-align: left; font-size: 12px !important; color: var(--slate-400) !important; }
+      #pendingTableBody tr td:nth-child(6) { grid-area: tgl2; text-align: right; font-size: 12px !important; color: var(--slate-400) !important; }
+      #pendingTableBody tr td:nth-child(7) { grid-area: status; text-align: right; }
+      #pendingTableBody tr td:nth-child(8) { display: none !important; }
+      #pendingTableBody tr td:nth-child(9) { display: none !important; }
+      #pendingTableBody tr td:nth-child(10) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode #pendingTableBody tr td:nth-child(10) { border-top-color: #334155 !important; }
+      
+      /* --- Users Table --- */
+      #usersTableBody tr {
+        grid-template-areas:
+          "profile profile"
+          "email email"
+          "jabatan sppg"
+          "aksi aksi" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #usersTableBody tr td:nth-child(1) { display: none !important; }
+      #usersTableBody tr td:nth-child(2) { grid-area: profile; text-align: left; }
+      #usersTableBody tr td:nth-child(3) { grid-area: email; text-align: left; font-size: 13px !important; color: var(--slate-500) !important; }
+      #usersTableBody tr td:nth-child(4) { grid-area: jabatan; text-align: left; }
+      #usersTableBody tr td:nth-child(5) { grid-area: sppg; text-align: right; }
+      #usersTableBody tr td:nth-child(6) { 
+        grid-area: aksi; 
+        border-top: 1px solid var(--slate-100) !important; 
+        padding-top: 12px !important; 
+        display: flex !important; 
+        justify-content: flex-end !important; 
+        gap: 8px !important; 
+      }
+      body.dark-mode #usersTableBody tr td:nth-child(6) { border-top-color: #334155 !important; }
+
+      /* --- Audit Log Table --- */
+      #auditLogTableBody tr {
+        grid-template-areas:
+          "waktu aksiLog"
+          "pelaku pelaku"
+          "tabel record"
+          "field field"
+          "desc desc" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #auditLogTableBody tr td:nth-child(1) { display: none !important; }
+      #auditLogTableBody tr td:nth-child(2) { grid-area: waktu; text-align: left; font-size: 12px !important; color: var(--slate-400) !important; }
+      #auditLogTableBody tr td:nth-child(3) { grid-area: pelaku; text-align: left; font-weight: 700 !important; color: var(--slate-800) !important; }
+      body.dark-mode #auditLogTableBody tr td:nth-child(3) { color: #f1f5f9 !important; }
+      #auditLogTableBody tr td:nth-child(4) { grid-area: aksiLog; text-align: right; font-weight: 600 !important; color: var(--primary) !important; }
+      #auditLogTableBody tr td:nth-child(5) { grid-area: tabel; text-align: left; font-size: 12px !important; color: var(--slate-500) !important; }
+      #auditLogTableBody tr td:nth-child(6) { grid-area: record; text-align: right; font-family: monospace !important; }
+      #auditLogTableBody tr td:nth-child(7) { grid-area: field; text-align: left; font-size: 12px !important; font-weight: 600 !important; }
+      #auditLogTableBody tr td:nth-child(8) { grid-area: desc; text-align: left; font-size: 13px !important; line-height: 1.4 !important; }
+
+      /* 4. Smooth page transition micro-animation */
+      .page-section {
+        animation: slideUpFadeMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      }
+    }
+
+    @keyframes slideUpFadeMobile {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
