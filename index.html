@@ -6002,7 +6002,50 @@
 //     bukan di dalam Apps Script HtmlService)
 // ============================================================
 (function() {
-  var WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbx-B4T0ED6oiR3Q6j_1PAm2UKfnfFtLpTh_qDTlvRliNIpNugSrTRqibgpvg723io4MRA/exec';
+  // GANTI dengan URL Edge Function Anda, contoh:
+  // https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/sim-sppg
+  var WEBAPP_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/sim-sppg';
+
+  // Daftar nama fungsi yang TIDAK butuh JWT (harus sama persis dengan
+  // PUBLIC_FUNCTIONS di index.ts) — dipakai untuk skip header Authorization.
+  var PUBLIC_FUNCTIONS = {
+    registerUser: 1, loginUser: 1, checkSession: 1,
+    recoverPassword: 1, recoverUsername: 1, recoverToken: 1,
+    getAppConfig: 1, getDropdownOptions: 1
+  };
+
+  // Daftar fungsi yang di index.ts menerima (…, caller) sebagai argumen
+  // TERAKHIR, tapi caller-nya sekarang diisi otomatis oleh server dari JWT.
+  // Kita cukup BUANG argumen objek {role, user, ...} paling akhir sebelum kirim,
+  // supaya index.html lama tidak perlu diubah satu-satu.
+  function stripCallerArg(propName, args) {
+    if (PUBLIC_FUNCTIONS[propName]) return args;
+    if (!args.length) return args;
+    var last = args[args.length - 1];
+    var looksLikeCaller = last && typeof last === 'object' && !Array.isArray(last) &&
+      ('role' in last || 'user' in last || 'callerRole' in last);
+    if (looksLikeCaller) {
+      // Untuk getTransactions/getChartData/getMenuHarian, caller berisi
+      // callerRole/callerUser yang dipakai sebagai filter — tetap kirim
+      // filter tsb TANPA field role/user/sppg (sudah diisi server dari JWT).
+      var cleaned = {};
+      Object.keys(last).forEach(function(k) {
+        if (['role','user','sppg','callerRole','callerUser'].indexOf(k) === -1) cleaned[k] = last[k];
+      });
+      var newArgs = args.slice(0, -1);
+      // Jika masih ada properti filter tersisa (mis. sppgFilter, dateStart), kirim sebagai objek filter
+      if (Object.keys(cleaned).length > 0) newArgs.push(cleaned);
+      return newArgs;
+    }
+    return args;
+  }
+
+  function getJwtToken() {
+    try {
+      var stored = localStorage.getItem('sppg_jwt');
+      return stored || '';
+    } catch(e) { return ''; }
+  }
 
   function createScriptRunProxy(successHandler, failureHandler) {
     return new Proxy({}, {
@@ -6014,30 +6057,37 @@
           return function(fn) { return createScriptRunProxy(successHandler, fn); };
         }
         if (propName === 'withUserObject') {
-          // Tidak didukung dalam mode fetch; diabaikan agar tidak error
           return function() { return createScriptRunProxy(successHandler, failureHandler); };
         }
-        // Properti lain dianggap sebagai NAMA FUNGSI yang dipanggil ke Code.gs
         return function() {
-          var args = Array.prototype.slice.call(arguments);
+          var args = stripCallerArg(propName, Array.prototype.slice.call(arguments));
+          var headers = { 'Content-Type': 'application/json' };
+          if (!PUBLIC_FUNCTIONS[propName]) {
+            var token = getJwtToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+          }
           fetch(WEBAPP_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            headers: headers,
             body: JSON.stringify({ function: propName, parameters: args })
           })
           .then(function(res) { return res.json(); })
           .then(function(json) {
             if (json && json.error) {
               if (failureHandler) failureHandler(new Error(json.error));
-              else console.error('google.script.run error (' + propName + '):', json.error);
+              else console.error('API error (' + propName + '):', json.error);
               return;
             }
             var result = (json && Object.prototype.hasOwnProperty.call(json, 'result')) ? json.result : json;
+            // Simpan JWT otomatis setelah login sukses
+            if (propName === 'loginUser' && result && result.success && result.token) {
+              try { localStorage.setItem('sppg_jwt', result.token); } catch(e) {}
+            }
             if (successHandler) successHandler(result);
           })
           .catch(function(err) {
             if (failureHandler) failureHandler(err);
-            else console.error('google.script.run fetch failed (' + propName + '):', err);
+            else console.error('API fetch failed (' + propName + '):', err);
           });
         };
       }
@@ -6757,6 +6807,7 @@ function checkSession() {
 function logout() { $('modalLogout').classList.remove('hidden'); }
 function executeLogout() {
   safeStorage('remove', 'sppg_session');
+  try { localStorage.removeItem('sppg_jwt'); } catch(e) {}
   currentUser = null;
   $('appContainer').classList.add('hidden');
   $('authOverlay').classList.remove('hidden');
