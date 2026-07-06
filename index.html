@@ -11025,7 +11025,7 @@ function submitRecovery() {
       btn.innerHTML = 'Verifikasi';
       if (result.success) {
         closeModal('modalRecovery');
-        showRecoveryResult(result);
+        showToast('success', 'Berhasil', result.message || 'Silakan cek email Anda.');
       } else {
         errorEl.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
         errorEl.classList.add('show');
@@ -11038,53 +11038,6 @@ function submitRecovery() {
       errorEl.classList.add('show');
     })
     [backendFn](data);
-}
-
-function showRecoveryResult(result) {
-  var label = '', value = '', title = '', desc = '';
-  if (currentRecoveryType === 'password') {
-    title = 'Kata Sandi Baru';
-    desc = 'Gunakan kata sandi berikut untuk login.';
-    label = 'Kata Sandi Baru';
-    value = result.password;
-  } else if (currentRecoveryType === 'username') {
-    title = 'Username Ditemukan';
-    desc = 'Gunakan username berikut untuk login.';
-    label = 'Username';
-    value = result.username;
-  } else if (currentRecoveryType === 'token') {
-    title = 'Token Ditemukan';
-    desc = 'Gunakan token berikut untuk login.';
-    label = 'Token';
-    value = result.token;
-  }
-  $('resultTitle').textContent = title;
-  $('resultDesc').textContent = desc;
-  $('resultLabel').textContent = label;
-  $('resultValue').textContent = value;
-  openModal('modalRecoveryResult');
-}
-
-function copyResult() {
-  var text = $('resultValue').textContent;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(function() {
-      showToast('success', 'Tersalin', 'Data berhasil disalin ke clipboard.');
-    });
-  } else {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showToast('success', 'Tersalin', 'Data berhasil disalin ke clipboard.');
-  }
-}
-
-function goToLoginFromRecovery() {
-  closeModal('modalRecoveryResult');
-  showLogin();
 }
 
 // ============================================================
@@ -11403,34 +11356,5 @@ function goToLoginFromRecovery() {
 </div>
 
 <!-- ==================== MODAL RECOVERY RESULT ==================== -->
-<div id="modalRecoveryResult" class="hidden">
-  <div class="modal-overlay" style="z-index:10001;" onclick="if(event.target===this)closeModal('modalRecoveryResult')">
-    <div class="modal-box" style="max-width:460px;text-align:center;">
-      <div class="modal-header" style="justify-content:center;flex-direction:column;text-align:center;border-bottom:none;padding-bottom:0;">
-        <div class="pin-lock-icon" style="background:linear-gradient(135deg,#d1fae5 0%,#a7f3d0 100%);color:#059669;">
-          <i class="fas fa-check-circle"></i>
-        </div>
-        <h3 id="resultTitle">Data Ditemukan</h3>
-        <p style="font-size:13px;color:var(--slate-500);margin-top:6px;" id="resultDesc">Berikut adalah data Anda</p>
-      </div>
-      <div class="modal-body">
-        <div class="info-card" style="background:var(--primary-light);border-color:#bae6fd;text-align:left;">
-          <div class="info-row">
-            <span class="info-label" id="resultLabel">Data</span>
-            <span class="info-value" id="resultValue" style="font-family:monospace;font-size:16px;word-break:break-all;">-</span>
-          </div>
-        </div>
-        <button onclick="copyResult()" class="btn btn-outline btn-sm" style="margin-top:12px;">
-          <i class="fas fa-copy"></i> Salin Data
-        </button>
-      </div>
-      <div class="modal-footer" style="justify-content:center;gap:12px;padding-top:8px;">
-        <button onclick="goToLoginFromRecovery()" class="btn btn-primary" style="min-width:140px;">
-          <i class="fas fa-sign-in-alt"></i> Login
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 </body>
 </html>
