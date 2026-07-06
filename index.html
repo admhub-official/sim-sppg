@@ -110,7 +110,7 @@
       touch-action: pan-y;
     }
     body {
-      background: var(--slate-100);
+      background: #f0f4f8;
       color: var(--slate-700);
       font-size: 13px;
       line-height: 1.5;
@@ -124,89 +124,6 @@
     }
     .hidden { display: none !important; }
 
-    /* ============================================================
-       DARK MODE
-       ============================================================ */
-    body.dark-mode {
-      background: #0f172a;
-      color: #cbd5e1;
-    }
-    body.dark-mode .topbar,
-    body.dark-mode .stat-card,
-    body.dark-mode .chart-container,
-    body.dark-mode .table-container,
-    body.dark-mode .modal-box,
-    body.dark-mode .auth-container,
-    body.dark-mode .profile-header,
-    body.dark-mode .info-card {
-      background: #1e293b;
-      border-color: #334155;
-      color: #cbd5e1;
-    }
-    body.dark-mode .form-input {
-      background: #0f172a;
-      border-color: #334155;
-      color: #e2e8f0;
-    }
-    body.dark-mode thead th { background: #1e293b; color: #94a3b8; border-color: #334155; }
-    body.dark-mode tbody td { border-color: #334155; color: #cbd5e1; }
-    body.dark-mode tbody tr:hover { background: #273349; }
-    body.dark-mode .page-title,
-    body.dark-mode .topbar-title,
-    body.dark-mode .modal-header h3,
-    body.dark-mode .info-card .info-value { color: #f1f5f9; }
-    body.dark-mode .table-header,
-    body.dark-mode .search-box input,
-    body.dark-mode .btn-outline {
-      background: #1e293b; color: #cbd5e1; border-color: #334155;
-    }
-    body.dark-mode .empty-state,
-    body.dark-mode .page-desc,
-    body.dark-mode .form-hint,
-    body.dark-mode .info-label { color: #64748b; }
-    body.dark-mode .modal-footer,
-    body.dark-mode .modal-top-actions,
-    body.dark-mode .modal-header { border-color: #334155; }
-    body.dark-mode .empty-illustration { background: #1e293b; }
-    .theme-toggle-btn {
-      width: var(--touch-target);
-      height: var(--touch-target);
-      border: 1px solid var(--slate-200);
-      border-radius: 8px;
-      background: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--slate-500);
-      font-size: 15px;
-      flex-shrink: 0;
-    }
-    body.dark-mode .theme-toggle-btn { background: #1e293b; border-color: #334155; color: #fbbf24; }
-
-    .btn-install-pwa {
-      display: none;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 13px;
-      border-radius: 8px;
-      border: 1px solid var(--primary);
-      background: var(--primary-light);
-      color: var(--primary);
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      white-space: nowrap;
-      flex-shrink: 0;
-      transition: all 0.2s;
-      animation: pulse-install 2s infinite;
-    }
-    .btn-install-pwa.show { display: flex; }
-    .btn-install-pwa:hover { background: var(--primary); color: white; }
-    .btn-install-pwa i { font-size: 13px; }
-    body.dark-mode .btn-install-pwa { background: rgba(30,111,156,0.2); border-color: #38bdf8; color: #38bdf8; }
-    body.dark-mode .btn-install-pwa:hover { background: #1e6f9c; color: white; }
-
     @keyframes pulse-install {
       0%, 100% { box-shadow: 0 0 0 0 rgba(30,111,156,0.4); }
       50% { box-shadow: 0 0 0 4px rgba(30,111,156,0); }
@@ -216,121 +133,6 @@
       .btn-install-pwa span { display: none; }
       .btn-install-pwa { padding: 7px 10px; }
     }
-
-    /* ============================================================
-       DARK MODE — LANJUTAN (melengkapi cakupan teks yang sebelumnya bolong)
-       ============================================================ */
-
-    /* Angka besar di stat card dashboard — sebelumnya tetap var(--slate-800) di atas card gelap */
-    body.dark-mode .stat-value { color: #f1f5f9; }
-    body.dark-mode .stat-label { color: #94a3b8; }
-
-    /* Subtitle / deskripsi sekunder yang sebelumnya pakai slate-400 (terlalu redup di atas #1e293b) */
-    body.dark-mode .auth-container .auth-sub,
-    body.dark-mode .modal-header p,
-    body.dark-mode .profile-info p,
-    body.dark-mode .table-meta,
-    body.dark-mode .toast-content p,
-    body.dark-mode .detail-doc-label,
-    body.dark-mode .form-error { color: #94a3b8; }
-
-    /* Label form — sebelumnya slate-600, nyaris hilang di atas input/card gelap */
-    body.dark-mode .form-label { color: #cbd5e1; }
-    body.dark-mode .form-label .req { color: #fb7185; }
-
-    /* Teks utama default di dalam halaman/card gelap (fallback umum) */
-    body.dark-mode .auth-container h2,
-    body.dark-mode .detail-section-title,
-    body.dark-mode .pin-lock-icon ~ h3,
-    body.dark-mode .modal-center-box h3 { color: #f1f5f9; }
-
-    /* Toast notification */
-    body.dark-mode .toast { background: #1e293b; border-color: #334155; }
-    body.dark-mode .toast-content h4 { color: #f1f5f9; }
-
-    /* Dropdown autocomplete */
-    body.dark-mode .autocomplete-dropdown { background: #1e293b; border-color: #334155; }
-    body.dark-mode .autocomplete-item { color: #cbd5e1; border-color: #334155; }
-    body.dark-mode .autocomplete-item:hover { background: #273349; }
-    body.dark-mode .autocomplete-header { background: rgba(30,111,156,0.15); border-color: #334155; }
-
-    /* PIN input */
-    body.dark-mode .pin-input { background: #0f172a; border-color: #334155; color: #f1f5f9; }
-
-    /* Detail dokumen (foto bukti, TTD, dsb) */
-    body.dark-mode .detail-doc-item { background: #0f172a; border-color: #334155; }
-    body.dark-mode .detail-doc-item.doc-ok { border-color: #065f46; background: rgba(16,185,129,0.08); }
-    body.dark-mode .detail-doc-item.doc-missing { border-color: #9f1239; background: rgba(244,63,94,0.08); }
-    body.dark-mode .detail-doc-status { color: #f1f5f9; }
-    body.dark-mode .detail-link { background: rgba(30,111,156,0.15); }
-
-    /* Canvas TTD (tanda tangan digital) */
-    body.dark-mode .canvas-container { background: #0f172a; border-color: #334155; }
-    body.dark-mode .canvas-actions button { background: #1e293b; border-color: #334155; color: #cbd5e1; }
-    body.dark-mode .canvas-actions button:hover { background: #273349; }
-
-    /* Geo box (lokasi GPS) */
-    body.dark-mode .geo-box { background: #0f172a; border-color: #334155; color: #cbd5e1; }
-
-    /* File input label */
-    body.dark-mode .file-input-label { background: #0f172a; border-color: #334155; color: #94a3b8; }
-
-    /* Action button "view" — sebelumnya slate-400 jadi terlalu redup di dark mode */
-    body.dark-mode .action-btn { background: #1e293b; }
-    body.dark-mode .action-btn.view { color: #94a3b8; border-color: #334155; }
-    body.dark-mode .action-btn.view:hover { background: #273349; color: #e2e8f0; }
-
-    /* Pagination */
-    body.dark-mode .pagination { background: #1e293b; border-color: #334155; }
-    body.dark-mode .page-btn { background: #0f172a; border-color: #334155; color: #cbd5e1; }
-    body.dark-mode .page-btn:hover { background: #273349; }
-
-    /* Tabs */
-    body.dark-mode .tabs { border-color: #334155; }
-    body.dark-mode .tab { color: #94a3b8; }
-    body.dark-mode .tab:hover { color: #38bdf8; }
-
-    /* Recovery links & footer auth */
-    body.dark-mode .auth-footer { color: #94a3b8; }
-    body.dark-mode .auth-divider span { color: #64748b; }
-    body.dark-mode .auth-divider::before,
-    body.dark-mode .auth-divider::after { background: #334155; }
-
-    /* Toggle switch wrap (Upload Mandiri ON/OFF) */
-    body.dark-mode .toggle-switch-wrap { background: #1e293b; border-color: #334155; color: #cbd5e1; }
-    body.dark-mode .badge-amber  { background: rgba(245,158,11,0.18); color: #fbbf24; }
-    body.dark-mode .badge-green  { background: rgba(16,185,129,0.18); color: #34d399; }
-    body.dark-mode .badge-red    { background: rgba(244,63,94,0.18); color: #fb7185; }
-    body.dark-mode .badge-blue   { background: rgba(59,130,246,0.18); color: #60a5fa; }
-    body.dark-mode .badge-purple { background: rgba(139,92,246,0.18); color: #a78bfa; }
-    body.dark-mode .badge-orange { background: rgba(249,115,22,0.15); color: #fb923c; border-color: #9a3412; }
-
-    /* Panah dropdown <select> — SVG sebelumnya hardcode stroke abu gelap, nyaris tak terlihat di field gelap */
-    body.dark-mode select.form-input {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    }
-
-    /* Placeholder input/textarea agar tidak terlalu gelap di atas field dark */
-    body.dark-mode .form-input::placeholder,
-    body.dark-mode .search-box input::placeholder { color: #64748b; }
-
-    /* Readonly input (mis. field hasil autocomplete) */
-    body.dark-mode .form-input[readonly] { background: #0f172a; color: #94a3b8; }
-
-    /* Badge outline — sebelumnya border+color slate terang, kurang kontras di card gelap */
-    body.dark-mode .badge-outline { background: rgba(148,163,184,0.1); color: #cbd5e1; border-color: #475569; }
-    body.dark-mode .badge-slate { background: rgba(148,163,184,0.15); color: #cbd5e1; }
-
-    /* Info card varian warna (accent/success/danger) — versi gradient light tidak cocok di dark */
-    body.dark-mode .info-card-accent { background: rgba(30,111,156,0.12); border-color: #1e6f9c; }
-    body.dark-mode .info-card-success { background: rgba(16,185,129,0.1); border-color: #065f46; }
-    body.dark-mode .info-card-danger { background: rgba(244,63,94,0.1); border-color: #9f1239; }
-
-    /* Sidebar tooltip & modal top actions border */
-    body.dark-mode .modal-top-actions { background: #0f172a; border-color: #334155; }
-
-    /* Stat trend kecil di bawah angka stat card (warna inline tetap dipakai, ini hanya fallback) */
-    body.dark-mode .stat-trend { filter: brightness(1.15); }
 
     /* ============================================================
        MOBILE PREMIUM UI - Bottom Navigation & Mobile Layout
@@ -610,11 +412,25 @@
     }
 
     .bnav-item.active i {
-      transform: translateY(-2px) scale(1.1);
+      transform: translateY(-2px) scale(1.12);
+      filter: drop-shadow(0 2px 4px rgba(30,111,156,0.35));
     }
 
     .bnav-item.active span {
       font-weight: 700;
+      color: var(--primary);
+    }
+
+    .bnav-item.active::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 0 0 3px 3px;
     }
 
     /* Center FAB Button - Tambah Transaksi */
@@ -814,54 +630,6 @@
       background: var(--slate-200);
     }
 
-    /* Dark Mode for Mobile UI */
-    body.dark-mode .app-header {
-      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    }
-
-    body.dark-mode .menu-btn,
-    body.dark-mode .icon-btn {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    body.dark-mode .bottom-nav {
-      background: rgba(30, 41, 59, 0.98);
-      border-color: var(--slate-700);
-    }
-
-    body.dark-mode .bnav-item {
-      color: var(--slate-500);
-    }
-
-    body.dark-mode .bnav-item.active {
-      color: #38bdf8;
-    }
-
-    body.dark-mode .bnav-fab {
-      background: linear-gradient(135deg, #059669 0%, #047857 100%);
-      box-shadow: 0 4px 16px rgba(5, 150, 105, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-
-    body.dark-mode .card,
-    body.dark-mode .stat-card,
-    body.dark-mode .transaction-item,
-    body.dark-mode .modal-sheet {
-      background: var(--slate-800);
-      border-color: var(--slate-700);
-    }
-
-    body.dark-mode .card-title,
-    body.dark-mode .stat-value,
-    body.dark-mode .trans-title,
-    body.dark-mode .modal-title {
-      color: var(--slate-100);
-    }
-
-    body.dark-mode .stat-label,
-    body.dark-mode .trans-date {
-      color: var(--slate-500);
-    }
-
     /* Responsive optimizations */
     @media (max-width: 360px) {
       html { font-size: 13px; }
@@ -895,11 +663,6 @@
       border-radius: var(--radius);
     }
 
-    body.dark-mode .loading-skeleton {
-      background: linear-gradient(90deg, var(--slate-700) 25%, var(--slate-800) 50%, var(--slate-700) 75%);
-      background-size: 200% 100%;
-    }
-
     @keyframes shimmer {
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
@@ -924,20 +687,11 @@
       color: var(--slate-400);
     }
 
-    body.dark-mode .empty-icon {
-      background: var(--slate-800);
-      color: var(--slate-600);
-    }
-
     .empty-title {
       font-size: 16px;
       font-weight: 600;
       color: var(--slate-700);
       margin-bottom: 8px;
-    }
-
-    body.dark-mode .empty-title {
-      color: var(--slate-300);
     }
 
     .empty-desc {
@@ -985,13 +739,13 @@
     }
     .auth-container {
       background: white;
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 20px;
-      padding: 28px 20px 32px;
+      border: none;
+      border-radius: 24px;
+      padding: 32px 24px 36px;
       width: calc(100% - 32px);
       max-width: 460px;
       margin: 0 auto;
-      box-shadow: 0 25px 60px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1);
+      box-shadow: 0 32px 64px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.08);
       position: relative;
       flex-shrink: 0;
       box-sizing: border-box;
@@ -1015,8 +769,8 @@
       padding: 6px;
     }
     .auth-logo img { width: 100%; height: 100%; object-fit: contain; border-radius: 14px; }
-    .auth-container h2 { font-size: 22px; font-weight: 800; color: var(--slate-800); margin-bottom: 4px; text-align: center; letter-spacing: -0.5px; }
-    .auth-container .auth-sub { color: var(--slate-400); font-size: 13px; margin-bottom: 28px; text-align: center; }
+    .auth-container h2 { font-size: 24px; font-weight: 800; color: var(--slate-800); margin-bottom: 6px; text-align: center; letter-spacing: -0.5px; }
+    .auth-container .auth-sub { color: var(--slate-400); font-size: 13px; margin-bottom: 24px; text-align: center; line-height: 1.5; } 28px; text-align: center; }
     .auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
     .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--slate-200); }
     .auth-divider span { font-size: 11px; color: var(--slate-400); font-weight: 600; }
@@ -1043,7 +797,7 @@
     /* ============================================================
        FORM ELEMENTS
        ============================================================ */
-    .form-group { margin-bottom: 16px; }
+    .form-group { margin-bottom: 18px; }
     .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--slate-600); margin-bottom: 6px; }
     .form-label .req { color: var(--rose); }
     .form-input {
@@ -1308,10 +1062,8 @@
       .main-wrapper.sidebar-collapsed { margin-left: var(--sidebar-collapsed-width); }
     }
     .topbar {
-      background: rgba(255,255,255,0.97);
-      backdrop-filter: blur(16px) saturate(180%);
-      -webkit-backdrop-filter: blur(16px) saturate(180%);
-      border-bottom: 1px solid var(--slate-200);
+      background: linear-gradient(135deg, #1e6f9c 0%, #15577a 100%);
+      border-bottom: none;
       height: 56px;
       display: flex;
       align-items: center;
@@ -1325,21 +1077,16 @@
       will-change: transform;
       flex-shrink: 0;
       gap: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-shadow: 0 2px 12px rgba(21,87,122,0.35);
     }
     @media (min-width: 768px) {
-      .topbar { height: 64px; padding: 0 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    }
-    body.dark-mode .topbar {
-      background: rgba(30,41,59,0.97);
-      border-color: #334155;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      .topbar { height: 64px; padding: 0 24px; }
     }
     .topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
     .topbar-title {
       font-size: 17px;
       font-weight: 700;
-      color: var(--slate-800);
+      color: white;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1353,7 +1100,7 @@
     .topbar-divider {
       width: 1px;
       height: 24px;
-      background: var(--slate-200);
+      background: rgba(255,255,255,0.25);
       flex-shrink: 0;
     }
     .topbar-profile {
@@ -1370,15 +1117,15 @@
     .topbar-profile-text .name {
       font-size: 13px;
       font-weight: 600;
-      color: var(--slate-700);
+      color: rgba(255,255,255,0.95);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .topbar-profile-text .role {
       font-size: 11px;
-      color: var(--emerald);
-      font-weight: 600;
+      color: rgba(255,255,255,0.7);
+      font-weight: 500;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1387,9 +1134,24 @@
       width: 36px;
       height: 36px;
       border-radius: 10px;
-      border: 2px solid var(--slate-200);
+      border: 2px solid rgba(255,255,255,0.35);
       object-fit: cover;
       flex-shrink: 0;
+    }
+    .topbar-right .btn-outline {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.3);
+      color: white;
+    }
+    .topbar-right .btn-outline:hover {
+      background: rgba(255,255,255,0.25);
+      border-color: rgba(255,255,255,0.5);
+      color: white;
+    }
+    .topbar-right .btn-install-pwa {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.3);
+      color: white;
     }
     @media (max-width: 480px) {
       .topbar-profile-text { display: none; }
@@ -1519,43 +1281,20 @@
        STAT CARDS
        ============================================================ */
     .stats-grid {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  margin-bottom: 16px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 4px;
-}
-.stats-grid::-webkit-scrollbar { display: none; }
-.stats-grid {
-  -webkit-mask-image: linear-gradient(to right, black 88%, transparent 100%);
-  mask-image: linear-gradient(to right, black 88%, transparent 100%);
-}
-.stats-grid .stat-card {
-  min-width: 72vw;
-  max-width: 72vw;
-  scroll-snap-align: start;
-  flex-shrink: 0;
-}
-@media (min-width: 480px) {
-  .stats-grid { -webkit-mask-image: none; mask-image: none; }
-}
-@media (min-width: 480px) {
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    overflow-x: unset;
-    scroll-snap-type: unset;
-  }
-  .stats-grid .stat-card { min-width: unset; max-width: unset; }
-}
-@media (min-width: 768px) {
-  .stats-grid { margin-bottom: 20px; gap: 14px; }
-}
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    @media (min-width: 768px) {
+      .stats-grid { gap: 14px; margin-bottom: 20px; }
+    }
+    @media (min-width: 900px) {
+      .stats-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (min-width: 1024px) {
+      .stats-grid { gap: 16px; margin-bottom: 24px; }
+    }
 @media (min-width: 900px) {
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
 }
@@ -1583,15 +1322,6 @@
       box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 3px 6px rgba(0,0,0,0.04);
       border-color: var(--primary-light);
     }
-    body.dark-mode .stat-card {
-      background: #1e293b;
-      border-color: #334155;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-    body.dark-mode .stat-card:hover {
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 3px 8px rgba(0,0,0,0.2);
-      border-color: #1e6f9c;
-    }
     .stat-card.clickable { cursor: pointer; border: 2px solid transparent; }
     .stat-card.clickable:hover { border-color: var(--primary); }
     .stat-card::after {
@@ -1602,9 +1332,6 @@
       background: radial-gradient(circle, rgba(30,111,156,0.04) 0%, transparent 70%);
       border-radius: 50%;
       transform: translate(30%, -30%);
-    }
-    body.dark-mode .stat-card::after {
-      background: radial-gradient(circle, rgba(56,189,248,0.06) 0%, transparent 70%);
     }
     .stat-icon {
       width: 44px; height: 44px;
@@ -1684,9 +1411,6 @@
       margin: 0;
     }
     .chart-header h3 i { color: var(--primary); font-size: 14px; }
-    body.dark-mode .chart-header h3 i,
-    body.dark-mode .table-header h3 i,
-    body.dark-mode .page-title i { filter: brightness(1.3); }
     .chart-canvas-wrap { position: relative; height: 280px; width: 100%; }
     @media (min-width: 640px) { .chart-canvas-wrap { height: 300px; } }
     @media (min-width: 768px) { .chart-canvas-wrap { height: 340px; } }
@@ -1707,14 +1431,6 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       transform: translateY(-1px);
     }
-    body.dark-mode .table-container {
-      background: #1e293b;
-      border-color: #334155;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-    body.dark-mode .table-container:hover {
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    }
     .table-header {
       padding: 14px 14px;
       border-bottom: 1px solid var(--slate-200);
@@ -1727,10 +1443,6 @@
     }
     @media (min-width: 768px) {
       .table-header { padding: 18px 24px; }
-    }
-    body.dark-mode .table-header {
-      background: linear-gradient(to right, rgba(30,41,59,0.8), rgba(30,41,59,0.5));
-      border-color: #334155;
     }
     .table-header h3 {
       font-size: 15px;
@@ -3290,23 +3002,6 @@
       transform: scale(0.92);
       opacity: 0.85;
     }
-    body.dark-mode .more-sheet-box { 
-      background: #1e293b;
-      box-shadow: 0 -12px 48px rgba(0,0,0,0.35), 0 -4px 16px rgba(0,0,0,0.2);
-    }
-    body.dark-mode .more-sheet-box::before {
-      background: linear-gradient(to right, #475569, #64748b, #475569);
-    }
-    body.dark-mode .more-sheet-item { 
-      color: #cbd5e1; 
-      border-bottom-color: #334155;
-    }
-    body.dark-mode .more-sheet-item:active::after {
-      background: linear-gradient(to right, rgba(56,189,248,0.15), rgba(56,189,248,0.04));
-    }
-    body.dark-mode .more-sheet-title { 
-      color: #94a3b8; 
-    }
 
     /* ============================================================
        DASHBOARD QUICK ACCESS GRID
@@ -3359,9 +3054,6 @@
       justify-content: center;
       padding: 0 4px;
     }
-    body.dark-mode .qa-card { background: #1e293b; border-color: #334155; }
-    body.dark-mode .qa-card span { color: #f1f5f9; }
-    body.dark-mode .quick-access-title { color: #94a3b8; }
 
     /* ============================================================
        FLOATING ACTION BUTTON (Material Design 3 Style)
@@ -4120,9 +3812,6 @@
           <i class="fas fa-download"></i>
           <span>Install App</span>
         </button>
-        <button onclick="toggleDarkMode()" class="theme-toggle-btn" id="themeToggleBtn" title="Mode Gelap/Terang" aria-label="Ganti mode gelap atau terang">
-          <i class="fas fa-moon" id="themeToggleIcon" aria-hidden="true"></i>
-        </button>
         <button onclick="refreshData()" class="btn btn-outline btn-sm" id="refreshBtn">
           <i class="fas fa-sync-alt" id="refreshIcon"></i>
           <span>Refresh</span>
@@ -4140,9 +3829,6 @@
         </div>
       </div>
       <div class="topbar-more-dropdown" id="topbarMoreDropdown">
-        <div class="tmd-item" onclick="toggleDarkMode();closeTopbarMore();">
-          <i class="fas fa-moon" id="tmdDarkIcon"></i><span>Mode Gelap/Terang</span>
-        </div>
         <div class="tmd-item" onclick="refreshData();closeTopbarMore();">
           <i class="fas fa-sync-alt"></i><span>Refresh Data</span>
         </div>
@@ -11439,7 +11125,6 @@ function submitRecovery() {
   document.body.style.overflow = '';
   document.body.style.position = '';
 
-  applyStoredTheme();
   if (checkSession()) {
     document.getElementById('authOverlay').classList.add('hidden');
     document.getElementById('appContainer').classList.remove('hidden');
