@@ -4004,13 +4004,6 @@
 
   </div><!-- /auth-wrapper -->
 </div><!-- /authOverlay -->
-      <div class="auth-footer">
-        Sudah punya akun? <a onclick="showLogin()">Masuk</a>
-      </div>
-    </div>
-
-  </div><!-- /auth-wrapper -->
-</div><!-- /authOverlay -->
 
 <!-- ============================================================ -->
 <!-- MAIN APP CONTAINER                                           -->
@@ -4057,13 +4050,6 @@
           <i class="fas fa-sync-alt" id="refreshIcon"></i>
           <span>Refresh</span>
         </button>
-        <div class="topbar-profile" onclick="switchPage('profil')">
-          <div class="topbar-profile-text">
-            <p class="name" id="topbarName">-</p>
-            <p class="role" id="topbarRole">-</p>
-          </div>
-          <img id="topbarAvatar" src="" alt="Profile">
-        </div>
       </div>
     </header>
 
@@ -7434,17 +7420,6 @@ function executeWAReminder() {
 // ============================================================
 function initApp() {
   if (!currentUser) return;
-  // Update topbar
-  $('topbarName').textContent = currentUser.namaLengkap || currentUser.username;
-  $('topbarRole').textContent = currentUser.jabatan || currentUser.role;
-  var fotoId = currentUser.fotoProfil;
-  var avatarUrl = (fotoId && fotoId.length > 10 && fotoId.indexOf('.') === -1)
-    ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(fotoId) + '&sz=w200'
-    : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.namaLengkap || currentUser.username) + '&background=1e6f9c&color=fff&size=128&rounded=true';
-  $('topbarAvatar').src = avatarUrl;
-  $('topbarAvatar').onerror = function() {
-    this.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.namaLengkap || currentUser.username) + '&background=1e6f9c&color=fff&size=128&rounded=true';
-  };
 
   buildSidebar();
   buildBottomNav();
@@ -7723,12 +7698,6 @@ function doUpdateProfil(updateData) {
         currentUser.namaLengkap = updateData['NAMA LENGKAP'] || currentUser.namaLengkap;
         if (updateData['FOTO PROFIL']) currentUser.fotoProfil = updateData['FOTO PROFIL'];
         safeStorage('set', 'sppg_session', JSON.stringify({ user: currentUser, expiry: sessionExpiry }));
-        // Refresh topbar avatar
-        var fotoId = currentUser.fotoProfil;
-        var avatarUrl = fotoId && fotoId.length > 10
-          ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(fotoId) + '&sz=w200'
-          : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.namaLengkap || currentUser.username) + '&background=1e6f9c&color=fff&size=128&rounded=true';
-        $('topbarAvatar').src = avatarUrl;
         renderProfil();
         closeModal('modalEditProfil');
       } else {
