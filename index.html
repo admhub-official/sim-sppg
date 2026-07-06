@@ -6014,30 +6014,70 @@
     getAppConfig: 1, getDropdownOptions: 1
   };
 
-  // Daftar fungsi yang di index.ts menerima (…, caller) sebagai argumen
-  // TERAKHIR, tapi caller-nya sekarang diisi otomatis oleh server dari JWT.
-  // Kita cukup BUANG argumen objek {role, user, ...} paling akhir sebelum kirim,
-  // supaya index.html lama tidak perlu diubah satu-satu.
+// Daftar fungsi yang di index.ts menerima (filters, caller) — SELALU
+  // butuh tepat 1 argumen filter sebelum caller (harus sama persis dengan
+  // fungsi bertanda "(filters: any, caller: Caller)" di AUTHENTICATED_FUNCTIONS
+  // index.ts). Untuk fungsi ini, objek filter WAJIB tetap ada (walau kosong {})
+  // supaya caller dari JWT tidak tergeser posisi jadi filters.
+  var FILTER_CALLER_FUNCTIONS = {
+    getTransactions: 1, getChartData: 1, getMenuHarian: 1, getAuditLog: 1
+  };
+
+  // Cari objek caller-like ({role,user,...}) di POSISI MANAPUN (bukan cuma
+  // terakhir), lalu bersihkan field role/user/sppg/callerRole/callerUser-nya
+  // (sudah diisi server dari JWT). Untuk fungsi di FILTER_CALLER_FUNCTIONS,
+  // sisa properti (mis. sppgFilter, dateStart) digabung ke SATU objek filter
+  // agar jumlah argumen akhir selalu tepat 1 sebelum caller disuntik router.
+  // Untuk fungsi lain, objek caller dihapus sepenuhnya dari array argumen.
   function stripCallerArg(propName, args) {
     if (PUBLIC_FUNCTIONS[propName]) return args;
     if (!args.length) return args;
-    var last = args[args.length - 1];
-    var looksLikeCaller = last && typeof last === 'object' && !Array.isArray(last) &&
-      ('role' in last || 'user' in last || 'callerRole' in last);
-    if (looksLikeCaller) {
-      // Untuk getTransactions/getChartData/getMenuHarian, caller berisi
-      // callerRole/callerUser yang dipakai sebagai filter — tetap kirim
-      // filter tsb TANPA field role/user/sppg (sudah diisi server dari JWT).
-      var cleaned = {};
-      Object.keys(last).forEach(function(k) {
-        if (['role','user','sppg','callerRole','callerUser'].indexOf(k) === -1) cleaned[k] = last[k];
-      });
-      var newArgs = args.slice(0, -1);
-      // Jika masih ada properti filter tersisa (mis. sppgFilter, dateStart), kirim sebagai objek filter
-      if (Object.keys(cleaned).length > 0) newArgs.push(cleaned);
-      return newArgs;
+
+    var callerIdx = -1;
+    for (var i = 0; i < args.length; i++) {
+      var a = args[i];
+      if (a && typeof a === 'object' && !Array.isArray(a) &&
+          ('role' in a || 'user' in a || 'callerRole' in a)) {
+        callerIdx = i;
+        break;
+      }
     }
-    return args;
+    if (callerIdx === -1) return args;
+
+    var callerObj = args[callerIdx];
+    var cleaned = {};
+    Object.keys(callerObj).forEach(function(k) {
+      if (['role','user','sppg','callerRole','callerUser'].indexOf(k) === -1) cleaned[k] = callerObj[k];
+    });
+
+    var rest = args.slice(0, callerIdx).concat(args.slice(callerIdx + 1));
+
+    if (FILTER_CALLER_FUNCTIONS[propName]) {
+      var mergeTargetIdx = -1;
+      for (var j = 0; j < rest.length; j++) {
+        var b = rest[j];
+        if (b && typeof b === 'object' && !Array.isArray(b)) { mergeTargetIdx = j; break; }
+      }
+      if (mergeTargetIdx > -1) {
+        Object.keys(cleaned).forEach(function(k) { rest[mergeTargetIdx][k] = cleaned[k]; });
+        return [rest[mergeTargetIdx]];
+      }
+      return [cleaned];
+    }
+
+    if (Object.keys(cleaned).length > 0) {
+      var mergeIdx = -1;
+      for (var k = 0; k < rest.length; k++) {
+        var c = rest[k];
+        if (c && typeof c === 'object' && !Array.isArray(c)) { mergeIdx = k; break; }
+      }
+      if (mergeIdx > -1) {
+        Object.keys(cleaned).forEach(function(kk) { rest[mergeIdx][kk] = cleaned[kk]; });
+      } else {
+        rest.push(cleaned);
+      }
+    }
+    return rest;
   }
 
   function getJwtToken() {
