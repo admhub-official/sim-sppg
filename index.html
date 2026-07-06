@@ -1774,6 +1774,10 @@
       border-radius: 16px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
+    .filter-bar.collapsed .filter-collapsible { display: none; }
+    .filter-toggle-btn {
+      flex-shrink: 0;
+    }
     .filter-bar .search-box { flex: 1 1 100%; min-width: 0; max-width: 100%; }
     .filter-bar select.form-input {
       width: 100%;
@@ -3439,10 +3443,6 @@
        MOBILE NATIVE-LIKE UI OPTIMIZATIONS (Antigravity)
        ============================================================ */
     @media (max-width: 767px) {
-      /* 1. Topbar Cleanup - Hide redundant hamburger menu button */
-      .mobile-menu-btn {
-        display: none !important;
-      }
       .topbar {
         padding: 0 16px;
         height: 60px;
@@ -4223,24 +4223,29 @@
             </button>
           </div>
         </div>
-        <div class="filter-bar">
+        <div class="filter-bar" id="txFilterBar">
           <div class="search-box">
             <i class="fas fa-search"></i>
             <input type="text" id="txSearchInput" placeholder="Cari kode, item, user..." oninput="filterTransaksi()">
           </div>
-          <select id="txFilterSPPG" class="form-input" onchange="filterTransaksi()">
-            <option value="ALL">Semua SPPG</option>
-          </select>
-          <select id="txFilterKategori" class="form-input" onchange="filterTransaksi()">
-            <option value="ALL">Semua Kategori</option>
-            <option value="PEMASUKAN">Pemasukan</option>
-            <option value="PENGELUARAN">Pengeluaran</option>
-          </select>
-                    <select id="txFilterStatus" class="form-input" onchange="filterTransaksi()">
-            <option value="ALL">Semua Status</option>
-            <option value="PENDING">Belum Lunas</option>
-            <option value="SUDAH_DIBAYAR">Sudah Dibayar</option>
-          </select>
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('txFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;">
+            <select id="txFilterSPPG" class="form-input" onchange="filterTransaksi()">
+              <option value="ALL">Semua SPPG</option>
+            </select>
+            <select id="txFilterKategori" class="form-input" onchange="filterTransaksi()">
+              <option value="ALL">Semua Kategori</option>
+              <option value="PEMASUKAN">Pemasukan</option>
+              <option value="PENGELUARAN">Pengeluaran</option>
+            </select>
+            <select id="txFilterStatus" class="form-input" onchange="filterTransaksi()">
+              <option value="ALL">Semua Status</option>
+              <option value="PENDING">Belum Lunas</option>
+              <option value="SUDAH_DIBAYAR">Sudah Dibayar</option>
+            </select>
+          </div>
         </div>
         <div class="table-container">
           <div class="table-scroll">
@@ -4289,22 +4294,27 @@
             </button>
           </div>
         </div>
-        <div class="filter-bar">
+        <div class="filter-bar" id="apprFilterBar">
           <div class="search-box">
             <i class="fas fa-search"></i>
             <input type="text" id="apprSearchInput" placeholder="Cari kode, item, user..." oninput="filterApproval()">
           </div>
-          <select id="apprFilterSPPG" class="form-input" onchange="filterApproval()">
-            <option value="ALL">Semua SPPG</option>
-          </select>
-          <select id="apprFilterJenisKat" class="form-input" onchange="filterApproval()">
-            <option value="ALL">Semua Jenis Kategori</option>
-          </select>
-          <input type="date" id="apprFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Dari Tanggal">
-          <input type="date" id="apprFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Sampai Tanggal">
-          <button class="btn btn-outline btn-sm" onclick="resetApprovalFilter()" title="Reset Filter">
-            <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('apprFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
           </button>
+          <div class="filter-collapsible" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;">
+            <select id="apprFilterSPPG" class="form-input" onchange="filterApproval()">
+              <option value="ALL">Semua SPPG</option>
+            </select>
+            <select id="apprFilterJenisKat" class="form-input" onchange="filterApproval()">
+              <option value="ALL">Semua Jenis Kategori</option>
+            </select>
+            <input type="date" id="apprFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Dari Tanggal">
+            <input type="date" id="apprFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Sampai Tanggal">
+            <button class="btn btn-outline btn-sm" onclick="resetApprovalFilter()" title="Reset Filter">
+              <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
+            </button>
+          </div>
         </div>
         <div id="apprBulkBar" class="hidden" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--primary-light);border:1px solid #bae6fd;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
           <span style="font-size:13px;font-weight:600;color:var(--primary-dark);">
@@ -6172,6 +6182,10 @@ var currentTrxId = null;
 var currentEditRow = null;
 var approvalFileData = null;
 var chartInstance = null;
+var laporanCashFlowChartInstance = null;
+var laporanKomposisiChartInstance = null;
+var laporanKategoriChartInstance = null;
+var laporanMetodeChartInstance = null;
 var menuItems = [];
 
 // ============================================================
@@ -7261,8 +7275,8 @@ function switchPage(page, el) {
   // Page-specific init
   if (page === 'dashboard') { loadDashboardData(); updateChart(); renderQuickAccess(); }
   if (page === 'users' && currentUser.role === 'ADMIN') loadUsers();
-  if (page === 'transaksi') loadTransactions();
-  if (page === 'approval') loadApprovalData();
+  if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
+  if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'master-bahan') loadMasterBB();
   if (page === 'master-supplier') loadSuppliers();
   if (page === 'survei') loadSurvei();
@@ -7271,7 +7285,7 @@ function switchPage(page, el) {
   if (page === 'pending-payment') loadPendingPayment();
   if (page === 'rekap-sppg') loadRekapSPPG();
   if (page === 'rekap-harian') loadRekapHarian();
-  if (page === 'laporan') initLaporanCharts();
+  if (page === 'laporan') updateLaporanCharts();
   if (page === 'audit-log' && currentUser.role === 'ADMIN') loadAuditLog();
     if (page === 'profil') renderProfil();
   
@@ -7297,6 +7311,20 @@ function applyStoredTheme() {
       if (icon) icon.className = 'fas fa-sun';
     }
   } catch(e) {}
+}
+
+function toggleFilterBar(barId) {
+  var bar = $(barId);
+  if (!bar) return;
+  var collapsed = bar.classList.toggle('collapsed');
+  safeStorage('set', 'filterCollapsed_' + barId, collapsed ? '1' : '0');
+}
+
+function restoreFilterBarState(barId) {
+  var bar = $(barId);
+  if (!bar) return;
+  var saved = safeStorage('get', 'filterCollapsed_' + barId);
+  bar.classList.toggle('collapsed', saved === '1');
 }
 
 function toggleSidebar() {
@@ -7426,6 +7454,7 @@ function initApp() {
   updateFabVisibility();
   initChart();
   loadDashboardData();
+  updateChart();
   renderQuickAccess();
   loadDropdownOptions();
 
@@ -7566,6 +7595,144 @@ function initChart() {
       }
     }
   });
+}
+
+function updateLaporanCharts() {
+  if (!currentUser) return;
+  var periodeSel = $('laporanFilterPeriode');
+  var days = periodeSel ? parseInt(periodeSel.value) || 30 : 30;
+  var end = new Date();
+  var start = new Date(); start.setDate(start.getDate() - days);
+  var filters = {
+    callerRole: currentUser.role,
+    callerUser: currentUser.role === 'ADMIN' ? '' : currentUser.email,
+    dateStart: formatDateInput(start),
+    dateEnd: formatDateInput(end)
+  };
+  var sppgSel = $('laporanFilterSPPG');
+  if (sppgSel && sppgSel.value !== 'ALL') filters.sppg = sppgSel.value;
+
+  google.script.run
+    .withSuccessHandler(function(data) {
+      renderLaporanCharts(data || []);
+    })
+    .withFailureHandler(function(err) {
+      console.error('updateLaporanCharts error:', err);
+      renderLaporanCharts([]);
+    })
+    .getTransactions(filters);
+}
+
+function renderLaporanCharts(rows) {
+  // ----- 1. Arus Kas Harian -----
+  var dailyMap = {};
+  rows.forEach(function(tx) {
+    var tgl = tx.tanggal || '-';
+    if (!dailyMap[tgl]) dailyMap[tgl] = { pemasukan: 0, pengeluaran: 0 };
+    if (tx.kategori === 'PEMASUKAN') dailyMap[tgl].pemasukan += tx.nominal || 0;
+    if (tx.kategori === 'PENGELUARAN') dailyMap[tgl].pengeluaran += tx.nominal || 0;
+  });
+  var tanggalKeys = Object.keys(dailyMap).sort(function(a, b) { return parseDate(a) - parseDate(b); });
+  var running = 0;
+  var saldoData = [], pemasukanData = [], pengeluaranData = [];
+  tanggalKeys.forEach(function(k) {
+    pemasukanData.push(dailyMap[k].pemasukan);
+    pengeluaranData.push(dailyMap[k].pengeluaran);
+    running += dailyMap[k].pemasukan - dailyMap[k].pengeluaran;
+    saldoData.push(running);
+  });
+  $('laporanChartDataCount').textContent = tanggalKeys.length + ' data';
+
+  if (!laporanCashFlowChartInstance) {
+    var ctx1 = $('laporanCashFlowChart').getContext('2d');
+    laporanCashFlowChartInstance = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: tanggalKeys,
+        datasets: [
+          { label: 'Pemasukan', data: pemasukanData, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.3, fill: true },
+          { label: 'Pengeluaran', data: pengeluaranData, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.1)', tension: 0.3, fill: true },
+          { label: 'Saldo', data: saldoData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.05)', tension: 0.3, fill: false, borderDash: [5,5] }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': ' + formatRupiah(c.raw); } } } },
+        scales: { y: { ticks: { callback: function(v) { if (Math.abs(v) >= 1000000) return (v/1000000).toFixed(0)+'jt'; if (Math.abs(v) >= 1000) return (v/1000).toFixed(0)+'rb'; return v; } } } }
+      }
+    });
+  } else {
+    laporanCashFlowChartInstance.data.labels = tanggalKeys;
+    laporanCashFlowChartInstance.data.datasets[0].data = pemasukanData;
+    laporanCashFlowChartInstance.data.datasets[1].data = pengeluaranData;
+    laporanCashFlowChartInstance.data.datasets[2].data = saldoData;
+    laporanCashFlowChartInstance.update();
+  }
+
+  // ----- 2. Komposisi Pemasukan vs Pengeluaran -----
+  var totalIn = 0, totalOut = 0;
+  rows.forEach(function(tx) {
+    if (tx.kategori === 'PEMASUKAN') totalIn += tx.nominal || 0;
+    if (tx.kategori === 'PENGELUARAN') totalOut += tx.nominal || 0;
+  });
+  $('komposisiDataCount').textContent = rows.length + ' data';
+  var komposisiData = [totalIn, totalOut];
+  if (!laporanKomposisiChartInstance) {
+    var ctx2 = $('komposisiChart').getContext('2d');
+    laporanKomposisiChartInstance = new Chart(ctx2, {
+      type: 'doughnut',
+      data: { labels: ['Pemasukan', 'Pengeluaran'], datasets: [{ data: komposisiData, backgroundColor: ['#10b981', '#f43f5e'] }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(c) { return c.label + ': ' + formatRupiah(c.raw); } } } } }
+    });
+  } else {
+    laporanKomposisiChartInstance.data.datasets[0].data = komposisiData;
+    laporanKomposisiChartInstance.update();
+  }
+
+  // ----- 3. Pengeluaran per Kategori (pakai jenisKategori) -----
+  var kategoriMap = {};
+  rows.forEach(function(tx) {
+    if (tx.kategori !== 'PENGELUARAN') return;
+    var jk = tx.jenisKategori || 'Lainnya';
+    kategoriMap[jk] = (kategoriMap[jk] || 0) + (tx.nominal || 0);
+  });
+  var kategoriLabels = Object.keys(kategoriMap);
+  var kategoriData = kategoriLabels.map(function(k) { return kategoriMap[k]; });
+  $('kategoriPengeluaranCount').textContent = kategoriLabels.length + ' kategori';
+  if (!laporanKategoriChartInstance) {
+    var ctx3 = $('kategoriPengeluaranChart').getContext('2d');
+    laporanKategoriChartInstance = new Chart(ctx3, {
+      type: 'bar',
+      data: { labels: kategoriLabels, datasets: [{ label: 'Pengeluaran', data: kategoriData, backgroundColor: '#f43f5e' }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return formatRupiah(c.raw); } } } } }
+    });
+  } else {
+    laporanKategoriChartInstance.data.labels = kategoriLabels;
+    laporanKategoriChartInstance.data.datasets[0].data = kategoriData;
+    laporanKategoriChartInstance.update();
+  }
+
+  // ----- 4. Distribusi Metode Pembayaran -----
+  var metodeMap = {};
+  rows.forEach(function(tx) {
+    var m = tx.metodeTransaksi || 'BELUM_BAYAR';
+    metodeMap[m] = (metodeMap[m] || 0) + 1;
+  });
+  var metodeLabels = Object.keys(metodeMap);
+  var metodeData = metodeLabels.map(function(k) { return metodeMap[k]; });
+  $('metodePembayaranCount').textContent = rows.length + ' data';
+  if (!laporanMetodeChartInstance) {
+    var ctx4 = $('metodePembayaranChart').getContext('2d');
+    laporanMetodeChartInstance = new Chart(ctx4, {
+      type: 'pie',
+      data: { labels: metodeLabels, datasets: [{ data: metodeData, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'] }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  } else {
+    laporanMetodeChartInstance.data.labels = metodeLabels;
+    laporanMetodeChartInstance.data.datasets[0].data = metodeData;
+    laporanMetodeChartInstance.update();
+  }
 }
 
 function updateChart() {
