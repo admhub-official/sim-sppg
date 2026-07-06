@@ -1779,6 +1779,8 @@
       flex-shrink: 0;
     }
     .filter-bar .search-box { flex: 1 1 100%; min-width: 0; max-width: 100%; }
+    .filter-bar.collapsed .filter-collapsible { display: none !important; }
+    .filter-toggle-btn { flex-shrink: 0; }
     .filter-bar select.form-input {
       width: 100%;
       min-width: 0;
@@ -4218,12 +4220,9 @@
             <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
               <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
             </button>
-            <button class="btn btn-primary btn-sm" onclick="openAddTransaksiModal()" id="btnAddTransaksi">
-              <i class="fas fa-plus"></i> Tambah Transaksi
-            </button>
           </div>
         </div>
-        <div class="filter-bar" id="txFilterBar">
+        <div class="filter-bar">
           <div class="search-box">
             <i class="fas fa-search"></i>
             <input type="text" id="txSearchInput" placeholder="Cari kode, item, user..." oninput="filterTransaksi()">
@@ -6186,6 +6185,7 @@ var laporanCashFlowChartInstance = null;
 var laporanKomposisiChartInstance = null;
 var laporanKategoriChartInstance = null;
 var laporanMetodeChartInstance = null;
+var laporanStatusApprovalChartInstance = null;
 var menuItems = [];
 
 // ============================================================
@@ -6996,8 +6996,26 @@ var MENU_CONFIG = {
 function buildSidebar() {
   var role = currentUser ? currentUser.role : '';
   var menus = MENU_CONFIG[role] || MENU_CONFIG['LAPANGAN'];
-  var html = '';
+  var bottomNavPages = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+
+  // R8: Sembunyikan item sidebar yang halamannya sudah tersedia di bottom nav,
+  // lalu buang header section yang jadi kosong (tidak ada item di bawahnya).
+  var filtered = [];
+  var pendingHeader = null;
   menus.forEach(function(item) {
+    if (item.isHeader) { pendingHeader = item; return; }
+    if (item.action === 'logout') {
+      if (pendingHeader) { filtered.push(pendingHeader); pendingHeader = null; }
+      filtered.push(item);
+      return;
+    }
+    if (bottomNavPages.indexOf(item.page) !== -1) return; // sudah ada di bottom nav, skip
+    if (pendingHeader) { filtered.push(pendingHeader); pendingHeader = null; }
+    filtered.push(item);
+  });
+
+  var html = '';
+  filtered.forEach(function(item) {
     if (item.isHeader) {
       html += '<div class="menu-label">' + esc(item.label) + '</div>';
       return;
@@ -7327,6 +7345,12 @@ function restoreFilterBarState(barId) {
   bar.classList.toggle('collapsed', saved === '1');
 }
 
+function toggleFilterBar(barId) {
+  var bar = $(barId);
+  if (!bar) return;
+  bar.classList.toggle('collapsed');
+}
+
 function toggleSidebar() {
   sidebarCollapsed = !sidebarCollapsed;
   $('mainSidebar').classList.toggle('collapsed', sidebarCollapsed);
@@ -7336,10 +7360,14 @@ function toggleSidebar() {
 function openMobileSidebar() {
   $('mainSidebar').classList.add('mobile-open');
   $('sidebarOverlay').classList.add('active');
+  var bnav = $('bottomNav');
+  if (bnav) bnav.style.display = 'none';
 }
 function closeMobileSidebar() {
   $('mainSidebar').classList.remove('mobile-open');
   $('sidebarOverlay').classList.remove('active');
+  var bnav = $('bottomNav');
+  if (bnav) bnav.style.display = '';
 }
 
 // Modal helpers
@@ -7624,7 +7652,7 @@ function updateLaporanCharts() {
 }
 
 function renderLaporanCharts(rows) {
-  // ----- 1. Arus Kas Harian -----
+  // ===== 1. Arus Kas Harian: Pemasukan, Pengeluaran, Saldo Berjalan (kumulatif) per tanggal =====
   var dailyMap = {};
   rows.forEach(function(tx) {
     var tgl = tx.tanggal || '-';
@@ -7652,7 +7680,7 @@ function renderLaporanCharts(rows) {
         datasets: [
           { label: 'Pemasukan', data: pemasukanData, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.3, fill: true },
           { label: 'Pengeluaran', data: pengeluaranData, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.1)', tension: 0.3, fill: true },
-          { label: 'Saldo', data: saldoData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.05)', tension: 0.3, fill: false, borderDash: [5,5] }
+          { label: 'Saldo Berjalan', data: saldoData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.05)', tension: 0.3, fill: false, borderDash: [5,5] }
         ]
       },
       options: {
@@ -7669,7 +7697,7 @@ function renderLaporanCharts(rows) {
     laporanCashFlowChartInstance.update();
   }
 
-  // ----- 2. Komposisi Pemasukan vs Pengeluaran -----
+  // ===== 2. Komposisi Pemasukan vs Pengeluaran: total nominal masing-masing kategori =====
   var totalIn = 0, totalOut = 0;
   rows.forEach(function(tx) {
     if (tx.kategori === 'PEMASUKAN') totalIn += tx.nominal || 0;
@@ -7689,7 +7717,7 @@ function renderLaporanCharts(rows) {
     laporanKomposisiChartInstance.update();
   }
 
-  // ----- 3. Pengeluaran per Kategori (pakai jenisKategori) -----
+  // ===== 3. Pengeluaran per Kategori: total nominal PENGELUARAN dikelompokkan per jenisKategori =====
   var kategoriMap = {};
   rows.forEach(function(tx) {
     if (tx.kategori !== 'PENGELUARAN') return;
@@ -7712,7 +7740,7 @@ function renderLaporanCharts(rows) {
     laporanKategoriChartInstance.update();
   }
 
-  // ----- 4. Distribusi Metode Pembayaran -----
+  // ===== 4. Distribusi Metode Pembayaran: jumlah transaksi per metodeTransaksi =====
   var metodeMap = {};
   rows.forEach(function(tx) {
     var m = tx.metodeTransaksi || 'BELUM_BAYAR';
@@ -7732,6 +7760,29 @@ function renderLaporanCharts(rows) {
     laporanMetodeChartInstance.data.labels = metodeLabels;
     laporanMetodeChartInstance.data.datasets[0].data = metodeData;
     laporanMetodeChartInstance.update();
+  }
+
+  // ===== 5. Status Approval Transaksi: sama seperti data di menu Approval =====
+  // Konsisten dengan filter Approval: transaksi PENGELUARAN yang metodeTransaksi != SUDAH_DIBAYAR
+  // dianggap "Menunggu Approval", sisanya "Sudah Disetujui".
+  var sudahApprove = 0, belumApprove = 0;
+  rows.forEach(function(tx) {
+    if (tx.kategori !== 'PENGELUARAN') return;
+    if (tx.metodeTransaksi === 'SUDAH_DIBAYAR') sudahApprove++;
+    else belumApprove++;
+  });
+  $('statusApprovalCount').textContent = (sudahApprove + belumApprove) + ' data';
+  var statusData = [sudahApprove, belumApprove];
+  if (!laporanStatusApprovalChartInstance) {
+    var ctx5 = $('statusApprovalChart').getContext('2d');
+    laporanStatusApprovalChartInstance = new Chart(ctx5, {
+      type: 'bar',
+      data: { labels: ['Sudah Disetujui', 'Menunggu Approval'], datasets: [{ label: 'Jumlah Transaksi', data: statusData, backgroundColor: ['#10b981', '#f59e0b'] }] },
+      options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
+    });
+  } else {
+    laporanStatusApprovalChartInstance.data.datasets[0].data = statusData;
+    laporanStatusApprovalChartInstance.update();
   }
 }
 
