@@ -6023,8 +6023,8 @@
 <script>
 // ============================================================
 // 0. POLYFILL: google.script.run -> fetch() ke Web App URL
-//    (Diperlukan karena file ini di-host di GitHub Pages,
-//     bukan di dalam Apps Script HtmlService)
+//    (Backend sepenuhnya di Supabase Edge Function; polyfill ini
+//     menjaga kompatibilitas kode lama yang memanggil google.script.run)
 // ============================================================
 (function() {
   // GANTI dengan URL Edge Function Anda, contoh:
@@ -6034,7 +6034,7 @@
   // Daftar nama fungsi yang TIDAK butuh JWT (harus sama persis dengan
   // PUBLIC_FUNCTIONS di index.ts) — dipakai untuk skip header Authorization.
   var PUBLIC_FUNCTIONS = {
-    registerUser: 1, verifyRegistrationOtp: 1, loginUser: 1, checkSession: 1,
+    registerUser: 1, verifyRegistrationOtp: 1, resendRegistrationOtp: 1, loginUser: 1, checkSession: 1,
     recoverPassword: 1, recoverUsername: 1, recoverToken: 1,
     getAppConfig: 1, getDropdownOptions: 1
   };
@@ -6904,11 +6904,18 @@ function doVerifyOtp() {
 
 function doResendOtp() {
   if (!pendingOtpEmail) return;
-  showToast('info', 'Mengirim Ulang', 'Silakan cek email Anda kembali dalam beberapa saat.');
   google.script.run
-    .withSuccessHandler(function() {})
-    .withFailureHandler(function() {})
-    .registerUser({ email: pendingOtpEmail, namaLengkap: '', jabatan: '', sppg: '', username: pendingOtpUsername, password: '' });
+    .withSuccessHandler(function(result) {
+      if (result && result.success) {
+        showToast('success', 'Terkirim', result.message || 'Kode OTP baru telah dikirim ke email Anda.');
+      } else {
+        showToast('error', 'Gagal', (result && result.message) || 'Gagal mengirim ulang OTP.');
+      }
+    })
+    .withFailureHandler(function() {
+      showToast('error', 'Gagal', 'Terjadi kesalahan sistem saat mengirim ulang OTP.');
+    })
+    .resendRegistrationOtp(pendingOtpEmail);
 }
 
 function checkSession() {
