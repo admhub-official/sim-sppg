@@ -4149,29 +4149,6 @@
 
 <!-- Quick Access (mobile-first navigation cards) -->
         <div class="quick-access-section" id="quickAccessSection"></div>
-
-        <!-- Chart -->
-        <div class="chart-container">
-          <div class="chart-header">
-            <h3><i class="fas fa-chart-area"></i> Arus Kas Harian</h3>
-            <div class="flex items-center gap-2" style="flex-wrap:wrap;">
-              <select id="dashFilterPeriode" class="form-input" style="max-width:150px;" onchange="updateChart()">
-                <option value="7">7 Hari Terakhir</option>
-                <option value="30" selected>30 Hari Terakhir</option>
-                <option value="90">3 Bulan Terakhir</option>
-                <option value="180">6 Bulan Terakhir</option>
-                <option value="365">1 Tahun Terakhir</option>
-              </select>
-              <select id="dashFilterSPPG" class="form-input hidden" style="max-width:160px;" onchange="updateChart()">
-                <option value="ALL">Semua SPPG</option>
-              </select>
-              <span class="badge badge-slate" id="chartDataCount">0 data</span>
-            </div>
-          </div>
-          <div class="chart-canvas-wrap">
-            <canvas id="cashFlowChart"></canvas>
-          </div>
-        </div>
       </div>
 
       <!-- ==================== PROFIL PAGE ==================== -->
@@ -4749,6 +4726,92 @@
               </thead>
               <tbody id="rekapHarianBody"></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== LAPORAN PAGE ==================== -->
+      <div id="page-laporan" class="page-section hidden">
+        <div class="page-header">
+          <div class="page-header-info">
+            <div class="page-title"><i class="fas fa-chart-bar" style="color:var(--primary);"></i> Laporan & Analisis</div>
+            <p class="page-desc">Visualisasi data keuangan berdasarkan klasifikasi</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
+              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Filter Laporan -->
+        <div class="filter-section" style="margin-bottom:16px;">
+          <div class="flex items-center gap-2" style="flex-wrap:wrap;">
+            <select id="laporanFilterPeriode" class="form-input" style="max-width:150px;" onchange="updateLaporanCharts()">
+              <option value="7">7 Hari Terakhir</option>
+              <option value="30" selected>30 Hari Terakhir</option>
+              <option value="90">3 Bulan Terakhir</option>
+              <option value="180">6 Bulan Terakhir</option>
+              <option value="365">1 Tahun Terakhir</option>
+            </select>
+            <select id="laporanFilterSPPG" class="form-input hidden" style="max-width:160px;" onchange="updateLaporanCharts()">
+              <option value="ALL">Semua SPPG</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Chart Arus Kas -->
+        <div class="chart-container">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-area"></i> Arus Kas Harian</h3>
+            <span class="badge badge-slate" id="laporanChartDataCount">0 data</span>
+          </div>
+          <div class="chart-canvas-wrap">
+            <canvas id="laporanCashFlowChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart Komposisi Pemasukan vs Pengeluaran -->
+        <div class="chart-container" style="margin-top:16px;">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-pie"></i> Komposisi Pemasukan vs Pengeluaran</h3>
+            <span class="badge badge-slate" id="komposisiDataCount">0 data</span>
+          </div>
+          <div class="chart-canvas-wrap" style="max-height:400px;">
+            <canvas id="komposisiChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart Kategori Pengeluaran -->
+        <div class="chart-container" style="margin-top:16px;">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-bar"></i> Pengeluaran per Kategori</h3>
+            <span class="badge badge-slate" id="kategoriPengeluaranCount">0 data</span>
+          </div>
+          <div class="chart-canvas-wrap" style="max-height:400px;">
+            <canvas id="kategoriPengeluaranChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart Metode Pembayaran -->
+        <div class="chart-container" style="margin-top:16px;">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-pie"></i> Distribusi Metode Pembayaran</h3>
+            <span class="badge badge-slate" id="metodePembayaranCount">0 data</span>
+          </div>
+          <div class="chart-canvas-wrap" style="max-height:400px;">
+            <canvas id="metodePembayaranChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart Status Approval -->
+        <div class="chart-container" style="margin-top:16px;">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-bar"></i> Status Approval Transaksi</h3>
+            <span class="badge badge-slate" id="statusApprovalCount">0 data</span>
+          </div>
+          <div class="chart-canvas-wrap" style="max-height:400px;">
+            <canvas id="statusApprovalChart"></canvas>
           </div>
         </div>
       </div>
@@ -7202,7 +7265,7 @@ function switchPage(page, el) {
     'pending-payment': 'Pending Payment', 'master-bahan': 'Master Bahan Baku',
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
     'serah-terima': 'Serah Terima', 'menu-mbg': 'Data Menu MBG',
-    'audit-log': 'Riwayat Aktivitas'
+    'audit-log': 'Riwayat Aktivitas', 'laporan': 'Laporan & Analisis'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
   // R4: Update breadcrumb
@@ -7225,6 +7288,7 @@ function switchPage(page, el) {
   if (page === 'pending-payment') loadPendingPayment();
   if (page === 'rekap-sppg') loadRekapSPPG();
   if (page === 'rekap-harian') loadRekapHarian();
+  if (page === 'laporan') initLaporanCharts();
   if (page === 'audit-log' && currentUser.role === 'ADMIN') loadAuditLog();
     if (page === 'profil') renderProfil();
   
