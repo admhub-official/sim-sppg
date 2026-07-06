@@ -3934,11 +3934,6 @@
           </button>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Token Login <span class="req">*</span></label>
-        <input type="text" id="loginToken" class="form-input" placeholder="6 digit token dari admin" maxlength="6">
-        <p class="form-hint">Token diberikan oleh admin setelah registrasi</p>
-      </div>
       <div id="loginError" class="form-error">
         <i class="fas fa-exclamation-circle"></i><span></span>
       </div>
@@ -3946,7 +3941,6 @@
         <a onclick="showRecoveryModal('password')">Lupa Kata Sandi?</a>
         <div>
           <a onclick="showRecoveryModal('username')">Lupa Username?</a>
-          <a onclick="showRecoveryModal('token')">Lupa Token?</a>
         </div>
       </div>
       <button id="btnLogin" class="btn btn-primary w-full" onclick="doLogin()">
@@ -4046,6 +4040,37 @@
       <button id="btnRegister" class="btn btn-primary w-full" onclick="doRegister()">
         <i class="fas fa-user-plus"></i><span>Daftar</span>
       </button>
+      <div class="auth-footer">
+        Sudah punya akun? <a onclick="showLogin()">Masuk</a>
+      </div>
+    </div>
+
+    <!-- OTP VERIFICATION FORM -->
+    <div id="otpForm" class="auth-container hidden">
+      <div class="auth-logo">
+        <img src="https://drive.google.com/thumbnail?id=13oyPbF_UkWUGT04z6ziZmYa5LXy--tZb&sz=w200" alt="SIM-SPPG">
+      </div>
+      <h2>Verifikasi Email</h2>
+      <p class="auth-sub">Kode OTP 6 digit telah dikirim ke <b id="otpEmailLabel"></b></p>
+
+      <div class="form-group">
+        <label class="form-label">Kode OTP <span class="req">*</span></label>
+        <input type="text" id="otpCode" class="form-input" placeholder="6 digit kode OTP" maxlength="6" style="text-align:center;font-size:20px;letter-spacing:8px;font-weight:700;">
+        <p class="form-hint">Cek folder Inbox / Spam / Promosi pada email Anda</p>
+      </div>
+      <div id="otpError" class="form-error">
+        <i class="fas fa-exclamation-circle"></i><span></span>
+      </div>
+      <button id="btnVerifyOtp" class="btn btn-primary w-full" onclick="doVerifyOtp()">
+        <i class="fas fa-check-circle"></i><span>Verifikasi</span>
+      </button>
+      <div class="auth-footer">
+        Tidak menerima kode? <a onclick="doResendOtp()">Kirim ulang</a>
+      </div>
+    </div>
+
+  </div><!-- /auth-wrapper -->
+</div><!-- /authOverlay -->
       <div class="auth-footer">
         Sudah punya akun? <a onclick="showLogin()">Masuk</a>
       </div>
@@ -6009,7 +6034,7 @@
   // Daftar nama fungsi yang TIDAK butuh JWT (harus sama persis dengan
   // PUBLIC_FUNCTIONS di index.ts) — dipakai untuk skip header Authorization.
   var PUBLIC_FUNCTIONS = {
-    registerUser: 1, loginUser: 1, checkSession: 1,
+    registerUser: 1, verifyRegistrationOtp: 1, loginUser: 1, checkSession: 1,
     recoverPassword: 1, recoverUsername: 1, recoverToken: 1,
     getAppConfig: 1, getDropdownOptions: 1
   };
@@ -6717,10 +6742,9 @@ function previewEditFoto(input) {
 function doLogin() {
   var username = $('loginUsername').value.trim();
   var password = $('loginPassword').value;
-  var token = $('loginToken').value.trim();
   var btn = $('btnLogin');
 
-  if (!username || !password || !token) {
+  if (!username || !password) {
     $('loginError').querySelector('span').textContent = 'Semua field wajib diisi.';
     $('loginError').classList.add('show');
     $('recoveryLinks').classList.add('show');
@@ -6754,7 +6778,7 @@ function doLogin() {
       $('loginError').classList.add('show');
       $('recoveryLinks').classList.add('show');
     })
-    .loginUser(username, password, token);
+    .loginUser(username, password);
 }
 
 function doRegister() {
@@ -6813,8 +6837,9 @@ function submitRegister(data) {
       btn.innerHTML = '<i class="fas fa-user-plus"></i><span>Daftar</span>';
       if (result.success) {
         showToast('success', 'Registrasi Berhasil', result.message);
-        showLogin();
-        $('loginUsername').value = data.username;
+        pendingOtpEmail = data.email;
+        pendingOtpUsername = data.username;
+        showOtpVerification(data.email);
       } else {
         $('regError').querySelector('span').textContent = result.message || 'Registrasi gagal.';
         $('regError').classList.add('show');
@@ -6827,6 +6852,63 @@ function submitRegister(data) {
       $('regError').classList.add('show');
     })
     .registerUser(data);
+}
+
+var pendingOtpEmail = '';
+var pendingOtpUsername = '';
+
+function showOtpVerification(email) {
+  $('loginForm').classList.add('hidden');
+  $('registerForm').classList.add('hidden');
+  $('otpForm').classList.remove('hidden');
+  $('otpEmailLabel').textContent = email;
+  $('otpCode').value = '';
+  $('otpError').classList.remove('show');
+}
+
+function doVerifyOtp() {
+  var otp = $('otpCode').value.trim();
+  var btn = $('btnVerifyOtp');
+  var err = $('otpError');
+
+  if (!otp || otp.length !== 6) {
+    err.querySelector('span').textContent = 'Masukkan kode OTP 6 digit.';
+    err.classList.add('show');
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Memverifikasi...</span>';
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi</span>';
+      if (result.success) {
+        showToast('success', 'Verifikasi Berhasil', result.message);
+        $('otpForm').classList.add('hidden');
+        showLogin();
+        $('loginUsername').value = pendingOtpUsername;
+      } else {
+        err.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
+        err.classList.add('show');
+      }
+    })
+    .withFailureHandler(function(e) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi</span>';
+      err.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
+      err.classList.add('show');
+    })
+    .verifyRegistrationOtp(pendingOtpEmail, otp);
+}
+
+function doResendOtp() {
+  if (!pendingOtpEmail) return;
+  showToast('info', 'Mengirim Ulang', 'Silakan cek email Anda kembali dalam beberapa saat.');
+  google.script.run
+    .withSuccessHandler(function() {})
+    .withFailureHandler(function() {})
+    .registerUser({ email: pendingOtpEmail, namaLengkap: '', jabatan: '', sppg: '', username: pendingOtpUsername, password: '' });
 }
 
 function checkSession() {
