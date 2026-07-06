@@ -3119,10 +3119,12 @@
       to { transform: scale(1) rotate(0); opacity: 1; }
     }
 
-    /* Topbar mobile: sembunyikan tombol sekunder, pindah ke dropdown titik-tiga */
+    /* Topbar mobile: sembunyikan tombol install, tampilkan refresh langsung */
     @media (max-width: 767px) {
-      #refreshBtn, #btnInstallPWA.show { display: none !important; }
-      .topbar-more-btn { display: flex !important; }
+      #btnInstallPWA.show { display: none !important; }
+      .topbar-more-btn { display: none !important; }
+      #refreshBtn { display: flex !important; }
+      #refreshBtn span { display: none; }
     }
     .topbar-more-btn {
       display: none;
@@ -3812,13 +3814,9 @@
           <i class="fas fa-download"></i>
           <span>Install App</span>
         </button>
-        <button onclick="refreshData()" class="btn btn-outline btn-sm" id="refreshBtn">
+        <button onclick="refreshData()" class="btn btn-outline btn-sm" id="refreshBtn" title="Refresh Data">
           <i class="fas fa-sync-alt" id="refreshIcon"></i>
           <span>Refresh</span>
-        </button>
-        <div class="topbar-divider"></div>
-        <button class="topbar-more-btn" onclick="toggleTopbarMore(event)" title="Menu lainnya" aria-label="Buka menu lainnya">
-          <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
         </button>
         <div class="topbar-profile" onclick="switchPage('profil')">
           <div class="topbar-profile-text">
@@ -3826,14 +3824,6 @@
             <p class="role" id="topbarRole">-</p>
           </div>
           <img id="topbarAvatar" src="" alt="Profile">
-        </div>
-      </div>
-      <div class="topbar-more-dropdown" id="topbarMoreDropdown">
-        <div class="tmd-item" onclick="refreshData();closeTopbarMore();">
-          <i class="fas fa-sync-alt"></i><span>Refresh Data</span>
-        </div>
-        <div class="tmd-item" id="tmdInstallPwa" onclick="triggerPWAInstall();closeTopbarMore();" style="display:none;">
-          <i class="fas fa-download"></i><span>Install App</span>
         </div>
       </div>
     </header>
