@@ -6722,18 +6722,19 @@ function buildSidebar() {
 // BOTTOM NAV, FAB, MORE-SHEET, QUICK ACCESS — Mobile Navigation
 // ============================================================
 
-// Tab utama per role (maksimal 4 + 1 "Lainnya"). Sisanya otomatis masuk ke more-sheet.
+// Tab utama per role (5 item permanen: Beranda, Transaksi, Laporan, Approval, Profil)
 var BOTTOM_NAV_CONFIG = {
-  ADMIN:          ['dashboard', 'transaksi', 'approval'],
-  AKUNTAN:        ['dashboard', 'master-bahan', 'survei'],
-  LAPANGAN:       ['dashboard', 'transaksi', 'approval'],
-  WAKIL_LAPANGAN: ['dashboard', 'serah-terima'],
-  AHLI_GIZI:      ['dashboard', 'menu-mbg']
+  ADMIN:          ['dashboard', 'transaksi', 'laporan', 'approval', 'profil'],
+  AKUNTAN:        ['dashboard', 'transaksi', 'laporan', 'master-bahan', 'profil'],
+  LAPANGAN:       ['dashboard', 'transaksi', 'laporan', 'approval', 'profil'],
+  WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'laporan', 'serah-terima', 'profil'],
+  AHLI_GIZI:      ['dashboard', 'transaksi', 'laporan', 'menu-mbg', 'profil']
 };
 
 var BNAV_ICON_LABEL = {
   'dashboard':       { icon: 'fa-th-large',        label: 'Beranda' },
   'transaksi':        { icon: 'fa-exchange-alt',    label: 'Transaksi' },
+  'laporan':          { icon: 'fa-chart-bar',       label: 'Laporan' },
   'approval':         { icon: 'fa-clipboard-check', label: 'Approval' },
   'profil':           { icon: 'fa-user-circle',     label: 'Profil' },
   'master-bahan':     { icon: 'fa-boxes',           label: 'Bahan Baku' },
@@ -6747,22 +6748,9 @@ function buildBottomNav() {
   var role = currentUser.role;
   var tabs = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
   var html = '';
-  
-  // Hitung posisi tengah untuk FAB
-  var totalItems = tabs.length + 1; // +1 untuk "Lainnya"
-  var midIndex = Math.floor(totalItems / 2);
-  
-  tabs.forEach(function(page, index) {
-    // Sisipkan FAB wrapper di posisi tengah
-    if (index === midIndex) {
-      html += '<div class="bnav-fab-wrapper">' +
-        '<button class="bnav-fab" onclick="handleFabAdd()" aria-label="Tambah Transaksi">' +
-        '<i class="fas fa-plus"></i>' +
-        '<span class="bnav-fab-label">Tambah</span>' +
-        '</button>' +
-        '</div>';
-    }
-    
+
+  // 5 item navigation tanpa FAB dan tanpa "Lainnya"
+  tabs.forEach(function(page) {
     var meta = BNAV_ICON_LABEL[page] || { icon: 'fa-circle', label: page };
     var isActive = currentPage === page ? 'active' : '';
     var badgeHtml = (page === 'approval') ? '<span class="bnav-badge" id="bnavApprovalBadge" style="display:none;">0</span>' : '';
@@ -6770,10 +6758,7 @@ function buildBottomNav() {
       badgeHtml +
       '<i class="fas ' + meta.icon + '"></i><span>' + meta.label + '</span></button>';
   });
-  
-  // Tombol "Lainnya" di akhir
-  html += '<button class="bnav-item" onclick="openMoreSheet()"><span class="bnav-lainnya-dot"></span><i class="fas fa-th"></i><span>Lainnya</span></button>';
-  
+
   $('bottomNavInner').innerHTML = html;
   syncApprovalBadgeToBottomNav();
 }
