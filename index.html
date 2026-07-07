@@ -3490,17 +3490,17 @@
       .table-container tbody {
         display: flex !important;
         flex-direction: column !important;
-        gap: 14px !important;
+        gap: 8px !important;
         padding: 4px 0 !important;
       }
       .table-container tbody tr {
         display: grid !important;
         background: var(--white) !important;
         border: 1px solid var(--slate-200) !important;
-        border-radius: 20px !important;
-        padding: 16px !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.02) !important;
-        gap: 10px !important;
+        border-radius: 14px !important;
+        padding: 10px 12px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.02) !important;
+        gap: 6px !important;
         align-items: center !important;
         transition: transform 0.2s, box-shadow 0.2s !important;
         margin-bottom: 0 !important;
@@ -5145,9 +5145,8 @@
           </div>
           <div class="form-group">
             <label class="form-label">SPPG <span class="req">*</span></label>
-            <select id="addTxSPPG" class="form-input">
-              <option value="">Pilih SPPG</option>
-            </select>
+            <input type="text" id="addTxSPPG" class="form-input" placeholder="Ketik atau pilih SPPG..." list="sppgDatalist" autocomplete="off">
+            <datalist id="sppgDatalist"></datalist>
           </div>
         </div>
 
@@ -5167,9 +5166,10 @@
         </div>
 
         <!-- Catatan -->
-        <div class="form-group">
+        <div class="form-group autocomplete-box">
           <label class="form-label">Catatan</label>
-          <textarea id="addTxCatatan" class="form-input" placeholder="Catatan transaksi..."></textarea>
+          <textarea id="addTxCatatan" class="form-input" placeholder="Catatan transaksi..." oninput="handleCatatanAutocomplete(this)" autocomplete="off" rows="2"></textarea>
+          <div class="autocomplete-dropdown" id="catatanDropdown"></div>
         </div>
 
         <!-- Metode Transaksi -->
@@ -6436,6 +6436,34 @@ function onItemFocus() {
   }
 }
 
+function handleCatatanAutocomplete(input) {
+  var dropdown = $('catatanDropdown');
+  if (!dropdown) return;
+  var val = input.value.trim().toLowerCase();
+  if (!val) { dropdown.classList.remove('active'); return; }
+  var sources = new Set();
+  allTransactions.forEach(function(t) {
+    if (t.catatan && t.catatan.trim() && t.catatan !== '-') sources.add(t.catatan.trim());
+  });
+  var matches = Array.from(sources)
+    .filter(function(s) { return s.toLowerCase().indexOf(val) > -1; })
+    .slice(0, 8);
+  if (!matches.length) { dropdown.classList.remove('active'); return; }
+  var html = '';
+  matches.forEach(function(m) {
+    html += '<div class="autocomplete-item" onclick="selectCatatan(\'' + esc(m) + '\')">' + esc(m) + '</div>';
+  });
+  dropdown.innerHTML = html;
+  dropdown.classList.add('active');
+}
+
+function selectCatatan(val) {
+  var el = $('addTxCatatan');
+  if (el) el.value = val;
+  var dd = $('catatanDropdown');
+  if (dd) dd.classList.remove('active');
+}
+
 /* ===== Konfirmasi nominal live ===== */
 function updateNominalConfirm(input, confirmId) {
   var val = parseFloat(input.value) || 0;
@@ -7303,7 +7331,7 @@ function switchPage(page, el) {
   if (page === 'pending-payment') loadPendingPayment();
   if (page === 'rekap-sppg') loadRekapSPPG();
   if (page === 'rekap-harian') loadRekapHarian();
-  if (page === 'laporan') updateLaporanCharts();
+  if (page === 'laporan') { requestAnimationFrame(function() { updateLaporanCharts(); }); }
   if (page === 'audit-log' && currentUser.role === 'ADMIN') loadAuditLog();
     if (page === 'profil') renderProfil();
   
@@ -7480,11 +7508,16 @@ function initApp() {
   buildSidebar();
   buildBottomNav();
   updateFabVisibility();
-  initChart();
-  loadDashboardData();
-  updateChart();
-  renderQuickAccess();
   loadDropdownOptions();
+
+  // Gunakan requestAnimationFrame agar DOM selesai render sebelum chart dan data dimuat.
+  // Ini mencegah Quick Access kosong dan KPI stuck di "Rp 0" saat pertama masuk.
+  requestAnimationFrame(function() {
+    initChart();
+    loadDashboardData();
+    updateChart();
+    renderQuickAccess();
+  });
 
   if (currentUser.role === 'ADMIN') {
     var selDashSppg = $('dashFilterSPPG');
@@ -7518,15 +7551,12 @@ function loadDropdownOptions() {
 }
 
 function populateSPPGSelects() {
-  var lists = ['addTxSPPG'];
   var sppgList = dropdownOptions.sppgList || ['DARMARAJA','CIAMIS','TANJUNG MEDAR','PAKUALAM','KIRISIK','CIBUNAR'];
-  lists.forEach(function(id) {
-    var sel = $(id);
-    if (!sel) return;
-    var html = '<option value="">Pilih SPPG</option>';
-    sppgList.forEach(function(s) { html += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
-    sel.innerHTML = html;
-  });
+  // Isi datalist untuk input#addTxSPPG
+  var dl = $('sppgDatalist');
+  if (dl) {
+    dl.innerHTML = sppgList.map(function(s) { return '<option value="' + esc(s) + '">'; }).join('');
+  }
 }
 function populateSupplierSelects() {
   var suppliers = dropdownOptions.suppliers || [];
@@ -7696,6 +7726,15 @@ function renderLaporanCharts(rows) {
     laporanCashFlowChartInstance.data.datasets[2].data = saldoData;
     laporanCashFlowChartInstance.update();
   }
+
+  // Paksa resize setelah render pertama agar chart mengisi container dengan benar
+  requestAnimationFrame(function() {
+    if (laporanCashFlowChartInstance) laporanCashFlowChartInstance.resize();
+    if (laporanKomposisiChartInstance) laporanKomposisiChartInstance.resize();
+    if (laporanKategoriChartInstance) laporanKategoriChartInstance.resize();
+    if (laporanMetodeChartInstance) laporanMetodeChartInstance.resize();
+    if (laporanStatusApprovalChartInstance) laporanStatusApprovalChartInstance.resize();
+  });
 
   // ===== 2. Komposisi Pemasukan vs Pengeluaran: total nominal masing-masing kategori =====
   var totalIn = 0, totalOut = 0;
@@ -8206,7 +8245,23 @@ function openAddTransaksiModal() {
 
   $('addTxKategori').value = 'PENGELUARAN';
   $('addTxJenisKat').value = '';
-  $('addTxSPPG').value = currentUser ? currentUser.sppg : '';
+  // Set SPPG default dari user, setelah datalist dipastikan terisi
+  (function() {
+    var sppgVal = currentUser ? (currentUser.sppg || '') : '';
+    var sppgInput = $('addTxSPPG');
+    if (!sppgInput) return;
+    if (dropdownOptions.sppgList && dropdownOptions.sppgList.length) {
+      sppgInput.value = sppgVal;
+    } else {
+      // Datalist belum terisi — tunggu loadDropdownOptions selesai
+      sppgInput.value = sppgVal;
+      // Fallback: isi datalist dengan CFG_SPPG_FALLBACK sekarang
+      var dl = $('sppgDatalist');
+      if (dl && !dl.children.length) {
+        dl.innerHTML = CFG_SPPG_FALLBACK.map(function(s) { return '<option value="' + esc(s) + '">'; }).join('');
+      }
+    }
+  })();
   $('addTxItem').value = '';
   $('addTxCatatan').value = '';
   $('addTxMetodeTransaksi').value = 'BELUM_BAYAR';
