@@ -2961,18 +2961,26 @@
       transform: scale(0.96);
     }
     .bnav-item i { 
-      font-size: 21px; 
+      font-size: 24px; 
       position: relative;
       z-index: 2;
       transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
       line-height: 1;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      background: transparent;
+      transition: background 0.25s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
     }
     .bnav-item span { 
-      font-size: 10.5px; 
+      font-size: 10px; 
       font-weight: 600; 
-      letter-spacing: 0.15px;
+      letter-spacing: 0.1px;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      opacity: 0.95;
+      opacity: 0.85;
       line-height: 1.2;
       text-align: center;
       max-width: 100%;
@@ -2986,28 +2994,17 @@
     .bnav-item[data-page].active { 
       color: var(--primary); 
     }
-    /* Active state with floating circular indicator */
-    .bnav-item.active::before {
-      content: '';
-      position: absolute;
-      top: 4px;
-      left: 50%;
-      transform: translateX(-50%) scale(1);
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, rgba(30,111,156,0.12), rgba(30,111,156,0.08));
-      border-radius: 50%;
-      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      z-index: 0;
-      opacity: 1;
-    }
+    /* Active state: background biru solid pada icon */
+    .bnav-item.active::before { display: none; }
     .bnav-item.active i {
-      transform: translateY(-2px) scale(1.08);
-      filter: drop-shadow(0 3px 6px rgba(30,111,156,0.25));
+      background: linear-gradient(135deg, #1e6f9c, #2580b3);
+      color: #ffffff;
+      transform: translateY(-1px) scale(1.0);
+      box-shadow: 0 4px 14px rgba(30,111,156,0.45);
     }
     .bnav-item.active span {
       font-weight: 700;
-      transform: translateY(0);
+      opacity: 1;
       color: var(--primary);
     }
     .bnav-item.is-more-active { 
@@ -3367,7 +3364,10 @@
       to { transform: scale(1) rotate(0); opacity: 1; }
     }
 
-    /* Topbar mobile: sembunyikan tombol install, tampilkan refresh langsung */
+    /* Sembunyikan install button secara default — hanya tampil saat ada class .show DAN di desktop */
+    #btnInstallPWA { display: none !important; }
+    #btnInstallPWA.show { display: inline-flex !important; }
+    /* Topbar mobile: install button tidak pernah tampil, refresh langsung tampil */
     @media (max-width: 767px) {
       #btnInstallPWA.show { display: none !important; }
       .topbar-more-btn { display: none !important; }
@@ -3577,6 +3577,9 @@
           "penginput penginput penginput"
           "aksi aksi aksi" !important;
         grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,auto) !important;
+        padding: 10px 12px !important;
+        border-radius: 14px !important;
+        gap: 5px !important;
       }
       /* R2: Status left border indicator simulated via colored top-left badge or shadow in mobile */
       .approval-table tbody tr.status-belum-bayar { box-shadow: -4px 4px 12px rgba(244,63,94,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--rose) !important; }
@@ -7331,8 +7334,7 @@ function switchPage(page, el) {
   if (page === 'pending-payment') loadPendingPayment();
   if (page === 'rekap-sppg') loadRekapSPPG();
   if (page === 'rekap-harian') loadRekapHarian();
-  if (page === 'laporan') { requestAnimationFrame(function() { updateLaporanCharts(); }); }
-  if (page === 'audit-log' && currentUser.role === 'ADMIN') loadAuditLog();
+  if (page === 'laporan') requestAnimationFrame(function() { updateLaporanCharts(); });  if (page === 'audit-log' && currentUser.role === 'ADMIN') loadAuditLog();
     if (page === 'profil') renderProfil();
   
   // Hide/show local print buttons for non-admin/akuntan
@@ -7508,7 +7510,17 @@ function initApp() {
   buildSidebar();
   buildBottomNav();
   updateFabVisibility();
+  // Pre-populate SPPG dengan fallback langsung (tidak tunggu API) agar
+  // select sudah ada isinya saat user buka modal tambah transaksi pertama kali
+  populateSPPGSelects();
   loadDropdownOptions();
+
+  requestAnimationFrame(function() {
+    initChart();
+    loadDashboardData();
+    updateChart();
+    renderQuickAccess();
+  });
 
   // Gunakan requestAnimationFrame agar DOM selesai render sebelum chart dan data dimuat.
   // Ini mencegah Quick Access kosong dan KPI stuck di "Rp 0" saat pertama masuk.
@@ -7551,12 +7563,19 @@ function loadDropdownOptions() {
 }
 
 function populateSPPGSelects() {
-  var sppgList = dropdownOptions.sppgList || ['DARMARAJA','CIAMIS','TANJUNG MEDAR','PAKUALAM','KIRISIK','CIBUNAR'];
-  // Isi datalist untuk input#addTxSPPG
-  var dl = $('sppgDatalist');
-  if (dl) {
-    dl.innerHTML = sppgList.map(function(s) { return '<option value="' + esc(s) + '">'; }).join('');
-  }
+  var lists = ['addTxSPPG'];
+  var sppgList = dropdownOptions.sppgList && dropdownOptions.sppgList.length
+    ? dropdownOptions.sppgList
+    : CFG_SPPG_FALLBACK;
+  lists.forEach(function(id) {
+    var sel = $(id);
+    if (!sel) return;
+    var currentVal = sel.value; // simpan nilai aktif sebelum rebuild
+    var html = '<option value="">Pilih SPPG</option>';
+    sppgList.forEach(function(s) { html += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
+    sel.innerHTML = html;
+    if (currentVal) sel.value = currentVal; // restore nilai setelah rebuild
+  });
 }
 function populateSupplierSelects() {
   var suppliers = dropdownOptions.suppliers || [];
@@ -7657,34 +7676,57 @@ function initChart() {
 
 function updateLaporanCharts() {
   if (!currentUser) return;
+
   var periodeSel = $('laporanFilterPeriode');
   var days = periodeSel ? parseInt(periodeSel.value) || 30 : 30;
-  var end = new Date();
-  var start = new Date(); start.setDate(start.getDate() - days);
+
+  // Jika allTransactions sudah ada (user sudah buka menu Transaksi), pakai langsung
+  // tanpa request API ulang — lebih cepat dan tidak ada masalah format tanggal.
+  if (allTransactions && allTransactions.length > 0) {
+    renderLaporanCharts(allTransactions, days);
+    return;
+  }
+
+  // Jika belum ada data, fetch dari API (tanpa filter tanggal — filter dilakukan client-side
+  // karena format tanggal di DB adalah DD/MM/YYYY sedangkan YYYY-MM-DD akan gagal di backend)
   var filters = {
     callerRole: currentUser.role,
-    callerUser: currentUser.role === 'ADMIN' ? '' : currentUser.email,
-    dateStart: formatDateInput(start),
-    dateEnd: formatDateInput(end)
+    callerUser: currentUser.role === 'ADMIN' ? '' : currentUser.email
   };
-  var sppgSel = $('laporanFilterSPPG');
-  if (sppgSel && sppgSel.value !== 'ALL') filters.sppg = sppgSel.value;
 
   google.script.run
     .withSuccessHandler(function(data) {
-      renderLaporanCharts(data || []);
+      if (data && Array.isArray(data)) {
+        allTransactions = data; // cache agar tidak fetch ulang
+      }
+      renderLaporanCharts(data || [], days);
     })
     .withFailureHandler(function(err) {
       console.error('updateLaporanCharts error:', err);
-      renderLaporanCharts([]);
+      renderLaporanCharts([], days);
     })
     .getTransactions(filters);
 }
 
-function renderLaporanCharts(rows) {
+function renderLaporanCharts(rows, days) {
+  // Filter tanggal dilakukan di sini (client-side) karena tx.tanggal format DD/MM/YYYY
+  // sedangkan server-side filter menggunakan YYYY-MM-DD sehingga tidak cocok.
+  var numDays = days || 30;
+  var cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - numDays);
+  cutoff.setHours(0, 0, 0, 0);
+
+  var filtered = rows.filter(function(tx) {
+    if (!tx.tanggal || tx.tanggal === '-') return false;
+    var parts = tx.tanggal.split('/'); // DD/MM/YYYY
+    if (parts.length !== 3) return false;
+    var d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    return d >= cutoff;
+  });
+
   // ===== 1. Arus Kas Harian: Pemasukan, Pengeluaran, Saldo Berjalan (kumulatif) per tanggal =====
   var dailyMap = {};
-  rows.forEach(function(tx) {
+  filtered.forEach(function(tx) {
     var tgl = tx.tanggal || '-';
     if (!dailyMap[tgl]) dailyMap[tgl] = { pemasukan: 0, pengeluaran: 0 };
     if (tx.kategori === 'PEMASUKAN') dailyMap[tgl].pemasukan += tx.nominal || 0;
@@ -7738,11 +7780,11 @@ function renderLaporanCharts(rows) {
 
   // ===== 2. Komposisi Pemasukan vs Pengeluaran: total nominal masing-masing kategori =====
   var totalIn = 0, totalOut = 0;
-  rows.forEach(function(tx) {
+  filtered.forEach(function(tx) {
     if (tx.kategori === 'PEMASUKAN') totalIn += tx.nominal || 0;
     if (tx.kategori === 'PENGELUARAN') totalOut += tx.nominal || 0;
   });
-  $('komposisiDataCount').textContent = rows.length + ' data';
+  $('komposisiDataCount').textContent = filtered.length + ' data';
   var komposisiData = [totalIn, totalOut];
   if (!laporanKomposisiChartInstance) {
     var ctx2 = $('komposisiChart').getContext('2d');
@@ -7758,7 +7800,7 @@ function renderLaporanCharts(rows) {
 
   // ===== 3. Pengeluaran per Kategori: total nominal PENGELUARAN dikelompokkan per jenisKategori =====
   var kategoriMap = {};
-  rows.forEach(function(tx) {
+  filtered.forEach(function(tx) {
     if (tx.kategori !== 'PENGELUARAN') return;
     var jk = tx.jenisKategori || 'Lainnya';
     kategoriMap[jk] = (kategoriMap[jk] || 0) + (tx.nominal || 0);
@@ -7781,13 +7823,13 @@ function renderLaporanCharts(rows) {
 
   // ===== 4. Distribusi Metode Pembayaran: jumlah transaksi per metodeTransaksi =====
   var metodeMap = {};
-  rows.forEach(function(tx) {
+  filtered.forEach(function(tx) {
     var m = tx.metodeTransaksi || 'BELUM_BAYAR';
     metodeMap[m] = (metodeMap[m] || 0) + 1;
   });
   var metodeLabels = Object.keys(metodeMap);
   var metodeData = metodeLabels.map(function(k) { return metodeMap[k]; });
-  $('metodePembayaranCount').textContent = rows.length + ' data';
+  $('metodePembayaranCount').textContent = filtered.length + ' data';
   if (!laporanMetodeChartInstance) {
     var ctx4 = $('metodePembayaranChart').getContext('2d');
     laporanMetodeChartInstance = new Chart(ctx4, {
@@ -7805,7 +7847,7 @@ function renderLaporanCharts(rows) {
   // Konsisten dengan filter Approval: transaksi PENGELUARAN yang metodeTransaksi != SUDAH_DIBAYAR
   // dianggap "Menunggu Approval", sisanya "Sudah Disetujui".
   var sudahApprove = 0, belumApprove = 0;
-  rows.forEach(function(tx) {
+  filtered.forEach(function(tx) {
     if (tx.kategori !== 'PENGELUARAN') return;
     if (tx.metodeTransaksi === 'SUDAH_DIBAYAR') sudahApprove++;
     else belumApprove++;
