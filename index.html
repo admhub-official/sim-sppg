@@ -7642,6 +7642,16 @@ function updateLaporanCharts() {
     .getTransactions(filters);
 }
 
+// Helper: konversi string tanggal format DD/MM/YYYY menjadi objek Date,
+// dipakai khusus untuk sorting label chart di renderLaporanCharts().
+function parseDate(str) {
+  if (!str || str === '-') return new Date(0);
+  var parts = String(str).split('/');
+  if (parts.length !== 3) return new Date(0);
+  var d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  return isNaN(d.getTime()) ? new Date(0) : d;
+}
+
 function renderLaporanCharts(rows, days) {
   // Filter tanggal dilakukan di sini (client-side) karena tx.tanggal format DD/MM/YYYY
   // sedangkan server-side filter menggunakan YYYY-MM-DD sehingga tidak cocok.
