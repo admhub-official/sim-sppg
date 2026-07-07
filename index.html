@@ -3370,55 +3370,9 @@
     /* Topbar mobile: install button tidak pernah tampil, refresh langsung tampil */
     @media (max-width: 767px) {
       #btnInstallPWA.show { display: none !important; }
-      .topbar-more-btn { display: none !important; }
       #refreshBtn { display: flex !important; }
       #refreshBtn span { display: none; }
     }
-    .topbar-more-btn {
-      display: none;
-      width: var(--touch-target);
-      height: var(--touch-target);
-      border: 1px solid var(--slate-200);
-      border-radius: 8px;
-      background: white;
-      align-items: center;
-      justify-content: center;
-      color: var(--slate-500);
-      font-size: 16px;
-      cursor: pointer;
-      flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-    body.dark-mode .topbar-more-btn { background: #1e293b; border-color: #334155; color: #cbd5e1; }
-    .topbar-more-dropdown {
-      display: none;
-      position: absolute;
-      top: 52px;
-      right: 12px;
-      background: white;
-      border: 1px solid var(--slate-200);
-      border-radius: 12px;
-      box-shadow: var(--shadow-lg);
-      min-width: 180px;
-      z-index: 60;
-      overflow: hidden;
-    }
-    .topbar-more-dropdown.active { display: block; }
-    .topbar-more-dropdown .tmd-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 11px 16px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--slate-700);
-      cursor: pointer;
-    }
-    .topbar-more-dropdown .tmd-item:active { background: var(--slate-50); }
-    .topbar-more-dropdown .tmd-item i { width: 18px; font-size: 14px; color: var(--slate-500); }
-    body.dark-mode .topbar-more-dropdown { background: #1e293b; border-color: #334155; }
-    body.dark-mode .topbar-more-dropdown .tmd-item { color: #cbd5e1; }
-
     /* Touch device improvements */
     @media (hover: none) and (pointer: coarse) {
       .menu-item:hover { background: transparent; }
@@ -7150,26 +7104,6 @@ function openMoreSheet() {
   $('moreSheetOverlay').classList.add('active');
 }
 function closeMoreSheet() { $('moreSheetOverlay').classList.remove('active'); }
-
-// ── Topbar dropdown titik-tiga (mobile) ──
-function toggleTopbarMore(e) {
-  if (e) e.stopPropagation();
-  $('topbarMoreDropdown').classList.toggle('active');
-  var icon = $('themeToggleIcon');
-  var tmdIcon = $('tmdDarkIcon');
-  if (icon && tmdIcon) tmdIcon.className = icon.className;
-  var installBtn = $('btnInstallPWA');
-  var tmdInstall = $('tmdInstallPwa');
-  if (installBtn && tmdInstall) tmdInstall.style.display = installBtn.classList.contains('show') ? 'flex' : 'none';
-}
-function closeTopbarMore() { $('topbarMoreDropdown').classList.remove('active'); }
-document.addEventListener('click', function(e) {
-  var dd = $('topbarMoreDropdown');
-  var btn = document.querySelector('.topbar-more-btn');
-  if (dd && dd.classList.contains('active') && !dd.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-    closeTopbarMore();
-  }
-});
 
 // ── FAB "Tambah" — routing per halaman aktif ──
 var FAB_ACTION_MAP = {
@@ -11641,9 +11575,7 @@ function submitRecovery() {
 
   document.addEventListener('DOMContentLoaded', function() {
     var lpwd = document.getElementById('loginPassword');
-    var ltok = document.getElementById('loginToken');
     if (lpwd) lpwd.addEventListener('keypress', function(e) { if (e.key === 'Enter') doLogin(); });
-    if (ltok) ltok.addEventListener('keypress', function(e) { if (e.key === 'Enter') doLogin(); });
   });
 
   document.addEventListener('click', function(e) {
