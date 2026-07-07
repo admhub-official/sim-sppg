@@ -2804,8 +2804,18 @@
       .menu-badge, .toast-container, .loading-overlay, .modal-overlay,
       .lightbox-overlay, #authOverlay, #printBtn { display: none !important; }
       .print-only { display: block !important; }
-      .main-wrapper { margin-left: 0 !important; }
-      .content { padding: 0 !important; max-width: 100% !important; }
+      .main-wrapper {
+        margin-left: 0 !important;
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+      html, body {
+        height: auto !important;
+        overflow: visible !important;
+      }
+      .content { padding: 0 !important; max-width: 100% !important; overflow: visible !important; }
       .page-section { display: none !important; margin-bottom: 16px; }
       .page-section:not(.hidden) { display: block !important; }
       .table-container { box-shadow: none; border: 1px solid #ccc; border-radius: 0; }
@@ -2851,6 +2861,48 @@
       .table-container table { font-size: 10px; }
       thead th { padding: 6px 8px; }
       tbody td { padding: 6px 8px; }
+    }
+
+    /* ============================================================
+       PRINT: Halaman Laporan — multi-halaman, rapi, informatif
+       ============================================================ */
+    @media print {
+      #page-laporan {
+        page-break-inside: auto !important;
+      }
+      #page-laporan .chart-container {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-bottom: 18px !important;
+        max-height: none !important;
+      }
+      #page-laporan .chart-canvas-wrap {
+        max-height: 320px !important;
+        page-break-inside: avoid !important;
+      }
+      #page-laporan .chart-canvas-wrap canvas {
+        max-height: 300px !important;
+      }
+      #page-laporan .stat-card,
+      #page-laporan .stats-grid {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      #page-laporan h2,
+      #page-laporan h3,
+      #page-laporan h4 {
+        page-break-after: avoid !important;
+      }
+      /* Header cetak berulang di setiap halaman print (judul laporan) */
+      #page-laporan::before {
+        content: 'Laporan & Analisis — Dicetak: ' attr(data-print-date);
+        display: block;
+        font-size: 10px;
+        color: #666;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 6px;
+        margin-bottom: 12px;
+      }
     }
 
     /* ============================================================
@@ -3231,8 +3283,8 @@
     }
     .quick-access-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
     }
     @media (min-width: 480px) {
       .quick-access-grid { grid-template-columns: repeat(4, 1fr); gap: 14px; }
@@ -3243,8 +3295,8 @@
     .qa-card {
       background: white;
       border: none;
-      border-radius: 18px;
-      padding: 16px 12px;
+      border-radius: 16px;
+      padding: 12px 8px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -7766,24 +7818,37 @@ function renderLaporanCharts(rows, days) {
   }
 
   // ===== 4. Distribusi Metode Pembayaran: jumlah transaksi per metodeTransaksi =====
+  // Urutan & warna tetap agar konsisten di setiap render, termasuk CASH.
+  var METODE_ORDER = ['CASH', 'TRANSFER', 'SUDAH_DIBAYAR', 'BELUM_BAYAR'];
+  var METODE_LABEL_MAP = { CASH: 'Cash', TRANSFER: 'Transfer', SUDAH_DIBAYAR: 'Sudah Dibayar', BELUM_BAYAR: 'Belum Bayar' };
+  var METODE_COLOR_MAP = { CASH: '#10b981', TRANSFER: '#3b82f6', SUDAH_DIBAYAR: '#a855f7', BELUM_BAYAR: '#f59e0b' };
+
   var metodeMap = {};
   filtered.forEach(function(tx) {
     var m = tx.metodeTransaksi || 'BELUM_BAYAR';
     metodeMap[m] = (metodeMap[m] || 0) + 1;
   });
-  var metodeLabels = Object.keys(metodeMap);
-  var metodeData = metodeLabels.map(function(k) { return metodeMap[k]; });
+  // Susun berdasarkan METODE_ORDER dulu (agar CASH selalu tampil bila ada datanya),
+  // lalu tambahkan metode lain yang mungkin belum terdaftar di METODE_ORDER.
+  var metodeKeys = METODE_ORDER.filter(function(k) { return metodeMap[k] > 0; });
+  Object.keys(metodeMap).forEach(function(k) {
+    if (metodeKeys.indexOf(k) === -1) metodeKeys.push(k);
+  });
+  var metodeLabels = metodeKeys.map(function(k) { return METODE_LABEL_MAP[k] || k; });
+  var metodeData = metodeKeys.map(function(k) { return metodeMap[k]; });
+  var metodeColors = metodeKeys.map(function(k) { return METODE_COLOR_MAP[k] || '#64748b'; });
   $('metodePembayaranCount').textContent = filtered.length + ' data';
   if (!laporanMetodeChartInstance) {
     var ctx4 = $('metodePembayaranChart').getContext('2d');
     laporanMetodeChartInstance = new Chart(ctx4, {
       type: 'pie',
-      data: { labels: metodeLabels, datasets: [{ data: metodeData, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#a855f7'] }] },
+      data: { labels: metodeLabels, datasets: [{ data: metodeData, backgroundColor: metodeColors }] },
       options: { responsive: true, maintainAspectRatio: false }
     });
   } else {
     laporanMetodeChartInstance.data.labels = metodeLabels;
     laporanMetodeChartInstance.data.datasets[0].data = metodeData;
+    laporanMetodeChartInstance.data.datasets[0].backgroundColor = metodeColors;
     laporanMetodeChartInstance.update();
   }
 
@@ -11098,9 +11163,17 @@ function printCurrentPage() {
   var pageTitleText = $('pageTitle').textContent || 'SPPG';
   document.title = pageTitleText + ' - ' + (currentUser ? currentUser.namaLengkap : 'Print');
 
-  // Dashboard & Rekap: pakai print normal (tidak dipaginate)
-  var normalPrintPages = ['dashboard', 'rekap-sppg', 'rekap-harian', 'profil'];
+  // Dashboard, Rekap & Laporan: pakai print normal (cetak konten halaman apa adanya,
+  // termasuk chart/canvas — tidak bisa direkonstruksi ulang sebagai tabel print-all)
+  var normalPrintPages = ['dashboard', 'rekap-sppg', 'rekap-harian', 'profil', 'laporan'];
   if (normalPrintPages.indexOf(currentPage) > -1) {
+    if (currentPage === 'laporan') {
+      var laporanSection = $('page-laporan');
+      if (laporanSection) {
+        var d = new Date();
+        laporanSection.setAttribute('data-print-date', d.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' }) + ' ' + d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }));
+      }
+    }
     setTimeout(function() {
       window.print();
       document.title = originalTitle;
@@ -11390,6 +11463,66 @@ function submitRecovery() {
       closeMobileSidebar();
     }
   }, { passive: true });
+
+  // --- Custom Pull-to-Refresh pada .main-wrapper ---
+  // Browser native pull-to-refresh tidak bisa diandalkan karena app
+  // berjalan di dalam iframe & .main-wrapper adalah scroll container
+  // sendiri (max-height:100vh + overflow-y:auto), sehingga gesture tarik
+  // ke bawah "diserap" wrapper tanpa memicu refresh bawaan browser.
+  (function initPullToRefresh() {
+    var wrapper = document.getElementById('mainWrapper');
+    if (!wrapper) return;
+
+    var ptrIndicator = document.createElement('div');
+    ptrIndicator.id = 'ptrIndicator';
+    ptrIndicator.style.cssText = 'position:absolute;top:0;left:0;right:0;height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:height 0.2s ease;z-index:50;color:var(--primary,#1e6f9c);font-size:20px;pointer-events:none;';
+    ptrIndicator.innerHTML = '<i class="fas fa-sync-alt" id="ptrIcon"></i>';
+    wrapper.style.position = wrapper.style.position || 'relative';
+    wrapper.insertBefore(ptrIndicator, wrapper.firstChild);
+
+    var startY = 0, currentY = 0, pulling = false, refreshing = false;
+    var PTR_THRESHOLD = 70, PTR_MAX = 110;
+
+    wrapper.addEventListener('touchstart', function(e) {
+      if (refreshing || !currentUser) return;
+      if (wrapper.scrollTop > 0) { pulling = false; return; }
+      if (e.touches.length !== 1) return;
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }, { passive: true });
+
+    wrapper.addEventListener('touchmove', function(e) {
+      if (!pulling || refreshing || !currentUser) return;
+      currentY = e.touches[0].clientY;
+      var diff = currentY - startY;
+      if (diff <= 0) { pulling = false; ptrIndicator.style.height = '0px'; return; }
+      if (wrapper.scrollTop > 0) { pulling = false; ptrIndicator.style.height = '0px'; return; }
+      var pull = Math.min(diff * 0.5, PTR_MAX);
+      ptrIndicator.style.height = pull + 'px';
+      var icon = document.getElementById('ptrIcon');
+      if (icon) icon.style.transform = 'rotate(' + Math.min(pull * 3, 360) + 'deg)';
+    }, { passive: true });
+
+    wrapper.addEventListener('touchend', function() {
+      if (!pulling || refreshing || !currentUser) { pulling = false; return; }
+      pulling = false;
+      var height = parseInt(ptrIndicator.style.height) || 0;
+      if (height >= PTR_THRESHOLD * 0.5) {
+        refreshing = true;
+        ptrIndicator.style.height = '50px';
+        var icon = document.getElementById('ptrIcon');
+        if (icon) icon.classList.add('fa-spin');
+        refreshData();
+        setTimeout(function() {
+          ptrIndicator.style.height = '0px';
+          if (icon) icon.classList.remove('fa-spin');
+          refreshing = false;
+        }, 900);
+      } else {
+        ptrIndicator.style.height = '0px';
+      }
+    }, { passive: true });
+  })();
 
   // --- Android back button: tutup modal/sidebar yang terbuka ---
   window.addEventListener('popstate', function() {
