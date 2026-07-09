@@ -2437,21 +2437,47 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
+      width: 220px;
+    }
+    .app-loading-logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      object-fit: cover;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+      animation: appLoadingPulse 1.6s ease-in-out infinite;
+    }
+    @keyframes appLoadingPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
     }
     .app-loading-box p {
       color: #fff;
       font-size: 13px;
       font-weight: 600;
       letter-spacing: 0.2px;
+      margin: 0;
     }
-    .app-loading-spinner {
-      width: 36px;
-      height: 36px;
-      border: 3px solid rgba(255, 255, 255, 0.25);
-      border-top-color: #38bdf8;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
+    .app-loading-progress-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .app-loading-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1e6f9c, #38bdf8);
+      border-radius: 999px;
+      transition: width 0.25s ease-out;
+    }
+    .app-loading-progress-text {
+      color: #38bdf8;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
     }
 
     /* ============================================================
@@ -4057,8 +4083,12 @@
 <!-- Full-screen loading overlay saat memuat seluruh data setelah login -->
 <div id="appLoadingOverlay" class="app-loading-overlay hidden">
   <div class="app-loading-box">
-    <div class="app-loading-spinner"></div>
+    <img src="https://drive.google.com/thumbnail?id=13oyPbF_UkWUGT04z6ziZmYa5LXy--tZb&sz=w100" alt="Logo" class="app-loading-logo">
     <p>Sedang memuat data...</p>
+    <div class="app-loading-progress-track">
+      <div class="app-loading-progress-fill" id="appLoadingProgressFill"></div>
+    </div>
+    <span class="app-loading-progress-text" id="appLoadingProgressText">0%</span>
   </div>
 </div>
 
@@ -7567,11 +7597,39 @@ function executeWAReminder() {
 // ============================================================
 // 6. APP INITIALIZATION
 // ============================================================
+var _appLoadingProgressTimer = null;
+function startAppLoadingProgress() {
+  var fill = $('appLoadingProgressFill');
+  var text = $('appLoadingProgressText');
+  if (!fill || !text) return;
+  var progress = 0;
+  fill.style.width = '0%';
+  text.textContent = '0%';
+  if (_appLoadingProgressTimer) clearInterval(_appLoadingProgressTimer);
+  // Naik cepat di awal, melambat mendekati 90% (menunggu data asli selesai)
+  _appLoadingProgressTimer = setInterval(function() {
+    var remaining = 90 - progress;
+    progress += Math.max(0.5, remaining * 0.08);
+    if (progress >= 90) progress = 90;
+    fill.style.width = progress + '%';
+    text.textContent = Math.round(progress) + '%';
+    if (progress >= 90) clearInterval(_appLoadingProgressTimer);
+  }, 100);
+}
+function finishAppLoadingProgress() {
+  if (_appLoadingProgressTimer) { clearInterval(_appLoadingProgressTimer); _appLoadingProgressTimer = null; }
+  var fill = $('appLoadingProgressFill');
+  var text = $('appLoadingProgressText');
+  if (fill) fill.style.width = '100%';
+  if (text) text.textContent = '100%';
+}
+
 function initApp() {
   if (!currentUser) return;
 
   var appLoadingEl = $('appLoadingOverlay');
   if (appLoadingEl) appLoadingEl.classList.remove('hidden');
+  startAppLoadingProgress();
 
   buildSidebar();
   buildBottomNav();
@@ -7585,15 +7643,20 @@ function initApp() {
   // KPI stuck di "Rp 0", dan chart kosong saat pertama masuk.
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
-      initChart();
+      try { initChart(); } catch(e) { console.error('initChart error:', e); }
       renderQuickAccess();
       Promise.all([
         loadDashboardData(),
         loadDropdownOptions()
       ]).then(function() {
-        updateChart();
+        try { updateChart(); } catch(e) { console.error('updateChart error:', e); }
         renderQuickAccess();
-        if (appLoadingEl) appLoadingEl.classList.add('hidden');
+        finishAppLoadingProgress();
+        setTimeout(function() { if (appLoadingEl) appLoadingEl.classList.add('hidden'); }, 300);
+      }).catch(function(e) {
+        console.error('initApp load error:', e);
+        finishAppLoadingProgress();
+        setTimeout(function() { if (appLoadingEl) appLoadingEl.classList.add('hidden'); }, 300);
       });
     });
   });
@@ -7723,7 +7786,9 @@ function loadDashboardData() {
 
 function initChart() {
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-  var ctx = $('cashFlowChart').getContext('2d');
+  var canvasEl = $('cashFlowChart');
+  if (!canvasEl) return; // Canvas dashboard tidak ada di halaman ini — hindari crash
+  var ctx = canvasEl.getContext('2d');
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
