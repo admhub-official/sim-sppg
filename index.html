@@ -2419,6 +2419,41 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Full-screen overlay saat memuat seluruh data dashboard setelah login/restore session */
+    .app-loading-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 100000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.25s ease;
+    }
+    .app-loading-overlay.hidden { display: none !important; }
+    .app-loading-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .app-loading-box p {
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    .app-loading-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, 0.25);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
     /* ============================================================
        EMPTY STATE
        ============================================================ */
@@ -4018,6 +4053,15 @@
 <!-- ============================================================ -->
 <!-- MAIN APP CONTAINER                                           -->
 <!-- ============================================================ -->
+
+<!-- Full-screen loading overlay saat memuat seluruh data setelah login -->
+<div id="appLoadingOverlay" class="app-loading-overlay hidden">
+  <div class="app-loading-box">
+    <div class="app-loading-spinner"></div>
+    <p>Sedang memuat data...</p>
+  </div>
+</div>
+
 <div id="appContainer" class="hidden">
 
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
@@ -6986,6 +7030,8 @@ function executeLogout() {
   currentUser = null;
   $('appContainer').classList.add('hidden');
   $('authOverlay').classList.remove('hidden');
+  var appLoadingEl = $('appLoadingOverlay');
+  if (appLoadingEl) appLoadingEl.classList.add('hidden');
   showLogin();
   closeModal('modalLogout');
   showToast('success', 'Logout', 'Anda telah keluar.');
@@ -7524,13 +7570,15 @@ function executeWAReminder() {
 function initApp() {
   if (!currentUser) return;
 
+  var appLoadingEl = $('appLoadingOverlay');
+  if (appLoadingEl) appLoadingEl.classList.remove('hidden');
+
   buildSidebar();
   buildBottomNav();
   updateFabVisibility();
   // Pre-populate SPPG dengan fallback langsung (tidak tunggu API) agar
   // select sudah ada isinya saat user buka modal tambah transaksi pertama kali
   populateSPPGSelects();
-  loadDropdownOptions();
 
   // Gunakan requestAnimationFrame agar DOM selesai render (termasuk ukuran
   // canvas) sebelum chart dan data dimuat. Ini mencegah Quick Access kosong,
@@ -7538,9 +7586,15 @@ function initApp() {
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
       initChart();
-      loadDashboardData();
-      updateChart();
       renderQuickAccess();
+      Promise.all([
+        loadDashboardData(),
+        loadDropdownOptions()
+      ]).then(function() {
+        updateChart();
+        renderQuickAccess();
+        if (appLoadingEl) appLoadingEl.classList.add('hidden');
+      });
     });
   });
 
@@ -7562,17 +7616,21 @@ function initApp() {
 }
 
 function loadDropdownOptions() {
-  google.script.run
-    .withSuccessHandler(function(result) {
-      if (result.success) {
-        dropdownOptions = result;
-        populateSPPGSelects();
-        populateSupplierSelects();
-        populateKategoriFilters();
-        populateMenuMBGSelect();
-      }
-    })
-    .getDropdownOptions();
+  return new Promise(function(resolve) {
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result.success) {
+          dropdownOptions = result;
+          populateSPPGSelects();
+          populateSupplierSelects();
+          populateKategoriFilters();
+          populateMenuMBGSelect();
+        }
+        resolve();
+      })
+      .withFailureHandler(function(err) { resolve(); })
+      .getDropdownOptions();
+  });
 }
 
 function populateSPPGSelects() {
@@ -7632,32 +7690,35 @@ function populatePendingTransaksiSelect() {
 // 7. DASHBOARD
 // ============================================================
 function loadDashboardData() {
-  if (!currentUser) return;
-  // R3: Tampilkan skeleton screen, sembunyikan stat cards sementara
-  var skeleton = $('skeletonDashboard');
-  var statCards = $('dashboardStats');
-  if (skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
-  showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      // R3: Sembunyikan skeleton, tampilkan stat cards
-      if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
-      if (result.success) {
-        $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
-        $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
-        $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
-        $('statAntrian').textContent = result.antrianApproval || 0;
-        $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
-        // Update badge
-        var badge = $('approvalCount');
-        if (badge) { badge.textContent = result.antrianApproval || 0; badge.style.display = (result.antrianApproval > 0) ? 'inline-flex' : 'none'; }
-        syncApprovalBadgeToBottomNav();
-        syncApprovalBadgeToQuickAccess();
-      }
-    })
-    .withFailureHandler(function(err) { showLoading(false); })
-    .getDashboardKPI({ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg });
+  return new Promise(function(resolve) {
+    if (!currentUser) { resolve(); return; }
+    // R3: Tampilkan skeleton screen, sembunyikan stat cards sementara
+    var skeleton = $('skeletonDashboard');
+    var statCards = $('dashboardStats');
+    if (skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
+    showLoading(true);
+    google.script.run
+      .withSuccessHandler(function(result) {
+        showLoading(false);
+        // R3: Sembunyikan skeleton, tampilkan stat cards
+        if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
+        if (result.success) {
+          $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
+          $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
+          $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
+          $('statAntrian').textContent = result.antrianApproval || 0;
+          $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
+          // Update badge
+          var badge = $('approvalCount');
+          if (badge) { badge.textContent = result.antrianApproval || 0; badge.style.display = (result.antrianApproval > 0) ? 'inline-flex' : 'none'; }
+          syncApprovalBadgeToBottomNav();
+          syncApprovalBadgeToQuickAccess();
+        }
+        resolve();
+      })
+      .withFailureHandler(function(err) { showLoading(false); resolve(); })
+      .getDashboardKPI({ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg });
+  });
 }
 
 function initChart() {
