@@ -7532,20 +7532,16 @@ function initApp() {
   populateSPPGSelects();
   loadDropdownOptions();
 
+  // Gunakan requestAnimationFrame agar DOM selesai render (termasuk ukuran
+  // canvas) sebelum chart dan data dimuat. Ini mencegah Quick Access kosong,
+  // KPI stuck di "Rp 0", dan chart kosong saat pertama masuk.
   requestAnimationFrame(function() {
-    initChart();
-    loadDashboardData();
-    updateChart();
-    renderQuickAccess();
-  });
-
-  // Gunakan requestAnimationFrame agar DOM selesai render sebelum chart dan data dimuat.
-  // Ini mencegah Quick Access kosong dan KPI stuck di "Rp 0" saat pertama masuk.
-  requestAnimationFrame(function() {
-    initChart();
-    loadDashboardData();
-    updateChart();
-    renderQuickAccess();
+    requestAnimationFrame(function() {
+      initChart();
+      loadDashboardData();
+      updateChart();
+      renderQuickAccess();
+    });
   });
 
   if (currentUser.role === 'ADMIN') {
@@ -7665,6 +7661,7 @@ function loadDashboardData() {
 }
 
 function initChart() {
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
   var ctx = $('cashFlowChart').getContext('2d');
   chartInstance = new Chart(ctx, {
     type: 'line',
