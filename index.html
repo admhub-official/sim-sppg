@@ -6093,6 +6093,69 @@
     } catch(e) { return ''; }
   }
 
+  // ---- In-memory cache untuk fungsi read-only (TTL 2 menit) ----
+  var _apiCache = {};
+  var _API_CACHE_TTL = 2 * 60 * 1000; // 2 menit
+
+  // Hapus satu atau semua cache entry
+  function invalidateApiCache(fnName) {
+    if (fnName) {
+      Object.keys(_apiCache).forEach(function(k) {
+        if (k.indexOf(fnName + '|') === 0) delete _apiCache[k];
+      });
+    } else {
+      _apiCache = {};
+    }
+  }
+
+  // Fungsi-fungsi yang boleh di-cache (read-only, tidak ada efek samping)
+  var _CACHEABLE_FNS = {
+    getDropdownOptions: 1,
+    getDashboardKPI: 0,     // jangan cache — berubah setelah transaksi
+    getChartData: 0,
+    getFilterOptions: 1,
+  };
+
+  function callAPI(fnName, params, onSuccess, onError) {
+    var cacheKey = fnName + '|' + JSON.stringify(params || []);
+    if (_CACHEABLE_FNS[fnName]) {
+      var cached = _apiCache[cacheKey];
+      if (cached && cached.expireAt > Date.now()) {
+        if (onSuccess) setTimeout(function() { onSuccess(cached.data); }, 0);
+        return;
+      }
+    }
+    var headers = { 'Content-Type': 'application/json' };
+    if (!PUBLIC_FUNCTIONS[fnName]) {
+      var token = getJwtToken();
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+    }
+    var WEBAPP_URL_INNER = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dynamic-action';
+    fetch(WEBAPP_URL_INNER, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ function: fnName, parameters: params || [] })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+      if (json && json.error) {
+        if (onError) onError(new Error(json.error));
+        return;
+      }
+      var result = (json && Object.prototype.hasOwnProperty.call(json, 'result')) ? json.result : json;
+      if (fnName === 'loginUser' && result && result.success && result.token) {
+        try { localStorage.setItem('sppg_jwt', result.token); } catch(e) {}
+      }
+      if (_CACHEABLE_FNS[fnName]) {
+        _apiCache[cacheKey] = { data: result, expireAt: Date.now() + _API_CACHE_TTL };
+      }
+      if (onSuccess) onSuccess(result);
+    })
+    .catch(function(err) {
+      if (onError) onError(err);
+    });
+  }
+
   function createScriptRunProxy(successHandler, failureHandler) {
     return new Proxy({}, {
       get: function(target, propName) {
@@ -7307,7 +7370,7 @@ function switchPage(page, el) {
   updateBottomNavActive();
   updateFabVisibility();
   // Page-specific init
-  if (page === 'dashboard') { loadDashboardData(); updateChart(); renderQuickAccess(); }
+  if (page === 'dashboard') { loadDashboardAll(); renderQuickAccess(); }
   if (page === 'users' && currentUser.role === 'ADMIN') loadUsers();
   if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
@@ -7500,20 +7563,12 @@ function initApp() {
   populateSPPGSelects();
   loadDropdownOptions();
 
-  requestAnimationFrame(function() {
-    initChart();
-    loadDashboardData();
-    updateChart();
-    renderQuickAccess();
-  });
-
   // Gunakan requestAnimationFrame agar DOM selesai render sebelum chart dan data dimuat.
   // Ini mencegah Quick Access kosong dan KPI stuck di "Rp 0" saat pertama masuk.
   requestAnimationFrame(function() {
     initChart();
-    loadDashboardData();
-    updateChart();
     renderQuickAccess();
+    loadDashboardAll(); // muat KPI + chart sekaligus (paralel)
   });
 
   if (currentUser.role === 'ADMIN') {
@@ -7533,18 +7588,20 @@ function initApp() {
   $('addPendingTglPending').value = formatDateInput();
 }
 
-function loadDropdownOptions() {
-  google.script.run
-    .withSuccessHandler(function(result) {
-      if (result.success) {
+function loadDropdownOptions(forceRefresh) {
+  if (forceRefresh) invalidateApiCache('getDropdownOptions');
+  callAPI('getDropdownOptions', [],
+    function(result) {
+      if (result && result.success) {
         dropdownOptions = result;
         populateSPPGSelects();
         populateSupplierSelects();
         populateKategoriFilters();
         populateMenuMBGSelect();
       }
-    })
-    .getDropdownOptions();
+    },
+    function(err) { console.warn('loadDropdownOptions gagal:', err); }
+  );
 }
 
 function populateSPPGSelects() {
@@ -7605,31 +7662,36 @@ function populatePendingTransaksiSelect() {
 // ============================================================
 function loadDashboardData() {
   if (!currentUser) return;
-  // R3: Tampilkan skeleton screen, sembunyikan stat cards sementara
   var skeleton = $('skeletonDashboard');
   var statCards = $('dashboardStats');
   if (skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
-  showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      // R3: Sembunyikan skeleton, tampilkan stat cards
+
+  callAPI('getDashboardKPI', [{ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg }],
+    function(result) {
       if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
-      if (result.success) {
+      if (result && result.success) {
         $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
         $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
         $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
         $('statAntrian').textContent = result.antrianApproval || 0;
         $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
-        // Update badge
         var badge = $('approvalCount');
         if (badge) { badge.textContent = result.antrianApproval || 0; badge.style.display = (result.antrianApproval > 0) ? 'inline-flex' : 'none'; }
         syncApprovalBadgeToBottomNav();
         syncApprovalBadgeToQuickAccess();
       }
-    })
-    .withFailureHandler(function(err) { showLoading(false); })
-    .getDashboardKPI({ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg });
+    },
+    function() {
+      if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
+    }
+  );
+}
+
+// Muat KPI + chart dashboard SEKALIGUS (paralel, tanpa showLoading global)
+function loadDashboardAll() {
+  if (!currentUser) return;
+  loadDashboardData();
+  updateChart();
 }
 
 function initChart() {
@@ -7886,18 +7948,25 @@ function updateChart() {
   var sppgSel = $('dashFilterSPPG');
   var sppgFilterVal = (sppgSel && sppgSel.value !== 'ALL') ? sppgSel.value : '';
 
-  google.script.run
-    .withSuccessHandler(function(data) {
-      if (!data || !data.length) { $('chartDataCount').textContent = '0 data'; chartInstance.data.labels = []; chartInstance.data.datasets.forEach(function(ds){ ds.data = []; }); chartInstance.update(); return; }
+  callAPI('getChartData',
+    [{ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg, sppgFilter: sppgFilterVal }, filters],
+    function(data) {
+      if (!data || !data.length) {
+        $('chartDataCount').textContent = '0 data';
+        chartInstance.data.labels = [];
+        chartInstance.data.datasets.forEach(function(ds){ ds.data = []; });
+        chartInstance.update();
+        return;
+      }
       $('chartDataCount').textContent = data.length + ' data';
       chartInstance.data.labels = data.map(function(d) { return d.tanggal; });
       chartInstance.data.datasets[0].data = data.map(function(d) { return d.pemasukan; });
       chartInstance.data.datasets[1].data = data.map(function(d) { return d.pengeluaran; });
       chartInstance.data.datasets[2].data = data.map(function(d) { return d.saldo; });
       chartInstance.update();
-    })
-    .withFailureHandler(function(err) { console.error(err); })
-    .getChartData({ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg, sppgFilter: sppgFilterVal }, filters);
+    },
+    function(err) { console.error('updateChart error:', err); }
+  );
 }
 
 // ============================================================
@@ -8253,7 +8322,7 @@ function saveEditTransaksi() {
   google.script.run
     .withSuccessHandler(function(result) {
       showLoading(false);
-      if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditTransaksi'); loadTransactions(); loadDashboardData(); }
+      if (result.success) { invalidateApiCache(); showToast('success', 'Sukses', result.message); closeModal('modalEditTransaksi'); loadTransactions(); loadDashboardData(); }
       else { showToast('error', 'Gagal', result.message); }
     })
     .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
@@ -8275,22 +8344,9 @@ function getMetodeBadge(m) {
 function openAddTransaksiModal() {
   $('addTxTanggal').value = formatDateInput();
 
-  // Pastikan data bahan baku sudah dimuat sebelum modal dibuka
+  // Jika dropdown belum terisi, muat ulang (sudah cache — tidak akan double request)
   if (!dropdownOptions.bahanBaku || dropdownOptions.bahanBaku.length === 0) {
-    showLoading(true);
-    google.script.run
-      .withSuccessHandler(function(result) {
-        showLoading(false);
-        if (result.success) {
-          dropdownOptions = result;
-          populateSPPGSelects();
-          populateSupplierSelects();
-          populateKategoriFilters();
-          populateMenuMBGSelect();
-        }
-      })
-      .withFailureHandler(function() { showLoading(false); })
-      .getDropdownOptions();
+    loadDropdownOptions();
   }
 
   $('addTxKategori').value = 'PENGELUARAN';
