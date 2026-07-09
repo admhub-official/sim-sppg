@@ -7647,7 +7647,9 @@ function initApp() {
       renderQuickAccess();
       Promise.all([
         loadDashboardData(),
-        loadDropdownOptions()
+        loadDropdownOptions(),
+        loadUsers(true),
+        loadSuppliers(true)
       ]).then(function() {
         try { updateChart(); } catch(e) { console.error('updateChart error:', e); }
         renderQuickAccess();
@@ -8179,20 +8181,26 @@ function doUpdateProfil(updateData) {
 // ============================================================
 // 9. USERS (ADMIN)
 // ============================================================
-function loadUsers() {
-  if (!currentUser || currentUser.role !== 'ADMIN') return;
-  showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        allUsers = result.data || [];
-        usersPage = 1;
-        renderUsersTable();
-      }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data users'); })
-    .getAllUsers(currentUser.role);
+function loadUsers(silent) {
+  return new Promise(function(resolve) {
+    if (!currentUser || currentUser.role !== 'ADMIN') { resolve(); return; }
+    if (!silent) showLoading(true);
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (!silent) showLoading(false);
+        if (result.success) {
+          allUsers = result.data || [];
+          usersPage = 1;
+          renderUsersTable();
+        }
+        resolve();
+      })
+      .withFailureHandler(function() {
+        if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data users'); }
+        resolve();
+      })
+      .getAllUsers(currentUser.role);
+  });
 }
 function renderUsersTable() {
   var tbody = $('usersTableBody');
@@ -10099,19 +10107,26 @@ function exportMasterBB(format) {
 // ============================================================
 // 13. SUPPLIER
 // ============================================================
-function loadSuppliers() {
-  showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        allSuppliers = result.data || [];
-        supplierPage = 1;
-        renderSupplierTable();
-      }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data supplier'); })
-    .getMasterSupplier({ role: currentUser.role });
+function loadSuppliers(silent) {
+  return new Promise(function(resolve) {
+    if (!currentUser) { resolve(); return; }
+    if (!silent) showLoading(true);
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (!silent) showLoading(false);
+        if (result.success) {
+          allSuppliers = result.data || [];
+          supplierPage = 1;
+          renderSupplierTable();
+        }
+        resolve();
+      })
+      .withFailureHandler(function() {
+        if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data supplier'); }
+        resolve();
+      })
+      .getMasterSupplier({ role: currentUser.role });
+  });
 }
 function renderSupplierTable() {
   var tbody = $('supplierTableBody');
