@@ -12398,8 +12398,12 @@ function submitRecovery() {
 // ============================================================
 // MOBILE UX: Swipe Sidebar, Back Button Android, iframe Resize
 // ============================================================
+// IFRAME RESIZE OBSERVER
+// ============================================================
 (function() {
   // --- iframe ResizeObserver: kirim tinggi konten ke parent (Google Sites) ---
+  var _iframeResizeTimer = null;
+  
   function sendHeight() {
     var h = Math.max(
       document.body.scrollHeight,
@@ -12411,9 +12415,17 @@ function submitRecovery() {
     new ResizeObserver(sendHeight).observe(document.body);
   } else {
     window.addEventListener('resize', sendHeight);
-    setInterval(sendHeight, 1000);
+    _iframeResizeTimer = setInterval(sendHeight, 1000);
   }
   sendHeight();
+  
+  // Cleanup saat page unload untuk mencegah memory leak
+  window.addEventListener('beforeunload', function() {
+    if (_iframeResizeTimer) {
+      clearInterval(_iframeResizeTimer);
+      _iframeResizeTimer = null;
+    }
+  });
 
   // --- Swipe gesture untuk buka/tutup sidebar di mobile ---
   var _swipeStartX = 0, _swipeStartY = 0, _swipeActive = false;
