@@ -4608,8 +4608,233 @@
         </div>
       </div>
 
-      <!-- ==================== MASTER BAHAN BAKU PAGE ==================== -->
-      <div id="page-master-bahan" class="page-section hidden">
+      <!-- ==================== DATA MASTER SECTION WITH TABS ==================== -->
+      <div id="page-data-master" class="page-section hidden">
+        <div class="page-header">
+          <div class="page-header-info">
+            <div class="page-title"><i class="fas fa-database" style="color:var(--primary);"></i> Data Master</div>
+            <p class="page-desc">Kelola data master bahan baku, supplier, survei harga, dan serah terima</p>
+          </div>
+        </div>
+        
+        <!-- Tab Control untuk Data Master -->
+        <div class="tab-control" style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+          <button class="tab-btn active" data-tab="master-bahan" onclick="switchMasterTab('master-bahan')">Bahan Baku</button>
+          <button class="tab-btn" data-tab="master-supplier" onclick="switchMasterTab('master-supplier')">Supplier</button>
+          <button class="tab-btn" data-tab="survei" onclick="switchMasterTab('survei')">Survei Harga</button>
+          <button class="tab-btn" data-tab="serah-terima" onclick="switchMasterTab('serah-terima')">Serah Terima</button>
+        </div>
+        
+        <!-- View: Master Bahan Baku -->
+        <div id="tab-master-bahan" class="tab-view">
+        <div class="page-header" style="padding:0;margin-bottom:16px;">
+          <div class="page-header-actions">
+            <button class="btn btn-outline btn-sm" onclick="exportMasterBB('csv')"><i class="fas fa-download"></i> CSV</button>
+            <button class="btn btn-outline btn-sm" onclick="exportMasterBB('pdf')"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
+              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openAddMasterBBModal()" id="btnAddMasterBB">
+              <i class="fas fa-plus"></i> Tambah
+            </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="bbFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('bbFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="bbSearchInput" placeholder="Cari nama bahan baku..." oninput="filterMasterBB()">
+            </div>
+            <select id="bbFilterKategori" class="form-input" onchange="filterMasterBB()">
+              <option value="ALL">Semua Kategori</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <div class="table-scroll">
+            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
+            <table>
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Kode</th>
+                  <th>Kategori</th>
+                  <th>Nama Bahan Baku</th>
+                  <th>Harga</th>
+                  <th>Satuan</th>
+                  <th style="width:100px;text-align:center;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="masterBBTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="bbPagination"></div>
+        </div>
+        </div>
+        
+        <!-- View: Master Supplier -->
+        <div id="tab-master-supplier" class="tab-view hidden">
+        <div class="page-header" style="padding:0;margin-bottom:16px;">
+          <div class="page-header-actions">
+            <button class="btn btn-outline btn-sm" onclick="exportSupplier('csv')"><i class="fas fa-download"></i> CSV</button>
+            <button class="btn btn-outline btn-sm" onclick="exportSupplier('pdf')"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
+              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openAddSupplierModal()" id="btnAddSupplier">
+              <i class="fas fa-plus"></i> Tambah Supplier
+            </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="supplierFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('supplierFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="supplierSearchInput" placeholder="Cari nama, WhatsApp, email..." oninput="filterSupplier()">
+            </div>
+            <select id="supplierFilterStatus" class="form-input" onchange="filterSupplier()">
+              <option value="ALL">Semua Status</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Suspend">Suspend</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <div class="table-scroll">
+            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
+            <table>
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Nama Supplier</th>
+                  <th>No WhatsApp</th>
+                  <th>Email</th>
+                  <th>Alamat</th>
+                  <th>Status</th>
+                  <th style="width:100px;text-align:center;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="supplierTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="supplierPagination"></div>
+        </div>
+        </div>
+        
+        <!-- View: Survei Harga -->
+        <div id="tab-survei" class="tab-view hidden">
+        <div class="page-header" style="padding:0;margin-bottom:16px;">
+          <div class="page-header-actions">
+            <button class="btn btn-outline btn-sm" onclick="exportSurvei('csv')"><i class="fas fa-download"></i> CSV</button>
+            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
+              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openAddSurveiModal()" id="btnAddSurvei">
+              <i class="fas fa-plus"></i> Tambah Survei
+            </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="surveiFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('surveiFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="surveiSearchInput" placeholder="Cari nama/kode bahan..." oninput="filterSurvei()">
+            </div>
+            <select id="surveiFilterKategori" class="form-input" onchange="filterSurvei()">
+              <option value="ALL">Semua Kategori</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <div class="table-scroll">
+            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
+            <table>
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Kode Bahan</th>
+                  <th>Waktu Survei</th>
+                  <th>Kategori</th>
+                  <th>Nama Bahan</th>
+                  <th>Harga RAB</th>
+                  <th>Harga Pasar</th>
+                  <th>Lokasi</th>
+                  <th>User</th>
+                  <th style="width:80px;text-align:center;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="surveiTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="surveiPagination"></div>
+        </div>
+        </div>
+        
+        <!-- View: Serah Terima -->
+        <div id="tab-serah-terima" class="tab-view hidden">
+        <div class="page-header" style="padding:0;margin-bottom:16px;">
+          <div class="page-header-actions">
+            <button class="btn btn-outline btn-sm" onclick="exportSerahTerima('csv')"><i class="fas fa-download"></i> CSV</button>
+            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
+              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openAddSerahTerimaModal()" id="btnAddSerahTerima">
+              <i class="fas fa-plus"></i> Tambah Serah Terima
+            </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="stFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('stFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="stSearchInput" placeholder="Cari nama bahan, penerima, supplier..." oninput="filterSerahTerima()">
+            </div>
+            <select id="stFilterKondisi" class="form-input" onchange="filterSerahTerima()">
+              <option value="ALL">Semua Kondisi</option>
+              <option value="Baik">Baik</option>
+              <option value="Rusak">Rusak</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-container">
+          <div class="table-scroll">
+            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
+            <table>
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Kode Bahan</th>
+                  <th>Nama Bahan</th>
+                  <th>Penerima</th>
+                  <th>Supplier</th>
+                  <th>Kondisi</th>
+                  <th>Lokasi</th>
+                  <th>User</th>
+                  <th style="width:80px;text-align:center;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="serahTerimaTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="serahTerimaPagination"></div>
+        </div>
+        </div>
+      </div>
+
+      <!-- ==================== MASTER BAHAN BAKU PAGE (LEGACY - HIDDEN) ==================== -->
+      <div id="page-master-bahan" class="page-section hidden" style="display:none;">
         <div class="page-header">
           <div class="page-header-info">
             <div class="page-title"><i class="fas fa-boxes" style="color:var(--primary);"></i> Master Bahan Baku</div>
@@ -4662,8 +4887,8 @@
         </div>
       </div>
 
-      <!-- ==================== MASTER SUPPLIER PAGE ==================== -->
-      <div id="page-master-supplier" class="page-section hidden">
+      <!-- ==================== MASTER SUPPLIER PAGE (LEGACY - HIDDEN) ==================== -->
+      <div id="page-master-supplier" class="page-section hidden" style="display:none;">
         <div class="page-header">
           <div class="page-header-info">
             <div class="page-title"><i class="fas fa-truck" style="color:var(--primary);"></i> Data Supplier</div>
@@ -4718,8 +4943,8 @@
         </div>
       </div>
 
-      <!-- ==================== SURVEI HARGA PAGE ==================== -->
-      <div id="page-survei" class="page-section hidden">
+      <!-- ==================== SURVEI HARGA PAGE (LEGACY - HIDDEN) ==================== -->
+      <div id="page-survei" class="page-section hidden" style="display:none;">
         <div class="page-header">
           <div class="page-header-info">
             <div class="page-title"><i class="fas fa-search-dollar" style="color:var(--primary);"></i> Survei Harga</div>
@@ -4774,8 +4999,8 @@
         </div>
       </div>
 
-      <!-- ==================== SERAH TERIMA PAGE ==================== -->
-      <div id="page-serah-terima" class="page-section hidden">
+      <!-- ==================== SERAH TERIMA PAGE (LEGACY - HIDDEN) ==================== -->
+      <div id="page-serah-terima" class="page-section hidden" style="display:none;">
         <div class="page-header">
           <div class="page-header-info">
             <div class="page-title"><i class="fas fa-dolly" style="color:var(--primary);"></i> Serah Terima Bahan Baku</div>
@@ -7214,10 +7439,7 @@ var MENU_CONFIG = {
     { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
     { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
     { label: 'DATA MASTER', isHeader: true },
-    { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
-    { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
-    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
-    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
+    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
     { label: 'MENU MBG', isHeader: true },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { label: 'AKUN', isHeader: true },
@@ -7226,10 +7448,7 @@ var MENU_CONFIG = {
   AKUNTAN: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { label: 'DATA MASTER', isHeader: true },
-    { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
-    { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
-    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
-    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
+    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
     { label: 'MENU MBG', isHeader: true },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { label: 'AKUN', isHeader: true },
@@ -7245,7 +7464,7 @@ var MENU_CONFIG = {
     { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
     { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
     { label: 'DATA MASTER', isHeader: true },
-    { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
+    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
     { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
@@ -7261,7 +7480,7 @@ var MENU_CONFIG = {
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { label: 'DATA MASTER', isHeader: true },
-    { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
+    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
     { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ]
@@ -7645,7 +7864,8 @@ function switchPage(page, el) {
     'pending-payment': 'Pending Payment', 'master-bahan': 'Master Bahan Baku',
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
     'serah-terima': 'Serah Terima', 'menu-mbg': 'Data Menu MBG',
-    'audit-log': 'Riwayat Aktivitas', 'laporan': 'Laporan & Analisis'
+    'audit-log': 'Riwayat Aktivitas', 'laporan': 'Laporan & Analisis',
+    'data-master': 'Data Master'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
   // R4: Update breadcrumb
@@ -7661,6 +7881,11 @@ function switchPage(page, el) {
   if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
+  if (page === 'data-master') { 
+    // Default tab pertama kali masuk Data Master adalah Bahan Baku
+    switchMasterTab('master-bahan');
+    restoreFilterBarState('bbFilterBar');
+  }
   if (page === 'master-bahan') { loadMasterBB(); restoreFilterBarState('bbFilterBar'); }
   if (page === 'master-supplier') { loadSuppliers(); restoreFilterBarState('supplierFilterBar'); }
   if (page === 'survei') { loadSurvei(); restoreFilterBarState('surveiFilterBar'); }
@@ -7728,6 +7953,42 @@ function switchTransactionTab(tabName) {
     if (allRekapHarian.length === 0) loadRekapHarian();
   } else if (tabName === 'rekap-sppg') {
     if (allRekapSppg.length === 0) loadRekapSPPG();
+  }
+}
+
+// Fungsi untuk switch tab di halaman Data Master (Bahan Baku, Supplier, Survei Harga, Serah Terima)
+function switchMasterTab(tabName) {
+  // Update active state pada tombol tab
+  var tabContainer = document.querySelector('#page-data-master .tab-control');
+  if (tabContainer) {
+    tabContainer.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.classList.remove('active');
+      if (btn.getAttribute('data-tab') === tabName) {
+        btn.classList.add('active');
+      }
+    });
+  }
+  
+  // Show/hide views
+  document.querySelectorAll('.tab-view').forEach(function(view) {
+    // Hanya sembunyikan view yang ada di dalam page-data-master
+    if (view.closest('#page-data-master')) {
+      view.classList.add('hidden');
+      if (view.id === 'tab-' + tabName) {
+        view.classList.remove('hidden');
+      }
+    }
+  });
+  
+  // Load data sesuai tab yang aktif
+  if (tabName === 'master-bahan') {
+    if (typeof allMasterBB === 'undefined' || !allMasterBB || allMasterBB.length === 0) loadMasterBB();
+  } else if (tabName === 'master-supplier') {
+    if (typeof allSuppliers === 'undefined' || !allSuppliers || allSuppliers.length === 0) loadSuppliers();
+  } else if (tabName === 'survei') {
+    if (typeof allSurvei === 'undefined' || !allSurvei || allSurvei.length === 0) loadSurvei();
+  } else if (tabName === 'serah-terima') {
+    if (typeof allSerahTerima === 'undefined' || !allSerahTerima || allSerahTerima.length === 0) loadSerahTerima();
   }
 }
 
