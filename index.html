@@ -11133,11 +11133,7 @@ function loadPendingPayment() {
       renderPendingTable();
     })
     .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data'); })
-<<<<<<< HEAD
-    .getPendingPayments({ role: currentUser.role });
-=======
-    .getPendingPayments({ role: currentUser.role, user: currentUser.email, dateStart: globalDateFilter.start, dateEnd: globalDateFilter.end });
->>>>>>> c794af5b0c423c9301a05e13d69eed63293a3386
+.getPendingPayments({ role: currentUser.role });
 }
 function renderPendingTable() {
   var tbody = $('pendingTableBody');
