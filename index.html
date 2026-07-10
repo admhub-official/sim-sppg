@@ -4399,10 +4399,6 @@
           <button class="tab-btn active" data-tab="all-transactions" onclick="switchTransactionTab('all-transactions')">Semua Transaksi</button>
           <button class="tab-btn" data-tab="rekap-harian" onclick="switchTransactionTab('rekap-harian')">Rekap Harian</button>
           <button class="tab-btn" data-tab="rekap-sppg" onclick="switchTransactionTab('rekap-sppg')">Rekap per SPPG</button>
-          <button class="tab-btn" data-tab="approval" onclick="switchTransactionTab('approval')">
-            Approval
-            <span class="badge" id="approvalTabBadge" style="display:none;margin-left:6px;background:var(--amber);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;">0</span>
-          </button>
         </div>
         
         <!-- View: Semua Transaksi -->
@@ -4522,71 +4518,7 @@
           </div>
         </div>
       </div>
-
-      <!-- View: Approval (Tab di dalam Transaksi) -->
-      <div id="tab-approval" class="tab-view hidden">
-        <div class="filter-bar" id="apprFilterBar">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="apprSearchInput" placeholder="Cari kode, item, user..." oninput="filterApproval()">
-          </div>
-          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('apprFilterBar')" title="Tampilkan/Sembunyikan Filter">
-            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
-          </button>
-          <div class="filter-collapsible" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;">
-            <select id="apprFilterSPPG" class="form-input" onchange="filterApproval()">
-              <option value="ALL">Semua SPPG</option>
-            </select>
-            <select id="apprFilterJenisKat" class="form-input" onchange="filterApproval()">
-              <option value="ALL">Semua Jenis Kategori</option>
-            </select>
-            <input type="date" id="apprFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Dari Tanggal">
-            <input type="date" id="apprFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Sampai Tanggal">
-            <button class="btn btn-outline btn-sm" onclick="resetApprovalFilter()" title="Reset Filter">
-              <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
-            </button>
-          </div>
-        </div>
-        <div id="apprBulkBar" class="hidden" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--primary-light);border:1px solid #bae6fd;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
-          <span style="font-size:13px;font-weight:600;color:var(--primary-dark);">
-            <i class="fas fa-check-square"></i> <span id="apprBulkCount">0</span> transaksi dipilih
-          </span>
-          <button class="btn btn-success btn-sm" onclick="openBulkApprovalPin()">
-            <i class="fas fa-check-double"></i> Approve Terpilih
-          </button>
-          <button class="btn btn-outline btn-sm" onclick="printSelectedApprovalData()">
-            <i class="fas fa-print"></i> Print Terpilih
-          </button>
-          <button class="btn btn-outline btn-sm" onclick="clearApprovalSelection()">
-            <i class="fas fa-times"></i> Batal Pilih
-          </button>
-        </div>
-                <div class="table-container approval-table">
-          <div class="table-scroll">
-            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:36px;text-align:center;"><input type="checkbox" id="apprSelectAll" onchange="toggleSelectAllApproval(this)"></th>
-                  <th style="width:40px;">No</th>
-                  <th>Kode</th>
-                  <th>Tanggal</th>
-                  <th>SPPG</th>
-                  <th>Item</th>
-                  <th>Nominal</th>
-                  <th>Metode</th>
-                  <th>Penginput</th>
-                  <th>Catatan</th>
-                  <th style="width:120px;text-align:center;">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="approvalTableBody"></tbody>
-            </table>
-          </div>
-          <div class="pagination" id="approvalPagination"></div>
-        </div>
       </div>
-    </div>
 
       <!-- ==================== APPROVAL PAGE (standalone - untuk backward compatibility) ==================== -->
       <div id="page-approval" class="page-section hidden">
@@ -8040,11 +7972,6 @@ function switchTransactionTab(tabName) {
     if (allRekapHarian.length === 0) loadRekapHarian();
   } else if (tabName === 'rekap-sppg') {
     if (allRekapSppg.length === 0) loadRekapSPPG();
-  } else if (tabName === 'approval') {
-    // Load approval data saat tab Approval dibuka
-    if (typeof allApproval === 'undefined' || !allApproval || allApproval.length === 0) loadApprovalData();
-    // Update badge di tab
-    updateApprovalTabBadge();
   }
 }
 
