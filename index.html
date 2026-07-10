@@ -4319,12 +4319,8 @@
               <div class="info-row"><span class="info-label">Jabatan</span><span class="info-value" id="profilJabatan">-</span></div>
               <div class="info-row"><span class="info-label">SPPG</span><span class="info-value" id="profilSPPG">-</span></div>
               <div class="info-row"><span class="info-label">Role</span><span class="info-value" id="profilRole">-</span></div>
-              <div class="info-row"><span class="info-label">Username</span><span class="info-value font-mono" id="profilUsername">-</span></div>
             </div>
             <div class="profile-actions">
-              <button class="btn btn-outline" onclick="showTokenInputForCredentials()">
-                <i class="fas fa-key"></i> Tampilkan Username &amp; Token
-              </button>
               <button class="btn btn-primary" onclick="openEditProfilModal()">
                 <i class="fas fa-edit"></i> Edit Profil
               </button>
@@ -5567,6 +5563,20 @@
         <div class="form-group">
           <label class="form-label">Nama Lengkap</label>
           <input type="text" id="editNama" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="editEmail" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jabatan</label>
+          <input type="text" id="editJabatan" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">SPPG</label>
+          <select id="editSppg" class="form-input">
+            <option value="">-- Pilih SPPG --</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">Foto Profil</label>
@@ -7508,14 +7518,13 @@ var MENU_CONFIG = {
   ],
   AKUNTAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt', badge: 'approvalCount' },
     { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   LAPANGAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt', badge: 'approvalCount' },
     { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
     { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
@@ -7524,13 +7533,13 @@ var MENU_CONFIG = {
   ],
   WAKIL_LAPANGAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt', badge: 'approvalCount' },
     { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   AHLI_GIZI: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt', badge: 'approvalCount' },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
@@ -7588,13 +7597,13 @@ function buildSidebar() {
 // BOTTOM NAV, FAB, MORE-SHEET, QUICK ACCESS — Mobile Navigation
 // ============================================================
 
-// Tab utama per role (5 item permanen: Beranda, Transaksi, Laporan, Approval, Profil)
+// Tab utama per role (4 item permanen: Beranda, Transaksi, Laporan, Approval)
 var BOTTOM_NAV_CONFIG = {
-  ADMIN:          ['dashboard', 'transaksi', 'laporan', 'profil'],
-  AKUNTAN:        ['dashboard', 'transaksi', 'laporan', 'master-bahan', 'profil'],
-  LAPANGAN:       ['dashboard', 'transaksi', 'laporan', 'profil'],
-  WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'laporan', 'serah-terima', 'profil'],
-  AHLI_GIZI:      ['dashboard', 'transaksi', 'laporan', 'menu-mbg', 'profil']
+  ADMIN:          ['dashboard', 'transaksi', 'laporan'],
+  AKUNTAN:        ['dashboard', 'transaksi', 'laporan', 'master-bahan'],
+  LAPANGAN:       ['dashboard', 'transaksi', 'laporan'],
+  WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'laporan', 'serah-terima'],
+  AHLI_GIZI:      ['dashboard', 'transaksi', 'laporan', 'menu-mbg']
 };
 
 var BNAV_ICON_LABEL = {
@@ -8018,13 +8027,29 @@ function switchTransactionTab(tabName) {
   }
 }
 
-// Fungsi untuk update badge di tab Approval
+// Fungsi untuk update badge di tab Approval dan sidebar
 function updateApprovalTabBadge() {
   var src = $('approvalCount');
   var dst = $('approvalTabBadge');
   if (!src || !dst) return;
   dst.textContent = src.textContent;
   dst.style.display = (parseInt(src.textContent) > 0) ? 'inline-block' : 'none';
+  
+  // Update badge di sidebar menu Transaksi juga
+  var badgeSidebar = document.querySelectorAll('[id$="Sidebar"]');
+  badgeSidebar.forEach(function(badge) {
+    if (badge.id.indexOf('approvalCount') !== -1 || badge.id.indexOf('ApprovalCount') !== -1) {
+      badge.textContent = src.textContent;
+      badge.style.display = (parseInt(src.textContent) > 0) ? 'inline-flex' : 'none';
+    }
+  });
+  
+  // Juga update badge di menu-item yang memiliki badge: 'approvalCount'
+  var menuItemsWithBadge = document.querySelectorAll('.menu-item[data-page="transaksi"] .menu-badge, .menu-item[data-page="transaksi"] [id*="approvalCount"]');
+  menuItemsWithBadge.forEach(function(badge) {
+    badge.textContent = src.textContent;
+    badge.style.display = (parseInt(src.textContent) > 0) ? 'inline-flex' : 'none';
+  });
 }
 
 // Fungsi untuk switch tab di halaman Data Master (Bahan Baku, Supplier, Survei Harga, Serah Terima)
@@ -8681,7 +8706,6 @@ function renderProfil() {
   $('profilJabatan').textContent = currentUser.jabatan || '-';
   $('profilSPPG').textContent = currentUser.sppg || '-';
   $('profilRole').textContent = currentUser.role || '-';
-  $('profilUsername').textContent = currentUser.username || '-';
 
   var fotoPath = currentUser.fotoProfil;
   var fallbackAvatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.namaLengkap || currentUser.username) + '&background=1e6f9c&color=fff&size=200&rounded=true';
@@ -8727,13 +8751,35 @@ function verifyTokenForCredentials() {
 function openEditProfilModal() {
   if (!currentUser) return;
   $('editNama').value = currentUser.namaLengkap || '';
+  $('editEmail').value = currentUser.email || '';
+  $('editJabatan').value = currentUser.jabatan || '';
+  // Populate SPPG options from allUsers or a default list
+  var sppgSet = {};
+  if (typeof allUsers !== 'undefined' && allUsers && allUsers.length) {
+    allUsers.forEach(function(u) { if (u.sppg) sppgSet[u.sppg] = true; });
+  }
+  var sppgList = Object.keys(sppgSet).sort();
+  $('editSppg').innerHTML = '<option value="">-- Pilih SPPG --</option>';
+  sppgList.forEach(function(sppg) {
+    var opt = document.createElement('option');
+    opt.value = sppg;
+    opt.textContent = sppg;
+    if (currentUser.sppg === sppg) opt.selected = true;
+    $('editSppg').appendChild(opt);
+  });
   $('editFotoPreview').classList.add('hidden');
   openModal('modalEditProfil');
 }
 function saveEditProfil() {
   var nama = $('editNama').value.trim();
+  var email = $('editEmail').value.trim();
+  var jabatan = $('editJabatan').value.trim();
+  var sppg = $('editSppg').value;
   if (!nama) { showToast('error', 'Error', 'Nama tidak boleh kosong'); return; }
   var updateData = { 'NAMA LENGKAP': nama };
+  if (email) updateData['EMAIL'] = email;
+  if (jabatan) updateData['JABATAN'] = jabatan;
+  if (sppg) updateData['SPPG'] = sppg;
   var fotoFile = $('editFoto').files[0];
   if (fotoFile) {
     var reader = new FileReader();
