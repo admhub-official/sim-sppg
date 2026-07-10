@@ -114,7 +114,6 @@
       font-size: 13px;
       line-height: 1.5;
       -webkit-tap-highlight-color: transparent;
-      overscroll-behavior-y: contain;
       transition: background 0.25s, color 0.25s;
       height: 100%;
       overflow-y: auto;
@@ -1071,8 +1070,6 @@
       margin-left: 0;
       min-height: 100vh;
       min-height: 100dvh;
-      max-height: 100vh;
-      max-height: 100dvh;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
@@ -1113,6 +1110,21 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .global-date-filter { position: relative; }
+    .global-date-filter-panel {
+      position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
+      background: var(--card-bg, #fff); border: 1px solid var(--slate-200, #e2e8f0);
+      border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      padding: 14px; min-width: 320px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .global-date-filter-panel.hidden { display: none; }
+    .global-date-filter-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+    .global-date-filter-custom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .global-date-filter-custom .form-input { flex: 1 1 120px; min-width: 120px; }
+    @media (max-width: 768px) {
+      .global-date-filter-panel { position: fixed; top: 60px; left: 12px; right: 12px; min-width: 0; }
+      #globalDateFilterLabel { display: none; }
     }
     .topbar-right {
       display: flex;
@@ -1774,6 +1786,8 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
     .filter-bar.collapsed .filter-collapsible { display: none; }
+    .filter-toggle-btn { order: -1; }
+    .filter-bar .filter-collapsible { display: contents; }
     .filter-toggle-btn {
       flex-shrink: 0;
     }
@@ -3479,11 +3493,9 @@
     /* Sembunyikan install button secara default — hanya tampil saat ada class .show DAN di desktop */
     #btnInstallPWA { display: none !important; }
     #btnInstallPWA.show { display: inline-flex !important; }
-    /* Topbar mobile: install button tidak pernah tampil, refresh langsung tampil */
+    /* Topbar mobile: install button tidak pernah tampil */
     @media (max-width: 767px) {
       #btnInstallPWA.show { display: none !important; }
-      #refreshBtn { display: flex !important; }
-      #refreshBtn span { display: none; }
     }
     /* Touch device improvements */
     @media (hover: none) and (pointer: coarse) {
@@ -4001,6 +4013,7 @@
             <option value="PAKUALAM">PAKUALAM</option>
             <option value="KIRISIK">KIRISIK</option>
             <option value="CIBUNAR">CIBUNAR</option>
+            <option value="CIBUNAR">CINTA JAYA</option>
           </select>
         </div>
       </div>
@@ -4128,13 +4141,31 @@
         <h2 class="topbar-title" id="pageTitle">Dashboard</h2>
       </div>
       <div class="topbar-right">
+        <div class="global-date-filter" id="globalDateFilterBar">
+          <button class="btn btn-outline btn-sm" onclick="toggleGlobalDateFilterPanel()" id="btnGlobalDateFilter" title="Filter Rentang Tanggal (berlaku ke semua menu)">
+            <i class="fas fa-calendar-alt"></i>
+            <span id="globalDateFilterLabel">Semua Tanggal</span>
+            <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px;"></i>
+          </button>
+          <div class="global-date-filter-panel hidden" id="globalDateFilterPanel">
+            <div class="global-date-filter-presets">
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('today')">Hari Ini</button>
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('7d')">7 Hari</button>
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('30d')">30 Hari</button>
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('month')">Bulan Ini</button>
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('all')">Semua</button>
+            </div>
+            <div class="global-date-filter-custom">
+              <input type="date" id="globalDateStart" class="form-input" title="Dari Tanggal">
+              <span>&mdash;</span>
+              <input type="date" id="globalDateEnd" class="form-input" title="Sampai Tanggal">
+              <button class="btn btn-primary btn-sm" onclick="applyGlobalDateFilterCustom()">Terapkan</button>
+            </div>
+          </div>
+        </div>
         <button id="btnInstallPWA" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install sebagai Aplikasi">
           <i class="fas fa-download"></i>
           <span>Install App</span>
-        </button>
-        <button onclick="refreshData()" class="btn btn-outline btn-sm" id="refreshBtn" title="Refresh Data">
-          <i class="fas fa-sync-alt" id="refreshIcon"></i>
-          <span>Refresh</span>
         </button>
       </div>
     </header>
@@ -4184,7 +4215,7 @@
               </div>
             </div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card clickable" onclick="goToTransaksiFiltered('PEMASUKAN')">
             <div class="stat-icon emerald"><i class="fas fa-arrow-down"></i></div>
             <div class="stat-info">
               <div class="stat-value" id="statPemasukan">Rp 0</div>
@@ -4194,7 +4225,7 @@
               </div>
             </div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card clickable" onclick="goToTransaksiFiltered('PENGELUARAN')">
             <div class="stat-icon rose"><i class="fas fa-arrow-up"></i></div>
             <div class="stat-info">
               <div class="stat-value" id="statPengeluaran">Rp 0</div>
@@ -4270,6 +4301,23 @@
             <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
               <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
             </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="usersFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('usersFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="usersSearchInput" placeholder="Cari nama, username, email..." oninput="filterUsers()">
+            </div>
+            <select id="usersFilterSppg" class="form-input" onchange="filterUsers()">
+              <option value="ALL">Semua SPPG</option>
+            </select>
+            <select id="usersFilterRole" class="form-input" onchange="filterUsers()">
+              <option value="ALL">Semua Role</option>
+            </select>
           </div>
         </div>
         <div class="table-container">
@@ -4457,14 +4505,19 @@
             </button>
           </div>
         </div>
-        <div class="filter-bar">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="bbSearchInput" placeholder="Cari nama bahan baku..." oninput="filterMasterBB()">
+        <div class="filter-bar" id="bbFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('bbFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="bbSearchInput" placeholder="Cari nama bahan baku..." oninput="filterMasterBB()">
+            </div>
+            <select id="bbFilterKategori" class="form-input" onchange="filterMasterBB()">
+              <option value="ALL">Semua Kategori</option>
+            </select>
           </div>
-          <select id="bbFilterKategori" class="form-input" onchange="filterMasterBB()">
-            <option value="ALL">Semua Kategori</option>
-          </select>
         </div>
         <div class="table-container">
           <div class="table-scroll">
@@ -4506,6 +4559,22 @@
             </button>
           </div>
         </div>
+        <div class="filter-bar" id="supplierFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('supplierFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="supplierSearchInput" placeholder="Cari nama, WhatsApp, email..." oninput="filterSupplier()">
+            </div>
+            <select id="supplierFilterStatus" class="form-input" onchange="filterSupplier()">
+              <option value="ALL">Semua Status</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Suspend">Suspend</option>
+            </select>
+          </div>
+        </div>
         <div class="table-container">
           <div class="table-scroll">
             <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
@@ -4543,6 +4612,20 @@
             <button class="btn btn-primary btn-sm" onclick="openAddSurveiModal()" id="btnAddSurvei">
               <i class="fas fa-plus"></i> Tambah Survei
             </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="surveiFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('surveiFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="surveiSearchInput" placeholder="Cari nama/kode bahan..." oninput="filterSurvei()">
+            </div>
+            <select id="surveiFilterKategori" class="form-input" onchange="filterSurvei()">
+              <option value="ALL">Semua Kategori</option>
+            </select>
           </div>
         </div>
         <div class="table-container">
@@ -4585,6 +4668,22 @@
             <button class="btn btn-primary btn-sm" onclick="openAddSerahTerimaModal()" id="btnAddSerahTerima">
               <i class="fas fa-plus"></i> Tambah Serah Terima
             </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="stFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('stFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="stSearchInput" placeholder="Cari nama bahan, penerima, supplier..." oninput="filterSerahTerima()">
+            </div>
+            <select id="stFilterKondisi" class="form-input" onchange="filterSerahTerima()">
+              <option value="ALL">Semua Kondisi</option>
+              <option value="Baik">Baik</option>
+              <option value="Rusak">Rusak</option>
+            </select>
           </div>
         </div>
         <div class="table-container">
@@ -4704,19 +4803,23 @@
             </button>
           </div>
         </div>
-        <div class="filter-bar">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="auditSearchInput" placeholder="Cari pelaku, tabel, ID record..." oninput="filterAuditLog()">
-          </div>
-          <select id="auditFilterAction" class="form-input" onchange="filterAuditLog()">
-            <option value="ALL">Semua Aksi</option>
-          </select>
-          <input type="date" id="auditFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterAuditLog()" title="Dari Tanggal">
-          <input type="date" id="auditFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterAuditLog()" title="Sampai Tanggal">
-          <button class="btn btn-outline btn-sm" onclick="resetAuditFilter()" title="Reset Filter">
-            <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
+        <div class="filter-bar" id="auditFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('auditFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
           </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="auditSearchInput" placeholder="Cari pelaku, tabel, ID record..." oninput="filterAuditLog()">
+            </div>
+            <select id="auditFilterAction" class="form-input" onchange="filterAuditLog()">
+              <option value="ALL">Semua Aksi</option>
+            </select>
+            <input type="date" id="auditFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterAuditLog()" title="Dari Tanggal">
+            <input type="date" id="auditFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterAuditLog()" title="Sampai Tanggal">
+            <button class="btn btn-outline btn-sm" onclick="resetAuditFilter()" title="Reset Filter">
+              <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
+            </button>
         </div>
         <div class="table-container">
           <div class="table-scroll">
@@ -4754,6 +4857,17 @@
             </button>
           </div>
         </div>
+        <div class="filter-bar" id="rekapSppgFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapSppgFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="rekapSppgSearchInput" placeholder="Cari nama SPPG..." oninput="filterRekapSPPG()">
+            </div>
+          </div>
+        </div>
         <div class="table-container">
           <div class="table-scroll">
             <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
@@ -4785,6 +4899,18 @@
           <div class="page-header-actions">
             <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
               <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+            </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="rekapHarianFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapHarianFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <input type="date" id="rekapHarianTglStart" class="form-input" style="max-width:160px;" onchange="filterRekapHarian()" title="Dari Tanggal">
+            <input type="date" id="rekapHarianTglEnd" class="form-input" style="max-width:160px;" onchange="filterRekapHarian()" title="Sampai Tanggal">
+            <button class="btn btn-outline btn-sm" onclick="resetRekapHarianFilter()" title="Reset Filter">
+              <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
             </button>
           </div>
         </div>
@@ -4901,6 +5027,7 @@
     <nav class="bottom-nav" id="bottomNav" aria-label="Navigasi bawah">
       <div class="bottom-nav-inner" id="bottomNavInner"></div>
     </nav>
+    <span id="approvalCount" style="display:none;">0</span>
   </footer>
   <!-- R7: Tombol "Lainnya" dengan dot indicator untuk notifikasi -->
   <style>
@@ -5044,7 +5171,8 @@
       <button class="lightbox-close" onclick="closeLightbox()" title="Tutup (Esc)" aria-label="Tutup gambar">
         <i class="fas fa-times" aria-hidden="true"></i>
       </button>
-      <img id="lightboxImage" src="" alt="Preview">
+      <img id="lightboxImage" src="" alt="Preview" class="hidden">
+      <iframe id="lightboxPdf" src="" class="hidden" style="width:90vw;height:90vh;border:none;background:#fff;border-radius:8px;"></iframe>
     </div>
   </div>
 </div>
@@ -5267,33 +5395,14 @@
           </select>
         </div>
 
-        <!-- Jenis Bukti (show-if) -->
+        <!-- Bukti Transaksi -->
         <div class="form-group">
-          <label class="form-label">Jenis Bukti</label>
-          <select id="addTxJenisBukti" class="form-input" onchange="toggleUploadFields()">
-            <option value="">- Pilih Jenis Bukti -</option>
-            <option value="FOTO">Foto</option>
-            <option value="FILE">File</option>
-            <option value="Keduanya">Keduanya</option>
-          </select>
-        </div>
-
-        <!-- Upload Foto (hidden by default) -->
-        <div class="form-group hidden" id="wrapUploadFoto">
-          <label class="form-label">Upload Foto Bukti</label>
+          <label class="form-label">Bukti Transaksi</label>
           <div class="file-input-wrap">
-            <input type="file" id="addTxFoto" accept="image/*" onchange="updateFileLabel(this,'labelFoto')">
-            <div class="file-input-label" id="labelFoto"><i class="fas fa-camera"></i><span>Pilih foto bukti</span></div>
+            <input type="file" id="addTxFoto" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" onchange="updateFileLabel(this,'labelFoto')">
+            <div class="file-input-label" id="labelFoto"><i class="fas fa-camera"></i><span>Kamera / Galeri / File</span></div>
           </div>
-        </div>
-
-        <!-- Upload File (hidden by default) -->
-        <div class="form-group hidden" id="wrapUploadFile">
-          <label class="form-label">Upload File Bukti</label>
-          <div class="file-input-wrap">
-            <input type="file" id="addTxFile" onchange="updateFileLabel(this,'labelFile')">
-            <div class="file-input-label" id="labelFile"><i class="fas fa-file"></i><span>Pilih file bukti</span></div>
-          </div>
+          <p class="form-hint"><i class="fas fa-info-circle"></i> Di HP: pilih kamera atau galeri. Di desktop: pilih file dari komputer.</p>
         </div>
 
         <!-- Nota Pembelian -->
@@ -6270,11 +6379,19 @@ var sidebarCollapsed = false;
 var allTransactions = [];
 var filteredTransactions = [];
 var allUsers = [];
+var filteredUsers = [];
 var allMasterBB = [];
 var filteredMasterBB = [];
 var allSuppliers = [];
+var filteredSuppliers = [];
 var allSurvei = [];
+var filteredSurvei = [];
 var allSerahTerima = [];
+var filteredSerahTerima = [];
+var allRekapSppg = [];
+var filteredRekapSppg = [];
+var allRekapHarian = [];
+var filteredRekapHarian = [];
 var allMenuMBG = [];
 var allPending = [];
 var dropdownOptions = {};
@@ -6338,25 +6455,6 @@ function safeStorage(action, key, value) {
     if (action === 'get') { return localStorage.getItem(key); }
     if (action === 'remove') { localStorage.removeItem(key); return true; }
   } catch(e) { return action === 'get' ? null : false; }
-}
-
-
-/* ===== Show-if Upload berdasarkan Jenis Bukti ===== */
-function toggleUploadFields() {
-  var val = $('addTxJenisBukti').value;
-  var wFoto = $('wrapUploadFoto');
-  var wFile = $('wrapUploadFile');
-  if (!wFoto || !wFile) return;
-  wFoto.classList.add('hidden');
-  wFile.classList.add('hidden');
-  if (val === 'FOTO') {
-    wFoto.classList.remove('hidden');
-  } else if (val === 'FILE') {
-    wFile.classList.remove('hidden');
-  } else if (val === 'Keduanya') {
-    wFoto.classList.remove('hidden');
-    wFile.classList.remove('hidden');
-  }
 }
 
 function updateFileLabel(input, labelId) {
@@ -7145,8 +7243,10 @@ function buildSidebar() {
   var menus = MENU_CONFIG[role] || MENU_CONFIG['LAPANGAN'];
   var bottomNavPages = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
 
-  // R8: Sembunyikan item sidebar yang halamannya sudah tersedia di bottom nav,
-  // lalu buang header section yang jadi kosong (tidak ada item di bawahnya).
+  // Di desktop (>= 768px) tidak ada bottom nav, jadi semua menu tampil di sidebar.
+  // Di mobile, item yang sudah ada di bottom nav disembunyikan dari sidebar
+  // agar tidak duplikat, lalu header section yang jadi kosong ikut dibuang.
+  var isDesktop = window.innerWidth >= 768;
   var filtered = [];
   var pendingHeader = null;
   menus.forEach(function(item) {
@@ -7156,7 +7256,7 @@ function buildSidebar() {
       filtered.push(item);
       return;
     }
-    if (bottomNavPages.indexOf(item.page) !== -1) return; // sudah ada di bottom nav, skip
+    if (!isDesktop && bottomNavPages.indexOf(item.page) !== -1) return; // mobile: skip jika sudah di bottom nav
     if (pendingHeader) { filtered.push(pendingHeader); pendingHeader = null; }
     filtered.push(item);
   });
@@ -7175,7 +7275,7 @@ function buildSidebar() {
       return;
     }
     var isActive = currentPage === item.page ? 'active' : '';
-    var badgeHtml = item.badge ? '<span class="menu-badge" id="' + item.badge + '" style="display:none;">0</span>' : '';
+    var badgeHtml = item.badge ? '<span class="menu-badge" id="' + item.badge + 'Sidebar" style="display:none;">0</span>' : '';
     html += '<a class="menu-item ' + isActive + '" onclick="switchPage(\'' + item.page + '\', this)" data-page="' + item.page + '">' +
       '<i class="fas ' + item.icon + '"></i>' +
       '<span class="menu-item-text">' + esc(item.label) + '</span>' +
@@ -7377,6 +7477,115 @@ function syncApprovalBadgeToQuickAccess() {
   dst.textContent = src.textContent;
   dst.style.display = (parseInt(src.textContent) > 0) ? 'flex' : 'none';
 }
+
+function goToTransaksiFiltered(kategori) {
+  switchPage('transaksi');
+  setTimeout(function() {
+    if ($('txFilterKategori')) {
+      $('txFilterKategori').value = kategori;
+      filterTransaksi();
+    }
+  }, 150);
+}
+
+// ============================================================
+// FILTER TANGGAL GLOBAL (berlaku ke semua menu: Beranda, Transaksi,
+// Approval, Rekap Harian, Rekap SPPG). Disimpan di localStorage agar
+// persist antar sesi. null/null = tanpa batas (semua data).
+// ============================================================
+var globalDateFilter = { start: null, end: null, label: 'Semua Tanggal' };
+
+function loadGlobalDateFilterState() {
+  try {
+    var saved = safeStorage('get', 'globalDateFilter');
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      globalDateFilter = parsed;
+      $('globalDateStart').value = parsed.start || '';
+      $('globalDateEnd').value = parsed.end || '';
+      $('globalDateFilterLabel').textContent = parsed.label || 'Semua Tanggal';
+    }
+  } catch (e) { /* biarkan default jika parsing gagal */ }
+}
+
+function saveGlobalDateFilterState() {
+  safeStorage('set', 'globalDateFilter', JSON.stringify(globalDateFilter));
+}
+
+function toggleGlobalDateFilterPanel() {
+  $('globalDateFilterPanel').classList.toggle('hidden');
+}
+
+function closeGlobalDateFilterPanel() {
+  $('globalDateFilterPanel').classList.add('hidden');
+}
+
+function setGlobalDatePreset(preset) {
+  var end = new Date();
+  var start = new Date();
+  var label = 'Semua Tanggal';
+
+  if (preset === 'today') { label = 'Hari Ini'; }
+  else if (preset === '7d') { start.setDate(start.getDate() - 6); label = '7 Hari Terakhir'; }
+  else if (preset === '30d') { start.setDate(start.getDate() - 29); label = '30 Hari Terakhir'; }
+  else if (preset === 'month') { start = new Date(end.getFullYear(), end.getMonth(), 1); label = 'Bulan Ini'; }
+  else if (preset === 'all') {
+    globalDateFilter = { start: null, end: null, label: 'Semua Tanggal' };
+    $('globalDateStart').value = '';
+    $('globalDateEnd').value = '';
+    $('globalDateFilterLabel').textContent = 'Semua Tanggal';
+    saveGlobalDateFilterState();
+    closeGlobalDateFilterPanel();
+    applyGlobalDateFilter();
+    return;
+  }
+
+  var startStr = formatDateInput(start);
+  var endStr = formatDateInput(end);
+  globalDateFilter = { start: startStr, end: endStr, label: label };
+  $('globalDateStart').value = startStr;
+  $('globalDateEnd').value = endStr;
+  $('globalDateFilterLabel').textContent = label;
+  saveGlobalDateFilterState();
+  closeGlobalDateFilterPanel();
+  applyGlobalDateFilter();
+}
+
+function applyGlobalDateFilterCustom() {
+  var start = $('globalDateStart').value || null;
+  var end = $('globalDateEnd').value || null;
+  var label = (start || end) ? (formatTglLabel(start) + ' - ' + formatTglLabel(end)) : 'Semua Tanggal';
+  globalDateFilter = { start: start, end: end, label: label };
+  $('globalDateFilterLabel').textContent = label;
+  saveGlobalDateFilterState();
+  closeGlobalDateFilterPanel();
+  applyGlobalDateFilter();
+}
+
+function formatTglLabel(dateStr) {
+  if (!dateStr) return '...';
+  var parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return parts[2] + '/' + parts[1] + '/' + parts[0].slice(2);
+}
+
+// Dipanggil setiap kali globalDateFilter berubah — reload data halaman
+// yang sedang aktif saja (bukan semua halaman sekaligus, demi performa).
+function applyGlobalDateFilter() {
+  if (currentPage === 'dashboard') loadDashboardData();
+  else if (currentPage === 'transaksi') loadTransactions();
+  else if (currentPage === 'approval') loadApprovalData();
+  else if (currentPage === 'rekap-sppg') loadRekapSPPG();
+  else if (currentPage === 'rekap-harian') loadRekapHarian();
+  else if (currentPage === 'laporan') updateLaporanCharts();
+}
+
+// Tutup panel jika klik di luar area filter
+document.addEventListener('click', function(e) {
+  var bar = $('globalDateFilterBar');
+  if (bar && !bar.contains(e.target)) closeGlobalDateFilterPanel();
+});
+
 function switchPage(page, el) {
   // SAFETY NET: pastikan body tidak terkunci sisa dari modal yang gagal
   // ditutup dengan benar (mis. alur Approval->PIN atau Verifikasi->PIN
@@ -7422,15 +7631,16 @@ function switchPage(page, el) {
   if (page === 'users' && currentUser.role === 'ADMIN') loadUsers();
   if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
-  if (page === 'master-bahan') loadMasterBB();
-  if (page === 'master-supplier') loadSuppliers();
-  if (page === 'survei') loadSurvei();
-  if (page === 'serah-terima') loadSerahTerima();
+  if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
+  if (page === 'master-bahan') { loadMasterBB(); restoreFilterBarState('bbFilterBar'); }
+  if (page === 'master-supplier') { loadSuppliers(); restoreFilterBarState('supplierFilterBar'); }
+  if (page === 'survei') { loadSurvei(); restoreFilterBarState('surveiFilterBar'); }
+  if (page === 'serah-terima') { loadSerahTerima(); restoreFilterBarState('stFilterBar'); }
   if (page === 'menu-mbg') loadMenuMBG();
   if (page === 'pending-payment') loadPendingPayment();
-  if (page === 'rekap-sppg') loadRekapSPPG();
-  if (page === 'rekap-harian') loadRekapHarian();
-  if (page === 'laporan') requestAnimationFrame(function() { updateLaporanCharts(); });  if (page === 'audit-log' && currentUser.role === 'ADMIN') loadAuditLog();
+  if (page === 'rekap-sppg') { loadRekapSPPG(); restoreFilterBarState('rekapSppgFilterBar'); }
+  if (page === 'rekap-harian') { loadRekapHarian(); restoreFilterBarState('rekapHarianFilterBar'); }
+  if (page === 'laporan') requestAnimationFrame(function() { updateLaporanCharts(); });  if (page === 'audit-log' && currentUser.role === 'ADMIN') { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
     if (page === 'profil') renderProfil();
   
   // Hide/show local print buttons for non-admin/akuntan
@@ -7468,13 +7678,10 @@ function restoreFilterBarState(barId) {
   var bar = $(barId);
   if (!bar) return;
   var saved = safeStorage('get', 'filterCollapsed_' + barId);
-  bar.classList.toggle('collapsed', saved === '1');
-}
-
-function toggleFilterBar(barId) {
-  var bar = $(barId);
-  if (!bar) return;
-  bar.classList.toggle('collapsed');
+  // Default: mobile (<=768px) selalu ciut kecuali user pernah membuka manual (saved === '0')
+  var isMobile = window.innerWidth <= 768;
+  var shouldCollapse = saved === '1' || (saved === null && isMobile);
+  bar.classList.toggle('collapsed', shouldCollapse);
 }
 
 function toggleSidebar() {
@@ -7634,9 +7841,15 @@ function initApp() {
   if (appLoadingEl) appLoadingEl.classList.remove('hidden');
   startAppLoadingProgress();
 
+  loadGlobalDateFilterState();
+
   buildSidebar();
   buildBottomNav();
   updateFabVisibility();
+  // Rebuild sidebar saat resize agar filter bottom-nav ikut menyesuaikan
+  window.addEventListener('resize', function() {
+    if (currentUser) buildSidebar();
+  });
   // Pre-populate SPPG dengan fallback langsung (tidak tunggu API) agar
   // select sudah ada isinya saat user buka modal tambah transaksi pertama kali
   populateSPPGSelects();
@@ -7777,15 +7990,18 @@ function loadDashboardData() {
           $('statAntrian').textContent = result.antrianApproval || 0;
           $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
           // Update badge
+          var cnt = result.antrianApproval || 0;
           var badge = $('approvalCount');
-          if (badge) { badge.textContent = result.antrianApproval || 0; badge.style.display = (result.antrianApproval > 0) ? 'inline-flex' : 'none'; }
+          if (badge) { badge.textContent = cnt; badge.style.display = cnt > 0 ? 'inline-flex' : 'none'; }
+          var badgeSidebar = $('approvalCountSidebar');
+          if (badgeSidebar) { badgeSidebar.textContent = cnt; badgeSidebar.style.display = cnt > 0 ? 'inline-flex' : 'none'; }
           syncApprovalBadgeToBottomNav();
           syncApprovalBadgeToQuickAccess();
         }
         resolve();
       })
       .withFailureHandler(function(err) { showLoading(false); resolve(); })
-      .getDashboardKPI({ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg });
+      .getDashboardKPI(globalDateFilter.start, globalDateFilter.end);
   });
 }
 
@@ -8193,6 +8409,8 @@ function loadUsers(silent) {
         if (!silent) showLoading(false);
         if (result.success) {
           allUsers = result.data || [];
+          filteredUsers = allUsers.slice();
+          populateUsersFilterOptions();
           usersPage = 1;
           renderUsersTable();
         }
@@ -8202,14 +8420,16 @@ function loadUsers(silent) {
         if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data users'); }
         resolve();
       })
-      .getAllUsers(currentUser.role);
+      .getAllUsers();
   });
 }
 function renderUsersTable() {
   var tbody = $('usersTableBody');
-  if (!allUsers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>'; return; }
+  if (!filteredUsers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>'; renderPagination('usersPagination', 1, 0, 'goUsersPage'); return; }
+  var totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  if (usersPage > totalPages) usersPage = totalPages;
   var start = (usersPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allUsers.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = filteredUsers.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(u, i) {
     var avatarFallback = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.namaLengkap || u.username) + '&background=1e6f9c&color=fff&size=60&rounded=true';
@@ -8232,7 +8452,7 @@ function renderUsersTable() {
   });
 
   tbody.innerHTML = html;
-  renderPagination('usersPagination', usersPage, Math.ceil(allUsers.length / ITEMS_PER_PAGE), 'goUsersPage');
+  renderPagination('usersPagination', usersPage, totalPages, 'goUsersPage');
 
   pageData.forEach(function(u) {
     if (u.fotoProfil && String(u.fotoProfil).trim() !== '' && u.fotoProfil !== '-') {
@@ -8248,6 +8468,29 @@ function renderUsersTable() {
     }
   });
 }
+
+function filterUsers() {
+  var search = $('usersSearchInput').value.toLowerCase().trim();
+  var sppg = $('usersFilterSppg').value;
+  var role = $('usersFilterRole').value;
+  filteredUsers = allUsers.filter(function(u) {
+    var teks = (u.namaLengkap || '') + ' ' + (u.username || '') + ' ' + (u.email || '');
+    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
+    if (sppg !== 'ALL' && u.sppg !== sppg) return false;
+    if (role !== 'ALL' && u.role !== role) return false;
+    return true;
+  });
+  usersPage = 1;
+  renderUsersTable();
+}
+function populateUsersFilterOptions() {
+  var sppgSel = $('usersFilterSppg'), roleSel = $('usersFilterRole');
+  var sppgSet = {}, roleSet = {};
+  allUsers.forEach(function(u) { if (u.sppg) sppgSet[u.sppg] = true; if (u.role) roleSet[u.role] = true; });
+  sppgSel.innerHTML = '<option value="ALL">Semua SPPG</option>' + Object.keys(sppgSet).sort().map(function(s){ return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('');
+  roleSel.innerHTML = '<option value="ALL">Semua Role</option>' + Object.keys(roleSet).sort().map(function(r){ return '<option value="' + esc(r) + '">' + esc(r) + '</option>'; }).join('');
+}
+
 function goUsersPage(p) { usersPage = p; renderUsersTable(); }
 function openEditUserModal(rowNum) {
   var user = allUsers.find(function(u) { return u._row === rowNum; });
@@ -8300,6 +8543,8 @@ function loadTransactions() {
     callerRole: currentUser.role,
     callerUser: isAdmin ? '' : currentUser.email
   };
+  if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
+  if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
 
   google.script.run
     .withSuccessHandler(function(data) {
@@ -8497,16 +8742,12 @@ function openAddTransaksiModal() {
   $('addTxItem').value = '';
   $('addTxCatatan').value = '';
   $('addTxMetodeTransaksi').value = 'BELUM_BAYAR';
-  $('addTxJenisBukti').value = '';
   $('addTxNominal').value = '';
   $('addTxNominal').setAttribute('data-raw', '0');
   var nomConf = $('addTxNominalConfirm'); if (nomConf) nomConf.textContent = '';
   var itemHint = $('addTxItemHint'); if (itemHint) itemHint.innerHTML = '';
   $('addTxFoto').value = '';
-  $('addTxFile').value = '';
-  var lf = $('labelFoto'); if (lf) lf.innerHTML = '<i class="fas fa-camera"></i><span>Pilih foto bukti</span>';
-  var lfl = $('labelFile'); if (lfl) lfl.innerHTML = '<i class="fas fa-file"></i><span>Pilih file bukti</span>';
-  toggleUploadFields();
+  var lf = $('labelFoto'); if (lf) lf.innerHTML = '<i class="fas fa-camera"></i><span>Kamera / Galeri / File</span>';
   $('addTxNota').value = '';
   openModal('modalAddTransaksi');
   setTimeout(initAddTxTtd, 100);
@@ -8522,15 +8763,13 @@ function saveAddTransaksi() {
     nominal: getNominalRaw(),
     catatan: $('addTxCatatan').value,
     metodeTransaksi: $('addTxMetodeTransaksi').value,
-    jenisBukti: $('addTxJenisBukti').value
-  };
+    };
   if (!data.tanggal || !data.sppg || !data.namaItem || !data.nominal) {
     showToast('error', 'Validasi', 'Tanggal, SPPG, Nama Item, dan Nominal wajib diisi'); return;
   }
   showLoading(true);
 
   var fotoFile = $('addTxFoto').files[0];
-  var fileFile = $('addTxFile').files[0];
   var notaFile = $('addTxNota') ? $('addTxNota').files[0] : null;
   var ttdCanvas = $('addTxTtdCanvas');
   var uploadsPending = 0;
@@ -8610,17 +8849,7 @@ function saveAddTransaksi() {
     };
     r.readAsDataURL(fotoFile);
   }
-  if (fileFile) {
-    uploadsPending++;
-    var r2 = new FileReader();
-    r2.onload = function(e) {
-      var b64 = e.target.result.split(',')[1];
-      google.script.run
-        .withSuccessHandler(function(up) { if (up.success) data.uploadFile = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit(); })
-        .uploadTxFile(b64, fileFile.type, fileFile.name, 'file');
-    };
-    r2.readAsDataURL(fileFile);
-  }
+
   if (notaFile) {
     uploadsPending++;
     var r3 = new FileReader();
@@ -8746,18 +8975,33 @@ function renderFilePreview(fileInfo, title, iconClass) {
         '<div><div class="detail-doc-label">' + esc(title) + '</div><div class="detail-doc-status">Belum diupload</div></div>' +
       '</div></div>';
   }
+  var url = fileInfo.signedUrl || fileInfo.previewUrl || fileInfo.viewUrl || '';
+  var thumbUrl = fileInfo.signedThumbnailUrl || url;
   var isImage = fileInfo.mimeType && fileInfo.mimeType.indexOf('image') > -1;
-  if (isImage && (fileInfo.previewUrl || fileInfo.thumbnailUrl)) {
-    var url = esc(fileInfo.directImageUrl || fileInfo.previewUrl || fileInfo.thumbnailUrl);
+  var isPdf = fileInfo.mimeType === 'application/pdf';
+
+  if (isImage && url) {
+    var safeUrl = esc(url);
+    var safeThumb = esc(thumbUrl);
     return '<div style="margin-bottom:16px;">' +
       '<div class="detail-section-title"><i class="fas ' + iconClass + '" style="margin-right:6px;"></i>' + esc(title) + '</div>' +
-      '<img src="' + url + '" class="img-preview" style="cursor:pointer;max-height:200px;" onclick="openLightbox(\'' + url + '\')" alt="' + esc(title) + '">' +
+      '<img src="' + safeThumb + '" class="img-preview" style="cursor:pointer;max-height:200px;border-radius:8px;object-fit:cover;" onclick="openLightbox(\'' + safeUrl + '\')" alt="' + esc(title) + '" loading="lazy">' +
       '</div>';
   }
+
+  // Non-gambar (PDF, dsb): tampilkan sebagai kartu file yang bisa diklik,
+  // bukan link teks polos — tetap terlihat jelas jenis filenya.
+  var fileIcon = isPdf ? 'fa-file-pdf' : 'fa-file';
+  var fileLabel = isPdf ? 'Dokumen PDF' : (fileInfo.name || 'File');
+  var clickAction = isPdf
+    ? 'openLightbox(\'' + esc(url) + '\')'
+    : 'window.open(\'' + esc(url) + '\', \'_blank\')';
   return '<div style="margin-bottom:16px;">' +
     '<div class="detail-section-title"><i class="fas ' + iconClass + '" style="margin-right:6px;"></i>' + esc(title) + '</div>' +
-    '<a href="' + esc(fileInfo.viewUrl) + '" target="_blank" class="detail-link"><i class="fas fa-external-link-alt"></i> ' + esc(fileInfo.name || 'Lihat File') + '</a>' +
-    '</div>';
+    '<div class="detail-doc-item" style="cursor:pointer;" onclick="' + clickAction + '">' +
+      '<div class="detail-doc-icon"><i class="fas ' + fileIcon + '"></i></div>' +
+      '<div><div class="detail-doc-label">' + esc(fileLabel) + '</div><div class="detail-doc-status" style="color:var(--primary);">' + esc(fileInfo.name || '') + '</div></div>' +
+    '</div></div>';
 }
 
 // ============================================================
@@ -8782,6 +9026,8 @@ function loadApprovalData() {
     callerRole: currentUser.role,
     callerUser: currentUser.role === 'ADMIN' ? '' : currentUser.email
   };
+  if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
+  if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
   google.script.run
     .withSuccessHandler(function(data) {
       showLoading(false);
@@ -10121,6 +10367,7 @@ function loadSuppliers(silent) {
         if (!silent) showLoading(false);
         if (result.success) {
           allSuppliers = result.data || [];
+          filteredSuppliers = allSuppliers.slice();
           supplierPage = 1;
           renderSupplierTable();
         }
@@ -10135,11 +10382,11 @@ function loadSuppliers(silent) {
 }
 function renderSupplierTable() {
   var tbody = $('supplierTableBody');
-  if (!allSuppliers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-truck"></i></div><h4>Tidak Ada Supplier</h4></div></td></tr>'; $('supplierPagination').innerHTML = ''; return; }
-  var totalPages = Math.ceil(allSuppliers.length / ITEMS_PER_PAGE);
+  if (!filteredSuppliers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-truck"></i></div><h4>Tidak Ada Supplier</h4></div></td></tr>'; $('supplierPagination').innerHTML = ''; return; }
+  var totalPages = Math.ceil(filteredSuppliers.length / ITEMS_PER_PAGE);
   if (supplierPage > totalPages) supplierPage = totalPages;
   var start = (supplierPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allSuppliers.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = filteredSuppliers.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(s, idx) {
     var statusBadge = s.STATUS === 'Aktif' ? 'badge-green' : s.STATUS === 'Suspend' ? 'badge-red' : 'badge-amber';
@@ -10160,6 +10407,20 @@ function renderSupplierTable() {
   tbody.innerHTML = html;
   renderPagination('supplierPagination', supplierPage, totalPages, 'goSupplierPage');
 }
+
+function filterSupplier() {
+  var search = $('supplierSearchInput').value.toLowerCase().trim();
+  var status = $('supplierFilterStatus').value;
+  filteredSuppliers = allSuppliers.filter(function(s) {
+    var teks = (s['NAMA SUPPLIER'] || s['Nama Supplier'] || '') + ' ' + (s['NO WHATSAPP'] || s['No WhatsApp'] || '') + ' ' + (s['EMAIL'] || s['Email'] || '');
+    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
+    if (status !== 'ALL' && (s['STATUS'] || s['Status']) !== status) return false;
+    return true;
+  });
+  supplierPage = 1;
+  renderSupplierTable();
+}
+
 function goSupplierPage(p) { supplierPage = p; renderSupplierTable(); }
 function openDetailSurvei(rowNum) {
   var s = allSurvei.find(function(x){ return x._row === rowNum; });
@@ -10329,6 +10590,8 @@ function loadSurvei() {
       showLoading(false);
       if (result.success) {
         allSurvei = result.data || [];
+        filteredSurvei = allSurvei.slice();
+        populateSurveiFilterOptions();
         surveiPage = 1;
         renderSurveiTable();
       }
@@ -10338,11 +10601,11 @@ function loadSurvei() {
 }
 function renderSurveiTable() {
   var tbody = $('surveiTableBody');
-  if (!allSurvei.length) { tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-search-dollar"></i></div><h4>Tidak Ada Data Survei</h4></div></td></tr>'; $('surveiPagination').innerHTML = ''; return; }
-  var totalPages = Math.ceil(allSurvei.length / ITEMS_PER_PAGE);
+  if (!filteredSurvei.length) { tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-search-dollar"></i></div><h4>Tidak Ada Data Survei</h4></div></td></tr>'; $('surveiPagination').innerHTML = ''; return; }
+  var totalPages = Math.ceil(filteredSurvei.length / ITEMS_PER_PAGE);
   if (surveiPage > totalPages) surveiPage = totalPages;
   var start = (surveiPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allSurvei.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = filteredSurvei.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(s, idx) {
     html += '<tr>' +
@@ -10365,6 +10628,26 @@ function renderSurveiTable() {
   tbody.innerHTML = html;
   renderPagination('surveiPagination', surveiPage, totalPages, 'goSurveiPage');
 }
+
+function filterSurvei() {
+  var search = $('surveiSearchInput').value.toLowerCase().trim();
+  var kat = $('surveiFilterKategori').value;
+  filteredSurvei = allSurvei.filter(function(s) {
+    var teks = (s['NAMA BAHAN BAKU'] || s['Nama Bahan Baku'] || '') + ' ' + (s['KODE BAHAN BAKU'] || s['Kode Bahan Baku'] || '');
+    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
+    if (kat !== 'ALL' && (s['KATEGORI BAHAN BAKU'] || s['Kategori']) !== kat) return false;
+    return true;
+  });
+  surveiPage = 1;
+  renderSurveiTable();
+}
+function populateSurveiFilterOptions() {
+  var katSel = $('surveiFilterKategori');
+  var katSet = {};
+  allSurvei.forEach(function(s) { var k = s['KATEGORI BAHAN BAKU'] || s['Kategori']; if (k) katSet[k] = true; });
+  katSel.innerHTML = '<option value="ALL">Semua Kategori</option>' + Object.keys(katSet).sort().map(function(k){ return '<option value="' + esc(k) + '">' + esc(k) + '</option>'; }).join('');
+}
+
 function goSurveiPage(p) { surveiPage = p; renderSurveiTable(); }
 function exportSurvei(format) {
   if (format === 'csv') {
@@ -10541,6 +10824,7 @@ function loadSerahTerima() {
       showLoading(false);
       if (result.success) {
         allSerahTerima = result.data || [];
+        filteredSerahTerima = allSerahTerima.slice();
         stPage = 1;
         renderSerahTerimaTable();
       }
@@ -10550,11 +10834,11 @@ function loadSerahTerima() {
 }
 function renderSerahTerimaTable() {
   var tbody = $('serahTerimaTableBody');
-  if (!allSerahTerima.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-dolly"></i></div><h4>Tidak Ada Data</h4></div></td></tr>'; $('serahTerimaPagination').innerHTML = ''; return; }
-  var totalPages = Math.ceil(allSerahTerima.length / ITEMS_PER_PAGE);
+  if (!filteredSerahTerima.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-dolly"></i></div><h4>Tidak Ada Data</h4></div></td></tr>'; $('serahTerimaPagination').innerHTML = ''; return; }
+  var totalPages = Math.ceil(filteredSerahTerima.length / ITEMS_PER_PAGE);
   if (stPage > totalPages) stPage = totalPages;
   var start = (stPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allSerahTerima.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = filteredSerahTerima.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(s, idx) {
     html += '<tr>' +
@@ -10576,6 +10860,20 @@ function renderSerahTerimaTable() {
   tbody.innerHTML = html;
   renderPagination('serahTerimaPagination', stPage, totalPages, 'goSTPage');
 }
+
+function filterSerahTerima() {
+  var search = $('stSearchInput').value.toLowerCase().trim();
+  var kondisi = $('stFilterKondisi').value;
+  filteredSerahTerima = allSerahTerima.filter(function(s) {
+    var teks = (s['NAMA BAHAN BAKU'] || s['Nama Bahan Baku'] || '') + ' ' + (s['PENERIMA'] || s['Penerima'] || '') + ' ' + (s['SUPPLIER'] || s['Supplier'] || '');
+    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
+    if (kondisi !== 'ALL' && (s['KONDISI BAHAN BAKU'] || s['Kondisi']) !== kondisi) return false;
+    return true;
+  });
+  stPage = 1;
+  renderSerahTerimaTable();
+}
+
 function goSTPage(p) { stPage = p; renderSerahTerimaTable(); }
 function exportSerahTerima(format) {
   if (format === 'csv') {
@@ -10896,7 +11194,7 @@ function loadPendingPayment() {
       renderPendingTable();
     })
     .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data'); })
-    .getPendingPayments({ role: currentUser.role, user: currentUser.email });
+    .getPendingPayments({ role: currentUser.role, user: currentUser.email, dateStart: globalDateFilter.start, dateEnd: globalDateFilter.end });
 }
 function renderPendingTable() {
   var tbody = $('pendingTableBody');
@@ -11096,10 +11394,21 @@ function loadRekapSPPG() {
   google.script.run
     .withSuccessHandler(function(data) {
       showLoading(false);
-      renderRekapSPPG(data || []);
+      allRekapSppg = data || [];
+      filteredRekapSppg = allRekapSppg.slice();
+      renderRekapSPPG(filteredRekapSppg);
     })
     .withFailureHandler(function() { showLoading(false); })
-    .getSPPGData();
+    .getSPPGData(globalDateFilter.start, globalDateFilter.end);
+}
+function filterRekapSPPG() {
+  var search = $('rekapSppgSearchInput').value.toLowerCase().trim();
+  filteredRekapSppg = allRekapSppg.filter(function(r) {
+    var nama = r.name || r.NAME || '';
+    if (search && nama.toLowerCase().indexOf(search) === -1) return false;
+    return true;
+  });
+  renderRekapSPPG(filteredRekapSppg);
 }
 function renderRekapSPPG(data) {
   var tbody = $('rekapSppgBody');
@@ -11121,9 +11430,31 @@ function renderRekapSPPG(data) {
 function loadRekapHarian() {
   showLoading(true);
   google.script.run
-    .withSuccessHandler(function(data) { showLoading(false); renderRekapHarian(data || []); })
+    .withSuccessHandler(function(data) {
+      showLoading(false);
+      allRekapHarian = data || [];
+      filteredRekapHarian = allRekapHarian.slice();
+      renderRekapHarian(filteredRekapHarian);
+    })
     .withFailureHandler(function() { showLoading(false); })
-    .getRekapHarian();
+    .getRekapHarian(globalDateFilter.start, globalDateFilter.end);
+}
+function filterRekapHarian() {
+  var start = $('rekapHarianTglStart').value;
+  var end = $('rekapHarianTglEnd').value;
+  filteredRekapHarian = allRekapHarian.filter(function(r) {
+    var tgl = r.tanggal || r.TANGGAL || '';
+    if (start && tgl < start) return false;
+    if (end && tgl > end) return false;
+    return true;
+  });
+  renderRekapHarian(filteredRekapHarian);
+}
+function resetRekapHarianFilter() {
+  $('rekapHarianTglStart').value = '';
+  $('rekapHarianTglEnd').value = '';
+  filteredRekapHarian = allRekapHarian.slice();
+  renderRekapHarian(filteredRekapHarian);
 }
 function renderRekapHarian(data) {
   var tbody = $('rekapHarianBody');
@@ -11145,10 +11476,27 @@ function renderRekapHarian(data) {
 // ============================================================
 
 function openLightbox(src) {
-  $('lightboxImage').src = src;
+  var isPdf = src && src.toLowerCase().indexOf('.pdf') > -1;
+  var imgEl = $('lightboxImage');
+  var pdfEl = $('lightboxPdf');
+  if (isPdf) {
+    pdfEl.src = src;
+    pdfEl.classList.remove('hidden');
+    imgEl.classList.add('hidden');
+    imgEl.src = '';
+  } else {
+    imgEl.src = src;
+    imgEl.classList.remove('hidden');
+    pdfEl.classList.add('hidden');
+    pdfEl.src = '';
+  }
   $('modalLightbox').classList.remove('hidden');
 }
-function closeLightbox() { $('modalLightbox').classList.add('hidden'); }
+function closeLightbox() {
+  $('modalLightbox').classList.add('hidden');
+  $('lightboxImage').src = '';
+  $('lightboxPdf').src = '';
+}
 
 function refreshData() {
   var icon = $('refreshIcon');
@@ -11178,8 +11526,13 @@ function refreshData() {
           $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
           $('statAntrian').textContent = result.antrianApproval || 0;
           $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
+          var cnt2 = result.antrianApproval || 0;
           var badge = $('approvalCount');
-          if (badge) { badge.textContent = result.antrianApproval || 0; badge.style.display = (result.antrianApproval > 0) ? 'inline-flex' : 'none'; }
+          if (badge) { badge.textContent = cnt2; badge.style.display = cnt2 > 0 ? 'inline-flex' : 'none'; }
+          var badgeSidebar = $('approvalCountSidebar');
+          if (badgeSidebar) { badgeSidebar.textContent = cnt2; badgeSidebar.style.display = cnt2 > 0 ? 'inline-flex' : 'none'; }
+          syncApprovalBadgeToBottomNav();
+          syncApprovalBadgeToQuickAccess();
         }
         updateChart();
         checkDone();
@@ -11248,6 +11601,8 @@ function refreshData() {
       .withSuccessHandler(function(result) {
         if (result.success) {
           allSurvei = result.data || [];
+          filteredSurvei = allSurvei.slice();
+        populateSurveiFilterOptions();
           surveiPage = 1;
           renderSurveiTable();
         }
@@ -11261,6 +11616,7 @@ function refreshData() {
       .withSuccessHandler(function(result) {
         if (result.success) {
           allSerahTerima = result.data || [];
+          filteredSerahTerima = allSerahTerima.slice();
           stPage = 1;
           renderSerahTerimaTable();
         }
@@ -11308,13 +11664,13 @@ function refreshData() {
 
   } else if (currentPage === 'rekap-sppg') {
     google.script.run
-      .withSuccessHandler(function(data) { renderRekapSPPG(data || []); checkDone(); })
+      .withSuccessHandler(function(data) { allRekapSppg = data || []; filteredRekapSppg = allRekapSppg.slice(); renderRekapSPPG(filteredRekapSppg); checkDone(); })
       .withFailureHandler(function() { checkDone(); })
       .getSPPGData();
 
   } else if (currentPage === 'rekap-harian') {
     google.script.run
-      .withSuccessHandler(function(data) { renderRekapHarian(data || []); checkDone(); })
+      .withSuccessHandler(function(data) { allRekapHarian = data || []; filteredRekapHarian = allRekapHarian.slice(); renderRekapHarian(filteredRekapHarian); checkDone(); })
       .withFailureHandler(function() { checkDone(); })
       .getRekapHarian();
 
@@ -11653,66 +12009,6 @@ function submitRecovery() {
       closeMobileSidebar();
     }
   }, { passive: true });
-
-  // --- Custom Pull-to-Refresh pada .main-wrapper ---
-  // Browser native pull-to-refresh tidak bisa diandalkan karena app
-  // berjalan di dalam iframe & .main-wrapper adalah scroll container
-  // sendiri (max-height:100vh + overflow-y:auto), sehingga gesture tarik
-  // ke bawah "diserap" wrapper tanpa memicu refresh bawaan browser.
-  (function initPullToRefresh() {
-    var wrapper = document.getElementById('mainWrapper');
-    if (!wrapper) return;
-
-    var ptrIndicator = document.createElement('div');
-    ptrIndicator.id = 'ptrIndicator';
-    ptrIndicator.style.cssText = 'position:absolute;top:0;left:0;right:0;height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:height 0.2s ease;z-index:50;color:var(--primary,#1e6f9c);font-size:20px;pointer-events:none;';
-    ptrIndicator.innerHTML = '<i class="fas fa-sync-alt" id="ptrIcon"></i>';
-    wrapper.style.position = wrapper.style.position || 'relative';
-    wrapper.insertBefore(ptrIndicator, wrapper.firstChild);
-
-    var startY = 0, currentY = 0, pulling = false, refreshing = false;
-    var PTR_THRESHOLD = 70, PTR_MAX = 110;
-
-    wrapper.addEventListener('touchstart', function(e) {
-      if (refreshing || !currentUser) return;
-      if (wrapper.scrollTop > 0) { pulling = false; return; }
-      if (e.touches.length !== 1) return;
-      startY = e.touches[0].clientY;
-      pulling = true;
-    }, { passive: true });
-
-    wrapper.addEventListener('touchmove', function(e) {
-      if (!pulling || refreshing || !currentUser) return;
-      currentY = e.touches[0].clientY;
-      var diff = currentY - startY;
-      if (diff <= 0) { pulling = false; ptrIndicator.style.height = '0px'; return; }
-      if (wrapper.scrollTop > 0) { pulling = false; ptrIndicator.style.height = '0px'; return; }
-      var pull = Math.min(diff * 0.5, PTR_MAX);
-      ptrIndicator.style.height = pull + 'px';
-      var icon = document.getElementById('ptrIcon');
-      if (icon) icon.style.transform = 'rotate(' + Math.min(pull * 3, 360) + 'deg)';
-    }, { passive: true });
-
-    wrapper.addEventListener('touchend', function() {
-      if (!pulling || refreshing || !currentUser) { pulling = false; return; }
-      pulling = false;
-      var height = parseInt(ptrIndicator.style.height) || 0;
-      if (height >= PTR_THRESHOLD * 0.5) {
-        refreshing = true;
-        ptrIndicator.style.height = '50px';
-        var icon = document.getElementById('ptrIcon');
-        if (icon) icon.classList.add('fa-spin');
-        refreshData();
-        setTimeout(function() {
-          ptrIndicator.style.height = '0px';
-          if (icon) icon.classList.remove('fa-spin');
-          refreshing = false;
-        }, 900);
-      } else {
-        ptrIndicator.style.height = '0px';
-      }
-    }, { passive: true });
-  })();
 
   // --- Android back button: tutup modal/sidebar yang terbuka ---
   window.addEventListener('popstate', function() {
