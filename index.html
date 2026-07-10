@@ -7703,6 +7703,34 @@ function toggleFilterBar(barId) {
   safeStorage('set', 'filterCollapsed_' + barId, collapsed ? '1' : '0');
 }
 
+// Fungsi untuk switch tab di halaman Transaksi (Semua Transaksi, Rekap Harian, Rekap per SPPG)
+function switchTransactionTab(tabName) {
+  // Update active state pada tombol tab
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.classList.remove('active');
+    if (btn.getAttribute('data-tab') === tabName) {
+      btn.classList.add('active');
+    }
+  });
+  
+  // Show/hide views
+  document.querySelectorAll('.tab-view').forEach(function(view) {
+    view.classList.add('hidden');
+    if (view.id === 'tab-' + tabName) {
+      view.classList.remove('hidden');
+    }
+  });
+  
+  // Load data sesuai tab yang aktif
+  if (tabName === 'all-transactions') {
+    if (allTransactions.length === 0) loadTransactions();
+  } else if (tabName === 'rekap-harian') {
+    if (allRekapHarian.length === 0) loadRekapHarian();
+  } else if (tabName === 'rekap-sppg') {
+    if (allRekapSppg.length === 0) loadRekapSPPG();
+  }
+}
+
 function restoreFilterBarState(barId) {
   var bar = $(barId);
   if (!bar) return;
