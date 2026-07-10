@@ -2938,48 +2938,6 @@
     }
 
     /* ============================================================
-       PRINT: Halaman Laporan — multi-halaman, rapi, informatif
-       ============================================================ */
-    @media print {
-      #page-laporan {
-        page-break-inside: auto !important;
-      }
-      #page-laporan .chart-container {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        margin-bottom: 18px !important;
-        max-height: none !important;
-      }
-      #page-laporan .chart-canvas-wrap {
-        max-height: 320px !important;
-        page-break-inside: avoid !important;
-      }
-      #page-laporan .chart-canvas-wrap canvas {
-        max-height: 300px !important;
-      }
-      #page-laporan .stat-card,
-      #page-laporan .stats-grid {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      #page-laporan h2,
-      #page-laporan h3,
-      #page-laporan h4 {
-        page-break-after: avoid !important;
-      }
-      /* Header cetak berulang di setiap halaman print (judul laporan) */
-      #page-laporan::before {
-        content: 'Laporan & Analisis — Dicetak: ' attr(data-print-date);
-        display: block;
-        font-size: 10px;
-        color: #666;
-        border-bottom: 1px solid #ccc;
-        padding-bottom: 6px;
-        margin-bottom: 12px;
-      }
-    }
-
-    /* ============================================================
        RESPONSIVE HELPERS
        ============================================================ */
     .flex { display: flex; }
@@ -4842,181 +4800,7 @@
       </div>
 
       <!-- ==================== REKAP SPPG PAGE ==================== -->
-      <div id="page-rekap-sppg" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-building" style="color:var(--primary);"></i> Rekap per SPPG</div>
-            <p class="page-desc">Ringkasan keuangan tiap unit SPPG</p>
-          </div>
-          <div class="page-header-actions">
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-          </div>
-        </div>
-        <div class="filter-bar" id="rekapSppgFilterBar">
-          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapSppgFilterBar')" title="Tampilkan/Sembunyikan Filter">
-            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
-          </button>
-          <div class="filter-collapsible" style="display:contents;">
-            <div class="search-box">
-              <i class="fas fa-search"></i>
-              <input type="text" id="rekapSppgSearchInput" placeholder="Cari nama SPPG..." oninput="filterRekapSPPG()">
-            </div>
-          </div>
-        </div>
-        <div class="table-container">
-          <div class="table-scroll">
-            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
-            <table>
-              <thead>
-                <tr>
-                  <th>SPPG</th>
-                  <th>Pemasukan</th>
-                  <th>Pengeluaran</th>
-                  <th>Belum Bayar</th>
-                  <th>Lunas</th>
-                  <th>Saldo Berjalan</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody id="rekapSppgBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ==================== REKAP HARIAN PAGE ==================== -->
-      <div id="page-rekap-harian" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-calendar-day" style="color:var(--primary);"></i> Rekap Harian</div>
-            <p class="page-desc">Pergerakan kas harian</p>
-          </div>
-          <div class="page-header-actions">
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-          </div>
-        </div>
-        <div class="filter-bar" id="rekapHarianFilterBar">
-          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapHarianFilterBar')" title="Tampilkan/Sembunyikan Filter">
-            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
-          </button>
-          <div class="filter-collapsible" style="display:contents;">
-            <input type="date" id="rekapHarianTglStart" class="form-input" style="max-width:160px;" onchange="filterRekapHarian()" title="Dari Tanggal">
-            <input type="date" id="rekapHarianTglEnd" class="form-input" style="max-width:160px;" onchange="filterRekapHarian()" title="Sampai Tanggal">
-            <button class="btn btn-outline btn-sm" onclick="resetRekapHarianFilter()" title="Reset Filter">
-              <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
-            </button>
-          </div>
-        </div>
-        <div class="table-container">
-          <div class="table-scroll">
-            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
-            <table>
-              <thead>
-                <tr>
-                  <th>Tanggal</th>
-                  <th>Pemasukan</th>
-                  <th>Pengeluaran</th>
-                  <th>Saldo Harian</th>
-                  <th>Saldo Berjalan</th>
-                </tr>
-              </thead>
-              <tbody id="rekapHarianBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ==================== LAPORAN PAGE ==================== -->
-      <div id="page-laporan" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-chart-bar" style="color:var(--primary);"></i> Laporan & Analisis</div>
-            <p class="page-desc">Visualisasi data keuangan berdasarkan klasifikasi</p>
-          </div>
-          <div class="page-header-actions">
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-          </div>
-        </div>
-        
-        <!-- Filter Laporan -->
-        <div class="filter-section" style="margin-bottom:16px;">
-          <div class="flex items-center gap-2" style="flex-wrap:wrap;">
-            <select id="laporanFilterPeriode" class="form-input" style="max-width:150px;" onchange="updateLaporanCharts()">
-              <option value="7">7 Hari Terakhir</option>
-              <option value="30" selected>30 Hari Terakhir</option>
-              <option value="90">3 Bulan Terakhir</option>
-              <option value="180">6 Bulan Terakhir</option>
-              <option value="365">1 Tahun Terakhir</option>
-            </select>
-            <select id="laporanFilterSPPG" class="form-input hidden" style="max-width:160px;" onchange="updateLaporanCharts()">
-              <option value="ALL">Semua SPPG</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Chart Arus Kas -->
-        <div class="chart-container">
-          <div class="chart-header">
-            <h3><i class="fas fa-chart-area"></i> Arus Kas Harian</h3>
-            <span class="badge badge-slate" id="laporanChartDataCount">0 data</span>
-          </div>
-          <div class="chart-canvas-wrap">
-            <canvas id="laporanCashFlowChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Chart Komposisi Pemasukan vs Pengeluaran -->
-        <div class="chart-container" style="margin-top:16px;">
-          <div class="chart-header">
-            <h3><i class="fas fa-chart-pie"></i> Komposisi Pemasukan vs Pengeluaran</h3>
-            <span class="badge badge-slate" id="komposisiDataCount">0 data</span>
-          </div>
-          <div class="chart-canvas-wrap" style="max-height:400px;">
-            <canvas id="komposisiChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Chart Kategori Pengeluaran -->
-        <div class="chart-container" style="margin-top:16px;">
-          <div class="chart-header">
-            <h3><i class="fas fa-chart-bar"></i> Pengeluaran per Kategori</h3>
-            <span class="badge badge-slate" id="kategoriPengeluaranCount">0 data</span>
-          </div>
-          <div class="chart-canvas-wrap" style="max-height:400px;">
-            <canvas id="kategoriPengeluaranChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Chart Metode Pembayaran -->
-        <div class="chart-container" style="margin-top:16px;">
-          <div class="chart-header">
-            <h3><i class="fas fa-chart-pie"></i> Distribusi Metode Pembayaran</h3>
-            <span class="badge badge-slate" id="metodePembayaranCount">0 data</span>
-          </div>
-          <div class="chart-canvas-wrap" style="max-height:400px;">
-            <canvas id="metodePembayaranChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Chart Status Approval -->
-        <div class="chart-container" style="margin-top:16px;">
-          <div class="chart-header">
-            <h3><i class="fas fa-chart-bar"></i> Status Approval Transaksi</h3>
-            <span class="badge badge-slate" id="statusApprovalCount">0 data</span>
-          </div>
-          <div class="chart-canvas-wrap" style="max-height:400px;">
-            <canvas id="statusApprovalChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-    </main><!-- /content -->
+      </main><!-- /content -->
   </div><!-- /main-wrapper -->
 
   <!-- ==================== BOTTOM NAVIGATION (MOBILE) ==================== -->
@@ -6354,10 +6138,6 @@ var allSurvei = [];
 var filteredSurvei = [];
 var allSerahTerima = [];
 var filteredSerahTerima = [];
-var allRekapSppg = [];
-var filteredRekapSppg = [];
-var allRekapHarian = [];
-var filteredRekapHarian = [];
 var allMenuMBG = [];
 var allPending = [];
 var dropdownOptions = {};
@@ -6381,11 +6161,6 @@ var currentTrxId = null;
 var currentEditRow = null;
 var approvalFileData = null;
 var chartInstance = null;
-var laporanCashFlowChartInstance = null;
-var laporanKomposisiChartInstance = null;
-var laporanKategoriChartInstance = null;
-var laporanMetodeChartInstance = null;
-var laporanStatusApprovalChartInstance = null;
 var menuItems = [];
 
 // ============================================================
@@ -7147,9 +6922,6 @@ var MENU_CONFIG = {
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
     { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
-    { label: 'REKAPITULASI', isHeader: true },
-    { page: 'rekap-sppg', label: 'Per SPPG', icon: 'fa-building' },
-    { page: 'rekap-harian', label: 'Harian', icon: 'fa-calendar-day' },
     { label: 'DATA MASTER', isHeader: true },
     { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
     { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
@@ -7255,19 +7027,18 @@ function buildSidebar() {
 // BOTTOM NAV, FAB, MORE-SHEET, QUICK ACCESS — Mobile Navigation
 // ============================================================
 
-// Tab utama per role (5 item permanen: Beranda, Transaksi, Laporan, Approval, Profil)
+// Tab utama per role (4 item permanen: Beranda, Transaksi, Approval/menu utama, Profil)
 var BOTTOM_NAV_CONFIG = {
-  ADMIN:          ['dashboard', 'transaksi', 'laporan', 'approval', 'profil'],
-  AKUNTAN:        ['dashboard', 'transaksi', 'laporan', 'master-bahan', 'profil'],
-  LAPANGAN:       ['dashboard', 'transaksi', 'laporan', 'approval', 'profil'],
-  WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'laporan', 'serah-terima', 'profil'],
-  AHLI_GIZI:      ['dashboard', 'transaksi', 'laporan', 'menu-mbg', 'profil']
+  ADMIN:          ['dashboard', 'transaksi', 'approval', 'profil'],
+  AKUNTAN:        ['dashboard', 'transaksi', 'master-bahan', 'profil'],
+  LAPANGAN:       ['dashboard', 'transaksi', 'approval', 'profil'],
+  WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'serah-terima', 'profil'],
+  AHLI_GIZI:      ['dashboard', 'transaksi', 'menu-mbg', 'profil']
 };
 
 var BNAV_ICON_LABEL = {
   'dashboard':       { icon: 'fa-th-large',        label: 'Beranda' },
   'transaksi':        { icon: 'fa-exchange-alt',    label: 'Transaksi' },
-  'laporan':          { icon: 'fa-chart-bar',       label: 'Laporan' },
   'approval':         { icon: 'fa-clipboard-check', label: 'Approval' },
   'profil':           { icon: 'fa-user-circle',     label: 'Profil' },
   'master-bahan':     { icon: 'fa-boxes',           label: 'Bahan Baku' },
@@ -7541,9 +7312,6 @@ function applyGlobalDateFilter() {
   if (currentPage === 'dashboard') loadDashboardData();
   else if (currentPage === 'transaksi') loadTransactions();
   else if (currentPage === 'approval') loadApprovalData();
-  else if (currentPage === 'rekap-sppg') loadRekapSPPG();
-  else if (currentPage === 'rekap-harian') loadRekapHarian();
-  else if (currentPage === 'laporan') updateLaporanCharts();
 }
 
 // Tutup panel jika klik di luar area filter
@@ -7578,11 +7346,11 @@ function switchPage(page, el) {
   var titles = {
     'dashboard': 'Dashboard', 'profil': 'Profil', 'users': 'Manajemen Users',
     'transaksi': currentUser && currentUser.role === 'ADMIN' ? 'Semua Transaksi' : 'Transaksi Saya',
-    'approval': 'Approval', 'rekap-sppg': 'Rekap per SPPG', 'rekap-harian': 'Rekap Harian',
+    'approval': 'Approval',
     'pending-payment': 'Pending Payment', 'master-bahan': 'Master Bahan Baku',
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
     'serah-terima': 'Serah Terima', 'menu-mbg': 'Data Menu MBG',
-    'audit-log': 'Riwayat Aktivitas', 'laporan': 'Laporan & Analisis'
+    'audit-log': 'Riwayat Aktivitas'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
   // R4: Update breadcrumb
@@ -7604,9 +7372,7 @@ function switchPage(page, el) {
   if (page === 'serah-terima') { loadSerahTerima(); restoreFilterBarState('stFilterBar'); }
   if (page === 'menu-mbg') loadMenuMBG();
   if (page === 'pending-payment') loadPendingPayment();
-  if (page === 'rekap-sppg') { loadRekapSPPG(); restoreFilterBarState('rekapSppgFilterBar'); }
-  if (page === 'rekap-harian') { loadRekapHarian(); restoreFilterBarState('rekapHarianFilterBar'); }
-  if (page === 'laporan') requestAnimationFrame(function() { updateLaporanCharts(); });  if (page === 'audit-log' && currentUser.role === 'ADMIN') { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
+  if (page === 'audit-log' && currentUser.role === 'ADMIN') { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
     if (page === 'profil') renderProfil();
   
   // Hide/show local print buttons for non-admin/akuntan
@@ -8001,40 +7767,6 @@ function initChart() {
   });
 }
 
-function updateLaporanCharts() {
-  if (!currentUser) return;
-
-  var periodeSel = $('laporanFilterPeriode');
-  var days = periodeSel ? parseInt(periodeSel.value) || 30 : 30;
-
-  // Jika allTransactions sudah ada (user sudah buka menu Transaksi), pakai langsung
-  // tanpa request API ulang — lebih cepat dan tidak ada masalah format tanggal.
-  if (allTransactions && allTransactions.length > 0) {
-    renderLaporanCharts(allTransactions, days);
-    return;
-  }
-
-  // Jika belum ada data, fetch dari API (tanpa filter tanggal — filter dilakukan client-side
-  // karena format tanggal di DB adalah DD/MM/YYYY sedangkan YYYY-MM-DD akan gagal di backend)
-  var filters = {
-    callerRole: currentUser.role,
-    callerUser: currentUser.role === 'ADMIN' ? '' : currentUser.email
-  };
-
-  google.script.run
-    .withSuccessHandler(function(data) {
-      if (data && Array.isArray(data)) {
-        allTransactions = data; // cache agar tidak fetch ulang
-      }
-      renderLaporanCharts(data || [], days);
-    })
-    .withFailureHandler(function(err) {
-      console.error('updateLaporanCharts error:', err);
-      renderLaporanCharts([], days);
-    })
-    .getTransactions(filters);
-}
-
 // Helper: konversi string tanggal format DD/MM/YYYY menjadi objek Date,
 // dipakai khusus untuk sorting label chart di renderLaporanCharts().
 function parseDate(str) {
@@ -8043,178 +7775,6 @@ function parseDate(str) {
   if (parts.length !== 3) return new Date(0);
   var d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
   return isNaN(d.getTime()) ? new Date(0) : d;
-}
-
-function renderLaporanCharts(rows, days) {
-  // Filter tanggal dilakukan di sini (client-side) karena tx.tanggal format DD/MM/YYYY
-  // sedangkan server-side filter menggunakan YYYY-MM-DD sehingga tidak cocok.
-  var numDays = days || 30;
-  var cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - numDays);
-  cutoff.setHours(0, 0, 0, 0);
-
-  var filtered = rows.filter(function(tx) {
-    if (!tx.tanggal || tx.tanggal === '-') return false;
-    var parts = tx.tanggal.split('/'); // DD/MM/YYYY
-    if (parts.length !== 3) return false;
-    var d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    return d >= cutoff;
-  });
-
-  // ===== 1. Arus Kas Harian: Pemasukan, Pengeluaran, Saldo Berjalan (kumulatif) per tanggal =====
-  var dailyMap = {};
-  filtered.forEach(function(tx) {
-    var tgl = tx.tanggal || '-';
-    if (!dailyMap[tgl]) dailyMap[tgl] = { pemasukan: 0, pengeluaran: 0 };
-    if (tx.kategori === 'PEMASUKAN') dailyMap[tgl].pemasukan += tx.nominal || 0;
-    if (tx.kategori === 'PENGELUARAN') dailyMap[tgl].pengeluaran += tx.nominal || 0;
-  });
-  var tanggalKeys = Object.keys(dailyMap).sort(function(a, b) { return parseDate(a) - parseDate(b); });
-  var running = 0;
-  var saldoData = [], pemasukanData = [], pengeluaranData = [];
-  tanggalKeys.forEach(function(k) {
-    pemasukanData.push(dailyMap[k].pemasukan);
-    pengeluaranData.push(dailyMap[k].pengeluaran);
-    running += dailyMap[k].pemasukan - dailyMap[k].pengeluaran;
-    saldoData.push(running);
-  });
-  $('laporanChartDataCount').textContent = tanggalKeys.length + ' data';
-
-  if (!laporanCashFlowChartInstance) {
-    var ctx1 = $('laporanCashFlowChart').getContext('2d');
-    laporanCashFlowChartInstance = new Chart(ctx1, {
-      type: 'line',
-      data: {
-        labels: tanggalKeys,
-        datasets: [
-          { label: 'Pemasukan', data: pemasukanData, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.3, fill: true },
-          { label: 'Pengeluaran', data: pengeluaranData, borderColor: '#f43f5e', backgroundColor: 'rgba(244,63,94,0.1)', tension: 0.3, fill: true },
-          { label: 'Saldo Berjalan', data: saldoData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.05)', tension: 0.3, fill: false, borderDash: [5,5] }
-        ]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': ' + formatRupiah(c.raw); } } } },
-        scales: { y: { ticks: { callback: function(v) { if (Math.abs(v) >= 1000000) return (v/1000000).toFixed(0)+'jt'; if (Math.abs(v) >= 1000) return (v/1000).toFixed(0)+'rb'; return v; } } } }
-      }
-    });
-  } else {
-    laporanCashFlowChartInstance.data.labels = tanggalKeys;
-    laporanCashFlowChartInstance.data.datasets[0].data = pemasukanData;
-    laporanCashFlowChartInstance.data.datasets[1].data = pengeluaranData;
-    laporanCashFlowChartInstance.data.datasets[2].data = saldoData;
-    laporanCashFlowChartInstance.update();
-  }
-
-  // Paksa resize setelah render pertama agar chart mengisi container dengan benar
-  requestAnimationFrame(function() {
-    if (laporanCashFlowChartInstance) laporanCashFlowChartInstance.resize();
-    if (laporanKomposisiChartInstance) laporanKomposisiChartInstance.resize();
-    if (laporanKategoriChartInstance) laporanKategoriChartInstance.resize();
-    if (laporanMetodeChartInstance) laporanMetodeChartInstance.resize();
-    if (laporanStatusApprovalChartInstance) laporanStatusApprovalChartInstance.resize();
-  });
-
-  // ===== 2. Komposisi Pemasukan vs Pengeluaran: total nominal masing-masing kategori =====
-  var totalIn = 0, totalOut = 0;
-  filtered.forEach(function(tx) {
-    if (tx.kategori === 'PEMASUKAN') totalIn += tx.nominal || 0;
-    if (tx.kategori === 'PENGELUARAN') totalOut += tx.nominal || 0;
-  });
-  $('komposisiDataCount').textContent = filtered.length + ' data';
-  var komposisiData = [totalIn, totalOut];
-  if (!laporanKomposisiChartInstance) {
-    var ctx2 = $('komposisiChart').getContext('2d');
-    laporanKomposisiChartInstance = new Chart(ctx2, {
-      type: 'doughnut',
-      data: { labels: ['Pemasukan', 'Pengeluaran'], datasets: [{ data: komposisiData, backgroundColor: ['#10b981', '#f43f5e'] }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: function(c) { return c.label + ': ' + formatRupiah(c.raw); } } } } }
-    });
-  } else {
-    laporanKomposisiChartInstance.data.datasets[0].data = komposisiData;
-    laporanKomposisiChartInstance.update();
-  }
-
-  // ===== 3. Pengeluaran per Kategori: total nominal PENGELUARAN dikelompokkan per jenisKategori =====
-  var kategoriMap = {};
-  filtered.forEach(function(tx) {
-    if (tx.kategori !== 'PENGELUARAN') return;
-    var jk = tx.jenisKategori || 'Lainnya';
-    kategoriMap[jk] = (kategoriMap[jk] || 0) + (tx.nominal || 0);
-  });
-  var kategoriLabels = Object.keys(kategoriMap);
-  var kategoriData = kategoriLabels.map(function(k) { return kategoriMap[k]; });
-  $('kategoriPengeluaranCount').textContent = kategoriLabels.length + ' kategori';
-  if (!laporanKategoriChartInstance) {
-    var ctx3 = $('kategoriPengeluaranChart').getContext('2d');
-    laporanKategoriChartInstance = new Chart(ctx3, {
-      type: 'bar',
-      data: { labels: kategoriLabels, datasets: [{ label: 'Pengeluaran', data: kategoriData, backgroundColor: '#f43f5e' }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return formatRupiah(c.raw); } } } } }
-    });
-  } else {
-    laporanKategoriChartInstance.data.labels = kategoriLabels;
-    laporanKategoriChartInstance.data.datasets[0].data = kategoriData;
-    laporanKategoriChartInstance.update();
-  }
-
-  // ===== 4. Distribusi Metode Pembayaran: jumlah transaksi per metodeTransaksi =====
-  // Urutan & warna tetap agar konsisten di setiap render, termasuk CASH.
-  var METODE_ORDER = ['CASH', 'TRANSFER', 'SUDAH_DIBAYAR', 'BELUM_BAYAR'];
-  var METODE_LABEL_MAP = { CASH: 'Cash', TRANSFER: 'Transfer', SUDAH_DIBAYAR: 'Sudah Dibayar', BELUM_BAYAR: 'Belum Bayar' };
-  var METODE_COLOR_MAP = { CASH: '#10b981', TRANSFER: '#3b82f6', SUDAH_DIBAYAR: '#a855f7', BELUM_BAYAR: '#f59e0b' };
-
-  var metodeMap = {};
-  filtered.forEach(function(tx) {
-    var m = tx.metodeTransaksi || 'BELUM_BAYAR';
-    metodeMap[m] = (metodeMap[m] || 0) + 1;
-  });
-  // Susun berdasarkan METODE_ORDER dulu (agar CASH selalu tampil bila ada datanya),
-  // lalu tambahkan metode lain yang mungkin belum terdaftar di METODE_ORDER.
-  var metodeKeys = METODE_ORDER.filter(function(k) { return metodeMap[k] > 0; });
-  Object.keys(metodeMap).forEach(function(k) {
-    if (metodeKeys.indexOf(k) === -1) metodeKeys.push(k);
-  });
-  var metodeLabels = metodeKeys.map(function(k) { return METODE_LABEL_MAP[k] || k; });
-  var metodeData = metodeKeys.map(function(k) { return metodeMap[k]; });
-  var metodeColors = metodeKeys.map(function(k) { return METODE_COLOR_MAP[k] || '#64748b'; });
-  $('metodePembayaranCount').textContent = filtered.length + ' data';
-  if (!laporanMetodeChartInstance) {
-    var ctx4 = $('metodePembayaranChart').getContext('2d');
-    laporanMetodeChartInstance = new Chart(ctx4, {
-      type: 'pie',
-      data: { labels: metodeLabels, datasets: [{ data: metodeData, backgroundColor: metodeColors }] },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
-  } else {
-    laporanMetodeChartInstance.data.labels = metodeLabels;
-    laporanMetodeChartInstance.data.datasets[0].data = metodeData;
-    laporanMetodeChartInstance.data.datasets[0].backgroundColor = metodeColors;
-    laporanMetodeChartInstance.update();
-  }
-
-  // ===== 5. Status Approval Transaksi: sama seperti data di menu Approval =====
-  // Konsisten dengan filter Approval: transaksi PENGELUARAN yang metodeTransaksi != SUDAH_DIBAYAR
-  // dianggap "Menunggu Approval", sisanya "Sudah Disetujui".
-  var sudahApprove = 0, belumApprove = 0;
-  filtered.forEach(function(tx) {
-    if (tx.kategori !== 'PENGELUARAN') return;
-    if (tx.metodeTransaksi === 'SUDAH_DIBAYAR') sudahApprove++;
-    else belumApprove++;
-  });
-  $('statusApprovalCount').textContent = (sudahApprove + belumApprove) + ' data';
-  var statusData = [sudahApprove, belumApprove];
-  if (!laporanStatusApprovalChartInstance) {
-    var ctx5 = $('statusApprovalChart').getContext('2d');
-    laporanStatusApprovalChartInstance = new Chart(ctx5, {
-      type: 'bar',
-      data: { labels: ['Sudah Disetujui', 'Menunggu Approval'], datasets: [{ label: 'Jumlah Transaksi', data: statusData, backgroundColor: ['#10b981', '#f59e0b'] }] },
-      options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
-    });
-  } else {
-    laporanStatusApprovalChartInstance.data.datasets[0].data = statusData;
-    laporanStatusApprovalChartInstance.update();
-  }
 }
 
 function updateChart() {
@@ -11328,92 +10888,6 @@ function resetAuditFilter() {
 // ============================================================
 // 18. REKAP
 // ============================================================
-function loadRekapSPPG() {
-  showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(data) {
-      showLoading(false);
-      allRekapSppg = data || [];
-      filteredRekapSppg = allRekapSppg.slice();
-      renderRekapSPPG(filteredRekapSppg);
-    })
-    .withFailureHandler(function() { showLoading(false); })
-    .getSPPGData(globalDateFilter.start, globalDateFilter.end);
-}
-function filterRekapSPPG() {
-  var search = $('rekapSppgSearchInput').value.toLowerCase().trim();
-  filteredRekapSppg = allRekapSppg.filter(function(r) {
-    var nama = r.name || r.NAME || '';
-    if (search && nama.toLowerCase().indexOf(search) === -1) return false;
-    return true;
-  });
-  renderRekapSPPG(filteredRekapSppg);
-}
-function renderRekapSPPG(data) {
-  var tbody = $('rekapSppgBody');
-  if (!data.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-building"></i></div><h4>Data Belum Tersedia</h4></div></td></tr>'; return; }
-  var html = '';
-  data.forEach(function(s) {
-    var isNeg = (s.saldo || 0) < 0;
-    html += '<tr>' +
-      '<td><strong>' + esc(s.name) + '</strong></td>' +
-      '<td class="text-emerald font-semibold">' + formatRupiah(s.pemasukan) + '</td>' +
-      '<td class="text-rose font-semibold">' + formatRupiah(s.pengeluaran) + '</td>' +
-      '<td class="text-amber font-semibold">' + formatRupiah(s.belumBayar) + '</td>' +
-      '<td>' + formatRupiah(s.lunas) + '</td>' +
-      '<td><strong class="' + (isNeg ? 'text-rose' : 'text-emerald') + '">' + formatRupiah(s.saldo) + '</strong></td>' +
-      '<td>' + (isNeg ? '<span class="badge badge-red">Defisit</span>' : '<span class="badge badge-green">Sehat</span>') + '</td></tr>';
-  });
-  tbody.innerHTML = html;
-}
-function loadRekapHarian() {
-  showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(data) {
-      showLoading(false);
-      allRekapHarian = data || [];
-      filteredRekapHarian = allRekapHarian.slice();
-      renderRekapHarian(filteredRekapHarian);
-    })
-    .withFailureHandler(function() { showLoading(false); })
-    .getRekapHarian(globalDateFilter.start, globalDateFilter.end);
-}
-function filterRekapHarian() {
-  var start = $('rekapHarianTglStart').value;
-  var end = $('rekapHarianTglEnd').value;
-  filteredRekapHarian = allRekapHarian.filter(function(r) {
-    var tgl = r.tanggal || r.TANGGAL || '';
-    if (start && tgl < start) return false;
-    if (end && tgl > end) return false;
-    return true;
-  });
-  renderRekapHarian(filteredRekapHarian);
-}
-function resetRekapHarianFilter() {
-  $('rekapHarianTglStart').value = '';
-  $('rekapHarianTglEnd').value = '';
-  filteredRekapHarian = allRekapHarian.slice();
-  renderRekapHarian(filteredRekapHarian);
-}
-function renderRekapHarian(data) {
-  var tbody = $('rekapHarianBody');
-  if (!data.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-calendar-day"></i></div><h4>Belum Ada Data</h4></div></td></tr>'; return; }
-  var html = '';
-  data.forEach(function(r) {
-    html += '<tr>' +
-      '<td><strong>' + esc(r.tanggal) + '</strong></td>' +
-      '<td class="text-emerald font-semibold">' + formatRupiah(r.pemasukan) + '</td>' +
-      '<td class="text-rose font-semibold">' + formatRupiah(r.pengeluaran) + '</td>' +
-      '<td><strong class="' + ((r.saldoHarian || 0) < 0 ? 'text-rose' : 'text-emerald') + '">' + formatRupiah(r.saldoHarian) + '</strong></td>' +
-      '<td><strong class="' + ((r.saldoBerjalan || 0) < 0 ? 'text-rose' : 'text-emerald') + '">' + formatRupiah(r.saldoBerjalan) + '</strong></td></tr>';
-  });
-  tbody.innerHTML = html;
-}
-
-// ============================================================
-// 19. WEBCAM / LIGHTBOX / REFRESH
-// ============================================================
-
 function openLightbox(src) {
   var isPdf = src && src.toLowerCase().indexOf('.pdf') > -1;
   var imgEl = $('lightboxImage');
@@ -11601,18 +11075,6 @@ function refreshData() {
       .withFailureHandler(function() { checkDone(); })
       .getAllUsers(currentUser.role);
 
-  } else if (currentPage === 'rekap-sppg') {
-    google.script.run
-      .withSuccessHandler(function(data) { allRekapSppg = data || []; filteredRekapSppg = allRekapSppg.slice(); renderRekapSPPG(filteredRekapSppg); checkDone(); })
-      .withFailureHandler(function() { checkDone(); })
-      .getSPPGData();
-
-  } else if (currentPage === 'rekap-harian') {
-    google.script.run
-      .withSuccessHandler(function(data) { allRekapHarian = data || []; filteredRekapHarian = allRekapHarian.slice(); renderRekapHarian(filteredRekapHarian); checkDone(); })
-      .withFailureHandler(function() { checkDone(); })
-      .getRekapHarian();
-
   } else {
     checkDone();
   }
@@ -11648,17 +11110,9 @@ function printCurrentPage() {
   var pageTitleText = $('pageTitle').textContent || 'SPPG';
   document.title = pageTitleText + ' - ' + (currentUser ? currentUser.namaLengkap : 'Print');
 
-  // Dashboard, Rekap & Laporan: pakai print normal (cetak konten halaman apa adanya,
-  // termasuk chart/canvas — tidak bisa direkonstruksi ulang sebagai tabel print-all)
-  var normalPrintPages = ['dashboard', 'rekap-sppg', 'rekap-harian', 'profil', 'laporan'];
+  // Dashboard & Profil: pakai print normal (cetak konten halaman apa adanya)
+  var normalPrintPages = ['dashboard', 'profil'];
   if (normalPrintPages.indexOf(currentPage) > -1) {
-    if (currentPage === 'laporan') {
-      var laporanSection = $('page-laporan');
-      if (laporanSection) {
-        var d = new Date();
-        laporanSection.setAttribute('data-print-date', d.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' }) + ' ' + d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }));
-      }
-    }
     setTimeout(function() {
       window.print();
       document.title = originalTitle;
