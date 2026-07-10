@@ -3901,8 +3901,8 @@
       <p class="auth-sub">Sistem Informasi Manajemen SPPG</p>
 
       <div class="form-group">
-        <label class="form-label">Username</label>
-        <input type="text" id="loginUsername" class="form-input" placeholder="Masukkan username">
+        <label class="form-label">Email</label>
+        <input type="email" id="loginUsername" class="form-input" placeholder="Masukkan email (@gmail.com)" autocomplete="email">
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
@@ -4991,6 +4991,35 @@
         <div class="form-group">
           <label class="form-label">Nama Lengkap</label>
           <input type="text" id="editNama" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jabatan</label>
+          <select id="editJabatan" class="form-input">
+            <option value="">Pilih Jabatan</option>
+            <option value="ADMIN">ADMIN</option>
+            <option value="PIC">PIC</option>
+            <option value="ASISTEN LAPANGAN">ASISTEN LAPANGAN</option>
+            <option value="WAKIL ASISTEN LAPANGAN">WAKIL ASISTEN LAPANGAN</option>
+            <option value="AKUNTAN">AKUNTAN</option>
+            <option value="AHLI GIZI">AHLI GIZI</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">SPPG</label>
+          <select id="editSPPG" class="form-input">
+            <option value="">Pilih SPPG</option>
+            <option value="DARMARAJA">DARMARAJA</option>
+            <option value="CIAMIS">CIAMIS</option>
+            <option value="TANJUNG MEDAR">TANJUNG MEDAR</option>
+            <option value="PAKUALAM">PAKUALAM</option>
+            <option value="KIRISIK">KIRISIK</option>
+            <option value="CIBUNAR">CIBUNAR</option>
+            <option value="CINTA JAYA">CINTA JAYA</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama Yayasan</label>
+          <input type="text" id="editYayasan" class="form-input" placeholder="Nama yayasan (opsional)">
         </div>
         <div class="form-group">
           <label class="form-label">Foto Profil</label>
@@ -6702,12 +6731,18 @@ function previewEditFoto(input) {
 }
 
 function doLogin() {
-  var username = $('loginUsername').value.trim();
+  var username = $('loginUsername').value.trim().toLowerCase();
   var password = $('loginPassword').value;
   var btn = $('btnLogin');
 
   if (!username || !password) {
-    $('loginError').querySelector('span').textContent = 'Semua field wajib diisi.';
+    $('loginError').querySelector('span').textContent = 'Email dan password wajib diisi.';
+    $('loginError').classList.add('show');
+    $('recoveryLinks').classList.add('show');
+    return;
+  }
+  if (!username.includes('@')) {
+    $('loginError').querySelector('span').textContent = 'Masukkan alamat email yang valid.';
     $('loginError').classList.add('show');
     $('recoveryLinks').classList.add('show');
     return;
@@ -6912,7 +6947,48 @@ function executeLogout() {
 // ============================================================
 // 5. SIDEBAR & NAVIGATION
 // ============================================================
+
 var MENU_CONFIG = {
+  SUPER_ADMIN: [
+    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { label: 'MENU UTAMA', isHeader: true },
+    { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
+    { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
+    { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
+    { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
+    { label: 'DATA MASTER', isHeader: true },
+    { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
+    { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
+    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
+    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
+    { label: 'MENU MBG', isHeader: true },
+    { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
+    { label: 'AKUN', isHeader: true },
+    { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
+  ],
+
+var MENU_CONFIG = {
+  SUPER_ADMIN: [
+    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { label: 'MENU UTAMA', isHeader: true },
+    { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
+    { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
+    { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
+    { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
+    { label: 'DATA MASTER', isHeader: true },
+    { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
+    { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
+    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
+    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
+    { label: 'MENU MBG', isHeader: true },
+    { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
+    { label: 'AKUN', isHeader: true },
+    { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
+  ],
   ADMIN: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
@@ -6958,6 +7034,23 @@ var MENU_CONFIG = {
     { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
+
+PIC: [
+    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { label: 'MENU UTAMA', isHeader: true },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
+    { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
+    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
+    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
+    { label: 'DATA MASTER', isHeader: true },
+    { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
+    { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
+    { label: 'AKUN', isHeader: true },
+    { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
+  ],
+
   WAKIL_LAPANGAN: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
@@ -6978,8 +7071,8 @@ var MENU_CONFIG = {
 
 function buildSidebar() {
   var role = currentUser ? currentUser.role : '';
-  var menus = MENU_CONFIG[role] || MENU_CONFIG['LAPANGAN'];
-  var bottomNavPages = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+ var menus = MENU_CONFIG[role] || MENU_CONFIG['SUPER_ADMIN'] || MENU_CONFIG['LAPANGAN'];
+  var bottomNavPages = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['SUPER_ADMIN'] || BOTTOM_NAV_CONFIG['LAPANGAN'];
 
   // Di desktop (>= 768px) tidak ada bottom nav, jadi semua menu tampil di sidebar.
   // Di mobile, item yang sudah ada di bottom nav disembunyikan dari sidebar
@@ -7029,6 +7122,7 @@ function buildSidebar() {
 
 // Tab utama per role (4 item permanen: Beranda, Transaksi, Approval/menu utama, Profil)
 var BOTTOM_NAV_CONFIG = {
+  SUPER_ADMIN:    ['dashboard', 'transaksi', 'approval', 'profil'],
   ADMIN:          ['dashboard', 'transaksi', 'approval', 'profil'],
   AKUNTAN:        ['dashboard', 'transaksi', 'master-bahan', 'profil'],
   LAPANGAN:       ['dashboard', 'transaksi', 'approval', 'profil'],
@@ -7362,7 +7456,7 @@ function switchPage(page, el) {
   updateFabVisibility();
   // Page-specific init
   if (page === 'dashboard') { loadDashboardData(); updateChart(); renderQuickAccess(); }
-  if (page === 'users' && currentUser.role === 'ADMIN') loadUsers();
+  if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers();
   if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
@@ -7372,11 +7466,11 @@ function switchPage(page, el) {
   if (page === 'serah-terima') { loadSerahTerima(); restoreFilterBarState('stFilterBar'); }
   if (page === 'menu-mbg') loadMenuMBG();
   if (page === 'pending-payment') loadPendingPayment();
-  if (page === 'audit-log' && currentUser.role === 'ADMIN') { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
+  if (page === 'audit-log' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
     if (page === 'profil') renderProfil();
   
   // Hide/show local print buttons for non-admin/akuntan
-  var isAdminOrAkuntan = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'AKUNTAN');
+  var isAdminOrAkuntan = currentUser && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN' || currentUser.role === 'AKUNTAN');
   document.querySelectorAll('.admin-print-btn').forEach(function(btn) {
     btn.style.display = isAdminOrAkuntan ? 'inline-flex' : 'none';
   });
@@ -7611,7 +7705,7 @@ function initApp() {
     });
   });
 
-  if (currentUser.role === 'ADMIN') {
+  if (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') {
     var selDashSppg = $('dashFilterSPPG');
     if (selDashSppg) {
       selDashSppg.classList.remove('hidden');
@@ -7837,13 +7931,22 @@ function renderProfil() {
 function openEditProfilModal() {
   if (!currentUser) return;
   $('editNama').value = currentUser.namaLengkap || '';
+  $('editJabatan').value = currentUser.jabatan || '';
+  $('editSPPG').value = currentUser.sppg || '';
+  $('editYayasan').value = currentUser.namaYayasan || '';
   $('editFotoPreview').classList.add('hidden');
   openModal('modalEditProfil');
 }
 function saveEditProfil() {
   var nama = $('editNama').value.trim();
   if (!nama) { showToast('error', 'Error', 'Nama tidak boleh kosong'); return; }
+  var jabatan = $('editJabatan').value;
+  var sppg = $('editSPPG').value;
+  var yayasan = $('editYayasan').value.trim();
   var updateData = { 'NAMA LENGKAP': nama };
+  if (jabatan) updateData['JABATAN'] = jabatan;
+  if (sppg) updateData['SPPG'] = sppg;
+  updateData['NAMA YAYASAN'] = yayasan;
   var fotoFile = $('editFoto').files[0];
   if (fotoFile) {
     var reader = new FileReader();
@@ -7882,6 +7985,9 @@ function doUpdateProfil(updateData) {
         showToast('success', 'Sukses', result.message);
         currentUser.namaLengkap = updateData['NAMA LENGKAP'] || currentUser.namaLengkap;
         if (updateData['FOTO PROFIL']) currentUser.fotoProfil = updateData['FOTO PROFIL'];
+        if (updateData['JABATAN']) currentUser.jabatan = updateData['JABATAN'];
+        if (updateData['SPPG']) currentUser.sppg = updateData['SPPG'];
+        if (updateData['NAMA YAYASAN'] !== undefined) currentUser.namaYayasan = updateData['NAMA YAYASAN'];
         safeStorage('set', 'sppg_session', JSON.stringify({ user: currentUser, expiry: sessionExpiry }));
         renderProfil();
         closeModal('modalEditProfil');
@@ -7901,7 +8007,7 @@ function doUpdateProfil(updateData) {
 // ============================================================
 function loadUsers(silent) {
   return new Promise(function(resolve) {
-    if (!currentUser || currentUser.role !== 'ADMIN') { resolve(); return; }
+    if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) { resolve(); return; }
     if (!silent) showLoading(true);
     google.script.run
       .withSuccessHandler(function(result) {
@@ -8037,10 +8143,11 @@ function loadTransactions() {
       '</div></td></tr>';
   }
 
+  var isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
   var isAdmin = currentUser.role === 'ADMIN';
   var filters = {
     callerRole: currentUser.role,
-    callerUser: isAdmin ? '' : currentUser.email
+    callerUser: (isSuperAdmin || isAdmin) ? '' : currentUser.email
   };
   if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
   if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
@@ -8097,7 +8204,7 @@ function renderTransaksiTable() {
   var start = (txPage - 1) * ITEMS_PER_PAGE;
   var pageData = filteredTransactions.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
-  var isAdmin = currentUser && currentUser.role === 'ADMIN';
+  var isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
     pageData.forEach(function(tx, idx) {
     var no = start + idx + 1;
     var metode = String(tx.metodeTransaksi || '').trim().toUpperCase();
