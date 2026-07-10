@@ -9494,9 +9494,14 @@ function loadApprovalData() {
         filterApproval();
         return;
       }
+      // Simpan semua data transaksi ke allTransactions
       allTransactions = data;
+      // Populate filter dropdown terlebih dahulu
       populateApprovalFilters();
+      // Kemudian apply filter untuk menampilkan data approval
       filterApproval();
+      // Update badge count
+      updateApprovalTabBadge();
     })
     .withFailureHandler(function(err) {
       showLoading(false);
