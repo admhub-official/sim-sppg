@@ -5170,7 +5170,8 @@
       <button class="lightbox-close" onclick="closeLightbox()" title="Tutup (Esc)" aria-label="Tutup gambar">
         <i class="fas fa-times" aria-hidden="true"></i>
       </button>
-      <img id="lightboxImage" src="" alt="Preview">
+      <img id="lightboxImage" src="" alt="Preview" class="hidden">
+      <iframe id="lightboxPdf" src="" class="hidden" style="width:90vw;height:90vh;border:none;background:#fff;border-radius:8px;"></iframe>
     </div>
   </div>
 </div>
@@ -8973,18 +8974,33 @@ function renderFilePreview(fileInfo, title, iconClass) {
         '<div><div class="detail-doc-label">' + esc(title) + '</div><div class="detail-doc-status">Belum diupload</div></div>' +
       '</div></div>';
   }
+  var url = fileInfo.signedUrl || fileInfo.previewUrl || fileInfo.viewUrl || '';
+  var thumbUrl = fileInfo.signedThumbnailUrl || url;
   var isImage = fileInfo.mimeType && fileInfo.mimeType.indexOf('image') > -1;
-  if (isImage && (fileInfo.previewUrl || fileInfo.thumbnailUrl)) {
-    var url = esc(fileInfo.directImageUrl || fileInfo.previewUrl || fileInfo.thumbnailUrl);
+  var isPdf = fileInfo.mimeType === 'application/pdf';
+
+  if (isImage && url) {
+    var safeUrl = esc(url);
+    var safeThumb = esc(thumbUrl);
     return '<div style="margin-bottom:16px;">' +
       '<div class="detail-section-title"><i class="fas ' + iconClass + '" style="margin-right:6px;"></i>' + esc(title) + '</div>' +
-      '<img src="' + url + '" class="img-preview" style="cursor:pointer;max-height:200px;" onclick="openLightbox(\'' + url + '\')" alt="' + esc(title) + '">' +
+      '<img src="' + safeThumb + '" class="img-preview" style="cursor:pointer;max-height:200px;border-radius:8px;object-fit:cover;" onclick="openLightbox(\'' + safeUrl + '\')" alt="' + esc(title) + '" loading="lazy">' +
       '</div>';
   }
+
+  // Non-gambar (PDF, dsb): tampilkan sebagai kartu file yang bisa diklik,
+  // bukan link teks polos — tetap terlihat jelas jenis filenya.
+  var fileIcon = isPdf ? 'fa-file-pdf' : 'fa-file';
+  var fileLabel = isPdf ? 'Dokumen PDF' : (fileInfo.name || 'File');
+  var clickAction = isPdf
+    ? 'openLightbox(\'' + esc(url) + '\')'
+    : 'window.open(\'' + esc(url) + '\', \'_blank\')';
   return '<div style="margin-bottom:16px;">' +
     '<div class="detail-section-title"><i class="fas ' + iconClass + '" style="margin-right:6px;"></i>' + esc(title) + '</div>' +
-    '<a href="' + esc(fileInfo.viewUrl) + '" target="_blank" class="detail-link"><i class="fas fa-external-link-alt"></i> ' + esc(fileInfo.name || 'Lihat File') + '</a>' +
-    '</div>';
+    '<div class="detail-doc-item" style="cursor:pointer;" onclick="' + clickAction + '">' +
+      '<div class="detail-doc-icon"><i class="fas ' + fileIcon + '"></i></div>' +
+      '<div><div class="detail-doc-label">' + esc(fileLabel) + '</div><div class="detail-doc-status" style="color:var(--primary);">' + esc(fileInfo.name || '') + '</div></div>' +
+    '</div></div>';
 }
 
 // ============================================================
@@ -11459,10 +11475,27 @@ function renderRekapHarian(data) {
 // ============================================================
 
 function openLightbox(src) {
-  $('lightboxImage').src = src;
+  var isPdf = src && src.toLowerCase().indexOf('.pdf') > -1;
+  var imgEl = $('lightboxImage');
+  var pdfEl = $('lightboxPdf');
+  if (isPdf) {
+    pdfEl.src = src;
+    pdfEl.classList.remove('hidden');
+    imgEl.classList.add('hidden');
+    imgEl.src = '';
+  } else {
+    imgEl.src = src;
+    imgEl.classList.remove('hidden');
+    pdfEl.classList.add('hidden');
+    pdfEl.src = '';
+  }
   $('modalLightbox').classList.remove('hidden');
 }
-function closeLightbox() { $('modalLightbox').classList.add('hidden'); }
+function closeLightbox() {
+  $('modalLightbox').classList.add('hidden');
+  $('lightboxImage').src = '';
+  $('lightboxPdf').src = '';
+}
 
 function refreshData() {
   var icon = $('refreshIcon');
