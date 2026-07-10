@@ -7499,54 +7499,40 @@ function executeLogout() {
 // ============================================================
 var MENU_CONFIG = {
   ADMIN: [
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { label: 'MENU UTAMA', isHeader: true },
     { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt', badge: 'approvalCount' },
-    { label: 'DATA MASTER', isHeader: true },
     { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
-    { label: 'MENU MBG', isHeader: true },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
-    { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   AKUNTAN: [
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
-    { label: 'DATA MASTER', isHeader: true },
-    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
-    { label: 'MENU MBG', isHeader: true },
-    { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
-    { label: 'AKUN', isHeader: true },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
+    { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   LAPANGAN: [
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { label: 'MENU UTAMA', isHeader: true },
+    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt', badge: 'approvalCount' },
     { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
     { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
-    { label: 'DATA MASTER', isHeader: true },
     { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
-    { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   WAKIL_LAPANGAN: [
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
-    { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   AHLI_GIZI: [
-    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
-    { label: 'DATA MASTER', isHeader: true },
     { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
-    { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ]
 };
@@ -7655,6 +7641,9 @@ function syncApprovalBadgeToBottomNav() {
   if (!src || !dst) return;
   dst.textContent = src.textContent;
   dst.style.display = (parseInt(src.textContent) > 0) ? 'flex' : 'none';
+  
+  // Update badge di tab Approval juga
+  updateApprovalTabBadge();
 }
 
 // ── Bottom Sheet "Lainnya" — sisa menu sesuai role yang tidak ada di bottom nav ──
@@ -7789,6 +7778,9 @@ function syncApprovalBadgeToQuickAccess() {
   if (!src || !dst) return;
   dst.textContent = src.textContent;
   dst.style.display = (parseInt(src.textContent) > 0) ? 'flex' : 'none';
+  
+  // Update badge di tab Approval juga
+  updateApprovalTabBadge();
 }
 
 function goToTransaksiFiltered(kategori) {
@@ -8024,6 +8016,15 @@ function switchTransactionTab(tabName) {
     // Update badge di tab
     updateApprovalTabBadge();
   }
+}
+
+// Fungsi untuk update badge di tab Approval
+function updateApprovalTabBadge() {
+  var src = $('approvalCount');
+  var dst = $('approvalTabBadge');
+  if (!src || !dst) return;
+  dst.textContent = src.textContent;
+  dst.style.display = (parseInt(src.textContent) > 0) ? 'inline-block' : 'none';
 }
 
 // Fungsi untuk switch tab di halaman Data Master (Bahan Baku, Supplier, Survei Harga, Serah Terima)
