@@ -4675,15 +4675,15 @@
 
       <!-- ==================== DATA MASTER SECTION WITH TABS ==================== -->
       <div id="page-data-master" class="page-section hidden">
-        <div class="page-header" style="margin-bottom:8px;">
+        <div class="page-header">
           <div class="page-header-info">
-            <div class="page-title" style="margin-bottom:0;"><i class="fas fa-database" style="color:var(--primary);"></i> Data Master</div>
+            <div class="page-title"><i class="fas fa-database" style="color:var(--primary);"></i> Data Master</div>
             <p class="page-desc">Kelola data master bahan baku, supplier, survei harga, dan serah terima</p>
           </div>
         </div>
         
         <!-- Tab Control untuk Data Master -->
-        <div class="tab-control" style="display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+        <div class="tab-control" style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
           <button class="tab-btn active" data-tab="master-bahan" onclick="switchMasterTab('master-bahan')">Bahan Baku</button>
           <button class="tab-btn" data-tab="master-supplier" onclick="switchMasterTab('master-supplier')">Supplier</button>
           <button class="tab-btn" data-tab="survei" onclick="switchMasterTab('survei')">Survei Harga</button>
@@ -7996,19 +7996,24 @@ function toggleFilterBar(barId) {
 
 // Fungsi untuk switch tab di halaman Transaksi (Semua Transaksi, Rekap Harian, Rekap per SPPG)
 function switchTransactionTab(tabName) {
-  // Update active state pada tombol tab
-  document.querySelectorAll('.tab-btn').forEach(function(btn) {
-    btn.classList.remove('active');
-    if (btn.getAttribute('data-tab') === tabName) {
-      btn.classList.add('active');
-    }
-  });
+  // Update active state pada tombol tab - scope ke page-transaksi saja
+  var txPage = document.querySelector('#page-transaksi');
+  if (txPage) {
+    txPage.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.classList.remove('active');
+      if (btn.getAttribute('data-tab') === tabName) {
+        btn.classList.add('active');
+      }
+    });
+  }
   
-  // Show/hide views
+  // Show/hide views - scope ke page-transaksi saja
   document.querySelectorAll('.tab-view').forEach(function(view) {
-    view.classList.add('hidden');
-    if (view.id === 'tab-' + tabName) {
-      view.classList.remove('hidden');
+    if (view.closest('#page-transaksi')) {
+      view.classList.add('hidden');
+      if (view.id === 'tab-' + tabName) {
+        view.classList.remove('hidden');
+      }
     }
   });
   
@@ -12398,12 +12403,8 @@ function submitRecovery() {
 // ============================================================
 // MOBILE UX: Swipe Sidebar, Back Button Android, iframe Resize
 // ============================================================
-// IFRAME RESIZE OBSERVER
-// ============================================================
 (function() {
   // --- iframe ResizeObserver: kirim tinggi konten ke parent (Google Sites) ---
-  var _iframeResizeTimer = null;
-  
   function sendHeight() {
     var h = Math.max(
       document.body.scrollHeight,
@@ -12415,17 +12416,9 @@ function submitRecovery() {
     new ResizeObserver(sendHeight).observe(document.body);
   } else {
     window.addEventListener('resize', sendHeight);
-    _iframeResizeTimer = setInterval(sendHeight, 1000);
+    setInterval(sendHeight, 1000);
   }
   sendHeight();
-  
-  // Cleanup saat page unload untuk mencegah memory leak
-  window.addEventListener('beforeunload', function() {
-    if (_iframeResizeTimer) {
-      clearInterval(_iframeResizeTimer);
-      _iframeResizeTimer = null;
-    }
-  });
 
   // --- Swipe gesture untuk buka/tutup sidebar di mobile ---
   var _swipeStartX = 0, _swipeStartY = 0, _swipeActive = false;
