@@ -3678,7 +3678,8 @@
         margin-top: 2px;
       }
       body.dark-mode .approval-table tbody tr td:nth-child(9) { border-top-color: #334155 !important; }
-      .approval-table tbody tr td:nth-child(10) { 
+      .approval-table tbody tr td:nth-child(10) { display: none !important; } /* Hide Catatan on mobile — tampil di detail */
+      .approval-table tbody tr td:nth-child(11) { 
         grid-area: aksi; 
         border-top: 1px solid var(--slate-100) !important; 
         padding-top: 12px !important; 
@@ -3686,7 +3687,8 @@
         justify-content: flex-end !important; 
         gap: 8px !important; 
       }
-      body.dark-mode .approval-table tbody tr td:nth-child(10) { border-top-color: #334155 !important; }
+      body.dark-mode .approval-table tbody tr td:nth-child(10) { display: none !important; } /* Hide Catatan on mobile — tampil di detail */
+      .approval-table tbody tr td:nth-child(11) { border-top-color: #334155 !important; }
 
       /* --- Master Bahan Table --- */
       #masterBBTableBody tr {
@@ -4426,6 +4428,7 @@
                   <th>Nominal</th>
                   <th>Metode</th>
                   <th>Penginput</th>
+                  <th>Catatan</th>
                   <th style="width:120px;text-align:center;">Aksi</th>
                 </tr>
               </thead>
@@ -8701,6 +8704,7 @@ function renderDetailTransaksi(tx) {
         infoRow('Item', '<strong style="font-size:14px;color:var(--slate-800);">' + esc(tx.item || '-') + '</strong>') +
         infoRow('Nominal', '<strong style="font-size:18px;">' + formatRupiah(tx.nominal) + '</strong>') +
         infoRow('Metode', getMetodeBadge(tx.metodeTransaksi)) +
+        (tx.catatan && tx.catatan !== '-' ? infoRow('Catatan', '<span style="color:var(--slate-600);font-style:italic;">' + esc(tx.catatan) + '</span>') : '') +
       '</div></div>' +
     '<div style="margin-bottom:20px;">' +
       '<div class="detail-section-title"><i class="fas fa-clipboard-check" style="margin-right:6px;"></i>Status Dokumen</div>' +
@@ -8837,6 +8841,7 @@ function renderApprovalTable() {
       '<td><strong style="color:var(--slate-800);">' + formatRupiah(tx.nominal) + '</strong></td>' +
       '<td>' + getMetodeBadge(tx.metodeTransaksi) + '</td>' +
       '<td>' + esc(tx.user || '-') + '</td>' +
+      '<td style="max-width:160px;"><span style="color:var(--slate-500);font-size:12px;font-style:italic;">' + esc(tx.catatan && tx.catatan !== '-' ? tx.catatan : '-') + '</span></td>' +
       '<td style="text-align:center;">' +
         '<div class="action-group" style="opacity:1;">' +
           '<button class="action-btn view" onclick="openDetailTransaksi(\'' + esc(tx.id) + '\')" title="Detail"><i class="fas fa-eye"></i></button>' +
