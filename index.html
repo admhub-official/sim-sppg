@@ -7458,49 +7458,26 @@ var MENU_CONFIG = {
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
     { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-list' },
-    { page: 'rekap-harian', label: 'Rekap Harian', icon: 'fa-calendar-day' },
-    { page: 'rekap-sppg', label: 'Rekap per SPPG', icon: 'fa-clipboard-list' },
-    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
-    { page: 'master-bahan', label: 'Bahan Baku', icon: 'fa-boxes' },
-    { page: 'master-supplier', label: 'Supplier', icon: 'fa-truck' },
-    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
-    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
-    { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   AKUNTAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-list' },
-    { page: 'rekap-harian', label: 'Rekap Harian', icon: 'fa-calendar-day' },
-    { page: 'rekap-sppg', label: 'Rekap per SPPG', icon: 'fa-clipboard-list' },
-    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
-    { page: 'master-bahan', label: 'Bahan Baku', icon: 'fa-boxes' },
-    { page: 'master-supplier', label: 'Supplier', icon: 'fa-truck' },
-    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
-    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
-    { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   LAPANGAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list', badge: 'approvalCount' },
-    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
-    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
-    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   WAKIL_LAPANGAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list', badge: 'approvalCount' },
-    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
-    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   AHLI_GIZI: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list', badge: 'approvalCount' },
-    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
-    { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ]
 };
@@ -7556,25 +7533,19 @@ function buildSidebar() {
 // BOTTOM NAV, FAB, MORE-SHEET, QUICK ACCESS — Mobile Navigation
 // ============================================================
 
-// Tab utama per role (4 item permanen: Beranda, Transaksi, Laporan, Approval)
+// Tab utama per role (3 item permanen: Beranda, Transaksi, Laporan)
 var BOTTOM_NAV_CONFIG = {
   ADMIN:          ['dashboard', 'transaksi', 'laporan'],
-  AKUNTAN:        ['dashboard', 'transaksi', 'laporan', 'master-bahan'],
+  AKUNTAN:        ['dashboard', 'transaksi', 'laporan'],
   LAPANGAN:       ['dashboard', 'transaksi', 'laporan'],
-  WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'laporan', 'serah-terima'],
-  AHLI_GIZI:      ['dashboard', 'transaksi', 'laporan', 'menu-mbg']
+  WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'laporan'],
+  AHLI_GIZI:      ['dashboard', 'transaksi', 'laporan']
 };
 
 var BNAV_ICON_LABEL = {
   'dashboard':       { icon: 'fa-th-large',        label: 'Beranda' },
   'transaksi':        { icon: 'fa-exchange-alt',    label: 'Transaksi' },
-  'laporan':          { icon: 'fa-chart-bar',       label: 'Laporan' },
-  'approval':         { icon: 'fa-clipboard-check', label: 'Approval' },
-  'profil':           { icon: 'fa-user-circle',     label: 'Profil' },
-  'master-bahan':     { icon: 'fa-boxes',           label: 'Bahan Baku' },
-  'survei':           { icon: 'fa-search-dollar',   label: 'Survei' },
-  'serah-terima':     { icon: 'fa-dolly',           label: 'Serah Trm' },
-  'menu-mbg':         { icon: 'fa-utensils',        label: 'Menu MBG' }
+  'laporan':          { icon: 'fa-chart-bar',       label: 'Laporan' }
 };
 
 function buildBottomNav() {
@@ -7694,10 +7665,6 @@ function syncMoreButtonActive(page) {
   var isInMainTabs = mainTabs.indexOf(page) > -1;
   var moreBtn = document.querySelector('.bnav-item:last-child');
   if (!moreBtn) return;
-  // Update dot indicator pada "Lainnya" jika ada approval pending
-  var approvalCountVal = parseInt($('approvalCount') ? $('approvalCount').textContent : '0') || 0;
-  var approvalInMore = mainTabs.indexOf('approval') === -1 && approvalCountVal > 0;
-  moreBtn.classList.toggle('has-dot', approvalInMore);
   // Toggle active state
   moreBtn.classList.toggle('is-more-active', !isInMainTabs);
   
@@ -7707,20 +7674,13 @@ function syncMoreButtonActive(page) {
 
 // ── Quick Access grid di Dashboard ──
 var QUICK_ACCESS_CONFIG = {
-  ADMIN:          ['approval', 'survei', 'master-supplier', 'serah-terima'],
-  AKUNTAN:        ['survei', 'master-supplier', 'serah-terima', 'menu-mbg'],
-  LAPANGAN:       ['approval', 'survei', 'serah-terima', 'master-supplier'],
-  WAKIL_LAPANGAN: ['serah-terima'],
-  AHLI_GIZI:      ['menu-mbg', 'master-bahan']
+  ADMIN:          [],
+  AKUNTAN:        [],
+  LAPANGAN:       [],
+  WAKIL_LAPANGAN: [],
+  AHLI_GIZI:      []
 };
-var QA_ICON_LABEL = {
-  'approval':         { icon: 'fa-clipboard-check', label: 'Approval' },
-  'survei':           { icon: 'fa-search-dollar',   label: 'Survei Harga' },
-  'master-supplier':  { icon: 'fa-truck',           label: 'Supplier' },
-  'serah-terima':     { icon: 'fa-dolly',           label: 'Serah Terima' },
-  'menu-mbg':         { icon: 'fa-utensils',        label: 'Menu MBG' },
-  'master-bahan':     { icon: 'fa-boxes',           label: 'Bahan Baku' }
-};
+var QA_ICON_LABEL = {};
 function renderQuickAccess() {
   var container = $('quickAccessSection');
   if (!container || !currentUser) return;
@@ -7847,9 +7807,6 @@ function formatTglLabel(dateStr) {
 function applyGlobalDateFilter() {
   if (currentPage === 'dashboard') loadDashboardData();
   else if (currentPage === 'transaksi') loadTransactions();
-  else if (currentPage === 'approval') loadApprovalData();
-  else if (currentPage === 'rekap-sppg') loadRekapSPPG();
-  else if (currentPage === 'rekap-harian') loadRekapHarian();
   else if (currentPage === 'laporan') updateLaporanCharts();
 }
 
@@ -7868,9 +7825,7 @@ function switchPage(page, el) {
   document.body.style.overflow = '';
 
   // Redirect legacy standalone page ke halaman yang sesuai (menghindari halaman kosong)
-  var LEGACY_PAGE_REDIRECT = {
-    'data-master': { page: 'master-bahan' }
-  };
+  var LEGACY_PAGE_REDIRECT = {};
   if (LEGACY_PAGE_REDIRECT[page]) {
     var redirect = LEGACY_PAGE_REDIRECT[page];
     switchPage(redirect.page, el);
@@ -7895,12 +7850,8 @@ function switchPage(page, el) {
   var titles = {
     'dashboard': 'Dashboard', 'profil': 'Profil', 'users': 'Manajemen Users',
     'transaksi': currentUser && currentUser.role === 'ADMIN' ? 'Semua Transaksi' : 'Transaksi Saya',
-    'approval': 'Approval', 'rekap-sppg': 'Rekap per SPPG', 'rekap-harian': 'Rekap Harian',
-    'pending-payment': 'Pending Payment', 'master-bahan': 'Master Bahan Baku',
-    'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
-    'serah-terima': 'Serah Terima', 'menu-mbg': 'Data Menu MBG',
-    'audit-log': 'Riwayat Aktivitas', 'laporan': 'Laporan & Analisis',
-    'data-master': 'Data Master'
+    'laporan': 'Laporan & Analisis',
+    'audit-log': 'Riwayat Aktivitas', 'data-master': 'Data Master'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
   // R4: Update breadcrumb
@@ -7914,16 +7865,7 @@ function switchPage(page, el) {
   if (page === 'dashboard') { loadDashboardData(); updateChart(); renderQuickAccess(); }
   if (page === 'users' && currentUser.role === 'ADMIN') loadUsers();
   if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
-  if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
-  if (page === 'rekap-harian') { loadRekapHarian(); restoreFilterBarState('rekapHarianFilterBar'); }
-  if (page === 'rekap-sppg') { loadRekapSPPG(); restoreFilterBarState('rekapSppgFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
-  if (page === 'master-bahan') { loadMasterBB(); restoreFilterBarState('bbFilterBar'); }
-  if (page === 'master-supplier') { loadSuppliers(); restoreFilterBarState('supplierFilterBar'); }
-  if (page === 'survei') { loadSurvei(); restoreFilterBarState('surveiFilterBar'); }
-  if (page === 'serah-terima') { loadSerahTerima(); restoreFilterBarState('stFilterBar'); }
-  if (page === 'menu-mbg') loadMenuMBG();
-  if (page === 'pending-payment') loadPendingPayment();
   if (page === 'laporan') requestAnimationFrame(function() { updateLaporanCharts(); });  if (page === 'audit-log' && currentUser.role === 'ADMIN') { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
     if (page === 'profil') renderProfil();
   
