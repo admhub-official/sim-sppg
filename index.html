@@ -7098,8 +7098,10 @@ function buildSidebar() {
   var menus = MENU_CONFIG[role] || MENU_CONFIG['LAPANGAN'];
   var bottomNavPages = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
 
-  // R8: Sembunyikan item sidebar yang halamannya sudah tersedia di bottom nav,
-  // lalu buang header section yang jadi kosong (tidak ada item di bawahnya).
+  // Di desktop (>= 768px) tidak ada bottom nav, jadi semua menu tampil di sidebar.
+  // Di mobile, item yang sudah ada di bottom nav disembunyikan dari sidebar
+  // agar tidak duplikat, lalu header section yang jadi kosong ikut dibuang.
+  var isDesktop = window.innerWidth >= 768;
   var filtered = [];
   var pendingHeader = null;
   menus.forEach(function(item) {
@@ -7109,7 +7111,7 @@ function buildSidebar() {
       filtered.push(item);
       return;
     }
-    if (bottomNavPages.indexOf(item.page) !== -1) return; // sudah ada di bottom nav, skip
+    if (!isDesktop && bottomNavPages.indexOf(item.page) !== -1) return; // mobile: skip jika sudah di bottom nav
     if (pendingHeader) { filtered.push(pendingHeader); pendingHeader = null; }
     filtered.push(item);
   });
@@ -7590,6 +7592,10 @@ function initApp() {
   buildSidebar();
   buildBottomNav();
   updateFabVisibility();
+  // Rebuild sidebar saat resize agar filter bottom-nav ikut menyesuaikan
+  window.addEventListener('resize', function() {
+    if (currentUser) buildSidebar();
+  });
   // Pre-populate SPPG dengan fallback langsung (tidak tunggu API) agar
   // select sudah ada isinya saat user buka modal tambah transaksi pertama kali
   populateSPPGSelects();
