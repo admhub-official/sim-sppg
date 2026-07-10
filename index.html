@@ -4889,9 +4889,10 @@
 
   <!-- ==================== BOTTOM NAVIGATION (MOBILE) ==================== -->
     <footer>
-    <!-- Elemen approvalCount tersembunyi — selalu ada agar syncApprovalBadgeToBottomNav() bisa membacanya di mobile maupun desktop -->
-    <span id="approvalCount" style="display:none;">0</span>
+    <nav class="bottom-nav" id="bottomNav" aria-label="Navigasi bawah">
+      <div class="bottom-nav-inner" id="bottomNavInner"></div>
     </nav>
+    <span id="approvalCount" style="display:none;">0</span>
   </footer>
   <!-- R7: Tombol "Lainnya" dengan dot indicator untuk notifikasi -->
   <style>
