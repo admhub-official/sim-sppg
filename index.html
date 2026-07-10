@@ -4399,6 +4399,7 @@
           <button class="tab-btn active" data-tab="all-transactions" onclick="switchTransactionTab('all-transactions')">Semua Transaksi</button>
           <button class="tab-btn" data-tab="rekap-harian" onclick="switchTransactionTab('rekap-harian')">Rekap Harian</button>
           <button class="tab-btn" data-tab="rekap-sppg" onclick="switchTransactionTab('rekap-sppg')">Rekap per SPPG</button>
+          <button class="tab-btn" data-tab="approval" onclick="switchTransactionTab('approval')">Approval <span id="approvalTabBadge" class="badge badge-amber" style="display:none;margin-left:4px;"></span></button>
         </div>
         
         <!-- View: Semua Transaksi -->
@@ -4517,14 +4518,12 @@
             </div>
           </div>
         </div>
-      </div>
-      </div>
 
-      <!-- ==================== APPROVAL PAGE (standalone - untuk backward compatibility) ==================== -->
-      <div id="page-approval" class="page-section hidden">
-        <div class="page-header">
+        <!-- View: Approval -->
+        <div id="tab-approval" class="tab-view hidden">
+        <div class="page-header" style="margin-bottom:12px;">
           <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-clipboard-check" style="color:var(--emerald);"></i> Approval Transaksi</div>
+            <div class="page-title" style="margin-bottom:0;"><i class="fas fa-clipboard-check" style="color:var(--emerald);"></i> Approval Transaksi</div>
             <p class="page-desc">Transaksi yang belum di-approve (BELUM_BAYAR)</p>
           </div>
           <div class="page-header-actions">
@@ -4603,6 +4602,8 @@
           </div>
           <div class="pagination" id="approvalPagination"></div>
         </div>
+        </div>
+      </div>
       </div>
 
       <!-- ==================== DATA MASTER SECTION WITH TABS ==================== -->
@@ -7856,6 +7857,25 @@ function switchPage(page, el) {
   _openModalCount = 0;
   document.body.style.overflow = '';
 
+  // Redirect legacy standalone page ke tab yang sesuai (menghindari halaman kosong)
+  var LEGACY_PAGE_REDIRECT = {
+    'approval': { page: 'transaksi', tab: 'approval', tabFn: 'switchTransactionTab' },
+    'master-bahan': { page: 'data-master', tab: 'master-bahan', tabFn: 'switchMasterTab' },
+    'master-supplier': { page: 'data-master', tab: 'master-supplier', tabFn: 'switchMasterTab' },
+    'survei': { page: 'data-master', tab: 'survei', tabFn: 'switchMasterTab' },
+    'serah-terima': { page: 'data-master', tab: 'serah-terima', tabFn: 'switchMasterTab' }
+  };
+  if (LEGACY_PAGE_REDIRECT[page]) {
+    var redirect = LEGACY_PAGE_REDIRECT[page];
+    switchPage(redirect.page, el);
+    if (redirect.page === 'transaksi') {
+      switchTransactionTab(redirect.tab);
+    } else {
+      window[redirect.tabFn](redirect.tab);
+    }
+    return;
+  }
+
   // Hide all pages
   var pages = document.querySelectorAll('.page-section');
   pages.forEach(function(p) { p.classList.add('hidden'); });
@@ -7972,6 +7992,9 @@ function switchTransactionTab(tabName) {
     if (allRekapHarian.length === 0) loadRekapHarian();
   } else if (tabName === 'rekap-sppg') {
     if (allRekapSppg.length === 0) loadRekapSPPG();
+  } else if (tabName === 'approval') {
+    loadApprovalData();
+    restoreFilterBarState('apprFilterBar');
   }
 }
 
