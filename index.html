@@ -5258,33 +5258,14 @@
           </select>
         </div>
 
-        <!-- Jenis Bukti (show-if) -->
+        <!-- Bukti Transaksi -->
         <div class="form-group">
-          <label class="form-label">Jenis Bukti</label>
-          <select id="addTxJenisBukti" class="form-input" onchange="toggleUploadFields()">
-            <option value="">- Pilih Jenis Bukti -</option>
-            <option value="FOTO">Foto</option>
-            <option value="FILE">File</option>
-            <option value="Keduanya">Keduanya</option>
-          </select>
-        </div>
-
-        <!-- Upload Foto (hidden by default) -->
-        <div class="form-group hidden" id="wrapUploadFoto">
-          <label class="form-label">Upload Foto Bukti</label>
+          <label class="form-label">Bukti Transaksi</label>
           <div class="file-input-wrap">
-            <input type="file" id="addTxFoto" accept="image/*" onchange="updateFileLabel(this,'labelFoto')">
-            <div class="file-input-label" id="labelFoto"><i class="fas fa-camera"></i><span>Pilih foto bukti</span></div>
+            <input type="file" id="addTxFoto" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" onchange="updateFileLabel(this,'labelFoto')">
+            <div class="file-input-label" id="labelFoto"><i class="fas fa-camera"></i><span>Kamera / Galeri / File</span></div>
           </div>
-        </div>
-
-        <!-- Upload File (hidden by default) -->
-        <div class="form-group hidden" id="wrapUploadFile">
-          <label class="form-label">Upload File Bukti</label>
-          <div class="file-input-wrap">
-            <input type="file" id="addTxFile" onchange="updateFileLabel(this,'labelFile')">
-            <div class="file-input-label" id="labelFile"><i class="fas fa-file"></i><span>Pilih file bukti</span></div>
-          </div>
+          <p class="form-hint"><i class="fas fa-info-circle"></i> Di HP: pilih kamera atau galeri. Di desktop: pilih file dari komputer.</p>
         </div>
 
         <!-- Nota Pembelian -->
@@ -6329,25 +6310,6 @@ function safeStorage(action, key, value) {
     if (action === 'get') { return localStorage.getItem(key); }
     if (action === 'remove') { localStorage.removeItem(key); return true; }
   } catch(e) { return action === 'get' ? null : false; }
-}
-
-
-/* ===== Show-if Upload berdasarkan Jenis Bukti ===== */
-function toggleUploadFields() {
-  var val = $('addTxJenisBukti').value;
-  var wFoto = $('wrapUploadFoto');
-  var wFile = $('wrapUploadFile');
-  if (!wFoto || !wFile) return;
-  wFoto.classList.add('hidden');
-  wFile.classList.add('hidden');
-  if (val === 'FOTO') {
-    wFoto.classList.remove('hidden');
-  } else if (val === 'FILE') {
-    wFile.classList.remove('hidden');
-  } else if (val === 'Keduanya') {
-    wFoto.classList.remove('hidden');
-    wFile.classList.remove('hidden');
-  }
 }
 
 function updateFileLabel(input, labelId) {
@@ -8488,16 +8450,12 @@ function openAddTransaksiModal() {
   $('addTxItem').value = '';
   $('addTxCatatan').value = '';
   $('addTxMetodeTransaksi').value = 'BELUM_BAYAR';
-  $('addTxJenisBukti').value = '';
   $('addTxNominal').value = '';
   $('addTxNominal').setAttribute('data-raw', '0');
   var nomConf = $('addTxNominalConfirm'); if (nomConf) nomConf.textContent = '';
   var itemHint = $('addTxItemHint'); if (itemHint) itemHint.innerHTML = '';
   $('addTxFoto').value = '';
-  $('addTxFile').value = '';
-  var lf = $('labelFoto'); if (lf) lf.innerHTML = '<i class="fas fa-camera"></i><span>Pilih foto bukti</span>';
-  var lfl = $('labelFile'); if (lfl) lfl.innerHTML = '<i class="fas fa-file"></i><span>Pilih file bukti</span>';
-  toggleUploadFields();
+  var lf = $('labelFoto'); if (lf) lf.innerHTML = '<i class="fas fa-camera"></i><span>Kamera / Galeri / File</span>';
   $('addTxNota').value = '';
   openModal('modalAddTransaksi');
   setTimeout(initAddTxTtd, 100);
@@ -8513,15 +8471,13 @@ function saveAddTransaksi() {
     nominal: getNominalRaw(),
     catatan: $('addTxCatatan').value,
     metodeTransaksi: $('addTxMetodeTransaksi').value,
-    jenisBukti: $('addTxJenisBukti').value
-  };
+    };
   if (!data.tanggal || !data.sppg || !data.namaItem || !data.nominal) {
     showToast('error', 'Validasi', 'Tanggal, SPPG, Nama Item, dan Nominal wajib diisi'); return;
   }
   showLoading(true);
 
   var fotoFile = $('addTxFoto').files[0];
-  var fileFile = $('addTxFile').files[0];
   var notaFile = $('addTxNota') ? $('addTxNota').files[0] : null;
   var ttdCanvas = $('addTxTtdCanvas');
   var uploadsPending = 0;
@@ -8601,17 +8557,7 @@ function saveAddTransaksi() {
     };
     r.readAsDataURL(fotoFile);
   }
-  if (fileFile) {
-    uploadsPending++;
-    var r2 = new FileReader();
-    r2.onload = function(e) {
-      var b64 = e.target.result.split(',')[1];
-      google.script.run
-        .withSuccessHandler(function(up) { if (up.success) data.uploadFile = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit(); })
-        .uploadTxFile(b64, fileFile.type, fileFile.name, 'file');
-    };
-    r2.readAsDataURL(fileFile);
-  }
+
   if (notaFile) {
     uploadsPending++;
     var r3 = new FileReader();
