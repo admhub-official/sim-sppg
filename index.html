@@ -1111,6 +1111,21 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .global-date-filter { position: relative; }
+    .global-date-filter-panel {
+      position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
+      background: var(--card-bg, #fff); border: 1px solid var(--slate-200, #e2e8f0);
+      border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      padding: 14px; min-width: 320px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .global-date-filter-panel.hidden { display: none; }
+    .global-date-filter-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+    .global-date-filter-custom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .global-date-filter-custom .form-input { flex: 1 1 120px; min-width: 120px; }
+    @media (max-width: 768px) {
+      .global-date-filter-panel { position: fixed; top: 60px; left: 12px; right: 12px; min-width: 0; }
+      #globalDateFilterLabel { display: none; }
+    }
     .topbar-right {
       display: flex;
       align-items: center;
@@ -4125,6 +4140,28 @@
         <h2 class="topbar-title" id="pageTitle">Dashboard</h2>
       </div>
       <div class="topbar-right">
+        <div class="global-date-filter" id="globalDateFilterBar">
+          <button class="btn btn-outline btn-sm" onclick="toggleGlobalDateFilterPanel()" id="btnGlobalDateFilter" title="Filter Rentang Tanggal (berlaku ke semua menu)">
+            <i class="fas fa-calendar-alt"></i>
+            <span id="globalDateFilterLabel">Semua Tanggal</span>
+            <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px;"></i>
+          </button>
+          <div class="global-date-filter-panel hidden" id="globalDateFilterPanel">
+            <div class="global-date-filter-presets">
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('today')">Hari Ini</button>
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('7d')">7 Hari</button>
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('30d')">30 Hari</button>
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('month')">Bulan Ini</button>
+              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('all')">Semua</button>
+            </div>
+            <div class="global-date-filter-custom">
+              <input type="date" id="globalDateStart" class="form-input" title="Dari Tanggal">
+              <span>&mdash;</span>
+              <input type="date" id="globalDateEnd" class="form-input" title="Sampai Tanggal">
+              <button class="btn btn-primary btn-sm" onclick="applyGlobalDateFilterCustom()">Terapkan</button>
+            </div>
+          </div>
+        </div>
         <button id="btnInstallPWA" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install sebagai Aplikasi">
           <i class="fas fa-download"></i>
           <span>Install App</span>
@@ -7449,6 +7486,104 @@ function goToTransaksiFiltered(kategori) {
   }, 150);
 }
 
+// ============================================================
+// FILTER TANGGAL GLOBAL (berlaku ke semua menu: Beranda, Transaksi,
+// Approval, Rekap Harian, Rekap SPPG). Disimpan di localStorage agar
+// persist antar sesi. null/null = tanpa batas (semua data).
+// ============================================================
+var globalDateFilter = { start: null, end: null, label: 'Semua Tanggal' };
+
+function loadGlobalDateFilterState() {
+  try {
+    var saved = safeStorage('get', 'globalDateFilter');
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      globalDateFilter = parsed;
+      $('globalDateStart').value = parsed.start || '';
+      $('globalDateEnd').value = parsed.end || '';
+      $('globalDateFilterLabel').textContent = parsed.label || 'Semua Tanggal';
+    }
+  } catch (e) { /* biarkan default jika parsing gagal */ }
+}
+
+function saveGlobalDateFilterState() {
+  safeStorage('set', 'globalDateFilter', JSON.stringify(globalDateFilter));
+}
+
+function toggleGlobalDateFilterPanel() {
+  $('globalDateFilterPanel').classList.toggle('hidden');
+}
+
+function closeGlobalDateFilterPanel() {
+  $('globalDateFilterPanel').classList.add('hidden');
+}
+
+function setGlobalDatePreset(preset) {
+  var end = new Date();
+  var start = new Date();
+  var label = 'Semua Tanggal';
+
+  if (preset === 'today') { label = 'Hari Ini'; }
+  else if (preset === '7d') { start.setDate(start.getDate() - 6); label = '7 Hari Terakhir'; }
+  else if (preset === '30d') { start.setDate(start.getDate() - 29); label = '30 Hari Terakhir'; }
+  else if (preset === 'month') { start = new Date(end.getFullYear(), end.getMonth(), 1); label = 'Bulan Ini'; }
+  else if (preset === 'all') {
+    globalDateFilter = { start: null, end: null, label: 'Semua Tanggal' };
+    $('globalDateStart').value = '';
+    $('globalDateEnd').value = '';
+    $('globalDateFilterLabel').textContent = 'Semua Tanggal';
+    saveGlobalDateFilterState();
+    closeGlobalDateFilterPanel();
+    applyGlobalDateFilter();
+    return;
+  }
+
+  var startStr = formatDateInput(start);
+  var endStr = formatDateInput(end);
+  globalDateFilter = { start: startStr, end: endStr, label: label };
+  $('globalDateStart').value = startStr;
+  $('globalDateEnd').value = endStr;
+  $('globalDateFilterLabel').textContent = label;
+  saveGlobalDateFilterState();
+  closeGlobalDateFilterPanel();
+  applyGlobalDateFilter();
+}
+
+function applyGlobalDateFilterCustom() {
+  var start = $('globalDateStart').value || null;
+  var end = $('globalDateEnd').value || null;
+  var label = (start || end) ? (formatTglLabel(start) + ' - ' + formatTglLabel(end)) : 'Semua Tanggal';
+  globalDateFilter = { start: start, end: end, label: label };
+  $('globalDateFilterLabel').textContent = label;
+  saveGlobalDateFilterState();
+  closeGlobalDateFilterPanel();
+  applyGlobalDateFilter();
+}
+
+function formatTglLabel(dateStr) {
+  if (!dateStr) return '...';
+  var parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return parts[2] + '/' + parts[1] + '/' + parts[0].slice(2);
+}
+
+// Dipanggil setiap kali globalDateFilter berubah — reload data halaman
+// yang sedang aktif saja (bukan semua halaman sekaligus, demi performa).
+function applyGlobalDateFilter() {
+  if (currentPage === 'dashboard') loadDashboardData();
+  else if (currentPage === 'transaksi') loadTransactions();
+  else if (currentPage === 'approval') loadApprovalData();
+  else if (currentPage === 'rekap-sppg') loadRekapSPPG();
+  else if (currentPage === 'rekap-harian') loadRekapHarian();
+  else if (currentPage === 'laporan') updateLaporanCharts();
+}
+
+// Tutup panel jika klik di luar area filter
+document.addEventListener('click', function(e) {
+  var bar = $('globalDateFilterBar');
+  if (bar && !bar.contains(e.target)) closeGlobalDateFilterPanel();
+});
+
 function switchPage(page, el) {
   // SAFETY NET: pastikan body tidak terkunci sisa dari modal yang gagal
   // ditutup dengan benar (mis. alur Approval->PIN atau Verifikasi->PIN
@@ -7869,7 +8004,7 @@ function loadDashboardData() {
         resolve();
       })
       .withFailureHandler(function(err) { showLoading(false); resolve(); })
-      .getDashboardKPI({ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg });
+      .getDashboardKPI(globalDateFilter.start, globalDateFilter.end);
   });
 }
 
@@ -8411,6 +8546,8 @@ function loadTransactions() {
     callerRole: currentUser.role,
     callerUser: isAdmin ? '' : currentUser.email
   };
+  if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
+  if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
 
   google.script.run
     .withSuccessHandler(function(data) {
@@ -8877,6 +9014,8 @@ function loadApprovalData() {
     callerRole: currentUser.role,
     callerUser: currentUser.role === 'ADMIN' ? '' : currentUser.email
   };
+  if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
+  if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
   google.script.run
     .withSuccessHandler(function(data) {
       showLoading(false);
@@ -11043,7 +11182,7 @@ function loadPendingPayment() {
       renderPendingTable();
     })
     .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data'); })
-    .getPendingPayments({ role: currentUser.role, user: currentUser.email });
+    .getPendingPayments({ role: currentUser.role, user: currentUser.email, dateStart: globalDateFilter.start, dateEnd: globalDateFilter.end });
 }
 function renderPendingTable() {
   var tbody = $('pendingTableBody');
