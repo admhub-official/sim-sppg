@@ -4384,22 +4384,14 @@
       <div id="page-transaksi" class="page-section hidden">
         <div class="page-header">
           <div class="page-header-info">
-            <div class="page-title" id="transaksiTitle"><i class="fas fa-exchange-alt" style="color:var(--primary);"></i> Transaksi</div>
-            <p class="page-desc" id="transaksiDesc">Daftar transaksi</p>
+            <div class="page-title" id="transaksiTitle"><i class="fas fa-list" style="color:var(--primary);"></i> Semua Transaksi</div>
+            <p class="page-desc" id="transaksiDesc">Daftar semua transaksi</p>
           </div>
           <div class="page-header-actions">
             <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
               <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
             </button>
           </div>
-        </div>
-        
-        <!-- Tab Control untuk Semua Transaksi / Rekap Harian / Rekap per SPPG / Approval -->
-        <div class="tab-control" style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
-          <button class="tab-btn active" data-tab="all-transactions" onclick="switchTransactionTab('all-transactions')">Semua Transaksi</button>
-          <button class="tab-btn" data-tab="rekap-harian" onclick="switchTransactionTab('rekap-harian')">Rekap Harian</button>
-          <button class="tab-btn" data-tab="rekap-sppg" onclick="switchTransactionTab('rekap-sppg')">Rekap per SPPG</button>
-          <button class="tab-btn" data-tab="approval" onclick="switchTransactionTab('approval')">Approval <span id="approvalTabBadge" class="badge badge-amber" style="display:none;margin-left:4px;"></span></button>
         </div>
         
         <!-- View: Semua Transaksi -->
@@ -4453,7 +4445,18 @@
         </div>
         
         <!-- View: Rekap Harian -->
-        <div id="tab-rekap-harian" class="tab-view hidden">
+        <div id="page-rekap-harian" class="page-section hidden">
+          <div class="page-header">
+            <div class="page-header-info">
+              <div class="page-title"><i class="fas fa-calendar-day" style="color:var(--primary);"></i> Rekap Harian</div>
+              <p class="page-desc">Ringkasan transaksi per hari</p>
+            </div>
+            <div class="page-header-actions">
+              <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
+                <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+              </button>
+            </div>
+          </div>
           <div class="filter-bar" id="rekapHarianFilterBar">
             <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapHarianFilterBar')" title="Tampilkan/Sembunyikan Filter">
               <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
@@ -4486,7 +4489,18 @@
         </div>
         
         <!-- View: Rekap per SPPG -->
-        <div id="tab-rekap-sppg" class="tab-view hidden">
+        <div id="page-rekap-sppg" class="page-section hidden">
+          <div class="page-header">
+            <div class="page-header-info">
+              <div class="page-title"><i class="fas fa-clipboard-list" style="color:var(--primary);"></i> Rekap per SPPG</div>
+              <p class="page-desc">Ringkasan transaksi per SPPG</p>
+            </div>
+            <div class="page-header-actions">
+              <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
+                <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+              </button>
+            </div>
+          </div>
           <div class="filter-bar" id="rekapSppgFilterBar">
             <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapSppgFilterBar')" title="Tampilkan/Sembunyikan Filter">
               <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
@@ -4520,10 +4534,10 @@
         </div>
 
         <!-- View: Approval -->
-        <div id="tab-approval" class="tab-view hidden">
-        <div class="page-header" style="margin-bottom:12px;">
+        <div id="page-approval" class="page-section hidden">
+        <div class="page-header">
           <div class="page-header-info">
-            <div class="page-title" style="margin-bottom:0;"><i class="fas fa-clipboard-check" style="color:var(--emerald);"></i> Approval Transaksi</div>
+            <div class="page-title"><i class="fas fa-clipboard-check" style="color:var(--emerald);"></i> Approval Transaksi</div>
             <p class="page-desc">Transaksi yang belum di-approve (BELUM_BAYAR)</p>
           </div>
           <div class="page-header-actions">
@@ -4606,28 +4620,11 @@
       </div>
       </div>
 
-      <!-- ==================== DATA MASTER SECTION WITH TABS ==================== -->
-      <div id="page-data-master" class="page-section hidden">
+      <!-- ==================== MASTER BAHAN BAKU PAGE ==================== -->
+      <div id="page-master-bahan" class="page-section hidden">
         <div class="page-header">
           <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-database" style="color:var(--primary);"></i> Data Master</div>
-            <p class="page-desc">Kelola data master bahan baku, supplier, survei harga, dan serah terima</p>
-          </div>
-        </div>
-        
-        <!-- Tab Control untuk Data Master -->
-        <div class="tab-control" style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
-          <button class="tab-btn active" data-tab="master-bahan" onclick="switchMasterTab('master-bahan')">Bahan Baku</button>
-          <button class="tab-btn" data-tab="master-supplier" onclick="switchMasterTab('master-supplier')">Supplier</button>
-          <button class="tab-btn" data-tab="survei" onclick="switchMasterTab('survei')">Survei Harga</button>
-          <button class="tab-btn" data-tab="serah-terima" onclick="switchMasterTab('serah-terima')">Serah Terima</button>
-        </div>
-        
-        <!-- View: Master Bahan Baku -->
-        <div id="tab-master-bahan" class="tab-view">
-        <div class="page-header" style="margin-bottom:12px;">
-          <div class="page-header-info">
-            <div class="page-title" style="margin-bottom:0;"><i class="fas fa-boxes" style="color:var(--primary);"></i> Master Bahan Baku</div>
+            <div class="page-title"><i class="fas fa-boxes" style="color:var(--primary);"></i> Master Bahan Baku</div>
             <p class="page-desc">Data bahan baku dan harga referensi</p>
           </div>
           <div class="page-header-actions">
@@ -4678,10 +4675,10 @@
         </div>
         
         <!-- View: Master Supplier -->
-        <div id="tab-master-supplier" class="tab-view hidden">
-        <div class="page-header" style="margin-bottom:12px;">
+        <div id="page-master-supplier" class="page-section hidden">
+        <div class="page-header">
           <div class="page-header-info">
-            <div class="page-title" style="margin-bottom:0;"><i class="fas fa-truck" style="color:var(--primary);"></i> Data Supplier</div>
+            <div class="page-title"><i class="fas fa-truck" style="color:var(--primary);"></i> Data Supplier</div>
             <p class="page-desc">Daftar supplier bahan baku</p>
           </div>
           <div class="page-header-actions">
@@ -4734,10 +4731,10 @@
         </div>
         
         <!-- View: Survei Harga -->
-        <div id="tab-survei" class="tab-view hidden">
-        <div class="page-header" style="margin-bottom:12px;">
+        <div id="page-survei" class="page-section hidden">
+        <div class="page-header">
           <div class="page-header-info">
-            <div class="page-title" style="margin-bottom:0;"><i class="fas fa-search-dollar" style="color:var(--primary);"></i> Survei Harga</div>
+            <div class="page-title"><i class="fas fa-search-dollar" style="color:var(--primary);"></i> Survei Harga</div>
             <p class="page-desc">Data survei harga bahan baku di pasar</p>
           </div>
           <div class="page-header-actions">
@@ -4790,10 +4787,10 @@
         </div>
         
         <!-- View: Serah Terima -->
-        <div id="tab-serah-terima" class="tab-view hidden">
-        <div class="page-header" style="margin-bottom:12px;">
+        <div id="page-serah-terima" class="page-section hidden">
+        <div class="page-header">
           <div class="page-header-info">
-            <div class="page-title" style="margin-bottom:0;"><i class="fas fa-dolly" style="color:var(--primary);"></i> Serah Terima Bahan Baku</div>
+            <div class="page-title"><i class="fas fa-dolly" style="color:var(--primary);"></i> Serah Terima Bahan Baku</div>
             <p class="page-desc">Data serah terima barang / bahan baku</p>
           </div>
           <div class="page-header-actions">
@@ -7460,37 +7457,50 @@ var MENU_CONFIG = {
   ADMIN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
     { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
-    { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt', badge: 'approvalCount' },
-    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
+    { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-list' },
+    { page: 'rekap-harian', label: 'Rekap Harian', icon: 'fa-calendar-day' },
+    { page: 'rekap-sppg', label: 'Rekap per SPPG', icon: 'fa-clipboard-list' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
+    { page: 'master-bahan', label: 'Bahan Baku', icon: 'fa-boxes' },
+    { page: 'master-supplier', label: 'Supplier', icon: 'fa-truck' },
+    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
+    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   AKUNTAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt', badge: 'approvalCount' },
-    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
+    { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-list' },
+    { page: 'rekap-harian', label: 'Rekap Harian', icon: 'fa-calendar-day' },
+    { page: 'rekap-sppg', label: 'Rekap per SPPG', icon: 'fa-clipboard-list' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
+    { page: 'master-bahan', label: 'Bahan Baku', icon: 'fa-boxes' },
+    { page: 'master-supplier', label: 'Supplier', icon: 'fa-truck' },
+    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
+    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   LAPANGAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt', badge: 'approvalCount' },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list', badge: 'approvalCount' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
     { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
-    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   WAKIL_LAPANGAN: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt', badge: 'approvalCount' },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list', badge: 'approvalCount' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ],
   AHLI_GIZI: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
-    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt', badge: 'approvalCount' },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-list', badge: 'approvalCount' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
-    { page: 'data-master', label: 'Data Master', icon: 'fa-database' },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ]
 };
@@ -7857,22 +7867,13 @@ function switchPage(page, el) {
   _openModalCount = 0;
   document.body.style.overflow = '';
 
-  // Redirect legacy standalone page ke tab yang sesuai (menghindari halaman kosong)
+  // Redirect legacy standalone page ke halaman yang sesuai (menghindari halaman kosong)
   var LEGACY_PAGE_REDIRECT = {
-    'approval': { page: 'transaksi', tab: 'approval', tabFn: 'switchTransactionTab' },
-    'master-bahan': { page: 'data-master', tab: 'master-bahan', tabFn: 'switchMasterTab' },
-    'master-supplier': { page: 'data-master', tab: 'master-supplier', tabFn: 'switchMasterTab' },
-    'survei': { page: 'data-master', tab: 'survei', tabFn: 'switchMasterTab' },
-    'serah-terima': { page: 'data-master', tab: 'serah-terima', tabFn: 'switchMasterTab' }
+    'data-master': { page: 'master-bahan' }
   };
   if (LEGACY_PAGE_REDIRECT[page]) {
     var redirect = LEGACY_PAGE_REDIRECT[page];
     switchPage(redirect.page, el);
-    if (redirect.page === 'transaksi') {
-      switchTransactionTab(redirect.tab);
-    } else {
-      window[redirect.tabFn](redirect.tab);
-    }
     return;
   }
 
@@ -7914,20 +7915,15 @@ function switchPage(page, el) {
   if (page === 'users' && currentUser.role === 'ADMIN') loadUsers();
   if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
+  if (page === 'rekap-harian') { loadRekapHarian(); restoreFilterBarState('rekapHarianFilterBar'); }
+  if (page === 'rekap-sppg') { loadRekapSPPG(); restoreFilterBarState('rekapSppgFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
-  if (page === 'data-master') { 
-    // Default tab pertama kali masuk Data Master adalah Bahan Baku
-    switchMasterTab('master-bahan');
-    restoreFilterBarState('bbFilterBar');
-  }
   if (page === 'master-bahan') { loadMasterBB(); restoreFilterBarState('bbFilterBar'); }
   if (page === 'master-supplier') { loadSuppliers(); restoreFilterBarState('supplierFilterBar'); }
   if (page === 'survei') { loadSurvei(); restoreFilterBarState('surveiFilterBar'); }
   if (page === 'serah-terima') { loadSerahTerima(); restoreFilterBarState('stFilterBar'); }
   if (page === 'menu-mbg') loadMenuMBG();
   if (page === 'pending-payment') loadPendingPayment();
-  if (page === 'rekap-sppg') { loadRekapSPPG(); restoreFilterBarState('rekapSppgFilterBar'); }
-  if (page === 'rekap-harian') { loadRekapHarian(); restoreFilterBarState('rekapHarianFilterBar'); }
   if (page === 'laporan') requestAnimationFrame(function() { updateLaporanCharts(); });  if (page === 'audit-log' && currentUser.role === 'ADMIN') { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
     if (page === 'profil') renderProfil();
   
