@@ -4443,20 +4443,6 @@
           <div class="pagination" id="txPagination"></div>
         </div>
         </div>
-        
-        <!-- View: Rekap Harian -->
-        <div id="page-rekap-harian" class="page-section hidden">
-          <div class="page-header">
-            <div class="page-header-info">
-              <div class="page-title"><i class="fas fa-calendar-day" style="color:var(--primary);"></i> Rekap Harian</div>
-              <p class="page-desc">Ringkasan transaksi per hari</p>
-            </div>
-            <div class="page-header-actions">
-              <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-                <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-              </button>
-            </div>
-          </div>
           <div class="filter-bar" id="rekapHarianFilterBar">
             <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapHarianFilterBar')" title="Tampilkan/Sembunyikan Filter">
               <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
@@ -4487,20 +4473,6 @@
             </div>
           </div>
         </div>
-        
-        <!-- View: Rekap per SPPG -->
-        <div id="page-rekap-sppg" class="page-section hidden">
-          <div class="page-header">
-            <div class="page-header-info">
-              <div class="page-title"><i class="fas fa-clipboard-list" style="color:var(--primary);"></i> Rekap per SPPG</div>
-              <p class="page-desc">Ringkasan transaksi per SPPG</p>
-            </div>
-            <div class="page-header-actions">
-              <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-                <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-              </button>
-            </div>
-          </div>
           <div class="filter-bar" id="rekapSppgFilterBar">
             <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapSppgFilterBar')" title="Tampilkan/Sembunyikan Filter">
               <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
@@ -4532,112 +4504,8 @@
             </div>
           </div>
         </div>
-
-        <!-- View: Approval -->
-        <div id="page-approval" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-clipboard-check" style="color:var(--emerald);"></i> Approval Transaksi</div>
-            <p class="page-desc">Transaksi yang belum di-approve (BELUM_BAYAR)</p>
-          </div>
-          <div class="page-header-actions">
-            <div class="toggle-switch-wrap hidden" id="apprModeToggleWrap" title="Izinkan user upload bukti pembayaran sendiri">
-              <span id="apprModeToggleLabel">Upload Mandiri: OFF</span>
-              <div class="toggle-switch" id="apprModeToggleSwitch" onclick="toggleUploadBuktiMode()"></div>
-            </div>
-            <button class="btn btn-outline btn-sm no-print" onclick="exportApproval('csv')">
-              <i class="fas fa-file-csv"></i><span class="btn-label-hide"> CSV</span>
-            </button>
-            <button class="btn btn-outline btn-sm no-print" onclick="exportApproval('pdf')" style="color:var(--rose);border-color:#fecdd3;">
-              <i class="fas fa-file-pdf"></i><span class="btn-label-hide"> PDF</span>
-            </button>
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-          </div>
-        </div>
-        <div class="filter-bar" id="apprFilterBar">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="apprSearchInput" placeholder="Cari kode, item, user..." oninput="filterApproval()">
-          </div>
-          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('apprFilterBar')" title="Tampilkan/Sembunyikan Filter">
-            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
-          </button>
-          <div class="filter-collapsible" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;">
-            <select id="apprFilterSPPG" class="form-input" onchange="filterApproval()">
-              <option value="ALL">Semua SPPG</option>
-            </select>
-            <select id="apprFilterJenisKat" class="form-input" onchange="filterApproval()">
-              <option value="ALL">Semua Jenis Kategori</option>
-            </select>
-            <input type="date" id="apprFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Dari Tanggal">
-            <input type="date" id="apprFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Sampai Tanggal">
-            <button class="btn btn-outline btn-sm" onclick="resetApprovalFilter()" title="Reset Filter">
-              <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
-            </button>
-          </div>
-        </div>
-        <div id="apprBulkBar" class="hidden" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--primary-light);border:1px solid #bae6fd;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
-          <span style="font-size:13px;font-weight:600;color:var(--primary-dark);">
-            <i class="fas fa-check-square"></i> <span id="apprBulkCount">0</span> transaksi dipilih
-          </span>
-          <button class="btn btn-success btn-sm" onclick="openBulkApprovalPin()">
-            <i class="fas fa-check-double"></i> Approve Terpilih
-          </button>
-          <button class="btn btn-outline btn-sm" onclick="printSelectedApprovalData()">
-            <i class="fas fa-print"></i> Print Terpilih
-          </button>
-          <button class="btn btn-outline btn-sm" onclick="clearApprovalSelection()">
-            <i class="fas fa-times"></i> Batal Pilih
-          </button>
-        </div>
-                <div class="table-container approval-table">
-          <div class="table-scroll">
-            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:36px;text-align:center;"><input type="checkbox" id="apprSelectAll" onchange="toggleSelectAllApproval(this)"></th>
-                  <th style="width:40px;">No</th>
-                  <th>Kode</th>
-                  <th>Tanggal</th>
-                  <th>SPPG</th>
-                  <th>Item</th>
-                  <th>Nominal</th>
-                  <th>Metode</th>
-                  <th>Penginput</th>
-                  <th>Catatan</th>
-                  <th style="width:120px;text-align:center;">Aksi</th>
-                </tr>
-              </thead>
-              <tbody id="approvalTableBody"></tbody>
-            </table>
-          </div>
-          <div class="pagination" id="approvalPagination"></div>
-        </div>
-        </div>
       </div>
       </div>
-
-      <!-- ==================== MASTER BAHAN BAKU PAGE ==================== -->
-      <div id="page-master-bahan" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-boxes" style="color:var(--primary);"></i> Master Bahan Baku</div>
-            <p class="page-desc">Data bahan baku dan harga referensi</p>
-          </div>
-          <div class="page-header-actions">
-            <button class="btn btn-outline btn-sm" onclick="exportMasterBB('csv')"><i class="fas fa-download"></i> CSV</button>
-            <button class="btn btn-outline btn-sm" onclick="exportMasterBB('pdf')"><i class="fas fa-file-pdf"></i> PDF</button>
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-            <button class="btn btn-primary btn-sm" onclick="openAddMasterBBModal()" id="btnAddMasterBB">
-              <i class="fas fa-plus"></i> Tambah
-            </button>
-          </div>
-        </div>
         <div class="filter-bar" id="bbFilterBar">
           <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('bbFilterBar')" title="Tampilkan/Sembunyikan Filter">
             <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
@@ -4672,25 +4540,6 @@
           </div>
           <div class="pagination" id="bbPagination"></div>
         </div>
-        </div>
-        
-        <!-- View: Master Supplier -->
-        <div id="page-master-supplier" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-truck" style="color:var(--primary);"></i> Data Supplier</div>
-            <p class="page-desc">Daftar supplier bahan baku</p>
-          </div>
-          <div class="page-header-actions">
-            <button class="btn btn-outline btn-sm" onclick="exportSupplier('csv')"><i class="fas fa-download"></i> CSV</button>
-            <button class="btn btn-outline btn-sm" onclick="exportSupplier('pdf')"><i class="fas fa-file-pdf"></i> PDF</button>
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-            <button class="btn btn-primary btn-sm" onclick="openAddSupplierModal()" id="btnAddSupplier">
-              <i class="fas fa-plus"></i> Tambah Supplier
-            </button>
-          </div>
         </div>
         <div class="filter-bar" id="supplierFilterBar">
           <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('supplierFilterBar')" title="Tampilkan/Sembunyikan Filter">
@@ -4729,24 +4578,6 @@
           <div class="pagination" id="supplierPagination"></div>
         </div>
         </div>
-        
-        <!-- View: Survei Harga -->
-        <div id="page-survei" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-search-dollar" style="color:var(--primary);"></i> Survei Harga</div>
-            <p class="page-desc">Data survei harga bahan baku di pasar</p>
-          </div>
-          <div class="page-header-actions">
-            <button class="btn btn-outline btn-sm" onclick="exportSurvei('csv')"><i class="fas fa-download"></i> CSV</button>
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-            <button class="btn btn-primary btn-sm" onclick="openAddSurveiModal()" id="btnAddSurvei">
-              <i class="fas fa-plus"></i> Tambah Survei
-            </button>
-          </div>
-        </div>
         <div class="filter-bar" id="surveiFilterBar">
           <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('surveiFilterBar')" title="Tampilkan/Sembunyikan Filter">
             <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
@@ -4784,24 +4615,6 @@
           </div>
           <div class="pagination" id="surveiPagination"></div>
         </div>
-        </div>
-        
-        <!-- View: Serah Terima -->
-        <div id="page-serah-terima" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-dolly" style="color:var(--primary);"></i> Serah Terima Bahan Baku</div>
-            <p class="page-desc">Data serah terima barang / bahan baku</p>
-          </div>
-          <div class="page-header-actions">
-            <button class="btn btn-outline btn-sm" onclick="exportSerahTerima('csv')"><i class="fas fa-download"></i> CSV</button>
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-            <button class="btn btn-primary btn-sm" onclick="openAddSerahTerimaModal()" id="btnAddSerahTerima">
-              <i class="fas fa-plus"></i> Tambah Serah Terima
-            </button>
-          </div>
         </div>
         <div class="filter-bar" id="stFilterBar">
           <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('stFilterBar')" title="Tampilkan/Sembunyikan Filter">
@@ -4843,12 +4656,6 @@
         </div>
         </div>
       </div>
-
-      <!-- ==================== MASTER BAHAN BAKU PAGE (LEGACY - HIDDEN) ==================== -->
-      <div id="page-master-bahan" class="page-section hidden" style="display:none;">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-boxes" style="color:var(--primary);"></i> Master Bahan Baku</div>
             <p class="page-desc">Data bahan baku dan harga referensi</p>
           </div>
           <div class="page-header-actions">
@@ -4897,12 +4704,6 @@
           <div class="pagination" id="bbPagination"></div>
         </div>
       </div>
-
-      <!-- ==================== MASTER SUPPLIER PAGE (LEGACY - HIDDEN) ==================== -->
-      <div id="page-master-supplier" class="page-section hidden" style="display:none;">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-truck" style="color:var(--primary);"></i> Data Supplier</div>
             <p class="page-desc">Daftar supplier bahan baku</p>
           </div>
           <div class="page-header-actions">
@@ -4953,12 +4754,6 @@
           <div class="pagination" id="supplierPagination"></div>
         </div>
       </div>
-
-      <!-- ==================== SURVEI HARGA PAGE (LEGACY - HIDDEN) ==================== -->
-      <div id="page-survei" class="page-section hidden" style="display:none;">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-search-dollar" style="color:var(--primary);"></i> Survei Harga</div>
             <p class="page-desc">Data survei harga bahan baku di pasar</p>
           </div>
           <div class="page-header-actions">
@@ -5009,12 +4804,6 @@
           <div class="pagination" id="surveiPagination"></div>
         </div>
       </div>
-
-      <!-- ==================== SERAH TERIMA PAGE (LEGACY - HIDDEN) ==================== -->
-      <div id="page-serah-terima" class="page-section hidden" style="display:none;">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-dolly" style="color:var(--primary);"></i> Serah Terima Bahan Baku</div>
             <p class="page-desc">Data serah terima barang / bahan baku</p>
           </div>
           <div class="page-header-actions">
@@ -5066,12 +4855,6 @@
           <div class="pagination" id="serahTerimaPagination"></div>
         </div>
       </div>
-
-      <!-- ==================== MENU MBG PAGE (AHLI GIZI) ==================== -->
-      <div id="page-menu-mbg" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-utensils" style="color:var(--primary);"></i> Data Menu MBG</div>
             <p class="page-desc">Data menu harian Makan Bergizi Gratis</p>
           </div>
           <div class="page-header-actions">
@@ -5200,20 +4983,6 @@
           <div class="pagination" id="auditLogPagination"></div>
         </div>
       </div>
-
-      <!-- ==================== LAPORAN PAGE ==================== -->
-      <div id="page-laporan" class="page-section hidden">
-        <div class="page-header">
-          <div class="page-header-info">
-            <div class="page-title"><i class="fas fa-chart-bar" style="color:var(--primary);"></i> Laporan & Analisis</div>
-            <p class="page-desc">Visualisasi data keuangan berdasarkan klasifikasi</p>
-          </div>
-          <div class="page-header-actions">
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
-          </div>
-        </div>
         
         <!-- Filter Laporan -->
         <div class="filter-section" style="margin-bottom:16px;">
