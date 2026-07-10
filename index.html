@@ -1771,6 +1771,8 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
     .filter-bar.collapsed .filter-collapsible { display: none; }
+    .filter-toggle-btn { order: -1; }
+    .filter-bar .filter-collapsible { display: contents; }
     .filter-toggle-btn {
       flex-shrink: 0;
     }
@@ -4175,7 +4177,7 @@
               </div>
             </div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card clickable" onclick="goToTransaksiFiltered('PEMASUKAN')">
             <div class="stat-icon emerald"><i class="fas fa-arrow-down"></i></div>
             <div class="stat-info">
               <div class="stat-value" id="statPemasukan">Rp 0</div>
@@ -4185,7 +4187,7 @@
               </div>
             </div>
           </div>
-          <div class="stat-card">
+          <div class="stat-card clickable" onclick="goToTransaksiFiltered('PENGELUARAN')">
             <div class="stat-icon rose"><i class="fas fa-arrow-up"></i></div>
             <div class="stat-info">
               <div class="stat-value" id="statPengeluaran">Rp 0</div>
@@ -4261,6 +4263,23 @@
             <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
               <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
             </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="usersFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('usersFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="usersSearchInput" placeholder="Cari nama, username, email..." oninput="filterUsers()">
+            </div>
+            <select id="usersFilterSppg" class="form-input" onchange="filterUsers()">
+              <option value="ALL">Semua SPPG</option>
+            </select>
+            <select id="usersFilterRole" class="form-input" onchange="filterUsers()">
+              <option value="ALL">Semua Role</option>
+            </select>
           </div>
         </div>
         <div class="table-container">
@@ -4448,14 +4467,19 @@
             </button>
           </div>
         </div>
-        <div class="filter-bar">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="bbSearchInput" placeholder="Cari nama bahan baku..." oninput="filterMasterBB()">
+        <div class="filter-bar" id="bbFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('bbFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="bbSearchInput" placeholder="Cari nama bahan baku..." oninput="filterMasterBB()">
+            </div>
+            <select id="bbFilterKategori" class="form-input" onchange="filterMasterBB()">
+              <option value="ALL">Semua Kategori</option>
+            </select>
           </div>
-          <select id="bbFilterKategori" class="form-input" onchange="filterMasterBB()">
-            <option value="ALL">Semua Kategori</option>
-          </select>
         </div>
         <div class="table-container">
           <div class="table-scroll">
@@ -4497,6 +4521,22 @@
             </button>
           </div>
         </div>
+        <div class="filter-bar" id="supplierFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('supplierFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="supplierSearchInput" placeholder="Cari nama, WhatsApp, email..." oninput="filterSupplier()">
+            </div>
+            <select id="supplierFilterStatus" class="form-input" onchange="filterSupplier()">
+              <option value="ALL">Semua Status</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Suspend">Suspend</option>
+            </select>
+          </div>
+        </div>
         <div class="table-container">
           <div class="table-scroll">
             <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
@@ -4534,6 +4574,20 @@
             <button class="btn btn-primary btn-sm" onclick="openAddSurveiModal()" id="btnAddSurvei">
               <i class="fas fa-plus"></i> Tambah Survei
             </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="surveiFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('surveiFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="surveiSearchInput" placeholder="Cari nama/kode bahan..." oninput="filterSurvei()">
+            </div>
+            <select id="surveiFilterKategori" class="form-input" onchange="filterSurvei()">
+              <option value="ALL">Semua Kategori</option>
+            </select>
           </div>
         </div>
         <div class="table-container">
@@ -4576,6 +4630,22 @@
             <button class="btn btn-primary btn-sm" onclick="openAddSerahTerimaModal()" id="btnAddSerahTerima">
               <i class="fas fa-plus"></i> Tambah Serah Terima
             </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="stFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('stFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="stSearchInput" placeholder="Cari nama bahan, penerima, supplier..." oninput="filterSerahTerima()">
+            </div>
+            <select id="stFilterKondisi" class="form-input" onchange="filterSerahTerima()">
+              <option value="ALL">Semua Kondisi</option>
+              <option value="Baik">Baik</option>
+              <option value="Rusak">Rusak</option>
+            </select>
           </div>
         </div>
         <div class="table-container">
@@ -4695,19 +4765,23 @@
             </button>
           </div>
         </div>
-        <div class="filter-bar">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" id="auditSearchInput" placeholder="Cari pelaku, tabel, ID record..." oninput="filterAuditLog()">
-          </div>
-          <select id="auditFilterAction" class="form-input" onchange="filterAuditLog()">
-            <option value="ALL">Semua Aksi</option>
-          </select>
-          <input type="date" id="auditFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterAuditLog()" title="Dari Tanggal">
-          <input type="date" id="auditFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterAuditLog()" title="Sampai Tanggal">
-          <button class="btn btn-outline btn-sm" onclick="resetAuditFilter()" title="Reset Filter">
-            <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
+        <div class="filter-bar" id="auditFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('auditFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
           </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="auditSearchInput" placeholder="Cari pelaku, tabel, ID record..." oninput="filterAuditLog()">
+            </div>
+            <select id="auditFilterAction" class="form-input" onchange="filterAuditLog()">
+              <option value="ALL">Semua Aksi</option>
+            </select>
+            <input type="date" id="auditFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterAuditLog()" title="Dari Tanggal">
+            <input type="date" id="auditFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterAuditLog()" title="Sampai Tanggal">
+            <button class="btn btn-outline btn-sm" onclick="resetAuditFilter()" title="Reset Filter">
+              <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
+            </button>
         </div>
         <div class="table-container">
           <div class="table-scroll">
@@ -4745,6 +4819,17 @@
             </button>
           </div>
         </div>
+        <div class="filter-bar" id="rekapSppgFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapSppgFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="rekapSppgSearchInput" placeholder="Cari nama SPPG..." oninput="filterRekapSPPG()">
+            </div>
+          </div>
+        </div>
         <div class="table-container">
           <div class="table-scroll">
             <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
@@ -4776,6 +4861,18 @@
           <div class="page-header-actions">
             <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
               <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+            </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="rekapHarianFilterBar">
+          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('rekapHarianFilterBar')" title="Tampilkan/Sembunyikan Filter">
+            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
+          </button>
+          <div class="filter-collapsible" style="display:contents;">
+            <input type="date" id="rekapHarianTglStart" class="form-input" style="max-width:160px;" onchange="filterRekapHarian()" title="Dari Tanggal">
+            <input type="date" id="rekapHarianTglEnd" class="form-input" style="max-width:160px;" onchange="filterRekapHarian()" title="Sampai Tanggal">
+            <button class="btn btn-outline btn-sm" onclick="resetRekapHarianFilter()" title="Reset Filter">
+              <i class="fas fa-times"></i><span class="btn-label-hide"> Reset</span>
             </button>
           </div>
         </div>
@@ -6243,11 +6340,19 @@ var sidebarCollapsed = false;
 var allTransactions = [];
 var filteredTransactions = [];
 var allUsers = [];
+var filteredUsers = [];
 var allMasterBB = [];
 var filteredMasterBB = [];
 var allSuppliers = [];
+var filteredSuppliers = [];
 var allSurvei = [];
+var filteredSurvei = [];
 var allSerahTerima = [];
+var filteredSerahTerima = [];
+var allRekapSppg = [];
+var filteredRekapSppg = [];
+var allRekapHarian = [];
+var filteredRekapHarian = [];
 var allMenuMBG = [];
 var allPending = [];
 var dropdownOptions = {};
@@ -7333,6 +7438,17 @@ function syncApprovalBadgeToQuickAccess() {
   dst.textContent = src.textContent;
   dst.style.display = (parseInt(src.textContent) > 0) ? 'flex' : 'none';
 }
+
+function goToTransaksiFiltered(kategori) {
+  switchPage('transaksi');
+  setTimeout(function() {
+    if ($('txFilterKategori')) {
+      $('txFilterKategori').value = kategori;
+      filterTransaksi();
+    }
+  }, 150);
+}
+
 function switchPage(page, el) {
   // SAFETY NET: pastikan body tidak terkunci sisa dari modal yang gagal
   // ditutup dengan benar (mis. alur Approval->PIN atau Verifikasi->PIN
@@ -7378,6 +7494,14 @@ function switchPage(page, el) {
   if (page === 'users' && currentUser.role === 'ADMIN') loadUsers();
   if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
+  if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
+  if (page === 'master-supplier') { restoreFilterBarState('supplierFilterBar'); }
+  if (page === 'survei') { restoreFilterBarState('surveiFilterBar'); }
+  if (page === 'serah-terima') { restoreFilterBarState('stFilterBar'); }
+  if (page === 'rekap-sppg') { restoreFilterBarState('rekapSppgFilterBar'); }
+  if (page === 'rekap-harian') { restoreFilterBarState('rekapHarianFilterBar'); }
+  if (page === 'master-bb') { restoreFilterBarState('bbFilterBar'); }
+  if (page === 'audit-log') { restoreFilterBarState('auditFilterBar'); }
   if (page === 'master-bahan') loadMasterBB();
   if (page === 'master-supplier') loadSuppliers();
   if (page === 'survei') loadSurvei();
@@ -7424,13 +7548,10 @@ function restoreFilterBarState(barId) {
   var bar = $(barId);
   if (!bar) return;
   var saved = safeStorage('get', 'filterCollapsed_' + barId);
-  bar.classList.toggle('collapsed', saved === '1');
-}
-
-function toggleFilterBar(barId) {
-  var bar = $(barId);
-  if (!bar) return;
-  bar.classList.toggle('collapsed');
+  // Default: mobile (<=768px) selalu ciut kecuali user pernah membuka manual (saved === '0')
+  var isMobile = window.innerWidth <= 768;
+  var shouldCollapse = saved === '1' || (saved === null && isMobile);
+  bar.classList.toggle('collapsed', shouldCollapse);
 }
 
 function toggleSidebar() {
@@ -8156,6 +8277,8 @@ function loadUsers(silent) {
         if (!silent) showLoading(false);
         if (result.success) {
           allUsers = result.data || [];
+          filteredUsers = allUsers.slice();
+          populateUsersFilterOptions();
           usersPage = 1;
           renderUsersTable();
         }
@@ -8165,14 +8288,16 @@ function loadUsers(silent) {
         if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data users'); }
         resolve();
       })
-      .getAllUsers(currentUser.role);
+      .getAllUsers();
   });
 }
 function renderUsersTable() {
   var tbody = $('usersTableBody');
-  if (!allUsers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>'; return; }
+  if (!filteredUsers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>'; renderPagination('usersPagination', 1, 0, 'goUsersPage'); return; }
+  var totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  if (usersPage > totalPages) usersPage = totalPages;
   var start = (usersPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allUsers.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = filteredUsers.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(u, i) {
     var avatarFallback = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.namaLengkap || u.username) + '&background=1e6f9c&color=fff&size=60&rounded=true';
@@ -8195,7 +8320,7 @@ function renderUsersTable() {
   });
 
   tbody.innerHTML = html;
-  renderPagination('usersPagination', usersPage, Math.ceil(allUsers.length / ITEMS_PER_PAGE), 'goUsersPage');
+  renderPagination('usersPagination', usersPage, totalPages, 'goUsersPage');
 
   pageData.forEach(function(u) {
     if (u.fotoProfil && String(u.fotoProfil).trim() !== '' && u.fotoProfil !== '-') {
@@ -8211,6 +8336,29 @@ function renderUsersTable() {
     }
   });
 }
+
+function filterUsers() {
+  var search = $('usersSearchInput').value.toLowerCase().trim();
+  var sppg = $('usersFilterSppg').value;
+  var role = $('usersFilterRole').value;
+  filteredUsers = allUsers.filter(function(u) {
+    var teks = (u.namaLengkap || '') + ' ' + (u.username || '') + ' ' + (u.email || '');
+    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
+    if (sppg !== 'ALL' && u.sppg !== sppg) return false;
+    if (role !== 'ALL' && u.role !== role) return false;
+    return true;
+  });
+  usersPage = 1;
+  renderUsersTable();
+}
+function populateUsersFilterOptions() {
+  var sppgSel = $('usersFilterSppg'), roleSel = $('usersFilterRole');
+  var sppgSet = {}, roleSet = {};
+  allUsers.forEach(function(u) { if (u.sppg) sppgSet[u.sppg] = true; if (u.role) roleSet[u.role] = true; });
+  sppgSel.innerHTML = '<option value="ALL">Semua SPPG</option>' + Object.keys(sppgSet).sort().map(function(s){ return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('');
+  roleSel.innerHTML = '<option value="ALL">Semua Role</option>' + Object.keys(roleSet).sort().map(function(r){ return '<option value="' + esc(r) + '">' + esc(r) + '</option>'; }).join('');
+}
+
 function goUsersPage(p) { usersPage = p; renderUsersTable(); }
 function openEditUserModal(rowNum) {
   var user = allUsers.find(function(u) { return u._row === rowNum; });
@@ -10068,6 +10216,7 @@ function loadSuppliers(silent) {
         if (!silent) showLoading(false);
         if (result.success) {
           allSuppliers = result.data || [];
+          filteredSuppliers = allSuppliers.slice();
           supplierPage = 1;
           renderSupplierTable();
         }
@@ -10082,11 +10231,11 @@ function loadSuppliers(silent) {
 }
 function renderSupplierTable() {
   var tbody = $('supplierTableBody');
-  if (!allSuppliers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-truck"></i></div><h4>Tidak Ada Supplier</h4></div></td></tr>'; $('supplierPagination').innerHTML = ''; return; }
-  var totalPages = Math.ceil(allSuppliers.length / ITEMS_PER_PAGE);
+  if (!filteredSuppliers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-truck"></i></div><h4>Tidak Ada Supplier</h4></div></td></tr>'; $('supplierPagination').innerHTML = ''; return; }
+  var totalPages = Math.ceil(filteredSuppliers.length / ITEMS_PER_PAGE);
   if (supplierPage > totalPages) supplierPage = totalPages;
   var start = (supplierPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allSuppliers.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = filteredSuppliers.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(s, idx) {
     var statusBadge = s.STATUS === 'Aktif' ? 'badge-green' : s.STATUS === 'Suspend' ? 'badge-red' : 'badge-amber';
@@ -10107,6 +10256,20 @@ function renderSupplierTable() {
   tbody.innerHTML = html;
   renderPagination('supplierPagination', supplierPage, totalPages, 'goSupplierPage');
 }
+
+function filterSupplier() {
+  var search = $('supplierSearchInput').value.toLowerCase().trim();
+  var status = $('supplierFilterStatus').value;
+  filteredSuppliers = allSuppliers.filter(function(s) {
+    var teks = (s['NAMA SUPPLIER'] || s['Nama Supplier'] || '') + ' ' + (s['NO WHATSAPP'] || s['No WhatsApp'] || '') + ' ' + (s['EMAIL'] || s['Email'] || '');
+    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
+    if (status !== 'ALL' && (s['STATUS'] || s['Status']) !== status) return false;
+    return true;
+  });
+  supplierPage = 1;
+  renderSupplierTable();
+}
+
 function goSupplierPage(p) { supplierPage = p; renderSupplierTable(); }
 function openDetailSurvei(rowNum) {
   var s = allSurvei.find(function(x){ return x._row === rowNum; });
@@ -10276,6 +10439,8 @@ function loadSurvei() {
       showLoading(false);
       if (result.success) {
         allSurvei = result.data || [];
+        filteredSurvei = allSurvei.slice();
+        populateSurveiFilterOptions();
         surveiPage = 1;
         renderSurveiTable();
       }
@@ -10285,11 +10450,11 @@ function loadSurvei() {
 }
 function renderSurveiTable() {
   var tbody = $('surveiTableBody');
-  if (!allSurvei.length) { tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-search-dollar"></i></div><h4>Tidak Ada Data Survei</h4></div></td></tr>'; $('surveiPagination').innerHTML = ''; return; }
-  var totalPages = Math.ceil(allSurvei.length / ITEMS_PER_PAGE);
+  if (!filteredSurvei.length) { tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-search-dollar"></i></div><h4>Tidak Ada Data Survei</h4></div></td></tr>'; $('surveiPagination').innerHTML = ''; return; }
+  var totalPages = Math.ceil(filteredSurvei.length / ITEMS_PER_PAGE);
   if (surveiPage > totalPages) surveiPage = totalPages;
   var start = (surveiPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allSurvei.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = filteredSurvei.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(s, idx) {
     html += '<tr>' +
@@ -10312,6 +10477,26 @@ function renderSurveiTable() {
   tbody.innerHTML = html;
   renderPagination('surveiPagination', surveiPage, totalPages, 'goSurveiPage');
 }
+
+function filterSurvei() {
+  var search = $('surveiSearchInput').value.toLowerCase().trim();
+  var kat = $('surveiFilterKategori').value;
+  filteredSurvei = allSurvei.filter(function(s) {
+    var teks = (s['NAMA BAHAN BAKU'] || s['Nama Bahan Baku'] || '') + ' ' + (s['KODE BAHAN BAKU'] || s['Kode Bahan Baku'] || '');
+    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
+    if (kat !== 'ALL' && (s['KATEGORI BAHAN BAKU'] || s['Kategori']) !== kat) return false;
+    return true;
+  });
+  surveiPage = 1;
+  renderSurveiTable();
+}
+function populateSurveiFilterOptions() {
+  var katSel = $('surveiFilterKategori');
+  var katSet = {};
+  allSurvei.forEach(function(s) { var k = s['KATEGORI BAHAN BAKU'] || s['Kategori']; if (k) katSet[k] = true; });
+  katSel.innerHTML = '<option value="ALL">Semua Kategori</option>' + Object.keys(katSet).sort().map(function(k){ return '<option value="' + esc(k) + '">' + esc(k) + '</option>'; }).join('');
+}
+
 function goSurveiPage(p) { surveiPage = p; renderSurveiTable(); }
 function exportSurvei(format) {
   if (format === 'csv') {
@@ -10488,6 +10673,7 @@ function loadSerahTerima() {
       showLoading(false);
       if (result.success) {
         allSerahTerima = result.data || [];
+        filteredSerahTerima = allSerahTerima.slice();
         stPage = 1;
         renderSerahTerimaTable();
       }
@@ -10497,11 +10683,11 @@ function loadSerahTerima() {
 }
 function renderSerahTerimaTable() {
   var tbody = $('serahTerimaTableBody');
-  if (!allSerahTerima.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-dolly"></i></div><h4>Tidak Ada Data</h4></div></td></tr>'; $('serahTerimaPagination').innerHTML = ''; return; }
-  var totalPages = Math.ceil(allSerahTerima.length / ITEMS_PER_PAGE);
+  if (!filteredSerahTerima.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-dolly"></i></div><h4>Tidak Ada Data</h4></div></td></tr>'; $('serahTerimaPagination').innerHTML = ''; return; }
+  var totalPages = Math.ceil(filteredSerahTerima.length / ITEMS_PER_PAGE);
   if (stPage > totalPages) stPage = totalPages;
   var start = (stPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allSerahTerima.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = filteredSerahTerima.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(s, idx) {
     html += '<tr>' +
@@ -10523,6 +10709,20 @@ function renderSerahTerimaTable() {
   tbody.innerHTML = html;
   renderPagination('serahTerimaPagination', stPage, totalPages, 'goSTPage');
 }
+
+function filterSerahTerima() {
+  var search = $('stSearchInput').value.toLowerCase().trim();
+  var kondisi = $('stFilterKondisi').value;
+  filteredSerahTerima = allSerahTerima.filter(function(s) {
+    var teks = (s['NAMA BAHAN BAKU'] || s['Nama Bahan Baku'] || '') + ' ' + (s['PENERIMA'] || s['Penerima'] || '') + ' ' + (s['SUPPLIER'] || s['Supplier'] || '');
+    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
+    if (kondisi !== 'ALL' && (s['KONDISI BAHAN BAKU'] || s['Kondisi']) !== kondisi) return false;
+    return true;
+  });
+  stPage = 1;
+  renderSerahTerimaTable();
+}
+
 function goSTPage(p) { stPage = p; renderSerahTerimaTable(); }
 function exportSerahTerima(format) {
   if (format === 'csv') {
@@ -11048,6 +11248,15 @@ function loadRekapSPPG() {
     .withFailureHandler(function() { showLoading(false); })
     .getSPPGData();
 }
+function filterRekapSPPG() {
+  var search = $('rekapSppgSearchInput').value.toLowerCase().trim();
+  filteredRekapSppg = allRekapSppg.filter(function(r) {
+    var nama = r.name || r.NAME || '';
+    if (search && nama.toLowerCase().indexOf(search) === -1) return false;
+    return true;
+  });
+  renderRekapSPPG(filteredRekapSppg);
+}
 function renderRekapSPPG(data) {
   var tbody = $('rekapSppgBody');
   if (!data.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-building"></i></div><h4>Data Belum Tersedia</h4></div></td></tr>'; return; }
@@ -11071,6 +11280,23 @@ function loadRekapHarian() {
     .withSuccessHandler(function(data) { showLoading(false); renderRekapHarian(data || []); })
     .withFailureHandler(function() { showLoading(false); })
     .getRekapHarian();
+}
+function filterRekapHarian() {
+  var start = $('rekapHarianTglStart').value;
+  var end = $('rekapHarianTglEnd').value;
+  filteredRekapHarian = allRekapHarian.filter(function(r) {
+    var tgl = r.tanggal || r.TANGGAL || '';
+    if (start && tgl < start) return false;
+    if (end && tgl > end) return false;
+    return true;
+  });
+  renderRekapHarian(filteredRekapHarian);
+}
+function resetRekapHarianFilter() {
+  $('rekapHarianTglStart').value = '';
+  $('rekapHarianTglEnd').value = '';
+  filteredRekapHarian = allRekapHarian.slice();
+  renderRekapHarian(filteredRekapHarian);
 }
 function renderRekapHarian(data) {
   var tbody = $('rekapHarianBody');
@@ -11200,6 +11426,8 @@ function refreshData() {
       .withSuccessHandler(function(result) {
         if (result.success) {
           allSurvei = result.data || [];
+          filteredSurvei = allSurvei.slice();
+        populateSurveiFilterOptions();
           surveiPage = 1;
           renderSurveiTable();
         }
@@ -11213,6 +11441,7 @@ function refreshData() {
       .withSuccessHandler(function(result) {
         if (result.success) {
           allSerahTerima = result.data || [];
+          filteredSerahTerima = allSerahTerima.slice();
           stPage = 1;
           renderSerahTerimaTable();
         }
@@ -11260,13 +11489,13 @@ function refreshData() {
 
   } else if (currentPage === 'rekap-sppg') {
     google.script.run
-      .withSuccessHandler(function(data) { renderRekapSPPG(data || []); checkDone(); })
+      .withSuccessHandler(function(data) { allRekapSppg = data || []; filteredRekapSppg = allRekapSppg.slice(); renderRekapSPPG(filteredRekapSppg); checkDone(); })
       .withFailureHandler(function() { checkDone(); })
       .getSPPGData();
 
   } else if (currentPage === 'rekap-harian') {
     google.script.run
-      .withSuccessHandler(function(data) { renderRekapHarian(data || []); checkDone(); })
+      .withSuccessHandler(function(data) { allRekapHarian = data || []; filteredRekapHarian = allRekapHarian.slice(); renderRekapHarian(filteredRekapHarian); checkDone(); })
       .withFailureHandler(function() { checkDone(); })
       .getRekapHarian();
 
