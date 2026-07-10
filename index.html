@@ -7630,22 +7630,15 @@ function switchPage(page, el) {
   if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
-  if (page === 'master-supplier') { restoreFilterBarState('supplierFilterBar'); }
-  if (page === 'survei') { restoreFilterBarState('surveiFilterBar'); }
-  if (page === 'serah-terima') { restoreFilterBarState('stFilterBar'); }
-  if (page === 'rekap-sppg') { restoreFilterBarState('rekapSppgFilterBar'); }
-  if (page === 'rekap-harian') { restoreFilterBarState('rekapHarianFilterBar'); }
-  if (page === 'master-bb') { restoreFilterBarState('bbFilterBar'); }
-  if (page === 'audit-log') { restoreFilterBarState('auditFilterBar'); }
-  if (page === 'master-bahan') loadMasterBB();
-  if (page === 'master-supplier') loadSuppliers();
-  if (page === 'survei') loadSurvei();
-  if (page === 'serah-terima') loadSerahTerima();
+  if (page === 'master-bahan') { loadMasterBB(); restoreFilterBarState('bbFilterBar'); }
+  if (page === 'master-supplier') { loadSuppliers(); restoreFilterBarState('supplierFilterBar'); }
+  if (page === 'survei') { loadSurvei(); restoreFilterBarState('surveiFilterBar'); }
+  if (page === 'serah-terima') { loadSerahTerima(); restoreFilterBarState('stFilterBar'); }
   if (page === 'menu-mbg') loadMenuMBG();
   if (page === 'pending-payment') loadPendingPayment();
-  if (page === 'rekap-sppg') loadRekapSPPG();
-  if (page === 'rekap-harian') loadRekapHarian();
-  if (page === 'laporan') requestAnimationFrame(function() { updateLaporanCharts(); });  if (page === 'audit-log' && currentUser.role === 'ADMIN') loadAuditLog();
+  if (page === 'rekap-sppg') { loadRekapSPPG(); restoreFilterBarState('rekapSppgFilterBar'); }
+  if (page === 'rekap-harian') { loadRekapHarian(); restoreFilterBarState('rekapHarianFilterBar'); }
+  if (page === 'laporan') requestAnimationFrame(function() { updateLaporanCharts(); });  if (page === 'audit-log' && currentUser.role === 'ADMIN') { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
     if (page === 'profil') renderProfil();
   
   // Hide/show local print buttons for non-admin/akuntan
@@ -7845,6 +7838,8 @@ function initApp() {
   var appLoadingEl = $('appLoadingOverlay');
   if (appLoadingEl) appLoadingEl.classList.remove('hidden');
   startAppLoadingProgress();
+
+  loadGlobalDateFilterState();
 
   buildSidebar();
   buildBottomNav();
@@ -11382,10 +11377,12 @@ function loadRekapSPPG() {
   google.script.run
     .withSuccessHandler(function(data) {
       showLoading(false);
-      renderRekapSPPG(data || []);
+      allRekapSppg = data || [];
+      filteredRekapSppg = allRekapSppg.slice();
+      renderRekapSPPG(filteredRekapSppg);
     })
     .withFailureHandler(function() { showLoading(false); })
-    .getSPPGData();
+    .getSPPGData(globalDateFilter.start, globalDateFilter.end);
 }
 function filterRekapSPPG() {
   var search = $('rekapSppgSearchInput').value.toLowerCase().trim();
@@ -11416,9 +11413,14 @@ function renderRekapSPPG(data) {
 function loadRekapHarian() {
   showLoading(true);
   google.script.run
-    .withSuccessHandler(function(data) { showLoading(false); renderRekapHarian(data || []); })
+    .withSuccessHandler(function(data) {
+      showLoading(false);
+      allRekapHarian = data || [];
+      filteredRekapHarian = allRekapHarian.slice();
+      renderRekapHarian(filteredRekapHarian);
+    })
     .withFailureHandler(function() { showLoading(false); })
-    .getRekapHarian();
+    .getRekapHarian(globalDateFilter.start, globalDateFilter.end);
 }
 function filterRekapHarian() {
   var start = $('rekapHarianTglStart').value;
