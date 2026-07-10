@@ -114,7 +114,6 @@
       font-size: 13px;
       line-height: 1.5;
       -webkit-tap-highlight-color: transparent;
-      overscroll-behavior-y: contain;
       transition: background 0.25s, color 0.25s;
       height: 100%;
       overflow-y: auto;
@@ -1071,8 +1070,6 @@
       margin-left: 0;
       min-height: 100vh;
       min-height: 100dvh;
-      max-height: 100vh;
-      max-height: 100dvh;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
@@ -3479,11 +3476,9 @@
     /* Sembunyikan install button secara default — hanya tampil saat ada class .show DAN di desktop */
     #btnInstallPWA { display: none !important; }
     #btnInstallPWA.show { display: inline-flex !important; }
-    /* Topbar mobile: install button tidak pernah tampil, refresh langsung tampil */
+    /* Topbar mobile: install button tidak pernah tampil */
     @media (max-width: 767px) {
       #btnInstallPWA.show { display: none !important; }
-      #refreshBtn { display: flex !important; }
-      #refreshBtn span { display: none; }
     }
     /* Touch device improvements */
     @media (hover: none) and (pointer: coarse) {
@@ -4131,10 +4126,6 @@
         <button id="btnInstallPWA" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install sebagai Aplikasi">
           <i class="fas fa-download"></i>
           <span>Install App</span>
-        </button>
-        <button onclick="refreshData()" class="btn btn-outline btn-sm" id="refreshBtn" title="Refresh Data">
-          <i class="fas fa-sync-alt" id="refreshIcon"></i>
-          <span>Refresh</span>
         </button>
       </div>
     </header>
@@ -11653,66 +11644,6 @@ function submitRecovery() {
       closeMobileSidebar();
     }
   }, { passive: true });
-
-  // --- Custom Pull-to-Refresh pada .main-wrapper ---
-  // Browser native pull-to-refresh tidak bisa diandalkan karena app
-  // berjalan di dalam iframe & .main-wrapper adalah scroll container
-  // sendiri (max-height:100vh + overflow-y:auto), sehingga gesture tarik
-  // ke bawah "diserap" wrapper tanpa memicu refresh bawaan browser.
-  (function initPullToRefresh() {
-    var wrapper = document.getElementById('mainWrapper');
-    if (!wrapper) return;
-
-    var ptrIndicator = document.createElement('div');
-    ptrIndicator.id = 'ptrIndicator';
-    ptrIndicator.style.cssText = 'position:absolute;top:0;left:0;right:0;height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:height 0.2s ease;z-index:50;color:var(--primary,#1e6f9c);font-size:20px;pointer-events:none;';
-    ptrIndicator.innerHTML = '<i class="fas fa-sync-alt" id="ptrIcon"></i>';
-    wrapper.style.position = wrapper.style.position || 'relative';
-    wrapper.insertBefore(ptrIndicator, wrapper.firstChild);
-
-    var startY = 0, currentY = 0, pulling = false, refreshing = false;
-    var PTR_THRESHOLD = 70, PTR_MAX = 110;
-
-    wrapper.addEventListener('touchstart', function(e) {
-      if (refreshing || !currentUser) return;
-      if (wrapper.scrollTop > 0) { pulling = false; return; }
-      if (e.touches.length !== 1) return;
-      startY = e.touches[0].clientY;
-      pulling = true;
-    }, { passive: true });
-
-    wrapper.addEventListener('touchmove', function(e) {
-      if (!pulling || refreshing || !currentUser) return;
-      currentY = e.touches[0].clientY;
-      var diff = currentY - startY;
-      if (diff <= 0) { pulling = false; ptrIndicator.style.height = '0px'; return; }
-      if (wrapper.scrollTop > 0) { pulling = false; ptrIndicator.style.height = '0px'; return; }
-      var pull = Math.min(diff * 0.5, PTR_MAX);
-      ptrIndicator.style.height = pull + 'px';
-      var icon = document.getElementById('ptrIcon');
-      if (icon) icon.style.transform = 'rotate(' + Math.min(pull * 3, 360) + 'deg)';
-    }, { passive: true });
-
-    wrapper.addEventListener('touchend', function() {
-      if (!pulling || refreshing || !currentUser) { pulling = false; return; }
-      pulling = false;
-      var height = parseInt(ptrIndicator.style.height) || 0;
-      if (height >= PTR_THRESHOLD * 0.5) {
-        refreshing = true;
-        ptrIndicator.style.height = '50px';
-        var icon = document.getElementById('ptrIcon');
-        if (icon) icon.classList.add('fa-spin');
-        refreshData();
-        setTimeout(function() {
-          ptrIndicator.style.height = '0px';
-          if (icon) icon.classList.remove('fa-spin');
-          refreshing = false;
-        }, 900);
-      } else {
-        ptrIndicator.style.height = '0px';
-      }
-    }, { passive: true });
-  })();
 
   // --- Android back button: tutup modal/sidebar yang terbuka ---
   window.addEventListener('popstate', function() {
