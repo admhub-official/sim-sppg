@@ -2767,6 +2767,41 @@
       cursor: pointer;
     }
 
+    /* ── SPPG Autocomplete ── */
+.sppg-suggestions {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0; right: 0;
+  background: var(--white);
+  border: 1.5px solid var(--primary);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+  z-index: 9999;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 0;
+  margin: 0;
+  list-style: none;
+}
+.sppg-suggestions.hidden { display: none; }
+.sppg-suggestions li {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--slate-700);
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sppg-suggestions li:hover,
+.sppg-suggestions li.active {
+  background: var(--primary-light, #e8f4fd);
+  color: var(--primary);
+}
+.sppg-suggestions li .sppg-match { font-weight: 700; color: var(--primary); }
+.sppg-suggestions li i { font-size: 12px; opacity: 0.5; }
+
     /* ============================================================
        GEOLOCATION
        ============================================================ */
@@ -3951,7 +3986,7 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Jabatan <span class="req">*</span></label>
-         <select id="regJabatan" class="form-input">
+          <select id="regJabatan" class="form-input">
             <option value="">Pilih Jabatan</option>
             <option value="ADMIN">ADMIN</option>
             <option value="PIC">PIC</option>
@@ -3963,16 +3998,19 @@
         </div>
         <div class="form-group">
           <label class="form-label">SPPG <span class="req">*</span></label>
-          <select id="regSPPG" class="form-input">
-            <option value="">Pilih SPPG</option>
-            <option value="DARMARAJA">DARMARAJA</option>
-            <option value="CIAMIS">CIAMIS</option>
-            <option value="TANJUNG MEDAR">TANJUNG MEDAR</option>
-            <option value="PAKUALAM">PAKUALAM</option>
-            <option value="KIRISIK">KIRISIK</option>
-            <option value="CIBUNAR">CIBUNAR</option>
-            <option value="CIBUNAR">CINTA JAYA</option>
-          </select>
+          <div class="sppg-autocomplete-wrap" style="position:relative;">
+            <input type="text" id="regSPPG" class="form-input" placeholder="Ketik atau pilih SPPG..." autocomplete="off"
+              oninput="showSppgSuggestions('regSPPG','regSppgList')"
+              onblur="hideSppgSuggestions('regSppgList')"
+              onfocus="showSppgSuggestions('regSPPG','regSppgList')">
+            <ul id="regSppgList" class="sppg-suggestions hidden"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nama Yayasan</label>
+          <input type="text" id="regYayasan" class="form-input" placeholder="Nama yayasan (opsional)">
         </div>
       </div>
       <div class="form-group">
@@ -4990,32 +5028,31 @@
       <div class="modal-body">
         <div class="form-group">
           <label class="form-label">Nama Lengkap</label>
-          <input type="text" id="editNama" class="form-input">
+          <input type="text" id="editNama" class="form-input" placeholder="Nama lengkap">
         </div>
-        <div class="form-group">
-          <label class="form-label">Jabatan</label>
-          <select id="editJabatan" class="form-input">
-            <option value="">Pilih Jabatan</option>
-            <option value="ADMIN">ADMIN</option>
-            <option value="PIC">PIC</option>
-            <option value="ASISTEN LAPANGAN">ASISTEN LAPANGAN</option>
-            <option value="WAKIL ASISTEN LAPANGAN">WAKIL ASISTEN LAPANGAN</option>
-            <option value="AKUNTAN">AKUNTAN</option>
-            <option value="AHLI GIZI">AHLI GIZI</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">SPPG</label>
-          <select id="editSPPG" class="form-input">
-            <option value="">Pilih SPPG</option>
-            <option value="DARMARAJA">DARMARAJA</option>
-            <option value="CIAMIS">CIAMIS</option>
-            <option value="TANJUNG MEDAR">TANJUNG MEDAR</option>
-            <option value="PAKUALAM">PAKUALAM</option>
-            <option value="KIRISIK">KIRISIK</option>
-            <option value="CIBUNAR">CIBUNAR</option>
-            <option value="CINTA JAYA">CINTA JAYA</option>
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Jabatan</label>
+            <select id="editJabatan" class="form-input">
+              <option value="">Pilih Jabatan</option>
+              <option value="ADMIN">ADMIN</option>
+              <option value="PIC">PIC</option>
+              <option value="ASISTEN LAPANGAN">ASISTEN LAPANGAN</option>
+              <option value="WAKIL ASISTEN LAPANGAN">WAKIL ASISTEN LAPANGAN</option>
+              <option value="AKUNTAN">AKUNTAN</option>
+              <option value="AHLI GIZI">AHLI GIZI</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">SPPG</label>
+            <div class="sppg-autocomplete-wrap" style="position:relative;">
+              <input type="text" id="editSPPG" class="form-input" placeholder="Ketik atau pilih SPPG..." autocomplete="off"
+                oninput="showSppgSuggestions('editSPPG','editSppgList')"
+                onblur="hideSppgSuggestions('editSppgList')"
+                onfocus="showSppgSuggestions('editSPPG','editSppgList')">
+              <ul id="editSppgList" class="sppg-suggestions hidden"></ul>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Nama Yayasan</label>
@@ -6778,18 +6815,69 @@ function doLogin() {
     .loginUser(username, password);
 }
 
+// ============================================================
+// SPPG AUTOCOMPLETE — dipakai di form Daftar & Edit Profil
+// ============================================================
+var SPPG_MASTER = [
+  'DARMARAJA','CIAMIS','TANJUNG MEDAR','PAKUALAM','KIRISIK','CIBUNAR','CINTA JAYA'
+];
+
+function showSppgSuggestions(inputId, listId) {
+  var input = $(inputId);
+  var list  = $(listId);
+  if (!input || !list) return;
+
+  var val = input.value.trim().toUpperCase();
+  var matches = SPPG_MASTER.filter(function(s) {
+    return s.includes(val);
+  });
+
+  if (matches.length === 0 || val === '') {
+    // Tampilkan semua saat kosong
+    matches = SPPG_MASTER.slice();
+  }
+
+  list.innerHTML = matches.map(function(s) {
+    // Highlight bagian yang cocok
+    var highlighted = s;
+    if (val && s.includes(val)) {
+      highlighted = s.replace(val, '<span class="sppg-match">' + val + '</span>');
+    }
+    return '<li onmousedown="selectSppg(\'' + inputId + '\',\'' + listId + '\',\'' + s + '\')">'
+         + '<i class="fas fa-map-marker-alt"></i>' + highlighted + '</li>';
+  }).join('');
+
+  list.classList.remove('hidden');
+}
+
+function hideSppgSuggestions(listId) {
+  // Delay agar onmousedown sempat jalan sebelum blur menyembunyikan list
+  setTimeout(function() {
+    var list = $(listId);
+    if (list) list.classList.add('hidden');
+  }, 180);
+}
+
+function selectSppg(inputId, listId, value) {
+  var input = $(inputId);
+  var list  = $(listId);
+  if (input) input.value = value;
+  if (list)  list.classList.add('hidden');
+}
+
 function doRegister() {
-  var nama = $('regNama').value.trim();
-  var email = $('regEmail').value.trim();
-  var jabatan = $('regJabatan').value;
-  var sppg = $('regSPPG').value;
+  var nama     = $('regNama').value.trim();
+  var email    = $('regEmail').value.trim();
+  var jabatan  = $('regJabatan').value;
+  var sppg     = $('regSPPG').value.trim().toUpperCase();
+  var yayasan  = $('regYayasan').value.trim();
   var username = $('regUsername').value.trim();
   var password = $('regPassword').value;
   var password2 = $('regPassword2').value;
   var err = $('regError');
 
   if (!nama || !email || !jabatan || !sppg || !username || !password) {
-    err.querySelector('span').textContent = 'Semua field wajib diisi.'; err.classList.add('show'); return;
+    err.querySelector('span').textContent = 'Semua field wajib diisi (SPPG termasuk).'; err.classList.add('show'); return;
   }
   if (!email.toLowerCase().endsWith('@gmail.com')) {
     err.querySelector('span').textContent = 'Email harus @gmail.com'; err.classList.add('show'); return;
@@ -6804,7 +6892,7 @@ function doRegister() {
     err.querySelector('span').textContent = 'Password tidak cocok.'; err.classList.add('show'); return;
   }
 
-  var data = { namaLengkap: nama, email: email, jabatan: jabatan, sppg: sppg, username: username, password: password, fotoProfil: '' };
+  var data = { namaLengkap: nama, email: email, jabatan: jabatan, sppg: sppg, namaYayasan: yayasan, username: username, password: password, fotoProfil: '' };
 
   // Handle foto profil upload
   var fotoFile = $('regFoto').files[0];
@@ -7909,20 +7997,26 @@ function renderProfil() {
 
 function openEditProfilModal() {
   if (!currentUser) return;
-  $('editNama').value = currentUser.namaLengkap || '';
+  $('editNama').value    = currentUser.namaLengkap || '';
   $('editJabatan').value = currentUser.jabatan || '';
-  $('editSPPG').value = currentUser.sppg || '';
+  $('editSPPG').value    = currentUser.sppg || '';
   $('editYayasan').value = currentUser.namaYayasan || '';
   $('editFotoPreview').classList.add('hidden');
+  // Sembunyikan dropdown list kalau masih terbuka
+  var editList = $('editSppgList');
+  if (editList) editList.classList.add('hidden');
   openModal('modalEditProfil');
 }
 function saveEditProfil() {
-  var nama = $('editNama').value.trim();
-  if (!nama) { showToast('error', 'Error', 'Nama tidak boleh kosong'); return; }
+  var nama    = $('editNama').value.trim();
   var jabatan = $('editJabatan').value;
-  var sppg = $('editSPPG').value;
+  var sppg    = $('editSPPG').value.trim().toUpperCase();
   var yayasan = $('editYayasan').value.trim();
+  if (!nama) { showToast('error', 'Error', 'Nama tidak boleh kosong'); return; }
   var updateData = { 'NAMA LENGKAP': nama };
+  if (jabatan) updateData['JABATAN'] = jabatan;
+  if (sppg)    updateData['SPPG'] = sppg;
+  updateData['NAMA YAYASAN'] = yayasan;
   if (jabatan) updateData['JABATAN'] = jabatan;
   if (sppg) updateData['SPPG'] = sppg;
   updateData['NAMA YAYASAN'] = yayasan;
