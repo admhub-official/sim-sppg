@@ -34,8 +34,8 @@
         html = html.replace(chartTag, configTag + '\n  ' + chartTag);
       }
 
-      var notificationTag = '<script src="notification-enhancement.js?v=4" defer><\/script>';
-      if (html.indexOf(notificationTag) === -1) {
+      var notificationTag = '<script src="notification-enhancement.js?v=5" defer><\/script>';
+      if (html.indexOf('notification-enhancement.js') === -1) {
         html = html.replace(/<\/body>/i, '  ' + notificationTag + '\n</body>');
       }
 
@@ -45,7 +45,7 @@
       return html;
     }
 
-    fetch('app-source.html?v=20260714', { cache: 'no-store' })
+    fetch('app-source.html', { cache: 'no-cache' })
       .then(function (response) {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.text();
