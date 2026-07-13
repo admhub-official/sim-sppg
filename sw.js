@@ -1,8 +1,14 @@
-const CACHE = "simsppg-v4";
+const CACHE = "simsppg-v5";
 const APP_SCOPE = self.registration.scope;
 const APP_URL = new URL("./", APP_SCOPE).href;
-const ENHANCEMENT_URL = new URL("notification-enhancement.js?v=4", APP_SCOPE).href;
-const ASSETS = [APP_URL, ENHANCEMENT_URL];
+const APP_SOURCE_URL = new URL("app-source.html", APP_SCOPE).href;
+const ASSETS = [
+  APP_URL,
+  APP_SOURCE_URL,
+  new URL("manifest.json", APP_SCOPE).href,
+  new URL("notification-enhancement.js?v=5", APP_SCOPE).href,
+  new URL("supabase-config.js", APP_SCOPE).href,
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -20,23 +26,15 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-function enhanceHtml(response) {
-  if (!response) return response;
-  const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("text/html")) return response;
+async function cacheResponse(request, response) {
+  if (!response || !response.ok || request.method !== "GET") return response;
+  const requestUrl = new URL(request.url);
+  const scopeUrl = new URL(APP_SCOPE);
+  if (requestUrl.origin !== scopeUrl.origin) return response;
 
-  return response.text().then((html) => {
-    if (!html.includes("notification-enhancement.js")) {
-      html = html.replace(/<\/body>/i, `<script src="${ENHANCEMENT_URL}" defer></script></body>`);
-    }
-    const headers = new Headers(response.headers);
-    headers.delete("content-length");
-    return new Response(html, {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    });
-  });
+  const cache = await caches.open(CACHE);
+  await cache.put(request, response.clone());
+  return response;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -45,13 +43,20 @@ self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
-        .then(enhanceHtml)
-        .catch(async () => enhanceHtml(await caches.match(event.request) || await caches.match(APP_URL)))
+        .then((response) => cacheResponse(event.request, response))
+        .catch(async () =>
+          (await caches.match(event.request, { ignoreSearch: true })) ||
+          (await caches.match(APP_URL, { ignoreSearch: true }))
+        )
     );
     return;
   }
 
-  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => cacheResponse(event.request, response))
+      .catch(() => caches.match(event.request, { ignoreSearch: true }))
+  );
 });
 
 function appTarget(value) {
