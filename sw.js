@@ -1,11 +1,11 @@
-const CACHE = 'simsppg-v6';
+const CACHE = 'simsppg-v7';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
+const APP_SCRIPT = new URL('app.js?v=7', SCOPE).href;
 const ASSETS = [
   HOME,
   new URL('manifest.json', SCOPE).href,
-  new URL('notification-enhancement.js', SCOPE).href,
-  new URL('supabase-config.js', SCOPE).href
+  APP_SCRIPT
 ];
 
 self.addEventListener('install', event => {
@@ -16,10 +16,27 @@ self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));
 });
 
+async function injectAppScript(response) {
+  if (!response) return response;
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('text/html')) return response;
+  let html = await response.text();
+  if (!html.includes('app.js')) {
+    html = html.replace(/<\/body>/i, `<script src="${APP_SCRIPT}" defer></script></body>`);
+  }
+  const headers = new Headers(response.headers);
+  headers.delete('content-length');
+  return new Response(html, { status: response.status, statusText: response.statusText, headers });
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).catch(() => caches.match(HOME)));
+    event.respondWith(
+      fetch(event.request)
+        .then(injectAppScript)
+        .catch(async () => injectAppScript(await caches.match(HOME)))
+    );
     return;
   }
   event.respondWith(fetch(event.request).catch(() => caches.match(event.request, { ignoreSearch: true })));
