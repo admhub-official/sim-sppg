@@ -1,1 +1,1 @@
-(index.html is a source file, so no need to add anything to .gitignore)
+(convert_script.py and index_temp.html are source files, so no ignores needed)
