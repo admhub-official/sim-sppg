@@ -3907,6 +3907,22 @@
       #auditLogTableBody tr td:nth-child(7) { grid-area: field; text-align: left; font-size: 12px !important; font-weight: 600 !important; }
       #auditLogTableBody tr td:nth-child(8) { grid-area: desc; text-align: left; font-size: 13px !important; line-height: 1.4 !important; }
 
+      /* --- Admin Assignment Table --- */
+      #adminAssignmentTableBody tr {
+        grid-template-areas:
+          "email aksi"
+          "sppg yayasan"
+          "tgl tgl" !important;
+        grid-template-columns: 1fr auto !important;
+      }
+      #adminAssignmentTableBody tr td:nth-child(1) { display: none !important; }
+      #adminAssignmentTableBody tr td:nth-child(2) { grid-area: email; text-align: left; font-weight: 700 !important; color: var(--slate-800) !important; word-break: break-word; }
+      body.dark-mode #adminAssignmentTableBody tr td:nth-child(2) { color: #f1f5f9 !important; }
+      #adminAssignmentTableBody tr td:nth-child(3) { grid-area: sppg; text-align: left; }
+      #adminAssignmentTableBody tr td:nth-child(4) { grid-area: yayasan; text-align: right; font-size: 12px !important; color: var(--slate-500) !important; }
+      #adminAssignmentTableBody tr td:nth-child(5) { grid-area: tgl; text-align: left; font-size: 11px !important; color: var(--slate-400) !important; border-top: 1px dashed var(--slate-100) !important; padding-top: 6px !important; }
+      #adminAssignmentTableBody tr td:nth-child(6) { grid-area: aksi; text-align: right; }
+
       /* 4. Smooth page transition micro-animation */
       .page-section {
         animation: slideUpFadeMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
