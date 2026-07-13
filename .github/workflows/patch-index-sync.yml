@@ -1,0 +1,90 @@
+name: Patch index synchronization
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  patch-index:
+    if: github.event.pull_request.head.ref == 'agent/index-html-sync-fix' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fix branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/index-html-sync-fix
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Synchronize index.html
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          original = text
+
+          text = text.replace('<link rel="manifest" href="/manifest.json">', '<link rel="manifest" href="manifest.json">')
+
+          old_sw = "navigator.serviceWorker.register('/sw.js')"
+          new_sw = "navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href, { scope: './' })"
+          text = text.replace(old_sw, new_sw)
+
+          chart_tag = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>'
+          config_tag = '<script src="supabase-config.js"></script>'
+          if config_tag not in text and chart_tag in text:
+              text = text.replace(chart_tag, config_tag + '\n  ' + chart_tag, 1)
+
+          notif_tag = '<script src="notification-enhancement.js?v=4" defer></script>'
+          if notif_tag not in text:
+              text = text.replace('</body>', '  ' + notif_tag + '\n</body>', 1)
+
+          duplicate = """  if (jabatan) updateData['JABATAN'] = jabatan;
+  if (sppg)    updateData['SPPG'] = sppg;
+  updateData['NAMA YAYASAN'] = yayasan;
+  if (jabatan) updateData['JABATAN'] = jabatan;
+  if (sppg) updateData['SPPG'] = sppg;
+  updateData['NAMA YAYASAN'] = yayasan;"""
+          deduped = """  if (jabatan) updateData['JABATAN'] = jabatan;
+  if (sppg) updateData['SPPG'] = sppg;
+  updateData['NAMA YAYASAN'] = yayasan;"""
+          text = text.replace(duplicate, deduped)
+
+          if text == original:
+              raise SystemExit('No expected synchronization changes were found')
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Validate synchronization
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+
+          text = Path('index.html').read_text(encoding='utf-8')
+          required = [
+              'href="manifest.json"',
+              "new URL('sw.js', document.baseURI).href",
+              '<script src="supabase-config.js"></script>',
+              '<script src="notification-enhancement.js?v=4" defer></script>'
+          ]
+          missing = [value for value in required if value not in text]
+          if missing:
+              raise SystemExit('Missing expected synchronization markers: ' + ', '.join(missing))
+          if 'href="/manifest.json"' in text or "register('/sw.js')" in text:
+              raise SystemExit('Absolute PWA path remains in index.html')
+          json.loads(Path('manifest.json').read_text(encoding='utf-8'))
+
+      - name: Commit synchronized index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix and synchronize index HTML" || exit 0
+          git push origin HEAD:agent/index-html-sync-fix
