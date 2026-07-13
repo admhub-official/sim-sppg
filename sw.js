@@ -1,32 +1,64 @@
-const CACHE = "simsppg-v2";
-const ASSETS = ["/"];
+const CACHE = "simsppg-v3";
+const ASSETS = ["/", "notification-enhancement.js"];
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((cache) => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
+  );
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+function injectNotificationEnhancement(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("text/html")) return response;
+
+  return response.text().then((html) => {
+    if (!html.includes("notification-enhancement.js")) {
+      html = html.replace(
+        /<\/body>/i,
+        '<script src="notification-enhancement.js?v=3" defer></script></body>'
+      );
+    }
+
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    return new Response(html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  });
+}
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then(injectNotificationEnhancement)
+        .catch(() => caches.match(event.request).then((cached) => cached ? injectNotificationEnhancement(cached) : cached))
+    );
+    return;
+  }
+
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });
 
-// ============================================================
-// PUSH NOTIFICATION — event ini yang tampilkan notifikasi native
-// walau app/tab sedang tertutup total.
-// ============================================================
 self.addEventListener("push", (event) => {
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
-  } catch (e) {
+  } catch (error) {
     data = { title: "SIM-SPPG", body: event.data ? event.data.text() : "Ada notifikasi baru." };
   }
 
@@ -44,7 +76,6 @@ self.addEventListener("push", (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Saat notifikasi di-klik — fokus/buka tab app dan arahkan ke url terkait
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || "/";
@@ -63,8 +94,6 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-// Jika browser otomatis memperbarui subscription (endpoint berubah),
-// beritahu halaman utama supaya dikirim ulang ke backend.
 self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil(
     self.registration.pushManager
