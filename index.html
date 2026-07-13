@@ -4841,6 +4841,48 @@
         </div>
       </div>
 
+      <!-- ==================== ADMIN ASSIGNMENT PAGE (SUPER_ADMIN) ==================== -->
+      <div id="page-admin-assignment" class="page-section hidden">
+        <div class="page-header">
+          <div class="page-header-info">
+            <div class="page-title"><i class="fas fa-user-shield" style="color:var(--primary);"></i> Konfigurasi Admin</div>
+            <p class="page-desc">Atur cakupan SPPG &amp; Yayasan yang dapat diakses oleh setiap ADMIN</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary btn-sm" onclick="openAddAdminAssignmentModal()">
+              <i class="fas fa-plus"></i><span class="btn-label-hide"> Tambah Assignment</span>
+            </button>
+          </div>
+        </div>
+        <div class="filter-bar" id="adminAssignmentFilterBar">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="adminAssignmentEmailInput" class="form-input" placeholder="Masukkan email ADMIN, lalu Cari..." oninput="handleAdminAssignmentEmailInput()">
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="loadAdminAssignments()" title="Muat Ulang">
+            <i class="fas fa-sync"></i><span class="btn-label-hide"> Muat Ulang</span>
+          </button>
+        </div>
+        <div class="table-container">
+          <div class="table-scroll">
+            <span class="table-scroll-hint">&larr; Geser untuk melihat lebih &rarr;</span>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:40px;">No</th>
+                  <th>Email Admin</th>
+                  <th>SPPG</th>
+                  <th>Yayasan</th>
+                  <th>Dibuat Pada</th>
+                  <th style="width:80px;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="adminAssignmentTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- ==================== REKAP SPPG PAGE ==================== -->
       </main><!-- /content -->
   </div><!-- /main-wrapper -->
@@ -4996,6 +5038,38 @@
       </button>
       <img id="lightboxImage" src="" alt="Preview" class="hidden">
       <iframe id="lightboxPdf" src="" class="hidden" style="width:90vw;height:90vh;border:none;background:#fff;border-radius:8px;"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL TAMBAH ADMIN ASSIGNMENT ==================== -->
+<div id="modalAddAdminAssignment" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modalAddAdminAssignmentTitle">
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal('modalAddAdminAssignment')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalAddAdminAssignmentTitle"><i class="fas fa-user-shield"></i> Tambah Assignment Admin</h3>
+        <button class="modal-close" onclick="closeModal('modalAddAdminAssignment')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Email Admin</label>
+          <input type="email" id="aaEmailInput" class="form-input" placeholder="contoh@gmail.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">SPPG</label>
+          <select id="aaSppgInput" class="form-input"><option value="">-- Pilih SPPG --</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Yayasan</label>
+          <input type="text" id="aaYayasanInput" class="form-input" placeholder="Nama Yayasan">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeModal('modalAddAdminAssignment')" class="btn btn-outline">Batal</button>
+        <button onclick="submitAddAdminAssignment()" class="btn btn-primary">
+          <i class="fas fa-save"></i> Simpan
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -6953,6 +7027,7 @@ var MENU_CONFIG = {
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
     { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
+    { page: 'admin-assignment', label: 'Konfigurasi Admin', icon: 'fa-user-shield' },
     { label: 'DATA MASTER', isHeader: true },
     { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
     { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
@@ -7418,7 +7493,7 @@ function switchPage(page, el) {
     'pending-payment': 'Pending Payment', 'master-bahan': 'Master Bahan Baku',
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
     'serah-terima': 'Serah Terima', 'menu-mbg': 'Data Menu MBG',
-    'audit-log': 'Riwayat Aktivitas'
+    'audit-log': 'Riwayat Aktivitas', 'admin-assignment': 'Konfigurasi Admin'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
   // R4: Update breadcrumb
@@ -7441,6 +7516,7 @@ function switchPage(page, el) {
   if (page === 'menu-mbg') loadMenuMBG();
   if (page === 'pending-payment') loadPendingPayment();
   if (page === 'audit-log' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
+  if (page === 'admin-assignment' && currentUser.role === 'SUPER_ADMIN') { loadAdminAssignments(); }
     if (page === 'profil') renderProfil();
   
   // Hide/show local print buttons for non-admin/akuntan
@@ -11117,6 +11193,113 @@ function resetAuditFilter() {
   $('auditFilterTglStart').value = '';
   $('auditFilterTglEnd').value = '';
   filterAuditLog();
+}
+
+// ============================================================
+// 17b. ADMIN ASSIGNMENT (SUPER_ADMIN) — konfigurasi cakupan ADMIN
+// ============================================================
+var allAdminAssignments = [];
+var _aaEmailDebounce = null;
+
+function loadAdminAssignments() {
+  if (!currentUser || currentUser.role !== 'SUPER_ADMIN') return;
+  var targetEmail = ($('adminAssignmentEmailInput') && $('adminAssignmentEmailInput').value.trim()) || '';
+  showLoading(true);
+  callApi('getAdminAssignments', [targetEmail], function(result) {
+    showLoading(false);
+    if (result.success) {
+      allAdminAssignments = result.data || [];
+      renderAdminAssignmentTable();
+    } else {
+      showToast('error', 'Gagal', result.message || 'Tidak dapat memuat data assignment');
+    }
+  }, function(err) {
+    showLoading(false);
+    showToast('error', 'Gagal', 'Tidak dapat memuat data assignment: ' + (err.message || ''));
+  });
+}
+
+function handleAdminAssignmentEmailInput() {
+  if (_aaEmailDebounce) clearTimeout(_aaEmailDebounce);
+  _aaEmailDebounce = setTimeout(function() { loadAdminAssignments(); }, 400);
+}
+
+function renderAdminAssignmentTable() {
+  var tbody = $('adminAssignmentTableBody');
+  if (!tbody) return;
+  if (!allAdminAssignments.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-user-shield"></i></div><h4>Belum Ada Assignment</h4><p>Cari email admin di atas atau tambahkan assignment baru.</p></div></td></tr>';
+    return;
+  }
+  var html = '';
+  allAdminAssignments.forEach(function(a, idx) {
+    html += '<tr>' +
+      '<td style="text-align:center;color:var(--slate-400);">' + (idx + 1) + '</td>' +
+      '<td>' + esc(a.admin_email) + '</td>' +
+      '<td>' + esc(a.sppg) + '</td>' +
+      '<td>' + esc(a.yayasan) + '</td>' +
+      '<td style="white-space:nowrap;font-size:11px;">' + esc(fmtDate ? fmtDate(a.created_at) : a.created_at) + '</td>' +
+      '<td style="text-align:center;">' +
+        '<button class="btn btn-icon btn-danger-outline" onclick="deleteAdminAssignmentRow(\'' + a.id + '\')" title="Hapus">' +
+          '<i class="fas fa-trash"></i>' +
+        '</button>' +
+      '</td>' +
+      '</tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function openAddAdminAssignmentModal() {
+  $('aaEmailInput').value = '';
+  $('aaYayasanInput').value = '';
+  var sppgSel = $('aaSppgInput');
+  var sppgList = (dropdownOptions.sppgList && dropdownOptions.sppgList.length) ? dropdownOptions.sppgList : [];
+  var opts = '<option value="">-- Pilih SPPG --</option>';
+  sppgList.forEach(function(s) { opts += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
+  sppgSel.innerHTML = opts;
+  openModal('modalAddAdminAssignment');
+}
+
+function submitAddAdminAssignment() {
+  var email = $('aaEmailInput').value.trim();
+  var sppg = $('aaSppgInput').value;
+  var yayasan = $('aaYayasanInput').value.trim();
+  if (!email || !sppg || !yayasan) {
+    showToast('error', 'Gagal', 'Email admin, SPPG, dan Yayasan wajib diisi.');
+    return;
+  }
+  showLoading(true);
+  callApi('addAdminAssignment', [email, sppg, yayasan], function(result) {
+    showLoading(false);
+    if (result.success) {
+      showToast('success', 'Berhasil', result.message || 'Assignment berhasil ditambahkan.');
+      closeModal('modalAddAdminAssignment');
+      $('adminAssignmentEmailInput').value = email;
+      loadAdminAssignments();
+    } else {
+      showToast('error', 'Gagal', result.message || 'Tidak dapat menambahkan assignment.');
+    }
+  }, function(err) {
+    showLoading(false);
+    showToast('error', 'Gagal', 'Tidak dapat menambahkan assignment: ' + (err.message || ''));
+  });
+}
+
+function deleteAdminAssignmentRow(assignmentId) {
+  if (!confirm('Hapus assignment ini? Admin terkait tidak akan bisa lagi mengakses data SPPG/Yayasan ini.')) return;
+  showLoading(true);
+  callApi('deleteAdminAssignment', [assignmentId], function(result) {
+    showLoading(false);
+    if (result.success) {
+      showToast('success', 'Berhasil', result.message || 'Assignment berhasil dihapus.');
+      loadAdminAssignments();
+    } else {
+      showToast('error', 'Gagal', result.message || 'Tidak dapat menghapus assignment.');
+    }
+  }, function(err) {
+    showLoading(false);
+    showToast('error', 'Gagal', 'Tidak dapat menghapus assignment: ' + (err.message || ''));
+  });
 }
 
 // ============================================================
