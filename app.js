@@ -5,6 +5,7 @@
   style.id = 'sim-sppg-runtime-fixes';
   style.textContent = [
     '.auth-container .auth-sub{color:var(--slate-400);font-size:13px;margin-bottom:24px;text-align:center;line-height:1.5}',
+    '#btnLogin{touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:46px}',
     '.quick-access-section{margin-bottom:24px}',
     '.stat-card{background:#fff;border-radius:20px;padding:18px 16px;display:flex;flex-direction:column;align-items:center;text-align:center}',
     '.stat-icon{width:56px;height:56px;min-width:56px;display:flex;align-items:center;justify-content:center}',
@@ -24,38 +25,6 @@
     '@media(max-width:600px){#notifPanel{position:fixed!important;left:10px!important;right:10px!important;top:calc(var(--header-height) + 8px)!important;width:auto!important;max-height:calc(100dvh - var(--header-height) - 24px)!important}.notif-item{padding:13px 14px}.notif-item-icon{width:38px;height:38px;min-width:38px}}'
   ].join('');
   document.head.appendChild(style);
-
-  function relativeTime(raw, fallback) {
-    if (!raw) return fallback || '-';
-    var date = new Date(raw);
-    if (isNaN(date.getTime())) return fallback || raw;
-    var diff = Math.max(0, Date.now() - date.getTime());
-    var minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'Baru saja';
-    if (minutes < 60) return minutes + ' menit lalu';
-    var hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + ' jam lalu';
-    var days = Math.floor(hours / 24);
-    if (days < 7) return days + ' hari lalu';
-    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-  }
-
-  function actionMeta(type) {
-    if (type === 'DELETE') return { cls: 'delete', label: 'Dihapus', iconClass: 'action-delete' };
-    if (type === 'EDIT') return { cls: 'edit', label: 'Diperbarui', iconClass: 'action-edit' };
-    return { cls: 'add', label: 'Baru', iconClass: 'action-add' };
-  }
-
-  function actorLabel(actor) {
-    var value = String(actor || 'Sistem').trim();
-    return value || 'Sistem';
-  }
-
-  function description(item) {
-    var value = String(item.deskripsi || '').trim();
-    if (value && value !== '-') return value.replace(/^(ADD|EDIT|DELETE)\s+/i, '').replace(/\s+/g, ' ');
-    return (item.label || 'Aktivitas aplikasi') + ' oleh ' + actorLabel(item.pelaku) + '.';
-  }
 
   function setExternalLinkTargets() {
     var currentOrigin = location.origin;
@@ -85,16 +54,45 @@
     window.callApi = wrapped;
   }
 
+  var lastSppgSignature = '';
   function populateSppgDatalist() {
     var datalist = document.getElementById('sppgDatalist');
     if (!datalist || !Array.isArray(window.sppgList)) return;
-    datalist.innerHTML = '';
-    window.sppgList.forEach(function (item) {
-      var value = typeof item === 'string' ? item : (item && (item.SPPG || item.nama || item.name));
-      if (!value) return;
+    var values = window.sppgList.map(function (item) {
+      return typeof item === 'string' ? item : (item && (item.SPPG || item.nama || item.name));
+    }).filter(Boolean).map(function (value) { return String(value).trim(); });
+    var signature = values.join('|');
+    if (signature === lastSppgSignature && datalist.options.length === values.length) return;
+    lastSppgSignature = signature;
+    var fragment = document.createDocumentFragment();
+    values.forEach(function (value) {
       var option = document.createElement('option');
-      option.value = String(value).trim();
-      datalist.appendChild(option);
+      option.value = value;
+      fragment.appendChild(option);
+    });
+    datalist.replaceChildren(fragment);
+  }
+
+  function bindMobileLogin() {
+    var btn = document.getElementById('btnLogin');
+    var username = document.getElementById('loginUsername');
+    var password = document.getElementById('loginPassword');
+    if (!btn || typeof window.doLogin !== 'function' || btn.dataset.mobileLoginBound === '1') return;
+    btn.dataset.mobileLoginBound = '1';
+    btn.type = 'button';
+    btn.removeAttribute('onclick');
+    btn.addEventListener('click', function (event) {
+      event.preventDefault();
+      if (!btn.disabled) window.doLogin();
+    });
+    [username, password].forEach(function (input) {
+      if (!input) return;
+      input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          if (!btn.disabled) window.doLogin();
+        }
+      });
     });
   }
 
@@ -106,7 +104,7 @@
       var value = input ? input.value.trim().toUpperCase() : '';
       var master = Array.isArray(window.SPPG_MASTER) ? window.SPPG_MASTER.map(function (item) { return String(item).trim().toUpperCase(); }) : [];
       if (value && master.length && master.indexOf(value) === -1) {
-        if (typeof window.showToast === 'function') window.showToast('SPPG tidak terdaftar. Pilih dari daftar yang tersedia.', 'warning');
+        if (typeof window.showToast === 'function') window.showToast('warning', 'SPPG Tidak Valid', 'Pilih SPPG dari daftar yang tersedia.');
         if (input) input.focus();
         return;
       }
@@ -125,10 +123,7 @@
       if (!input && arguments.length === 0) input = document.getElementById('addTxNominal');
       if (input) {
         var parsed = Number(String(input.value || '').replace(/[^0-9]/g, '')) || 0;
-        if (parsed > 0 && result !== parsed) {
-          input.dataset.raw = String(parsed);
-          result = parsed;
-        }
+        if (parsed > 0 && result !== parsed) { input.dataset.raw = String(parsed); result = parsed; }
       }
       return result;
     }
@@ -136,49 +131,7 @@
     window.getNominalRaw = wrapped;
   }
 
-  function resetVerificationMode() {
-    try { verifikasiPembayaranMode = false; } catch (_) {}
-  }
-
-  function fixModalLifecycle() {
-    if (typeof window.closeModal === 'function' && !window.closeModal.__verificationFixed) {
-      var originalClose = window.closeModal;
-      function closeWrapped(id) {
-        var modalId = typeof id === 'string' ? id : (id && id.id);
-        if (modalId === 'modalPin') resetVerificationMode();
-        var result = originalClose.apply(this, arguments);
-        requestAnimationFrame(syncBodyOverflow);
-        return result;
-      }
-      closeWrapped.__verificationFixed = true;
-      window.closeModal = closeWrapped;
-    }
-
-    if (typeof window.switchPage === 'function' && !window.switchPage.__modalFixed) {
-      var originalSwitch = window.switchPage;
-      function switchWrapped() {
-        document.querySelectorAll('.modal').forEach(function (modal) {
-          if (getComputedStyle(modal).display !== 'none' && typeof window.closeModal === 'function' && modal.id) {
-            window.closeModal(modal.id);
-          }
-        });
-        var result = originalSwitch.apply(this, arguments);
-        requestAnimationFrame(syncBodyOverflow);
-        return result;
-      }
-      switchWrapped.__modalFixed = true;
-      window.switchPage = switchWrapped;
-    }
-
-    var modalPin = document.getElementById('modalPin');
-    if (modalPin && !modalPin.dataset.resetBound) {
-      modalPin.dataset.resetBound = '1';
-      modalPin.addEventListener('click', function (event) {
-        if (event.target === modalPin || event.target.closest('[data-close-modal],.modal-close,.close-modal')) resetVerificationMode();
-      });
-    }
-  }
-
+  function resetVerificationMode() { try { verifikasiPembayaranMode = false; } catch (_) {} }
   function syncBodyOverflow() {
     var visibleModal = Array.prototype.some.call(document.querySelectorAll('.modal'), function (modal) {
       return getComputedStyle(modal).display !== 'none' && !modal.classList.contains('hidden');
@@ -187,9 +140,37 @@
     try { _openModalCount = visibleModal ? Math.max(1, Number(_openModalCount) || 0) : 0; } catch (_) {}
   }
 
+  function fixModalLifecycle() {
+    if (typeof window.closeModal === 'function' && !window.closeModal.__verificationFixed) {
+      var originalClose = window.closeModal;
+      window.closeModal = function (id) {
+        var modalId = typeof id === 'string' ? id : (id && id.id);
+        if (modalId === 'modalPin') resetVerificationMode();
+        var result = originalClose.apply(this, arguments);
+        requestAnimationFrame(syncBodyOverflow);
+        return result;
+      };
+      window.closeModal.__verificationFixed = true;
+    }
+  }
+
+  function relativeTime(raw, fallback) {
+    if (!raw) return fallback || '-';
+    var date = new Date(raw);
+    if (isNaN(date.getTime())) return fallback || raw;
+    var minutes = Math.floor(Math.max(0, Date.now() - date.getTime()) / 60000);
+    if (minutes < 1) return 'Baru saja';
+    if (minutes < 60) return minutes + ' menit lalu';
+    var hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + ' jam lalu';
+    var days = Math.floor(hours / 24);
+    if (days < 7) return days + ' hari lalu';
+    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
   function installNotificationOverride() {
     var panel = document.getElementById('notifPanelList');
-    if (!panel || typeof window.$ !== 'function' || !Array.isArray(window.notifList) || typeof window.esc !== 'function') return false;
+    if (!panel || typeof window.$ !== 'function' || !Array.isArray(window.notifList) || typeof window.esc !== 'function') return;
     window.renderNotifPanel = function () {
       var listEl = window.$('notifPanelList');
       if (!listEl) return;
@@ -197,18 +178,17 @@
         listEl.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i><strong>Belum ada notifikasi</strong><p>Aktivitas penting aplikasi akan muncul di sini.</p></div>';
         return;
       }
-      var html = '';
-      window.notifList.forEach(function (item, index) {
-        var meta = actionMeta(item.actionType);
-        html += '<div class="notif-item ' + (item.isRead ? '' : 'unread') + '" onclick="handleNotifClick(' + index + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();handleNotifClick(' + index + ')}" role="button" tabindex="0" aria-label="' + window.esc(item.label || 'Notifikasi') + '">' +
-          '<div class="notif-item-icon ' + meta.iconClass + '"><i class="fas ' + window.esc(item.icon || 'fa-bell') + '"></i></div>' +
-          '<div class="notif-item-content"><div class="notif-item-head"><div class="notif-item-title">' + window.esc(item.label || 'Aktivitas Baru') + '</div><span class="notif-action-chip ' + meta.cls + '">' + meta.label + '</span></div>' +
-          '<div class="notif-item-desc">' + window.esc(description(item)) + '</div><div class="notif-item-meta"><span><i class="fas fa-user-circle"></i>' + window.esc(actorLabel(item.pelaku)) + '</span><span title="' + window.esc(item.waktu || '') + '"><i class="fas fa-clock"></i>' + window.esc(relativeTime(item.waktuRaw, item.waktu)) + '</span><i class="fas fa-chevron-right notif-item-arrow"></i></div></div></div>';
-      });
-      listEl.innerHTML = html;
+      listEl.innerHTML = window.notifList.map(function (item, index) {
+        var type = item.actionType === 'DELETE' ? ['delete','Dihapus','action-delete'] : item.actionType === 'EDIT' ? ['edit','Diperbarui','action-edit'] : ['add','Baru','action-add'];
+        var actor = String(item.pelaku || 'Sistem').trim() || 'Sistem';
+        var desc = String(item.deskripsi || '').trim() || ((item.label || 'Aktivitas aplikasi') + ' oleh ' + actor + '.');
+        return '<div class="notif-item ' + (item.isRead ? '' : 'unread') + '" onclick="handleNotifClick(' + index + ')" role="button" tabindex="0">' +
+          '<div class="notif-item-icon ' + type[2] + '"><i class="fas ' + window.esc(item.icon || 'fa-bell') + '"></i></div>' +
+          '<div class="notif-item-content"><div class="notif-item-head"><div class="notif-item-title">' + window.esc(item.label || 'Aktivitas Baru') + '</div><span class="notif-action-chip ' + type[0] + '">' + type[1] + '</span></div>' +
+          '<div class="notif-item-desc">' + window.esc(desc) + '</div><div class="notif-item-meta"><span><i class="fas fa-user-circle"></i>' + window.esc(actor) + '</span><span><i class="fas fa-clock"></i>' + window.esc(relativeTime(item.waktuRaw, item.waktu)) + '</span></div></div></div>';
+      }).join('');
     };
     window.renderNotifPanel();
-    return true;
   }
 
   var attempts = 0;
@@ -217,21 +197,30 @@
     setExternalLinkTargets();
     normalizeAllUsersCall();
     populateSppgDatalist();
+    bindMobileLogin();
     validateEditUserSppg();
     fixNominalRaw();
     fixModalLifecycle();
     installNotificationOverride();
-    if (attempts < 40 && (typeof window.callApi !== 'function' || typeof window.switchPage !== 'function')) {
-      setTimeout(installFixes, 250);
-    }
+    if (attempts < 40 && (typeof window.callApi !== 'function' || typeof window.doLogin !== 'function')) setTimeout(installFixes, 250);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installFixes, { once: true });
   else installFixes();
 
-  new MutationObserver(function () {
-    setExternalLinkTargets();
-    populateSppgDatalist();
-    fixModalLifecycle();
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  var observerScheduled = false;
+  new MutationObserver(function (records) {
+    var relevant = records.some(function (record) {
+      return !(record.target && (record.target.id === 'sppgDatalist' || (record.target.closest && record.target.closest('#sppgDatalist'))));
+    });
+    if (!relevant || observerScheduled) return;
+    observerScheduled = true;
+    setTimeout(function () {
+      observerScheduled = false;
+      setExternalLinkTargets();
+      populateSppgDatalist();
+      bindMobileLogin();
+      fixModalLifecycle();
+    }, 120);
+  }).observe(document.body, { childList: true, subtree: true });
 })();
