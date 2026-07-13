@@ -2558,8 +2558,6 @@
       margin: 0 auto;
     }
     .profile-avatar:hover {
-
-    .profile-avatar:hover {
       transform: scale(1.05);
     }
     @media (min-width: 768px) {
@@ -8074,8 +8072,6 @@ function renderProfil() {
   $('profilUsername').textContent = currentUser.username || '-';
   $('profilYayasan').textContent = currentUser.namaYayasan || '-';
   $('profilTimestamp').textContent = currentUser.timestamp ? formatDate(currentUser.timestamp) : '-';
-  $('profilYayasan').textContent = currentUser.namaYayasan || '-';
-  $('profilTimestamp').textContent = currentUser.timestamp ? fmtDateID(currentUser.timestamp) : '-';
 
   var fotoPath = currentUser.fotoProfil;
   var fallbackAvatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.namaLengkap || currentUser.username) + '&background=1e6f9c&color=fff&size=200&rounded=true';
