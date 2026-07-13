@@ -3,9 +3,8 @@
 
   var style = document.createElement('style');
   style.textContent = [
-    '/* Notification Center Refresh */',
     '.notif-item{position:relative;display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--slate-100);background:var(--white);transition:.2s ease;cursor:pointer}',
-    '.notif-item:hover{background:var(--slate-50)}',
+    '.notif-item:hover,.notif-item:focus-visible{background:var(--slate-50);outline:none}',
     '.notif-item.unread{background:linear-gradient(90deg,#eff8ff 0%,#fff 70%);box-shadow:inset 3px 0 0 var(--primary)}',
     '.notif-item.unread:after{content:"";position:absolute;right:12px;top:15px;width:7px;height:7px;border-radius:50%;background:var(--primary)}',
     '.notif-item-icon{width:40px;height:40px;min-width:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:15px}',
@@ -53,9 +52,18 @@
     return (item.label || 'Aktivitas aplikasi') + ' oleh ' + actorLabel(item.pelaku) + '.';
   }
 
+  var attempts = 0;
+  var maxAttempts = 40;
+
   function installOverride() {
-    if (typeof window.$ !== 'function' || !Array.isArray(window.notifList)) {
-      setTimeout(installOverride, 250);
+    attempts += 1;
+    var panel = document.getElementById('notifPanelList');
+    if (!panel) {
+      if (attempts < maxAttempts) setTimeout(installOverride, 250);
+      return;
+    }
+    if (typeof window.$ !== 'function' || !Array.isArray(window.notifList) || typeof window.esc !== 'function') {
+      if (attempts < maxAttempts) setTimeout(installOverride, 250);
       return;
     }
 
@@ -70,7 +78,7 @@
       var html = '';
       window.notifList.forEach(function (item, index) {
         var meta = actionMeta(item.actionType);
-        html += '<div class="notif-item ' + (item.isRead ? '' : 'unread') + '" onclick="handleNotifClick(' + index + ')" role="button" tabindex="0">' +
+        html += '<div class="notif-item ' + (item.isRead ? '' : 'unread') + '" onclick="handleNotifClick(' + index + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();handleNotifClick(' + index + ')}" role="button" tabindex="0" aria-label="' + window.esc(item.label || 'Notifikasi') + '">' +
           '<div class="notif-item-icon ' + meta.iconClass + '"><i class="fas ' + window.esc(item.icon || 'fa-bell') + '"></i></div>' +
           '<div class="notif-item-content">' +
             '<div class="notif-item-head"><div class="notif-item-title">' + window.esc(item.label || 'Aktivitas Baru') + '</div><span class="notif-action-chip ' + meta.cls + '">' + meta.label + '</span></div>' +
@@ -85,5 +93,9 @@
     window.renderNotifPanel();
   }
 
-  installOverride();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', installOverride, { once: true });
+  } else {
+    installOverride();
+  }
 })();
