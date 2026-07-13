@@ -1,7 +1,7 @@
-const CACHE = 'simsppg-v8';
+const CACHE = 'simsppg-v9';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
-const APP_SCRIPT = new URL('app.js?v=8', SCOPE).href;
+const APP_SCRIPT = new URL('app.js?v=9', SCOPE).href;
 const ASSETS = [
   HOME,
   new URL('manifest.json', SCOPE).href,
