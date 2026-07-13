@@ -1126,6 +1126,119 @@
       .global-date-filter-panel { position: fixed; top: 60px; left: 12px; right: 12px; min-width: 0; }
       #globalDateFilterLabel { display: none; }
     }
+
+    /* ============================================================
+       NOTIFIKASI LONCENG — Topbar
+       ============================================================ */
+    .notif-bell-wrap { position: relative; }
+    .notif-bell-btn { position: relative; }
+    .notif-bell-badge {
+      position: absolute;
+      top: 2px; right: 2px;
+      background: linear-gradient(135deg, var(--rose), #e11d48);
+      color: white;
+      font-size: 9px;
+      font-weight: 800;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      border: 2px solid var(--primary);
+      box-shadow: 0 2px 6px rgba(244,63,94,0.4);
+    }
+    .notif-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      z-index: 300;
+      width: 360px;
+      max-width: calc(100vw - 24px);
+      max-height: 480px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.18);
+      border: 1px solid var(--slate-200);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .notif-panel.hidden { display: none; }
+    @media (max-width: 480px) {
+      .notif-panel { position: fixed; top: 60px; left: 12px; right: 12px; width: auto; }
+    }
+    .notif-panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-100);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--slate-800);
+      flex-shrink: 0;
+    }
+    .notif-panel-header a {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .notif-panel-header a:hover { text-decoration: underline; }
+    .notif-panel-list {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1 1 auto;
+    }
+    .notif-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-100);
+      cursor: pointer;
+      transition: background 0.15s;
+      position: relative;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: var(--slate-50); }
+    .notif-item.unread { background: var(--primary-light); }
+    .notif-item.unread:hover { background: #d5ecfa; }
+    .notif-item-icon {
+      width: 34px; height: 34px;
+      min-width: 34px;
+      border-radius: 10px;
+      background: white;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+    }
+    .notif-item-content { flex: 1; min-width: 0; }
+    .notif-item-title { font-size: 12px; font-weight: 700; color: var(--slate-800); margin-bottom: 2px; }
+    .notif-item-desc { font-size: 11px; color: var(--slate-500); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .notif-item-time { font-size: 10px; color: var(--slate-400); margin-top: 4px; }
+    .notif-item.unread::after {
+      content: '';
+      position: absolute;
+      top: 16px; right: 14px;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+    .notif-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--slate-400);
+    }
+    .notif-empty i { font-size: 28px; margin-bottom: 8px; display: block; }
+    .notif-empty p { font-size: 12px; }
     .topbar-right {
       display: flex;
       align-items: center;
@@ -4165,25 +4278,18 @@
         <h2 class="topbar-title" id="pageTitle">Dashboard</h2>
       </div>
       <div class="topbar-right">
-        <div class="global-date-filter" id="globalDateFilterBar">
-          <button class="btn btn-outline btn-sm" onclick="toggleGlobalDateFilterPanel()" id="btnGlobalDateFilter" title="Filter Rentang Tanggal (berlaku ke semua menu)">
-            <i class="fas fa-calendar-alt"></i>
-            <span id="globalDateFilterLabel">Semua Tanggal</span>
-            <i class="fas fa-chevron-down" style="font-size:10px;margin-left:4px;"></i>
+        <div class="notif-bell-wrap hidden" id="notifBellWrap">
+          <button class="icon-btn notif-bell-btn" onclick="toggleNotifPanel()" id="btnNotifBell" title="Notifikasi">
+            <i class="fas fa-bell"></i>
+            <span class="notif-bell-badge hidden" id="notifBellBadge">0</span>
           </button>
-          <div class="global-date-filter-panel hidden" id="globalDateFilterPanel">
-            <div class="global-date-filter-presets">
-              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('today')">Hari Ini</button>
-              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('7d')">7 Hari</button>
-              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('30d')">30 Hari</button>
-              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('month')">Bulan Ini</button>
-              <button class="btn btn-outline btn-sm" onclick="setGlobalDatePreset('all')">Semua</button>
+          <div class="notif-panel hidden" id="notifPanel">
+            <div class="notif-panel-header">
+              <span>Notifikasi</span>
+              <a onclick="markAllNotifRead()" id="notifMarkAllLink">Tandai semua telah dibaca</a>
             </div>
-            <div class="global-date-filter-custom">
-              <input type="date" id="globalDateStart" class="form-input" title="Dari Tanggal">
-              <span>&mdash;</span>
-              <input type="date" id="globalDateEnd" class="form-input" title="Sampai Tanggal">
-              <button class="btn btn-primary btn-sm" onclick="applyGlobalDateFilterCustom()">Terapkan</button>
+            <div class="notif-panel-list" id="notifPanelList">
+              <div class="notif-empty"><i class="fas fa-bell-slash"></i><p>Tidak ada notifikasi</p></div>
             </div>
           </div>
         </div>
@@ -5253,14 +5359,13 @@
           </div>
           <div class="form-group">
             <label class="form-label">SPPG</label>
-            <select id="editUserSPPG" class="form-input">
-              <option value="DARMARAJA">DARMARAJA</option>
-              <option value="CIAMIS">CIAMIS</option>
-              <option value="TANJUNG MEDAR">TANJUNG MEDAR</option>
-              <option value="PAKUALAM">PAKUALAM</option>
-              <option value="KIRISIK">KIRISIK</option>
-              <option value="CIBUNAR">CIBUNAR</option>
-            </select>
+            <div class="sppg-autocomplete-wrap" style="position:relative;">
+              <input type="text" id="editUserSPPG" class="form-input" placeholder="Ketik atau pilih SPPG..." autocomplete="off"
+                oninput="showSppgSuggestions('editUserSPPG','editUserSppgList')"
+                onblur="hideSppgSuggestions('editUserSppgList')"
+                onfocus="showSppgSuggestions('editUserSPPG','editUserSppgList')">
+              <ul id="editUserSppgList" class="sppg-suggestions hidden"></ul>
+            </div>
           </div>
         </div>
         <div class="form-group">
@@ -6285,6 +6390,10 @@ var approvalFileData = null;
 var chartInstance = null;
 var menuItems = [];
 
+// Notifikasi lonceng
+var notifList = [];
+var notifPollTimer = null;
+
 // ============================================================
 // 2. UTILITY FUNCTIONS
 // ============================================================
@@ -7080,6 +7189,7 @@ function logout() { $('modalLogout').classList.remove('hidden'); }
 function executeLogout() {
   safeStorage('remove', 'sppg_session');
   try { localStorage.removeItem('sppg_jwt'); } catch(e) {}
+  if (notifPollTimer) { clearInterval(notifPollTimer); notifPollTimer = null; }
   currentUser = null;
   $('appContainer').classList.add('hidden');
   $('authOverlay').classList.remove('hidden');
@@ -7799,6 +7909,7 @@ function initApp() {
   buildSidebar();
   buildBottomNav();
   updateFabVisibility();
+  initNotifBell();
 
 // Load foto profil ke icon menu (sidebar & bottom-nav) sejak awal, bukan hanya saat buka halaman Profil
   if (currentUser.fotoProfil && String(currentUser.fotoProfil).trim() !== '' && currentUser.fotoProfil !== '-') {
@@ -8039,6 +8150,168 @@ function updateChart() {
         console.error(err);
       }
     );
+}
+
+// ============================================================
+// 7b. NOTIFIKASI LONCENG (ADMIN / SUPER_ADMIN)
+// ============================================================
+function initNotifBell() {
+  var wrap = $('notifBellWrap');
+  if (!wrap) return;
+  var isAdminRole = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
+  if (!isAdminRole) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  loadNotifications();
+  if (notifPollTimer) clearInterval(notifPollTimer);
+  notifPollTimer = setInterval(loadNotifications, 60000); // refresh tiap 60 detik
+}
+
+function loadNotifications() {
+  if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) return;
+  callApi('getNotifications', [], function(result) {
+      if (result && result.success) {
+        notifList = result.data || [];
+        renderNotifBadge(result.unreadCount || 0);
+        renderNotifPanel();
+      }
+    }, null);
+}
+
+function renderNotifBadge(count) {
+  var badge = $('notifBellBadge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function renderNotifPanel() {
+  var listEl = $('notifPanelList');
+  if (!listEl) return;
+  if (!notifList.length) {
+    listEl.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i><p>Tidak ada notifikasi</p></div>';
+    return;
+  }
+  var html = '';
+  notifList.forEach(function(n, idx) {
+    html += '<div class="notif-item ' + (n.isRead ? '' : 'unread') + '" onclick="handleNotifClick(' + idx + ')">' +
+      '<div class="notif-item-icon"><i class="fas ' + esc(n.icon || 'fa-bell') + '"></i></div>' +
+      '<div class="notif-item-content">' +
+        '<div class="notif-item-title">' + esc(n.label || 'Aktivitas Baru') + '</div>' +
+        '<div class="notif-item-desc">' + esc(n.deskripsi || '-') + '</div>' +
+        '<div class="notif-item-time"><i class="fas fa-clock" style="margin-right:3px;"></i>' + esc(n.waktu || '-') + ' oleh ' + esc(n.pelaku || '-') + '</div>' +
+      '</div>' +
+    '</div>';
+  });
+  listEl.innerHTML = html;
+}
+
+function toggleNotifPanel() {
+  var panel = $('notifPanel');
+  if (!panel) return;
+  var willOpen = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden');
+  if (willOpen) loadNotifications();
+}
+
+function closeNotifPanel() {
+  var panel = $('notifPanel');
+  if (panel) panel.classList.add('hidden');
+}
+
+// Tutup panel notifikasi saat klik di luar area
+document.addEventListener('click', function(e) {
+  var wrap = $('notifBellWrap');
+  if (wrap && !wrap.contains(e.target)) closeNotifPanel();
+});
+
+// Peta halaman notifikasi -> fungsi highlight baris terkait setelah pindah halaman
+var NOTIF_PAGE_HANDLER = {
+  'users': function(recordId) {
+    var row = allUsers.find(function(u) { return String(u.id) === String(recordId); });
+    highlightRowById('usersTableBody', row ? row._row : null);
+  },
+  'transaksi': function(recordId) {
+    openDetailTransaksi(recordId);
+  },
+  'master-bahan': function(recordId) {
+    highlightRowById('masterBBTableBody', recordId, true);
+  },
+  'master-supplier': function(recordId) {
+    highlightRowById('supplierTableBody', recordId, true);
+  },
+  'survei': function(recordId) {
+    highlightRowById('surveiTableBody', recordId, true);
+  },
+  'serah-terima': function(recordId) {
+    highlightRowById('serahTerimaTableBody', recordId, true);
+  },
+  'menu-mbg': function(recordId) {
+    // Menu MBG tidak render by-id di DOM, cukup buka halamannya
+  }
+};
+
+// Cari baris tabel berdasarkan ID (baik _row numerik atau ID string) lalu scroll+highlight
+function highlightRowById(tbodyId, matchId, isStringId) {
+  setTimeout(function() {
+    var tbody = $(tbodyId);
+    if (!tbody || matchId === null || matchId === undefined) return;
+    var rows = tbody.querySelectorAll('tr');
+    var target = null;
+    if (isStringId) {
+      // Cocokkan lewat tombol aksi yang memuat ID di onclick (delete/edit) sebagai fallback pencarian teks
+      rows.forEach(function(tr) {
+        if (!target && tr.innerHTML.indexOf(matchId) > -1) target = tr;
+      });
+    } else {
+      rows.forEach(function(tr) {
+        var editBtn = tr.querySelector('[onclick*="openEditUserModal(' + matchId + ')"]');
+        if (editBtn) target = tr;
+      });
+    }
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.style.transition = 'background 0.3s';
+      target.style.background = '#fef3c7';
+      setTimeout(function() { target.style.background = ''; }, 2500);
+    }
+  }, 400);
+}
+
+function handleNotifClick(idx) {
+  var n = notifList[idx];
+  if (!n) return;
+  closeNotifPanel();
+
+  // Tandai sudah dibaca (optimistic update di UI + kirim ke server)
+  if (!n.isRead) {
+    n.isRead = true;
+    renderNotifPanel();
+    renderNotifBadge(notifList.filter(function(x) { return !x.isRead; }).length);
+    callApi('markNotificationRead', [n.logId], null, null);
+  }
+
+  // Navigasi ke halaman terkait
+  switchPage(n.page);
+  var handler = NOTIF_PAGE_HANDLER[n.page];
+  if (handler) {
+    setTimeout(function() { handler(n.recordId); }, 350);
+  }
+}
+
+function markAllNotifRead() {
+  if (!notifList.some(function(n) { return !n.isRead; })) return;
+  notifList.forEach(function(n) { n.isRead = true; });
+  renderNotifPanel();
+  renderNotifBadge(0);
+  callApi('markAllNotificationsRead', [], function(result) {
+      if (!result || !result.success) loadNotifications(); // fallback: reload jika gagal
+    }, function(err) {
+      loadNotifications();
+    });
 }
 
 // ============================================================
@@ -8312,14 +8585,16 @@ function openEditUserModal(rowNum) {
   openModal('modalEditUser');
 }
 function saveEditUser() {
+  var sppgVal = $('editUserSPPG').value.trim().toUpperCase();
   var fields = {
     'NAMA LENGKAP': $('editUserNama').value.trim(),
     'EMAIL': $('editUserEmail').value.trim(),
     'JABATAN': $('editUserJabatan').value,
-    'SPPG': $('editUserSPPG').value,
+    'SPPG': sppgVal,
     'NAMA YAYASAN': $('editUserYayasan').value.trim(),
     _isAdmin: true
   };
+  if (sppgVal && SPPG_MASTER.indexOf(sppgVal) === -1) SPPG_MASTER.push(sppgVal);
   if (currentUser && currentUser.role === 'SUPER_ADMIN') {
     fields['ROLE'] = $('editUserRole').value;
   }
