@@ -2549,6 +2549,16 @@
       flex-shrink: 0;
       transition: transform 0.3s ease;
     }
+
+.menu-item .menu-avatar-img,
+    .bnav-item .menu-avatar-img {
+      border: 1.5px solid rgba(255,255,255,0.5);
+    }
+    .sidebar.collapsed .menu-item .menu-avatar-img {
+      margin: 0 auto;
+    }
+    .profile-avatar:hover {
+
     .profile-avatar:hover {
       transform: scale(1.05);
     }
@@ -7772,6 +7782,15 @@ function initApp() {
   buildSidebar();
   buildBottomNav();
   updateFabVisibility();
+
+// Load foto profil ke icon menu (sidebar & bottom-nav) sejak awal, bukan hanya saat buka halaman Profil
+  if (currentUser.fotoProfil && String(currentUser.fotoProfil).trim() !== '' && currentUser.fotoProfil !== '-') {
+    callApi('getFileUrl', ['FOTO_PROFIL', currentUser.fotoProfil], function(res) {
+      var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
+      if (fotoUrl) updateMenuProfilAvatar(fotoUrl);
+    }, null);
+  }
+
   // Rebuild sidebar saat resize agar filter bottom-nav ikut menyesuaikan
   window.addEventListener('resize', function() {
     if (currentUser) buildSidebar();
@@ -8008,6 +8027,37 @@ function updateChart() {
 // ============================================================
 // 8. PROFIL
 // ============================================================
+
+// Mengganti icon fa-user-circle di sidebar & bottom-nav dengan foto profil user (jika ada)
+function updateMenuProfilAvatar(url) {
+  var sidebarIcon = document.querySelector('#sidebarMenu .menu-item[data-page="profil"] i.fas');
+  var bnavIcon = document.querySelector('#bottomNavInner .bnav-item[data-page="profil"] i.fas');
+  [sidebarIcon, bnavIcon].forEach(function(icon) {
+    if (!icon) return;
+    var parent = icon.parentElement;
+    if (!parent) return;
+    var existingImg = parent.querySelector('img.menu-avatar-img');
+    if (url) {
+      if (existingImg) {
+        existingImg.src = url;
+      } else {
+        var img = document.createElement('img');
+        img.className = 'menu-avatar-img';
+        img.src = url;
+        img.alt = 'Profil';
+        img.style.cssText = 'width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;';
+        icon.style.display = 'none';
+        parent.insertBefore(img, icon);
+      }
+    } else {
+      if (existingImg) existingImg.remove();
+      icon.style.display = '';
+    }
+  });
+}
+
+</parameter>
+
 function renderProfil() {
   if (!currentUser) return;
   $('profilNama').textContent = currentUser.namaLengkap || currentUser.username;
@@ -8032,8 +8082,14 @@ function renderProfil() {
       'FOTO_PROFIL',
       fotoPath
     ], function(res) {
-        if (res && res.url) $('profilAvatar').src = res.url;
+        var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
+        if (fotoUrl) {
+          $('profilAvatar').src = fotoUrl;
+          updateMenuProfilAvatar(fotoUrl);
+        }
       }, null);
+  } else {
+    updateMenuProfilAvatar('');
   }
 }
 
@@ -8186,9 +8242,10 @@ function renderUsersTable() {
       'FOTO_PROFIL',
       u.fotoProfil
     ], function(res) {
-        if (res && res.url) {
+        var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
+        if (fotoUrl) {
                     var img = document.getElementById('userAvatar_' + u.username);
-                    if (img) img.src = res.url;
+                    if (img) img.src = fotoUrl;
                   }
       }, null);
     }
