@@ -3918,6 +3918,7 @@
       to { opacity: 1; transform: translateY(0); }
     }
   </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -6008,179 +6009,80 @@
 
 <script>
 // ============================================================
-// 0. POLYFILL: google.script.run -> fetch() ke Web App URL
-//    (Backend sepenuhnya di Supabase Edge Function; polyfill ini
-//     menjaga kompatibilitas kode lama yang memanggil google.script.run)
 // ============================================================
-(function() {
-  // GANTI dengan URL Edge Function Anda, contoh:
-  // https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/sim-sppg
-  var WEBAPP_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dynamic-action';
+// 0. API HELPER — langsung ke Supabase Edge Function
+// ============================================================
+var SUPABASE_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dynamic-action';
 
-  // Daftar nama fungsi yang TIDAK butuh JWT (harus sama persis dengan
-  // PUBLIC_FUNCTIONS di index.ts) — dipakai untuk skip header Authorization.
-  var PUBLIC_FUNCTIONS = {
-    registerUser: 1, verifyRegistrationOtp: 1, resendRegistrationOtp: 1, loginUser: 1, checkSession: 1,
-    recoverPassword: 1, recoverUsername: 1, recoverToken: 1,
-    getAppConfig: 1, getDropdownOptions: 1
-  };
+var PUBLIC_FN = {
+  registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
+  loginUser:1, checkSession:1, recoverPassword:1, recoverUsername:1,
+  recoverToken:1, getAppConfig:1, getDropdownOptions:1
+};
 
-// Daftar fungsi yang di index.ts menerima (filters, caller) — SELALU
-  // butuh tepat 1 argumen filter sebelum caller (harus sama persis dengan
-  // fungsi bertanda "(filters: any, caller: Caller)" di AUTHENTICATED_FUNCTIONS
-  // index.ts). Untuk fungsi ini, objek filter WAJIB tetap ada (walau kosong {})
-  // supaya caller dari JWT tidak tergeser posisi jadi filters.
-  var FILTER_CALLER_FUNCTIONS = {
-    getTransactions: 1, getChartData: 1, getMenuHarian: 1, getAuditLog: 1
-  };
+function getJwtToken() {
+  try { return localStorage.getItem('sppg_jwt') || ''; } catch(e) { return ''; }
+}
 
-  // Cari objek caller-like ({role,user,...}) di POSISI MANAPUN (bukan cuma
-  // terakhir), lalu bersihkan field role/user/sppg/callerRole/callerUser-nya
-  // (sudah diisi server dari JWT). Untuk fungsi di FILTER_CALLER_FUNCTIONS,
-  // sisa properti (mis. sppgFilter, dateStart) digabung ke SATU objek filter
-  // agar jumlah argumen akhir selalu tepat 1 sebelum caller disuntik router.
-  // Untuk fungsi lain, objek caller dihapus sepenuhnya dari array argumen.
-  function stripCallerArg(propName, args) {
-    if (PUBLIC_FUNCTIONS[propName]) return args;
-    if (!args.length) return args;
-
-    var callerIdx = -1;
-    for (var i = 0; i < args.length; i++) {
-      var a = args[i];
-      if (a && typeof a === 'object' && !Array.isArray(a) &&
-          ('role' in a || 'user' in a || 'callerRole' in a)) {
-        callerIdx = i;
-        break;
-      }
-    }
-    if (callerIdx === -1) return args;
-
-    var callerObj = args[callerIdx];
-    var cleaned = {};
-    Object.keys(callerObj).forEach(function(k) {
-      if (['role','user','sppg','callerRole','callerUser'].indexOf(k) === -1) cleaned[k] = callerObj[k];
-    });
-
-    var rest = args.slice(0, callerIdx).concat(args.slice(callerIdx + 1));
-
-    if (FILTER_CALLER_FUNCTIONS[propName]) {
-      var mergeTargetIdx = -1;
-      for (var j = 0; j < rest.length; j++) {
-        var b = rest[j];
-        if (b && typeof b === 'object' && !Array.isArray(b)) { mergeTargetIdx = j; break; }
-      }
-      if (mergeTargetIdx > -1) {
-        Object.keys(cleaned).forEach(function(k) { rest[mergeTargetIdx][k] = cleaned[k]; });
-        return [rest[mergeTargetIdx]];
-      }
-      return [cleaned];
-    }
-
-    if (Object.keys(cleaned).length > 0) {
-      var mergeIdx = -1;
-      for (var k = 0; k < rest.length; k++) {
-        var c = rest[k];
-        if (c && typeof c === 'object' && !Array.isArray(c)) { mergeIdx = k; break; }
-      }
-      if (mergeIdx > -1) {
-        Object.keys(cleaned).forEach(function(kk) { rest[mergeIdx][kk] = cleaned[kk]; });
-      } else {
-        rest.push(cleaned);
-      }
-    }
-    return rest;
+/**
+ * callApi(fnName, params, onSuccess, onFailure)
+ * - fnName   : string — nama fungsi backend (sama persis dengan key di AUTHENTICATED_FUNCTIONS / PUBLIC_HANDLERS di index.ts)
+ * - params   : array — argumen fungsi (tanpa caller, server isi dari JWT)
+ * - onSuccess: function(result) — dipanggil jika sukses
+ * - onFailure: function(err)    — dipanggil jika gagal (opsional)
+ */
+function callApi(fnName, params, onSuccess, onFailure) {
+  var headers = { 'Content-Type': 'application/json' };
+  if (!PUBLIC_FN[fnName]) {
+    var token = getJwtToken();
+    if (token) headers['Authorization'] = 'Bearer ' + token;
   }
 
-  function getJwtToken() {
-    try {
-      var stored = localStorage.getItem('sppg_jwt');
-      return stored || '';
-    } catch(e) { return ''; }
-  }
+  var TIMEOUT_MS = 20000;
+  var MAX_RETRY  = 2;
 
-  function createScriptRunProxy(successHandler, failureHandler) {
-    return new Proxy({}, {
-      get: function(target, propName) {
-        if (propName === 'withSuccessHandler') {
-          return function(fn) { return createScriptRunProxy(fn, failureHandler); };
-        }
-        if (propName === 'withFailureHandler') {
-          return function(fn) { return createScriptRunProxy(successHandler, fn); };
-        }
-        if (propName === 'withUserObject') {
-          return function() { return createScriptRunProxy(successHandler, failureHandler); };
-        }
-        return function() {
-          var args = stripCallerArg(propName, Array.prototype.slice.call(arguments));
-          var headers = { 'Content-Type': 'application/json' };
-          if (!PUBLIC_FUNCTIONS[propName]) {
-            var token = getJwtToken();
-            if (token) headers['Authorization'] = 'Bearer ' + token;
-          }
+  function doFetch(attempt) {
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var tid = controller ? setTimeout(function(){ controller.abort(); }, TIMEOUT_MS) : null;
 
-          var FETCH_TIMEOUT_MS = 20000; // 20 detik
-          var MAX_RETRY = 2; // total 3x percobaan untuk kegagalan jaringan sesaat
-
-          function doFetch(attempt) {
-            var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-            var timeoutId = controller ? setTimeout(function() { controller.abort(); }, FETCH_TIMEOUT_MS) : null;
-
-            fetch(WEBAPP_URL, {
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify({ function: propName, parameters: args }),
-              signal: controller ? controller.signal : undefined
-            })
-            .then(function(res) {
-              if (timeoutId) clearTimeout(timeoutId);
-              return res.text().then(function(text) {
-                var json;
-                try { json = text ? JSON.parse(text) : {}; }
-                catch (e) { throw new Error('Server error (HTTP ' + res.status + ')'); }
-                if (!res.ok && !json.error) {
-                  throw new Error('Server error (HTTP ' + res.status + ')');
-                }
-                return json;
-              });
-            })
-            .then(function(json) {
-              if (json && json.error) {
-                if (failureHandler) failureHandler(new Error(json.error));
-                else console.error('API error (' + propName + '):', json.error);
-                return;
-              }
-              var result = (json && Object.prototype.hasOwnProperty.call(json, 'result')) ? json.result : json;
-              // Simpan JWT otomatis setelah login sukses
-              if (propName === 'loginUser' && result && result.success && result.token) {
-                try { localStorage.setItem('sppg_jwt', result.token); } catch(e) {}
-              }
-              if (successHandler) successHandler(result);
-            })
-            .catch(function(err) {
-              if (timeoutId) clearTimeout(timeoutId);
-              var isNetworkErr = (err && (err.name === 'AbortError' || err.name === 'TypeError'));
-              if (isNetworkErr && attempt < MAX_RETRY) {
-                setTimeout(function() { doFetch(attempt + 1); }, 800 * (attempt + 1));
-                return;
-              }
-              if (err && err.name === 'AbortError') {
-                err = new Error('Koneksi ke server timeout, silakan coba lagi.');
-              }
-              if (failureHandler) failureHandler(err);
-              else console.error('API fetch failed (' + propName + '):', err);
-            });
-          }
-
-          doFetch(0);
-        };
+    fetch(SUPABASE_FN_URL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ function: fnName, parameters: params }),
+      signal: controller ? controller.signal : undefined
+    })
+    .then(function(res) {
+      if (tid) clearTimeout(tid);
+      return res.text().then(function(text) {
+        var json;
+        try { json = text ? JSON.parse(text) : {}; } catch(e) { throw new Error('Server error (HTTP ' + res.status + ')'); }
+        if (!res.ok && !json.error) throw new Error('Server error (HTTP ' + res.status + ')');
+        return json;
+      });
+    })
+    .then(function(json) {
+      if (json && json.error) {
+        if (onFailure) onFailure(new Error(json.error));
+        else console.error('callApi error (' + fnName + '):', json.error);
+        return;
       }
+      var result = (json && Object.prototype.hasOwnProperty.call(json, 'result')) ? json.result : json;
+      if (fnName === 'loginUser' && result && result.success && result.token) {
+        try { localStorage.setItem('sppg_jwt', result.token); } catch(e) {}
+      }
+      if (onSuccess) onSuccess(result);
+    })
+    .catch(function(err) {
+      if (tid) clearTimeout(tid);
+      var isNet = err && (err.name === 'AbortError' || err.name === 'TypeError');
+      if (isNet && attempt < MAX_RETRY) { setTimeout(function(){ doFetch(attempt+1); }, 800*(attempt+1)); return; }
+      if (err && err.name === 'AbortError') err = new Error('Koneksi ke server timeout, silakan coba lagi.');
+      if (onFailure) onFailure(err);
+      else console.error('callApi fetch failed (' + fnName + '):', err);
     });
   }
-
-  window.google = window.google || {};
-  window.google.script = window.google.script || {};
-  window.google.script.run = createScriptRunProxy(null, null);
-})();
+  doFetch(0);
+}
 
 // ============================================================
 // 1. STATE MANAGEMENT
@@ -6790,32 +6692,34 @@ function doLogin() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Memverifikasi...</span>';
 
-  google.script.run
-    .withSuccessHandler(function(result) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Masuk</span>';
-      if (result.success) {
-        currentUser = result.user;
-        sessionExpiry = result.sessionExpiry;
-        safeStorage('set', 'sppg_session', JSON.stringify({ user: currentUser, expiry: sessionExpiry }));
-        $('authOverlay').classList.add('hidden');
-        $('appContainer').classList.remove('hidden');
-        initApp();
-        showToast('success', 'Login Berhasil', 'Selamat datang, ' + currentUser.namaLengkap);
-      } else {
-        $('loginError').querySelector('span').textContent = result.message || 'Login gagal.';
-        $('loginError').classList.add('show');
-        $('recoveryLinks').classList.add('show');
+    callApi('loginUser', [
+      username,
+      password
+    ], function(result) {
+        btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Masuk</span>';
+              if (result.success) {
+                currentUser = result.user;
+                sessionExpiry = result.sessionExpiry;
+                safeStorage('set', 'sppg_session', JSON.stringify({ user: currentUser, expiry: sessionExpiry }));
+                $('authOverlay').classList.add('hidden');
+                $('appContainer').classList.remove('hidden');
+                initApp();
+                showToast('success', 'Login Berhasil', 'Selamat datang, ' + currentUser.namaLengkap);
+              } else {
+                $('loginError').querySelector('span').textContent = result.message || 'Login gagal.';
+                $('loginError').classList.add('show');
+                $('recoveryLinks').classList.add('show');
+              }
+      },
+      function(err) {
+        btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Masuk</span>';
+              $('loginError').querySelector('span').textContent = 'Terjadi kesalahan sistem.';
+              $('loginError').classList.add('show');
+              $('recoveryLinks').classList.add('show');
       }
-    })
-    .withFailureHandler(function(err) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-sign-in-alt"></i><span>Masuk</span>';
-      $('loginError').querySelector('span').textContent = 'Terjadi kesalahan sistem.';
-      $('loginError').classList.add('show');
-      $('recoveryLinks').classList.add('show');
-    })
-    .loginUser(username, password);
+    );
 }
 
 // ============================================================
@@ -6919,27 +6823,26 @@ function submitRegister(data) {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Mendaftarkan...</span>';
 
-  google.script.run
-    .withSuccessHandler(function(result) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-user-plus"></i><span>Daftar</span>';
-      if (result.success) {
-        showToast('success', 'Registrasi Berhasil', result.message);
-        pendingOtpEmail = data.email;
-        pendingOtpUsername = data.username;
-        showOtpVerification(data.email);
-      } else {
-        $('regError').querySelector('span').textContent = result.message || 'Registrasi gagal.';
-        $('regError').classList.add('show');
+    callApi('registerUser', [data], function(result) {
+        btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-user-plus"></i><span>Daftar</span>';
+              if (result.success) {
+                showToast('success', 'Registrasi Berhasil', result.message);
+                pendingOtpEmail = data.email;
+                pendingOtpUsername = data.username;
+                showOtpVerification(data.email);
+              } else {
+                $('regError').querySelector('span').textContent = result.message || 'Registrasi gagal.';
+                $('regError').classList.add('show');
+              }
+      },
+      function(err) {
+        btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-user-plus"></i><span>Daftar</span>';
+              $('regError').querySelector('span').textContent = 'Terjadi kesalahan sistem.';
+              $('regError').classList.add('show');
       }
-    })
-    .withFailureHandler(function(err) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-user-plus"></i><span>Daftar</span>';
-      $('regError').querySelector('span').textContent = 'Terjadi kesalahan sistem.';
-      $('regError').classList.add('show');
-    })
-    .registerUser(data);
+    );
 }
 
 var pendingOtpEmail = '';
@@ -6967,43 +6870,44 @@ function doVerifyOtp() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Memverifikasi...</span>';
 
-  google.script.run
-    .withSuccessHandler(function(result) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi</span>';
-      if (result.success) {
-        showToast('success', 'Verifikasi Berhasil', result.message);
-        $('otpForm').classList.add('hidden');
-        showLogin();
-        $('loginUsername').value = pendingOtpUsername;
-      } else {
-        err.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
-        err.classList.add('show');
+    callApi('verifyRegistrationOtp', [
+      pendingOtpEmail,
+      otp
+    ], function(result) {
+        btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi</span>';
+              if (result.success) {
+                showToast('success', 'Verifikasi Berhasil', result.message);
+                $('otpForm').classList.add('hidden');
+                showLogin();
+                $('loginUsername').value = pendingOtpUsername;
+              } else {
+                err.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
+                err.classList.add('show');
+              }
+      },
+      function(e) {
+        btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi</span>';
+              err.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
+              err.classList.add('show');
       }
-    })
-    .withFailureHandler(function(e) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi</span>';
-      err.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
-      err.classList.add('show');
-    })
-    .verifyRegistrationOtp(pendingOtpEmail, otp);
+    );
 }
 
 function doResendOtp() {
   if (!pendingOtpEmail) return;
-  google.script.run
-    .withSuccessHandler(function(result) {
-      if (result && result.success) {
-        showToast('success', 'Terkirim', result.message || 'Kode OTP baru telah dikirim ke email Anda.');
-      } else {
-        showToast('error', 'Gagal', (result && result.message) || 'Gagal mengirim ulang OTP.');
+    callApi('resendRegistrationOtp', [pendingOtpEmail], function(result) {
+        if (result && result.success) {
+                showToast('success', 'Terkirim', result.message || 'Kode OTP baru telah dikirim ke email Anda.');
+              } else {
+                showToast('error', 'Gagal', (result && result.message) || 'Gagal mengirim ulang OTP.');
+              }
+      },
+      function(err) {
+        showToast('error', 'Gagal', 'Terjadi kesalahan sistem saat mengirim ulang OTP.');
       }
-    })
-    .withFailureHandler(function() {
-      showToast('error', 'Gagal', 'Terjadi kesalahan sistem saat mengirim ulang OTP.');
-    })
-    .resendRegistrationOtp(pendingOtpEmail);
+    );
 }
 
 function checkSession() {
@@ -7794,19 +7698,20 @@ function initApp() {
 
 function loadDropdownOptions() {
   return new Promise(function(resolve) {
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getDropdownOptions', [], function(result) {
         if (result.success) {
-          dropdownOptions = result;
-          populateSPPGSelects();
-          populateSupplierSelects();
-          populateKategoriFilters();
-          populateMenuMBGSelect();
-        }
+                  dropdownOptions = result;
+                  populateSPPGSelects();
+                  populateSupplierSelects();
+                  populateKategoriFilters();
+                  populateMenuMBGSelect();
+                }
+                resolve();
+      },
+      function(err) {
         resolve();
-      })
-      .withFailureHandler(function(err) { resolve(); })
-      .getDropdownOptions();
+      }
+    );
   });
 }
 
@@ -7874,30 +7779,34 @@ function loadDashboardData() {
     var statCards = $('dashboardStats');
     if (skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
     showLoading(true);
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getDashboardKPI', [
+      globalDateFilter.start,
+      globalDateFilter.end
+    ], function(result) {
         showLoading(false);
-        // R3: Sembunyikan skeleton, tampilkan stat cards
-        if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
-        if (result.success) {
-          $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
-          $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
-          $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
-          $('statAntrian').textContent = result.antrianApproval || 0;
-          $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
-          // Update badge
-          var cnt = result.antrianApproval || 0;
-          var badge = $('approvalCount');
-          if (badge) { badge.textContent = cnt; badge.style.display = cnt > 0 ? 'inline-flex' : 'none'; }
-          var badgeSidebar = $('approvalCountSidebar');
-          if (badgeSidebar) { badgeSidebar.textContent = cnt; badgeSidebar.style.display = cnt > 0 ? 'inline-flex' : 'none'; }
-          syncApprovalBadgeToBottomNav();
-          syncApprovalBadgeToQuickAccess();
-        }
-        resolve();
-      })
-      .withFailureHandler(function(err) { showLoading(false); resolve(); })
-      .getDashboardKPI(globalDateFilter.start, globalDateFilter.end);
+                // R3: Sembunyikan skeleton, tampilkan stat cards
+                if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
+                if (result.success) {
+                  $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
+                  $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
+                  $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
+                  $('statAntrian').textContent = result.antrianApproval || 0;
+                  $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
+                  // Update badge
+                  var cnt = result.antrianApproval || 0;
+                  var badge = $('approvalCount');
+                  if (badge) { badge.textContent = cnt; badge.style.display = cnt > 0 ? 'inline-flex' : 'none'; }
+                  var badgeSidebar = $('approvalCountSidebar');
+                  if (badgeSidebar) { badgeSidebar.textContent = cnt; badgeSidebar.style.display = cnt > 0 ? 'inline-flex' : 'none'; }
+                  syncApprovalBadgeToBottomNav();
+                  syncApprovalBadgeToQuickAccess();
+                }
+                resolve();
+      },
+      function(err) {
+        showLoading(false); resolve();
+      }
+    );
   });
 }
 
@@ -7952,18 +7861,22 @@ function updateChart() {
   var sppgSel = $('dashFilterSPPG');
   var sppgFilterVal = (sppgSel && sppgSel.value !== 'ALL') ? sppgSel.value : '';
 
-  google.script.run
-    .withSuccessHandler(function(data) {
-      if (!data || !data.length) { $('chartDataCount').textContent = '0 data'; chartInstance.data.labels = []; chartInstance.data.datasets.forEach(function(ds){ ds.data = []; }); chartInstance.update(); return; }
-      $('chartDataCount').textContent = data.length + ' data';
-      chartInstance.data.labels = data.map(function(d) { return d.tanggal; });
-      chartInstance.data.datasets[0].data = data.map(function(d) { return d.pemasukan; });
-      chartInstance.data.datasets[1].data = data.map(function(d) { return d.pengeluaran; });
-      chartInstance.data.datasets[2].data = data.map(function(d) { return d.saldo; });
-      chartInstance.update();
-    })
-    .withFailureHandler(function(err) { console.error(err); })
-    .getChartData({ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg, sppgFilter: sppgFilterVal }, filters);
+    callApi('getChartData', [
+      { sppgFilter: sppgFilterVal },
+      filters
+    ], function(data) {
+        if (!data || !data.length) { $('chartDataCount').textContent = '0 data'; chartInstance.data.labels = []; chartInstance.data.datasets.forEach(function(ds){ ds.data = []; }); chartInstance.update(); return; }
+              $('chartDataCount').textContent = data.length + ' data';
+              chartInstance.data.labels = data.map(function(d) { return d.tanggal; });
+              chartInstance.data.datasets[0].data = data.map(function(d) { return d.pemasukan; });
+              chartInstance.data.datasets[1].data = data.map(function(d) { return d.pengeluaran; });
+              chartInstance.data.datasets[2].data = data.map(function(d) { return d.saldo; });
+              chartInstance.update();
+      },
+      function(err) {
+        console.error(err);
+      }
+    );
 }
 
 // ============================================================
@@ -7989,12 +7902,12 @@ function renderProfil() {
   $('profilAvatar').src = fallbackAvatarUrl;
   $('profilAvatar').onerror = function() { this.src = fallbackAvatarUrl; };
   if (fotoPath && String(fotoPath).trim() !== '' && fotoPath !== '-') {
-    google.script.run
-      .withSuccessHandler(function(res) {
+    callApi('getFileUrl', [
+      'FOTO_PROFIL',
+      fotoPath
+    ], function(res) {
         if (res && res.url) $('profilAvatar').src = res.url;
-      })
-      .withFailureHandler(function() { /* biarkan fallback avatar tampil */ })
-      .getFileUrl('FOTO_PROFIL', fotoPath);
+      }, null);
   }
 }
 
@@ -8029,23 +7942,27 @@ function saveEditProfil() {
     reader.onload = function(e) {
       var base64 = e.target.result.split(',')[1];
       showLoading(true);
-      google.script.run
-        .withSuccessHandler(function(up) {
-          showLoading(false);
-          if (up.success) {
-            // Simpan fileId ke currentUser dan updateData
-            updateData['FOTO PROFIL'] = up.fileId;
-            currentUser.fotoProfil = up.fileId;
-            doUpdateProfil(updateData);
-          } else {
-            showToast('error', 'Gagal Upload', up.message || 'Upload foto gagal');
-          }
-        })
-        .withFailureHandler(function() {
-          showLoading(false);
-          showToast('error', 'Gagal', 'Terjadi kesalahan saat upload foto');
-        })
-        .uploadFotoProfil(currentUser.username, base64, fotoFile.type, fotoFile.name);
+    callApi('uploadFotoProfil', [
+      currentUser.username,
+      base64,
+      fotoFile.type,
+      fotoFile.name
+    ], function(up) {
+        showLoading(false);
+                  if (up.success) {
+                    // Simpan fileId ke currentUser dan updateData
+                    updateData['FOTO PROFIL'] = up.fileId;
+                    currentUser.fotoProfil = up.fileId;
+                    doUpdateProfil(updateData);
+                  } else {
+                    showToast('error', 'Gagal Upload', up.message || 'Upload foto gagal');
+                  }
+      },
+      function(err) {
+        showLoading(false);
+                  showToast('error', 'Gagal', 'Terjadi kesalahan saat upload foto');
+      }
+    );
     };
     reader.readAsDataURL(fotoFile);
   } else {
@@ -8055,28 +7972,30 @@ function saveEditProfil() {
 
 function doUpdateProfil(updateData) {
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        showToast('success', 'Sukses', result.message);
-        currentUser.namaLengkap = updateData['NAMA LENGKAP'] || currentUser.namaLengkap;
-        if (updateData['FOTO PROFIL']) currentUser.fotoProfil = updateData['FOTO PROFIL'];
-        if (updateData['JABATAN']) currentUser.jabatan = updateData['JABATAN'];
-        if (updateData['SPPG']) currentUser.sppg = updateData['SPPG'];
-        if (updateData['NAMA YAYASAN'] !== undefined) currentUser.namaYayasan = updateData['NAMA YAYASAN'];
-        safeStorage('set', 'sppg_session', JSON.stringify({ user: currentUser, expiry: sessionExpiry }));
-        renderProfil();
-        closeModal('modalEditProfil');
-      } else {
-        showToast('error', 'Gagal', result.message);
+    callApi('updateUserProfile', [
+      currentUser.username,
+      updateData
+    ], function(result) {
+        showLoading(false);
+              if (result.success) {
+                showToast('success', 'Sukses', result.message);
+                currentUser.namaLengkap = updateData['NAMA LENGKAP'] || currentUser.namaLengkap;
+                if (updateData['FOTO PROFIL']) currentUser.fotoProfil = updateData['FOTO PROFIL'];
+                if (updateData['JABATAN']) currentUser.jabatan = updateData['JABATAN'];
+                if (updateData['SPPG']) currentUser.sppg = updateData['SPPG'];
+                if (updateData['NAMA YAYASAN'] !== undefined) currentUser.namaYayasan = updateData['NAMA YAYASAN'];
+                safeStorage('set', 'sppg_session', JSON.stringify({ user: currentUser, expiry: sessionExpiry }));
+                renderProfil();
+                closeModal('modalEditProfil');
+              } else {
+                showToast('error', 'Gagal', result.message);
+              }
+      },
+      function(err) {
+        showLoading(false);
+              showToast('error', 'Gagal', 'Terjadi kesalahan');
       }
-    })
-    .withFailureHandler(function() {
-      showLoading(false);
-      showToast('error', 'Gagal', 'Terjadi kesalahan');
-    })
-    .updateUserProfile(currentUser.username, updateData);
+    );
 }
 
 // ============================================================
@@ -8086,23 +8005,22 @@ function loadUsers(silent) {
   return new Promise(function(resolve) {
     if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) { resolve(); return; }
     if (!silent) showLoading(true);
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getAllUsers', [], function(result) {
         if (!silent) showLoading(false);
-        if (result.success) {
-          allUsers = result.data || [];
-          filteredUsers = allUsers.slice();
-          populateUsersFilterOptions();
-          usersPage = 1;
-          renderUsersTable();
-        }
-        resolve();
-      })
-      .withFailureHandler(function() {
+                if (result.success) {
+                  allUsers = result.data || [];
+                  filteredUsers = allUsers.slice();
+                  populateUsersFilterOptions();
+                  usersPage = 1;
+                  renderUsersTable();
+                }
+                resolve();
+      },
+      function(err) {
         if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data users'); }
-        resolve();
-      })
-      .getAllUsers();
+                resolve();
+      }
+    );
   });
 }
 function renderUsersTable() {
@@ -8138,15 +8056,15 @@ function renderUsersTable() {
 
   pageData.forEach(function(u) {
     if (u.fotoProfil && String(u.fotoProfil).trim() !== '' && u.fotoProfil !== '-') {
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (res && res.url) {
-            var img = document.getElementById('userAvatar_' + u.username);
-            if (img) img.src = res.url;
-          }
-        })
-        .withFailureHandler(function() { /* biarkan fallback avatar tampil */ })
-        .getFileUrl('FOTO_PROFIL', u.fotoProfil);
+    callApi('getFileUrl', [
+      'FOTO_PROFIL',
+      u.fotoProfil
+    ], function(res) {
+        if (res && res.url) {
+                    var img = document.getElementById('userAvatar_' + u.username);
+                    if (img) img.src = res.url;
+                  }
+      }, null);
     }
   });
 }
@@ -8193,13 +8111,17 @@ function saveEditUser() {
     'SPPG': $('editUserSPPG').value,
     _isAdmin: true
   };
-  google.script.run
-    .withSuccessHandler(function(result) {
-      if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditUser'); loadUsers(); }
-      else { showToast('error', 'Gagal', result.message); }
-    })
-    .withFailureHandler(function() { showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .updateUserProfile(allUsers.find(function(u) { return u._row == currentEditRow; }).username, fields);
+    callApi('updateUserProfile', [
+      allUsers.find(function(u) { return u._row == currentEditRow; }).username,
+      fields
+    ], function(result) {
+        if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditUser'); loadUsers(); }
+              else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 
 // ============================================================
@@ -8229,31 +8151,30 @@ function loadTransactions() {
   if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
   if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
 
-  google.script.run
-    .withSuccessHandler(function(data) {
-      showLoading(false);
-      if (!data || !Array.isArray(data)) {
-        showToast('error', 'Gagal', 'Data transaksi tidak valid. Coba refresh.');
-        allTransactions = [];
-        filteredTransactions = [];
-        renderTransaksiTable();
-        return;
+    callApi('getTransactions', [filters], function(data) {
+        showLoading(false);
+              if (!data || !Array.isArray(data)) {
+                showToast('error', 'Gagal', 'Data transaksi tidak valid. Coba refresh.');
+                allTransactions = [];
+                filteredTransactions = [];
+                renderTransaksiTable();
+                return;
+              }
+              allTransactions = data;
+              filteredTransactions = allTransactions.slice();
+              txPage = 1;
+              populateSPPGFilter();
+              populatePendingTransaksiSelect();
+              renderTransaksiTable();
+      },
+      function(err) {
+        showLoading(false);
+              showToast('error', 'Gagal', 'Tidak dapat memuat transaksi: ' + (err.message || ''));
+              allTransactions = [];
+              filteredTransactions = [];
+              renderTransaksiTable();
       }
-      allTransactions = data;
-      filteredTransactions = allTransactions.slice();
-      txPage = 1;
-      populateSPPGFilter();
-      populatePendingTransaksiSelect();
-      renderTransaksiTable();
-    })
-    .withFailureHandler(function(err) {
-      showLoading(false);
-      showToast('error', 'Gagal', 'Tidak dapat memuat transaksi: ' + (err.message || ''));
-      allTransactions = [];
-      filteredTransactions = [];
-      renderTransaksiTable();
-    })
-    .getTransactions(filters);
+    );
 }
 
 function populateSPPGFilter() {
@@ -8360,14 +8281,18 @@ function saveEditTransaksi() {
     'Metode Transaksi': $('editTxMetode').value
   };
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditTransaksi'); loadTransactions(); loadDashboardData(); }
-      else { showToast('error', 'Gagal', result.message); }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .editTransaction(id, fields, { role: currentUser.role, user: currentUser.email });
+    callApi('editTransaction', [
+      id,
+      fields
+    ], function(result) {
+        showLoading(false);
+              if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditTransaksi'); loadTransactions(); loadDashboardData(); }
+              else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 
 function getMetodeBadge(m) {
@@ -8388,19 +8313,20 @@ function openAddTransaksiModal() {
   // Pastikan data bahan baku sudah dimuat sebelum modal dibuka
   if (!dropdownOptions.bahanBaku || dropdownOptions.bahanBaku.length === 0) {
     showLoading(true);
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getDropdownOptions', [], function(result) {
         showLoading(false);
-        if (result.success) {
-          dropdownOptions = result;
-          populateSPPGSelects();
-          populateSupplierSelects();
-          populateKategoriFilters();
-          populateMenuMBGSelect();
-        }
-      })
-      .withFailureHandler(function() { showLoading(false); })
-      .getDropdownOptions();
+                if (result.success) {
+                  dropdownOptions = result;
+                  populateSPPGSelects();
+                  populateSupplierSelects();
+                  populateKategoriFilters();
+                  populateMenuMBGSelect();
+                }
+      },
+      function(err) {
+        showLoading(false);
+      }
+    );
   }
 
   $('addTxKategori').value = 'PENGELUARAN';
@@ -8485,40 +8411,39 @@ function saveAddTransaksi() {
     var btnSave = document.querySelector('#modalAddTransaksi .btn-primary');
     if (btnSave) { btnSave.disabled = true; btnSave.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...'; }
 
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('addTransaction', [data], function(result) {
         clearTimeout(timeoutHandle);
-        showLoading(false);
-        // Re-enable tombol
-        if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = '<i class="fas fa-save"></i> Simpan Transaksi'; }
-
-        if (result && result.success) {
-          showToast('success', 'Tersimpan!', result.message || 'Transaksi berhasil ditambahkan.');
-          closeModal('modalAddTransaksi');
-          // Reset semua filter
-          if ($('txSearchInput')) $('txSearchInput').value = '';
-          if ($('txFilterSPPG')) $('txFilterSPPG').value = 'ALL';
-          if ($('txFilterKategori')) $('txFilterKategori').value = 'ALL';
-          if ($('txFilterStatus')) $('txFilterStatus').value = 'ALL';
-          txPage = 1;
-          // Optimistic update: langsung muat ulang tanpa mengosongkan tabel dulu,
-          // jadi user tidak melihat tabel "kosong sesaat" lalu terisi lagi 6 detik kemudian.
-          loadTransactions();
-          loadDashboardData();
-          updateChart();
-        } else {
-          var errMsg = (result && result.message) ? result.message : 'Terjadi kesalahan tidak diketahui.';
-          showToast('error', 'Gagal Menyimpan', errMsg);
-        }
-      })
-      .withFailureHandler(function(err) {
+                showLoading(false);
+                // Re-enable tombol
+                if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = '<i class="fas fa-save"></i> Simpan Transaksi'; }
+        
+                if (result && result.success) {
+                  showToast('success', 'Tersimpan!', result.message || 'Transaksi berhasil ditambahkan.');
+                  closeModal('modalAddTransaksi');
+                  // Reset semua filter
+                  if ($('txSearchInput')) $('txSearchInput').value = '';
+                  if ($('txFilterSPPG')) $('txFilterSPPG').value = 'ALL';
+                  if ($('txFilterKategori')) $('txFilterKategori').value = 'ALL';
+                  if ($('txFilterStatus')) $('txFilterStatus').value = 'ALL';
+                  txPage = 1;
+                  // Optimistic update: langsung muat ulang tanpa mengosongkan tabel dulu,
+                  // jadi user tidak melihat tabel "kosong sesaat" lalu terisi lagi 6 detik kemudian.
+                  loadTransactions();
+                  loadDashboardData();
+                  updateChart();
+                } else {
+                  var errMsg = (result && result.message) ? result.message : 'Terjadi kesalahan tidak diketahui.';
+                  showToast('error', 'Gagal Menyimpan', errMsg);
+                }
+      },
+      function(err) {
         clearTimeout(timeoutHandle);
-        showLoading(false);
-        if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = '<i class="fas fa-save"></i> Simpan Transaksi'; }
-        var errDetail = err && err.message ? err.message : 'Periksa koneksi internet Anda.';
-        showToast('error', 'Koneksi Gagal', errDetail + ' — Coba tekan Simpan lagi.');
-      })
-      .addTransaction(data, { role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg });
+                showLoading(false);
+                if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = '<i class="fas fa-save"></i> Simpan Transaksi'; }
+                var errDetail = err && err.message ? err.message : 'Periksa koneksi internet Anda.';
+                showToast('error', 'Koneksi Gagal', errDetail + ' — Coba tekan Simpan lagi.');
+      }
+    );
   }
 
   if (fotoFile) {
@@ -8526,9 +8451,14 @@ function saveAddTransaksi() {
     var r = new FileReader();
     r.onload = function(e) {
       var b64 = e.target.result.split(',')[1];
-      google.script.run
-        .withSuccessHandler(function(up) { if (up.success) data.uploadFoto = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit(); })
-        .uploadTxFile(b64, fotoFile.type, fotoFile.name, 'foto');
+    callApi('uploadTxFile', [
+      b64,
+      fotoFile.type,
+      fotoFile.name,
+      'foto'
+    ], function(up) {
+        if (up.success) data.uploadFoto = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit();
+      }, null);
     };
     r.readAsDataURL(fotoFile);
   }
@@ -8538,9 +8468,14 @@ function saveAddTransaksi() {
     var r3 = new FileReader();
     r3.onload = function(e) {
       var b64 = e.target.result.split(',')[1];
-      google.script.run
-        .withSuccessHandler(function(up) { if (up.success) data.notaPembelian = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit(); })
-        .uploadTxFile(b64, notaFile.type, notaFile.name, 'nota');
+    callApi('uploadTxFile', [
+      b64,
+      notaFile.type,
+      notaFile.name,
+      'nota'
+    ], function(up) {
+        if (up.success) data.notaPembelian = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit();
+      }, null);
     };
     r3.readAsDataURL(notaFile);
   }
@@ -8548,24 +8483,30 @@ function saveAddTransaksi() {
     var ttdDataUrl = ttdCanvas.toDataURL('image/png');
     var ttdBase64 = ttdDataUrl.split(',')[1];
     uploadsPending++;
-    google.script.run
-      .withSuccessHandler(function(up) { if (up.success) data.ttdUser = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit(); })
-      .uploadTxFile(ttdBase64, 'image/png', 'TTD_USER_' + Date.now() + '.png', 'ttdUser');
+    callApi('uploadTxFile', [
+      ttdBase64,
+      'image/png',
+      'TTD_USER_' + Date.now() + '.png',
+      'ttdUser'
+    ], function(up) {
+        if (up.success) data.ttdUser = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit();
+      }, null);
   }
   if (!uploadsPending) doSubmit();
 }
 
 function openDetailTransaksi(id) {
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(tx) {
-      showLoading(false);
-      if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
-      renderDetailTransaksi(tx);
-      openModal('modalDetail');
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Error', 'Gagal memuat detail'); })
-    .getTransactionDetail(id, { role: currentUser.role, user: currentUser.email });
+    callApi('getTransactionDetail', [id], function(tx) {
+        showLoading(false);
+              if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
+              renderDetailTransaksi(tx);
+              openModal('modalDetail');
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Error', 'Gagal memuat detail');
+      }
+    );
 }
 
 function openDetailSupplier(rowNum) {
@@ -8711,27 +8652,26 @@ function loadApprovalData() {
   };
   if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
   if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
-  google.script.run
-    .withSuccessHandler(function(data) {
-      showLoading(false);
-      if (!data || !Array.isArray(data)) {
-        showToast('error', 'Gagal', 'Data approval tidak valid.');
-        allTransactions = [];
-        populateApprovalFilters();
-        filterApproval();
-        return;
+    callApi('getTransactions', [filters], function(data) {
+        showLoading(false);
+              if (!data || !Array.isArray(data)) {
+                showToast('error', 'Gagal', 'Data approval tidak valid.');
+                allTransactions = [];
+                populateApprovalFilters();
+                filterApproval();
+                return;
+              }
+              allTransactions = data;
+              populateApprovalFilters();
+              filterApproval();
+      },
+      function(err) {
+        showLoading(false);
+              showToast('error', 'Gagal', 'Tidak dapat memuat data approval.');
+              populateApprovalFilters();
+              filterApproval();
       }
-      allTransactions = data;
-      populateApprovalFilters();
-      filterApproval();
-    })
-    .withFailureHandler(function(err) {
-      showLoading(false);
-      showToast('error', 'Gagal', 'Tidak dapat memuat data approval.');
-      populateApprovalFilters();
-      filterApproval();
-    })
-    .getTransactions(filters);
+    );
 }
 
 function renderApprovalTable() {
@@ -8867,21 +8807,22 @@ function submitBulkApproval(pin) {
       return;
     }
     var id = ids[done];
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('approveTransaction', [
+      { id: id, approvalPin: pin, approvedBy: approvedByName, ttdBase64: '', catatanApproval: '' }
+    ], function(result) {
         if (result && result.success) {
-          success++;
-        } else {
-          failed++;
-          if (result && result.message && result.message.toLowerCase().indexOf('pin') > -1) pinRejectedCount++;
-        }
-        done++;
-        next();
-      })
-      .withFailureHandler(function() {
+                  success++;
+                } else {
+                  failed++;
+                  if (result && result.message && result.message.toLowerCase().indexOf('pin') > -1) pinRejectedCount++;
+                }
+                done++;
+                next();
+      },
+      function(err) {
         failed++; done++; next();
-      })
-      .approveTransaction({ id: id, approvalPin: pin, approvedBy: approvedByName, ttdBase64: '', catatanApproval: '' }, { role: currentUser.role });
+      }
+    );
   }
   next();
 }
@@ -9369,16 +9310,17 @@ function openApprovalModal(id) {
   currentTrxId = id;
   approvalFileData = null;
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(tx) {
-      showLoading(false);
-      if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
-      renderApprovalForm(tx);
-      openModal('modalApproval');
-      setTimeout(initApprovalCanvas, 100);
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Error', 'Gagal memuat data'); })
-    .getTransactionDetail(id, { role: currentUser.role, user: currentUser.email });
+    callApi('getTransactionDetail', [id], function(tx) {
+        showLoading(false);
+              if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
+              renderApprovalForm(tx);
+              openModal('modalApproval');
+              setTimeout(initApprovalCanvas, 100);
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Error', 'Gagal memuat data');
+      }
+    );
 }
 
 function renderApprovalForm(tx) {
@@ -9487,26 +9429,27 @@ function submitApprovalWithPin() {
     data.buktiFileName = approvalFileData.fileName;
   }
 
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        showToast('success', 'Sukses', result.message);
-        loadTransactions();
-        loadDashboardData();
-      } else {
-        // PIN salah atau gagal lain dari server — buka kembali modal PIN agar user bisa coba lagi
-        showToast('error', 'Gagal', result.message);
-        if (result.message && result.message.toLowerCase().indexOf('pin') > -1) {
-          document.querySelectorAll('.pin-input').forEach(function(p) { p.value = ''; });
-          openModal('modalPin');
-          var firstPin = document.querySelector('.pin-input[data-index="0"]');
-          if (firstPin) setTimeout(function(){ firstPin.focus(); }, 200);
-        }
+    callApi('approveTransaction', [data], function(result) {
+        showLoading(false);
+              if (result.success) {
+                showToast('success', 'Sukses', result.message);
+                loadTransactions();
+                loadDashboardData();
+              } else {
+                // PIN salah atau gagal lain dari server — buka kembali modal PIN agar user bisa coba lagi
+                showToast('error', 'Gagal', result.message);
+                if (result.message && result.message.toLowerCase().indexOf('pin') > -1) {
+                  document.querySelectorAll('.pin-input').forEach(function(p) { p.value = ''; });
+                  openModal('modalPin');
+                  var firstPin = document.querySelector('.pin-input[data-index="0"]');
+                  if (firstPin) setTimeout(function(){ firstPin.focus(); }, 200);
+                }
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .approveTransaction(data, { role: currentUser.role });
+    );
 }
 
 function handlePinInput(input, e) {
@@ -9525,14 +9468,15 @@ function handlePinInput(input, e) {
 
 // ===== MODE UPLOAD BUKTI MANDIRI (ON/OFF) =====
 function loadUploadBuktiMode() {
-  google.script.run
-    .withSuccessHandler(function(result) {
-      uploadBuktiModeEnabled = !!(result && result.enabled);
-      renderModeToggleUI();
-      if (currentPage === 'approval') renderApprovalTable();
-    })
-    .withFailureHandler(function() { uploadBuktiModeEnabled = false; renderModeToggleUI(); })
-    .getUploadBuktiMode();
+    callApi('getUploadBuktiMode', [], function(result) {
+        uploadBuktiModeEnabled = !!(result && result.enabled);
+              renderModeToggleUI();
+              if (currentPage === 'approval') renderApprovalTable();
+      },
+      function(err) {
+        uploadBuktiModeEnabled = false; renderModeToggleUI();
+      }
+    );
 }
 
 function renderModeToggleUI() {
@@ -9557,20 +9501,21 @@ function toggleUploadBuktiMode() {
     : 'Nonaktifkan mode upload bukti mandiri? User tidak akan bisa lagi mengupload bukti pembayaran sendiri.';
   if (!confirm(confirmMsg)) return;
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        uploadBuktiModeEnabled = result.enabled;
-        renderModeToggleUI();
-        showToast('success', 'Mode Diperbarui', uploadBuktiModeEnabled ? 'Upload bukti mandiri diaktifkan.' : 'Upload bukti mandiri dinonaktifkan.');
-        renderApprovalTable();
-      } else {
-        showToast('error', 'Gagal', result.message);
+    callApi('setUploadBuktiMode', [newState], function(result) {
+        showLoading(false);
+              if (result.success) {
+                uploadBuktiModeEnabled = result.enabled;
+                renderModeToggleUI();
+                showToast('success', 'Mode Diperbarui', uploadBuktiModeEnabled ? 'Upload bukti mandiri diaktifkan.' : 'Upload bukti mandiri dinonaktifkan.');
+                renderApprovalTable();
+              } else {
+                showToast('error', 'Gagal', result.message);
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .setUploadBuktiMode(newState, { role: currentUser.role, user: currentUser.email });
+    );
 }
 
 // ===== USER KIRIM BUKTI PEMBAYARAN MANDIRI =====
@@ -9627,42 +9572,40 @@ function submitUserBukti() {
   if (!userBuktiFileData) { showToast('error', 'Validasi', 'Bukti pembayaran wajib diupload'); return; }
 
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        showToast('success', 'Terkirim', result.message);
-        closeModal('modalUserBukti');
-        loadApprovalData();
-        loadTransactions();
-      } else {
-        showToast('error', 'Gagal', result.message);
+    callApi('submitUserBuktiPembayaran', [
+      {       txId: currentUserBuktiTxId,       nominalDibayar: nominal,       buktiBase64: userBuktiFileData.base64,       buktiMimeType: userBuktiFileData.mimeType,       buktiFileName: userBuktiFileData.fileName     }
+    ], function(result) {
+        showLoading(false);
+              if (result.success) {
+                showToast('success', 'Terkirim', result.message);
+                closeModal('modalUserBukti');
+                loadApprovalData();
+                loadTransactions();
+              } else {
+                showToast('error', 'Gagal', result.message);
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .submitUserBuktiPembayaran({
-      txId: currentUserBuktiTxId,
-      nominalDibayar: nominal,
-      buktiBase64: userBuktiFileData.base64,
-      buktiMimeType: userBuktiFileData.mimeType,
-      buktiFileName: userBuktiFileData.fileName
-    }, { role: currentUser.role, user: currentUser.email });
+    );
 }
 
 // ===== ADMIN VERIFIKASI PEMBAYARAN MANDIRI USER =====
 function openVerifikasiModal(id) {
   currentVerifikasiTxId = id;
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(tx) {
-      showLoading(false);
-      if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
-      renderVerifikasiForm(tx);
-      openModal('modalVerifikasiPembayaran');
-      setTimeout(function() { initTtdCanvas('verifTtdCanvas'); }, 100);
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Error', 'Gagal memuat data'); })
-    .getTransactionDetail(id, { role: currentUser.role, user: currentUser.email });
+    callApi('getTransactionDetail', [id], function(tx) {
+        showLoading(false);
+              if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
+              renderVerifikasiForm(tx);
+              openModal('modalVerifikasiPembayaran');
+              setTimeout(function() { initTtdCanvas('verifTtdCanvas'); }, 100);
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Error', 'Gagal memuat data');
+      }
+    );
 }
 
 function renderVerifikasiForm(tx) {
@@ -9714,26 +9657,23 @@ function doSubmitVerifikasiPembayaran() {
   var ttdBase64 = ttdCanvas.toDataURL('image/png').split(',')[1];
   closeModal('modalVerifikasiPembayaran');
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        showToast('success', 'Sukses', result.message);
-        loadApprovalData();
-        loadTransactions();
-        loadDashboardData();
-      } else {
-        showToast('error', 'Gagal', result.message);
+    callApi('verifyUserPayment', [
+      {       txId: currentVerifikasiTxId,       approvalPin: verifPinTemp,       ttdBase64: ttdBase64,       catatanApproval: verifCatatanTemp,       approvedBy: currentUser ? (currentUser.namaLengkap || currentUser.username) : 'Admin'     }
+    ], function(result) {
+        showLoading(false);
+              if (result.success) {
+                showToast('success', 'Sukses', result.message);
+                loadApprovalData();
+                loadTransactions();
+                loadDashboardData();
+              } else {
+                showToast('error', 'Gagal', result.message);
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .verifyUserPayment({
-      txId: currentVerifikasiTxId,
-      approvalPin: verifPinTemp,
-      ttdBase64: ttdBase64,
-      catatanApproval: verifCatatanTemp,
-      approvedBy: currentUser ? (currentUser.namaLengkap || currentUser.username) : 'Admin'
-    }, { role: currentUser.role });
+    );
 }
 
 // ============================================================
@@ -9741,18 +9681,19 @@ function doSubmitVerifikasiPembayaran() {
 // ============================================================
 function loadMasterBB() {
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        allMasterBB = result.data || [];
-        filteredMasterBB = allMasterBB.slice();
-        bbPage = 1;
-        renderMasterBBTable();
+    callApi('getMasterBahanBaku', [], function(result) {
+        showLoading(false);
+              if (result.success) {
+                allMasterBB = result.data || [];
+                filteredMasterBB = allMasterBB.slice();
+                bbPage = 1;
+                renderMasterBBTable();
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data'); })
-    .getMasterBahanBaku({ role: currentUser.role });
+    );
 }
 function renderMasterBBTable() {
   var tbody = $('masterBBTableBody');
@@ -9812,10 +9753,13 @@ function saveAddMasterBB() {
   };
   if (!data.KODE_BAHAN || !data.NAMA_BAHAN_BAKU) { showToast('error', 'Validasi', 'Kode dan Nama wajib diisi'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) { showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddMasterBB'); loadMasterBB(); } else { showToast('error', 'Gagal', result.message); } })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .addMasterBahanBaku(data, { role: currentUser.role, user: currentUser.email });
+    callApi('addMasterBahanBaku', [data], function(result) {
+        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddMasterBB'); loadMasterBB(); } else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 // ===== HAPUS UNIVERSAL =====
 var hapusTarget = { type: '', rowNum: 0, id: '' };
@@ -9844,45 +9788,93 @@ function executeHapus() {
   showLoading(true);
   var caller = { role: currentUser.role, user: currentUser.email };
   if (hapusTarget.type === 'masterBB') {
-    google.script.run
-      .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadMasterBB();}else{showToast('error','Gagal',r.message);} })
-      .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-      .deleteMasterBahanBaku(hapusTarget.rowNum, caller);
+    callApi('deleteMasterBahanBaku', [
+      hapusTarget.rowNum,
+      caller
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadMasterBB();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
   } else if (hapusTarget.type === 'supplier') {
-    google.script.run
-      .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadSuppliers();}else{showToast('error','Gagal',r.message);} })
-      .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-      .deleteSupplier(hapusTarget.rowNum, caller);
+    callApi('deleteSupplier', [
+      hapusTarget.rowNum,
+      caller
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadSuppliers();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
   } else if (hapusTarget.type === 'survei') {
-    google.script.run
-      .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadSurvei();}else{showToast('error','Gagal',r.message);} })
-      .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-      .deleteSurvei(hapusTarget.rowNum, caller);
+    callApi('deleteSurvei', [
+      hapusTarget.rowNum,
+      caller
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadSurvei();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
   } else if (hapusTarget.type === 'serahTerima') {
-    google.script.run
-      .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadSerahTerima();}else{showToast('error','Gagal',r.message);} })
-      .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-      .deleteSerahTerima(hapusTarget.rowNum, caller);
+    callApi('deleteSerahTerima', [
+      hapusTarget.rowNum,
+      caller
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadSerahTerima();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
   } else if (hapusTarget.type === 'menuMBG') {
-    google.script.run
-      .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadMenuMBG();}else{showToast('error','Gagal',r.message);} })
-      .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-      .deleteMenuMBG(hapusTarget.rowNum, caller);
+    callApi('deleteMenuMBG', [
+      hapusTarget.rowNum,
+      caller
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadMenuMBG();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
   } else if (hapusTarget.type === 'transaksi') {
-    google.script.run
-      .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadTransactions();loadDashboardData();}else{showToast('error','Gagal',r.message);} })
-      .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-      .deleteTransaction(hapusTarget.id, caller);
+    callApi('deleteTransaction', [
+      hapusTarget.id,
+      caller
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadTransactions();loadDashboardData();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
   } else if (hapusTarget.type === 'pending') {
-    google.script.run
-      .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadPendingPayment();}else{showToast('error','Gagal',r.message);} })
-      .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-      .deletePendingPayment(hapusTarget.id, caller);
+    callApi('deletePendingPayment', [
+      hapusTarget.id,
+      caller
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadPendingPayment();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
   } else if (hapusTarget.type === 'user') {
-    google.script.run
-      .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadUsers();}else{showToast('error','Gagal',r.message);} })
-      .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-      .deleteUser(hapusTarget.id, caller);
+    callApi('deleteUser', [
+      hapusTarget.id,
+      caller
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);loadUsers();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
   } else {
     showLoading(false);
   }
@@ -9913,10 +9905,16 @@ function saveEditMasterBB() {
   };
   if (!fields['NAMA  BAHAN BAKU']) { showToast('error','Validasi','Nama wajib diisi'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditMasterBB');loadMasterBB();}else{showToast('error','Gagal',r.message);} })
-    .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-    .updateMasterBahanBaku(rowNum, fields, { role: currentUser.role, user: currentUser.email });
+    callApi('updateMasterBahanBaku', [
+      rowNum,
+      fields
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditMasterBB');loadMasterBB();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
 }
 
 // ===== EDIT SUPPLIER =====
@@ -9942,10 +9940,16 @@ function saveEditSupplier() {
   };
   if (!fields['NAMA SUPPLIER']) { showToast('error','Validasi','Nama Supplier wajib diisi'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditSupplier');loadSuppliers();}else{showToast('error','Gagal',r.message);} })
-    .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-    .updateMasterSupplier(rowNum, fields, { role: currentUser.role, user: currentUser.email });
+    callApi('updateMasterSupplier', [
+      rowNum,
+      fields
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditSupplier');loadSuppliers();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
 }
 
 // ===== EDIT SURVEI =====
@@ -9966,10 +9970,16 @@ function saveEditSurvei() {
     'ALAMAT SURVEI': $('editSurveiAlamatEdit').value.trim()
   };
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditSurvei');loadSurvei();}else{showToast('error','Gagal',r.message);} })
-    .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-    .updateSurvei(rowNum, fields, { role: currentUser.role, user: currentUser.email });
+    callApi('updateSurvei', [
+      rowNum,
+      fields
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditSurvei');loadSurvei();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
 }
 
 // ===== EDIT SERAH TERIMA =====
@@ -9991,10 +10001,16 @@ function saveEditSerahTerima() {
   };
   if (!fields['PENERIMA']) { showToast('error','Validasi','Penerima wajib diisi'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditSerahTerima');loadSerahTerima();}else{showToast('error','Gagal',r.message);} })
-    .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-    .updateSerahTerima(rowNum, fields, { role: currentUser.role, user: currentUser.email });
+    callApi('updateSerahTerima', [
+      rowNum,
+      fields
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditSerahTerima');loadSerahTerima();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
 }
 
 // ===== EDIT MENU MBG =====
@@ -10017,10 +10033,16 @@ function saveEditMenuMBG() {
   };
   if (!fields['MENU']) { showToast('error', 'Validasi', 'Menu tidak boleh kosong'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(r){ showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditMenuMBG');loadMenuMBG();}else{showToast('error','Gagal',r.message);} })
-    .withFailureHandler(function(){ showLoading(false); showToast('error','Gagal','Terjadi kesalahan'); })
-    .updateMenuMBG(m._row, fields, { role: currentUser.role, user: currentUser.email });
+    callApi('updateMenuMBG', [
+      m._row,
+      fields
+    ], function(r) {
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditMenuMBG');loadMenuMBG();}else{showToast('error','Gagal',r.message);}
+      },
+      function(err) {
+        showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
+      }
+    );
 }
 
 function exportMasterBB(format) {
@@ -10045,22 +10067,21 @@ function loadSuppliers(silent) {
   return new Promise(function(resolve) {
     if (!currentUser) { resolve(); return; }
     if (!silent) showLoading(true);
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getMasterSupplier', [], function(result) {
         if (!silent) showLoading(false);
-        if (result.success) {
-          allSuppliers = result.data || [];
-          filteredSuppliers = allSuppliers.slice();
-          supplierPage = 1;
-          renderSupplierTable();
-        }
-        resolve();
-      })
-      .withFailureHandler(function() {
+                if (result.success) {
+                  allSuppliers = result.data || [];
+                  filteredSuppliers = allSuppliers.slice();
+                  supplierPage = 1;
+                  renderSupplierTable();
+                }
+                resolve();
+      },
+      function(err) {
         if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data supplier'); }
-        resolve();
-      })
-      .getMasterSupplier({ role: currentUser.role });
+                resolve();
+      }
+    );
   });
 }
 function renderSupplierTable() {
@@ -10239,26 +10260,30 @@ function saveAddSupplier() {
   if (!data.NAMA_SUPPLIER || !data.ALAMAT_TOKO) { showToast('error', 'Validasi', 'Nama dan Alamat wajib diisi'); return; }
   // Handle foto, MOU, TTD uploads
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) { showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddSupplier'); loadSuppliers(); } else { showToast('error', 'Gagal', result.message); } })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .addMasterSupplier(data, { role: currentUser.role, user: currentUser.email });
+    callApi('addMasterSupplier', [data], function(result) {
+        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddSupplier'); loadSuppliers(); } else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 
 function getGeocodeForSupplier() {
   var alamat = $('addSupAlamat').value.trim();
   if (!alamat) { showToast('warning', 'Perhatian', 'Isi alamat terlebih dahulu'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        $('supGeoResult').classList.remove('hidden');
-        $('supGeoText').innerHTML = '<a href="' + esc(result.mapsLink) + '" target="_blank" style="color:var(--primary);">' + esc(result.formattedAddress) + ' <i class="fas fa-external-link-alt"></i></a>';
-      } else { showToast('error', 'Gagal', result.message); }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Geocoding gagal'); })
-    .geocodeAlamat(alamat);
+    callApi('geocodeAlamat', [alamat], function(result) {
+        showLoading(false);
+              if (result.success) {
+                $('supGeoResult').classList.remove('hidden');
+                $('supGeoText').innerHTML = '<a href="' + esc(result.mapsLink) + '" target="_blank" style="color:var(--primary);">' + esc(result.formattedAddress) + ' <i class="fas fa-external-link-alt"></i></a>';
+              } else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Geocoding gagal');
+      }
+    );
 }
 
 function clearSupTtd() { clearTtdCanvas('supTtdCanvas'); }
@@ -10268,19 +10293,20 @@ function clearSupTtd() { clearTtdCanvas('supTtdCanvas'); }
 // ============================================================
 function loadSurvei() {
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        allSurvei = result.data || [];
-        filteredSurvei = allSurvei.slice();
-        populateSurveiFilterOptions();
-        surveiPage = 1;
-        renderSurveiTable();
+    callApi('getSurveiBahanBaku', [], function(result) {
+        showLoading(false);
+              if (result.success) {
+                allSurvei = result.data || [];
+                filteredSurvei = allSurvei.slice();
+                populateSurveiFilterOptions();
+                surveiPage = 1;
+                renderSurveiTable();
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data survei');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data survei'); })
-    .getSurveiBahanBaku({ role: currentUser.role, user: currentUser.email });
+    );
 }
 function renderSurveiTable() {
   var tbody = $('surveiTableBody');
@@ -10478,12 +10504,14 @@ function saveAddSurvei() {
     var r = new FileReader();
     r.onload = function(e) {
       var b64 = e.target.result.split(',')[1];
-      google.script.run
-        .withSuccessHandler(function(up) {
-          if (up.success) data.FOTO_BAHAN_BAKU = up.fileName;
-          submitSurveiData(data);
-        })
-        .uploadFotoSurvei(b64, fotoFile.type, fotoFile.name, { role: currentUser.role, user: currentUser.email });
+    callApi('uploadFotoSurvei', [
+      b64,
+      fotoFile.type,
+      fotoFile.name
+    ], function(up) {
+        if (up.success) data.FOTO_BAHAN_BAKU = up.fileName;
+                  submitSurveiData(data);
+      }, null);
     };
     r.readAsDataURL(fotoFile);
   } else {
@@ -10491,10 +10519,13 @@ function saveAddSurvei() {
   }
 }
 function submitSurveiData(data) {
-  google.script.run
-    .withSuccessHandler(function(result) { showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddSurvei'); loadSurvei(); } else { showToast('error', 'Gagal', result.message); } })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .addSurveiBahanBaku(data, { role: currentUser.role, user: currentUser.email });
+    callApi('addSurveiBahanBaku', [data], function(result) {
+        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddSurvei'); loadSurvei(); } else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 
 // ============================================================
@@ -10502,18 +10533,19 @@ function submitSurveiData(data) {
 // ============================================================
 function loadSerahTerima() {
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        allSerahTerima = result.data || [];
-        filteredSerahTerima = allSerahTerima.slice();
-        stPage = 1;
-        renderSerahTerimaTable();
+    callApi('getSerahTerima', [], function(result) {
+        showLoading(false);
+              if (result.success) {
+                allSerahTerima = result.data || [];
+                filteredSerahTerima = allSerahTerima.slice();
+                stPage = 1;
+                renderSerahTerimaTable();
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data'); })
-    .getSerahTerima({ role: currentUser.role, user: currentUser.email });
+    );
 }
 function renderSerahTerimaTable() {
   var tbody = $('serahTerimaTableBody');
@@ -10692,27 +10724,31 @@ function saveAddSerahTerima() {
   };
   if (!data.PENERIMA || !data.KODE_BAHAN_BAKU) { showToast('error', 'Validasi', 'Penerima dan Bahan Baku wajib diisi'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) { showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddSerahTerima'); loadSerahTerima(); } else { showToast('error', 'Gagal', result.message); } })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .addSerahTerima(data, { role: currentUser.role, user: currentUser.email });
+    callApi('addSerahTerima', [data], function(result) {
+        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddSerahTerima'); loadSerahTerima(); } else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 // ============================================================
 // 16. MENU MBG (AHLI GIZI)
 // ============================================================
 function loadMenuMBG() {
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        allMenuMBG = result.data || [];
-        menuMBGPage = 1;
-        renderMenuMBGTable();
+    callApi('getMenuHarian', [{}], function(result) {
+        showLoading(false);
+              if (result.success) {
+                allMenuMBG = result.data || [];
+                menuMBGPage = 1;
+                renderMenuMBGTable();
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data menu');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data menu'); })
-    .getMenuHarian({ role: currentUser.role, user: currentUser.email }, {});
+    );
 }
 function renderMenuMBGTable() {
   var tbody = $('menuMBGTableBody');
@@ -10858,10 +10894,13 @@ function saveAddMenuMBG() {
   };
   if (!data.tanggal || !data.jumlahKpm || !data.menu) { showToast('error', 'Validasi', 'Tanggal, Jumlah KPM, dan Menu wajib diisi'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) { showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddMenuMBG'); loadMenuMBG(); } else { showToast('error', 'Gagal', result.message); } })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .addMenuHarian(data, { role: currentUser.role, user: currentUser.email });
+    callApi('addMenuHarian', [data], function(result) {
+        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddMenuMBG'); loadMenuMBG(); } else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 
 // ============================================================
@@ -10869,15 +10908,16 @@ function saveAddMenuMBG() {
 // ============================================================
 function loadPendingPayment() {
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(data) {
-      showLoading(false);
-      allPending = data || [];
-      pendingPage = 1;
-      renderPendingTable();
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data'); })
-.getPendingPayments({ role: currentUser.role });
+    callApi('getPendingPayments', [], function(data) {
+        showLoading(false);
+              allPending = data || [];
+              pendingPage = 1;
+              renderPendingTable();
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data');
+      }
+    );
 }
 function renderPendingTable() {
   var tbody = $('pendingTableBody');
@@ -10926,10 +10966,13 @@ function saveAddPending() {
   };
   if (!data.deskripsi || !data.tanggalPending) { showToast('error', 'Validasi', 'Deskripsi dan Tanggal Pending wajib diisi'); return; }
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) { showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddPending'); loadPendingPayment(); } else { showToast('error', 'Gagal', result.message); } })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .addPendingPayment(data, { role: currentUser.role, user: currentUser.email });
+    callApi('addPendingPayment', [data], function(result) {
+        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddPending'); loadPendingPayment(); } else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 function openEditPendingModal(id) {
   var p = allPending.find(function(x) { return x.id === id; });
@@ -10957,10 +11000,16 @@ function saveEditPending() {
     catatan: $('editPendingCatatan').value
   };
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) { showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditPending'); loadPendingPayment(); } else { showToast('error', 'Gagal', result.message); } })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan'); })
-    .updatePendingPayment(id, updateData, { role: currentUser.role });
+    callApi('updatePendingPayment', [
+      id,
+      updateData
+    ], function(result) {
+        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditPending'); loadPendingPayment(); } else { showToast('error', 'Gagal', result.message); }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+      }
+    );
 }
 
 
@@ -10974,21 +11023,22 @@ var auditLogPage = 1;
 function loadAuditLog() {
   if (!currentUser || currentUser.role !== 'ADMIN') return;
   showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(result) {
-      showLoading(false);
-      if (result.success) {
-        allAuditLog = result.data || [];
-        populateAuditActionFilter();
-        filteredAuditLog = allAuditLog.slice();
-        auditLogPage = 1;
-        renderAuditLogTable();
-      } else {
-        showToast('error', 'Gagal', result.message || 'Tidak dapat memuat riwayat aktivitas');
+    callApi('getAuditLog', [{}], function(result) {
+        showLoading(false);
+              if (result.success) {
+                allAuditLog = result.data || [];
+                populateAuditActionFilter();
+                filteredAuditLog = allAuditLog.slice();
+                auditLogPage = 1;
+                renderAuditLogTable();
+              } else {
+                showToast('error', 'Gagal', result.message || 'Tidak dapat memuat riwayat aktivitas');
+              }
+      },
+      function(err) {
+        showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat riwayat aktivitas');
       }
-    })
-    .withFailureHandler(function() { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat riwayat aktivitas'); })
-    .getAuditLog({ role: currentUser.role }, {});
+    );
 }
 
 function populateAuditActionFilter() {
@@ -11115,149 +11165,159 @@ function refreshData() {
   }
 
   if (currentPage === 'dashboard') {
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getDashboardKPI', [], function(result) {
         if (result.success) {
-          $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
-          $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
-          $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
-          $('statAntrian').textContent = result.antrianApproval || 0;
-          $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
-          var cnt2 = result.antrianApproval || 0;
-          var badge = $('approvalCount');
-          if (badge) { badge.textContent = cnt2; badge.style.display = cnt2 > 0 ? 'inline-flex' : 'none'; }
-          var badgeSidebar = $('approvalCountSidebar');
-          if (badgeSidebar) { badgeSidebar.textContent = cnt2; badgeSidebar.style.display = cnt2 > 0 ? 'inline-flex' : 'none'; }
-          syncApprovalBadgeToBottomNav();
-          syncApprovalBadgeToQuickAccess();
-        }
-        updateChart();
+                  $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
+                  $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
+                  $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
+                  $('statAntrian').textContent = result.antrianApproval || 0;
+                  $('statAntrianNominal').textContent = formatRupiah(result.totalBelumBayar);
+                  var cnt2 = result.antrianApproval || 0;
+                  var badge = $('approvalCount');
+                  if (badge) { badge.textContent = cnt2; badge.style.display = cnt2 > 0 ? 'inline-flex' : 'none'; }
+                  var badgeSidebar = $('approvalCountSidebar');
+                  if (badgeSidebar) { badgeSidebar.textContent = cnt2; badgeSidebar.style.display = cnt2 > 0 ? 'inline-flex' : 'none'; }
+                  syncApprovalBadgeToBottomNav();
+                  syncApprovalBadgeToQuickAccess();
+                }
+                updateChart();
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getDashboardKPI({ role: currentUser.role, user: currentUser.email, sppg: currentUser.sppg });
+      }
+    );
 
   } else if (currentPage === 'transaksi') {
     var isAdminRefresh = currentUser.role === 'ADMIN';
     var filters = { callerRole: currentUser.role, callerUser: isAdminRefresh ? '' : currentUser.email };
-    google.script.run
-      .withSuccessHandler(function(data) {
+    callApi('getTransactions', [filters], function(data) {
         allTransactions = data || [];
-        filteredTransactions = allTransactions.slice();
-        txPage = 1;
-        populateSPPGFilter();
-        renderTransaksiTable();
+                filteredTransactions = allTransactions.slice();
+                txPage = 1;
+                populateSPPGFilter();
+                renderTransaksiTable();
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getTransactions(filters);
+      }
+    );
 
   } else if (currentPage === 'approval') {
     var isAdminApproval = currentUser.role === 'ADMIN';
     var filters = { callerRole: currentUser.role, callerUser: isAdminApproval ? '' : currentUser.email };
     selectedApprovalIds.clear();
-    google.script.run
-      .withSuccessHandler(function(data) {
+    callApi('getTransactions', [filters], function(data) {
         allTransactions = data || [];
-        populateApprovalFilters();
-        filterApproval();
+                populateApprovalFilters();
+                filterApproval();
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getTransactions(filters);
+      }
+    );
 
   } else if (currentPage === 'master-bahan') {
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getMasterBahanBaku', [], function(result) {
         if (result.success) {
-          allMasterBB = result.data || [];
-          filteredMasterBB = allMasterBB.slice();
-          bbPage = 1;
-          renderMasterBBTable();
-        }
+                  allMasterBB = result.data || [];
+                  filteredMasterBB = allMasterBB.slice();
+                  bbPage = 1;
+                  renderMasterBBTable();
+                }
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getMasterBahanBaku({ role: currentUser.role });
+      }
+    );
 
   } else if (currentPage === 'master-supplier') {
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getMasterSupplier', [], function(result) {
         if (result.success) {
-          allSuppliers = result.data || [];
-          supplierPage = 1;
-          renderSupplierTable();
-        }
+                  allSuppliers = result.data || [];
+                  supplierPage = 1;
+                  renderSupplierTable();
+                }
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getMasterSupplier({ role: currentUser.role });
+      }
+    );
 
   } else if (currentPage === 'survei') {
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getSurveiBahanBaku', [], function(result) {
         if (result.success) {
-          allSurvei = result.data || [];
-          filteredSurvei = allSurvei.slice();
-        populateSurveiFilterOptions();
-          surveiPage = 1;
-          renderSurveiTable();
-        }
+                  allSurvei = result.data || [];
+                  filteredSurvei = allSurvei.slice();
+                populateSurveiFilterOptions();
+                  surveiPage = 1;
+                  renderSurveiTable();
+                }
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getSurveiBahanBaku({ role: currentUser.role, user: currentUser.email });
+      }
+    );
 
   } else if (currentPage === 'serah-terima') {
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getSerahTerima', [], function(result) {
         if (result.success) {
-          allSerahTerima = result.data || [];
-          filteredSerahTerima = allSerahTerima.slice();
-          stPage = 1;
-          renderSerahTerimaTable();
-        }
+                  allSerahTerima = result.data || [];
+                  filteredSerahTerima = allSerahTerima.slice();
+                  stPage = 1;
+                  renderSerahTerimaTable();
+                }
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getSerahTerima({ role: currentUser.role, user: currentUser.email });
+      }
+    );
 
   } else if (currentPage === 'menu-mbg') {
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getMenuHarian', [{}], function(result) {
         if (result.success) {
-          allMenuMBG = result.data || [];
-          menuMBGPage = 1;
-          renderMenuMBGTable();
-        }
+                  allMenuMBG = result.data || [];
+                  menuMBGPage = 1;
+                  renderMenuMBGTable();
+                }
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getMenuHarian({ role: currentUser.role, user: currentUser.email }, {});
+      }
+    );
 
   } else if (currentPage === 'pending-payment') {
-    google.script.run
-      .withSuccessHandler(function(data) {
+    callApi('getPendingPayments', [], function(data) {
         allPending = data || [];
-        pendingPage = 1;
-        renderPendingTable();
+                pendingPage = 1;
+                renderPendingTable();
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getPendingPayments({ role: currentUser.role, user: currentUser.email });
+      }
+    );
 
   } else if (currentPage === 'users') {
-    google.script.run
-      .withSuccessHandler(function(result) {
+    callApi('getAllUsers', [currentUser.role], function(result) {
         if (result.success) {
-          allUsers = result.data || [];
-          usersPage = 1;
-          renderUsersTable();
-        }
+                  allUsers = result.data || [];
+                  usersPage = 1;
+                  renderUsersTable();
+                }
+                checkDone();
+      },
+      function(err) {
         checkDone();
-      })
-      .withFailureHandler(function() { checkDone(); })
-      .getAllUsers(currentUser.role);
+      }
+    );
 
   } else {
     checkDone();
@@ -11516,25 +11576,24 @@ function submitRecovery() {
 
   var backendFn = currentRecoveryType === 'password' ? 'recoverPassword' : 'recoverUsername';
 
-  google.script.run
-    .withSuccessHandler(function(result) {
-      btn.disabled = false;
-      btn.innerHTML = 'Verifikasi';
-      if (result.success) {
-        closeModal('modalRecovery');
-        showToast('success', 'Berhasil', result.message || 'Silakan cek email Anda.');
-      } else {
-        errorEl.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
-        errorEl.classList.add('show');
+    callApi(backendFn, [data], function(result) {
+        btn.disabled = false;
+              btn.innerHTML = 'Verifikasi';
+              if (result.success) {
+                closeModal('modalRecovery');
+                showToast('success', 'Berhasil', result.message || 'Silakan cek email Anda.');
+              } else {
+                errorEl.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
+                errorEl.classList.add('show');
+              }
+      },
+      function(err) {
+        btn.disabled = false;
+              btn.innerHTML = 'Verifikasi';
+              errorEl.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
+              errorEl.classList.add('show');
       }
-    })
-    .withFailureHandler(function(err) {
-      btn.disabled = false;
-      btn.innerHTML = 'Verifikasi';
-      errorEl.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
-      errorEl.classList.add('show');
-    })
-    [backendFn](data);
+    );
 }
 
 // ============================================================
