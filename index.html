@@ -4303,6 +4303,8 @@
               <div class="info-row"><span class="info-label">SPPG</span><span class="info-value" id="profilSPPG">-</span></div>
               <div class="info-row"><span class="info-label">Role</span><span class="info-value" id="profilRole">-</span></div>
               <div class="info-row"><span class="info-label">Username</span><span class="info-value font-mono" id="profilUsername">-</span></div>
+              <div class="info-row"><span class="info-label">Nama Yayasan</span><span class="info-value" id="profilYayasan">-</span></div>
+              <div class="info-row"><span class="info-label">Terdaftar Sejak</span><span class="info-value" id="profilTimestamp">-</span></div>
             </div>
             <div class="profile-actions">
               <button class="btn btn-primary" onclick="openEditProfilModal()">
@@ -8072,6 +8074,10 @@ function renderProfil() {
   $('profilSPPG').textContent = currentUser.sppg || '-';
   $('profilRole').textContent = currentUser.role || '-';
   $('profilUsername').textContent = currentUser.username || '-';
+  $('profilYayasan').textContent = currentUser.namaYayasan || '-';
+  $('profilTimestamp').textContent = currentUser.timestamp ? formatDate(currentUser.timestamp) : '-';
+  $('profilYayasan').textContent = currentUser.namaYayasan || '-';
+  $('profilTimestamp').textContent = currentUser.timestamp ? fmtDateID(currentUser.timestamp) : '-';
 
   var fotoPath = currentUser.fotoProfil;
   var fallbackAvatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.namaLengkap || currentUser.username) + '&background=1e6f9c&color=fff&size=200&rounded=true';
