@@ -1,7 +1,7 @@
-const CACHE = 'simsppg-v7';
+const CACHE = 'simsppg-v8';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
-const APP_SCRIPT = new URL('app.js?v=7', SCOPE).href;
+const APP_SCRIPT = new URL('app.js?v=8', SCOPE).href;
 const ASSETS = [
   HOME,
   new URL('manifest.json', SCOPE).href,
@@ -16,11 +16,23 @@ self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));
 });
 
-async function injectAppScript(response) {
+function normalizeIndexHtml(html) {
+  return html
+    .replace('<base target="_top">', '<base href="./" target="_top">')
+    .replace(/<base\s+target=["']_blank["']\s*\/?>/i, '')
+    .replace('href="/manifest.json"', 'href="manifest.json"')
+    .replace("navigator.serviceWorker.register('/sw.js')", "navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href, { scope: './' })")
+    .replace(
+      '.auth-container .auth-sub { color: var(--slate-400); font-size: 13px; margin-bottom: 24px; text-align: center; line-height: 1.5; } 28px; text-align: center; }',
+      '.auth-container .auth-sub { color: var(--slate-400); font-size: 13px; margin-bottom: 24px; text-align: center; line-height: 1.5; }'
+    );
+}
+
+async function prepareHtml(response) {
   if (!response) return response;
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('text/html')) return response;
-  let html = await response.text();
+  let html = normalizeIndexHtml(await response.text());
   if (!html.includes('app.js')) {
     html = html.replace(/<\/body>/i, `<script src="${APP_SCRIPT}" defer></script></body>`);
   }
@@ -34,8 +46,8 @@ self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .then(injectAppScript)
-        .catch(async () => injectAppScript(await caches.match(HOME)))
+        .then(prepareHtml)
+        .catch(async () => prepareHtml(await caches.match(HOME)))
     );
     return;
   }
