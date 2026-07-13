@@ -12511,7 +12511,22 @@ function submitRecovery() {
     });
   }
 
+  function updatePushButtonUI() {
+    var btn = document.getElementById('btnEnablePush');
+    if (!btn) return;
+    if (!('Notification' in window) || !('PushManager' in window)) {
+      btn.classList.add('hidden');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      btn.classList.add('hidden'); // sudah aktif, sembunyikan tombol
+    } else {
+      btn.classList.remove('hidden'); // 'default' atau 'denied' — tampilkan supaya user bisa aksi
+    }
+  }
+
   function initPushNotification() {
+    updatePushButtonUI();
     if (!_swRegistration || !('PushManager' in window)) return;
     if (!currentUser) return;
 
@@ -12544,9 +12559,11 @@ function submitRecovery() {
       applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
     }).then(function(sub) {
       sendSubscriptionToServer(sub.toJSON());
+      updatePushButtonUI();
       showToast('success', 'Notifikasi Aktif', 'Anda akan menerima notifikasi push di perangkat ini.');
     }).catch(function(err) {
       console.error('Gagal subscribe push:', err);
+      updatePushButtonUI();
     });
   }
 
@@ -12570,9 +12587,10 @@ function submitRecovery() {
       } else {
         showToast('warning', 'Izin Ditolak', 'Anda tidak akan menerima notifikasi push.');
       }
+      updatePushButtonUI();
     });
   }
-
+ 
   // ============================================================
   // SUARA NOTIFIKASI (untuk saat app sedang dibuka — lonceng in-app)
   // ============================================================
