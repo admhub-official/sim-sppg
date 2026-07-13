@@ -2,7 +2,12 @@
   'use strict';
 
   var style = document.createElement('style');
+  style.id = 'sim-sppg-runtime-fixes';
   style.textContent = [
+    '.auth-container .auth-sub{color:var(--slate-400);font-size:13px;margin-bottom:24px;text-align:center;line-height:1.5}',
+    '.quick-access-section{margin-bottom:24px}',
+    '.stat-card{background:#fff;border-radius:20px;padding:18px 16px;display:flex;flex-direction:column;align-items:center;text-align:center}',
+    '.stat-icon{width:56px;height:56px;min-width:56px;display:flex;align-items:center;justify-content:center}',
     '.notif-item{position:relative;display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--slate-100);background:var(--white);transition:.2s ease;cursor:pointer}',
     '.notif-item:hover,.notif-item:focus-visible{background:var(--slate-50);outline:none}',
     '.notif-item.unread{background:linear-gradient(90deg,#eff8ff 0%,#fff 70%);box-shadow:inset 3px 0 0 var(--primary)}',
@@ -52,21 +57,139 @@
     return (item.label || 'Aktivitas aplikasi') + ' oleh ' + actorLabel(item.pelaku) + '.';
   }
 
-  var attempts = 0;
-  var maxAttempts = 40;
+  function setExternalLinkTargets() {
+    var currentOrigin = location.origin;
+    document.querySelectorAll('a[href]').forEach(function (link) {
+      try {
+        var url = new URL(link.getAttribute('href'), location.href);
+        if (/^(https?:)$/.test(url.protocol) && url.origin !== currentOrigin) {
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+        }
+      } catch (_) {}
+    });
+  }
 
-  function installOverride() {
-    attempts += 1;
+  function normalizeAllUsersCall() {
+    if (typeof window.callApi !== 'function' || window.callApi.__allUsersFixed) return;
+    var original = window.callApi;
+    function wrapped(action, args) {
+      var forwarded = Array.prototype.slice.call(arguments);
+      if (action === 'getAllUsers' && (!Array.isArray(args) || args.length === 0)) {
+        var role = window.currentUser && window.currentUser.role ? window.currentUser.role : '';
+        forwarded[1] = role ? [role] : [];
+      }
+      return original.apply(this, forwarded);
+    }
+    wrapped.__allUsersFixed = true;
+    window.callApi = wrapped;
+  }
+
+  function populateSppgDatalist() {
+    var datalist = document.getElementById('sppgDatalist');
+    if (!datalist || !Array.isArray(window.sppgList)) return;
+    datalist.innerHTML = '';
+    window.sppgList.forEach(function (item) {
+      var value = typeof item === 'string' ? item : (item && (item.SPPG || item.nama || item.name));
+      if (!value) return;
+      var option = document.createElement('option');
+      option.value = String(value).trim();
+      datalist.appendChild(option);
+    });
+  }
+
+  function validateEditUserSppg() {
+    if (typeof window.saveEditUser !== 'function' || window.saveEditUser.__sppgValidated) return;
+    var original = window.saveEditUser;
+    function wrapped() {
+      var input = document.getElementById('editUserSPPG');
+      var value = input ? input.value.trim().toUpperCase() : '';
+      var master = Array.isArray(window.SPPG_MASTER) ? window.SPPG_MASTER.map(function (item) { return String(item).trim().toUpperCase(); }) : [];
+      if (value && master.length && master.indexOf(value) === -1) {
+        if (typeof window.showToast === 'function') window.showToast('SPPG tidak terdaftar. Pilih dari daftar yang tersedia.', 'warning');
+        if (input) input.focus();
+        return;
+      }
+      return original.apply(this, arguments);
+    }
+    wrapped.__sppgValidated = true;
+    window.saveEditUser = wrapped;
+  }
+
+  function fixNominalRaw() {
+    if (typeof window.getNominalRaw !== 'function' || window.getNominalRaw.__mobileFixed) return;
+    var original = window.getNominalRaw;
+    function wrapped(inputOrId) {
+      var result = Number(original.apply(this, arguments)) || 0;
+      var input = typeof inputOrId === 'string' ? document.getElementById(inputOrId) : inputOrId;
+      if (!input && arguments.length === 0) input = document.getElementById('addTxNominal');
+      if (input) {
+        var parsed = Number(String(input.value || '').replace(/[^0-9]/g, '')) || 0;
+        if (parsed > 0 && result !== parsed) {
+          input.dataset.raw = String(parsed);
+          result = parsed;
+        }
+      }
+      return result;
+    }
+    wrapped.__mobileFixed = true;
+    window.getNominalRaw = wrapped;
+  }
+
+  function resetVerificationMode() {
+    try { verifikasiPembayaranMode = false; } catch (_) {}
+  }
+
+  function fixModalLifecycle() {
+    if (typeof window.closeModal === 'function' && !window.closeModal.__verificationFixed) {
+      var originalClose = window.closeModal;
+      function closeWrapped(id) {
+        var modalId = typeof id === 'string' ? id : (id && id.id);
+        if (modalId === 'modalPin') resetVerificationMode();
+        var result = originalClose.apply(this, arguments);
+        requestAnimationFrame(syncBodyOverflow);
+        return result;
+      }
+      closeWrapped.__verificationFixed = true;
+      window.closeModal = closeWrapped;
+    }
+
+    if (typeof window.switchPage === 'function' && !window.switchPage.__modalFixed) {
+      var originalSwitch = window.switchPage;
+      function switchWrapped() {
+        document.querySelectorAll('.modal').forEach(function (modal) {
+          if (getComputedStyle(modal).display !== 'none' && typeof window.closeModal === 'function' && modal.id) {
+            window.closeModal(modal.id);
+          }
+        });
+        var result = originalSwitch.apply(this, arguments);
+        requestAnimationFrame(syncBodyOverflow);
+        return result;
+      }
+      switchWrapped.__modalFixed = true;
+      window.switchPage = switchWrapped;
+    }
+
+    var modalPin = document.getElementById('modalPin');
+    if (modalPin && !modalPin.dataset.resetBound) {
+      modalPin.dataset.resetBound = '1';
+      modalPin.addEventListener('click', function (event) {
+        if (event.target === modalPin || event.target.closest('[data-close-modal],.modal-close,.close-modal')) resetVerificationMode();
+      });
+    }
+  }
+
+  function syncBodyOverflow() {
+    var visibleModal = Array.prototype.some.call(document.querySelectorAll('.modal'), function (modal) {
+      return getComputedStyle(modal).display !== 'none' && !modal.classList.contains('hidden');
+    });
+    document.body.style.overflow = visibleModal ? 'hidden' : '';
+    try { _openModalCount = visibleModal ? Math.max(1, Number(_openModalCount) || 0) : 0; } catch (_) {}
+  }
+
+  function installNotificationOverride() {
     var panel = document.getElementById('notifPanelList');
-    if (!panel) {
-      if (attempts < maxAttempts) setTimeout(installOverride, 250);
-      return;
-    }
-    if (typeof window.$ !== 'function' || !Array.isArray(window.notifList) || typeof window.esc !== 'function') {
-      if (attempts < maxAttempts) setTimeout(installOverride, 250);
-      return;
-    }
-
+    if (!panel || typeof window.$ !== 'function' || !Array.isArray(window.notifList) || typeof window.esc !== 'function') return false;
     window.renderNotifPanel = function () {
       var listEl = window.$('notifPanelList');
       if (!listEl) return;
@@ -74,28 +197,41 @@
         listEl.innerHTML = '<div class="notif-empty"><i class="fas fa-bell-slash"></i><strong>Belum ada notifikasi</strong><p>Aktivitas penting aplikasi akan muncul di sini.</p></div>';
         return;
       }
-
       var html = '';
       window.notifList.forEach(function (item, index) {
         var meta = actionMeta(item.actionType);
         html += '<div class="notif-item ' + (item.isRead ? '' : 'unread') + '" onclick="handleNotifClick(' + index + ')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();handleNotifClick(' + index + ')}" role="button" tabindex="0" aria-label="' + window.esc(item.label || 'Notifikasi') + '">' +
           '<div class="notif-item-icon ' + meta.iconClass + '"><i class="fas ' + window.esc(item.icon || 'fa-bell') + '"></i></div>' +
-          '<div class="notif-item-content">' +
-            '<div class="notif-item-head"><div class="notif-item-title">' + window.esc(item.label || 'Aktivitas Baru') + '</div><span class="notif-action-chip ' + meta.cls + '">' + meta.label + '</span></div>' +
-            '<div class="notif-item-desc">' + window.esc(description(item)) + '</div>' +
-            '<div class="notif-item-meta"><span><i class="fas fa-user-circle"></i>' + window.esc(actorLabel(item.pelaku)) + '</span><span title="' + window.esc(item.waktu || '') + '"><i class="fas fa-clock"></i>' + window.esc(relativeTime(item.waktuRaw, item.waktu)) + '</span><i class="fas fa-chevron-right notif-item-arrow"></i></div>' +
-          '</div>' +
-        '</div>';
+          '<div class="notif-item-content"><div class="notif-item-head"><div class="notif-item-title">' + window.esc(item.label || 'Aktivitas Baru') + '</div><span class="notif-action-chip ' + meta.cls + '">' + meta.label + '</span></div>' +
+          '<div class="notif-item-desc">' + window.esc(description(item)) + '</div><div class="notif-item-meta"><span><i class="fas fa-user-circle"></i>' + window.esc(actorLabel(item.pelaku)) + '</span><span title="' + window.esc(item.waktu || '') + '"><i class="fas fa-clock"></i>' + window.esc(relativeTime(item.waktuRaw, item.waktu)) + '</span><i class="fas fa-chevron-right notif-item-arrow"></i></div></div></div>';
       });
       listEl.innerHTML = html;
     };
-
     window.renderNotifPanel();
+    return true;
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', installOverride, { once: true });
-  } else {
-    installOverride();
+  var attempts = 0;
+  function installFixes() {
+    attempts += 1;
+    setExternalLinkTargets();
+    normalizeAllUsersCall();
+    populateSppgDatalist();
+    validateEditUserSppg();
+    fixNominalRaw();
+    fixModalLifecycle();
+    installNotificationOverride();
+    if (attempts < 40 && (typeof window.callApi !== 'function' || typeof window.switchPage !== 'function')) {
+      setTimeout(installFixes, 250);
+    }
   }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installFixes, { once: true });
+  else installFixes();
+
+  new MutationObserver(function () {
+    setExternalLinkTargets();
+    populateSppgDatalist();
+    fixModalLifecycle();
+  }).observe(document.documentElement, { childList: true, subtree: true });
 })();
