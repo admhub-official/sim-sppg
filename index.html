@@ -5263,6 +5263,23 @@
             </select>
           </div>
         </div>
+        <div class="form-group">
+          <label class="form-label">Nama Yayasan</label>
+          <input type="text" id="editUserYayasan" class="form-input" placeholder="Nama yayasan">
+        </div>
+        <div class="form-group" id="editUserRoleWrap">
+          <label class="form-label">Role</label>
+          <select id="editUserRole" class="form-input">
+            <option value="LAPANGAN">LAPANGAN</option>
+            <option value="PIC">PIC</option>
+            <option value="WAKIL_LAPANGAN">WAKIL_LAPANGAN</option>
+            <option value="AKUNTAN">AKUNTAN</option>
+            <option value="AHLI_GIZI">AHLI_GIZI</option>
+            <option value="ADMIN">ADMIN</option>
+            <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+          </select>
+          <p class="form-hint"><i class="fas fa-info-circle"></i> Berhati-hatilah saat mengubah Role, ini menentukan hak akses user.</p>
+        </div>
       </div>
       <div class="modal-footer">
         <button onclick="closeModal('modalEditUser')" class="btn btn-outline">Batal</button>
@@ -8284,6 +8301,14 @@ function openEditUserModal(rowNum) {
   $('editUserEmail').value = user.email || '';
   $('editUserJabatan').value = user.jabatan || '';
   $('editUserSPPG').value = user.sppg || '';
+  $('editUserYayasan').value = user.namaYayasan || '';
+  var roleWrap = $('editUserRoleWrap');
+  if (currentUser && currentUser.role === 'SUPER_ADMIN') {
+    if (roleWrap) roleWrap.classList.remove('hidden');
+    $('editUserRole').value = user.role || 'LAPANGAN';
+  } else {
+    if (roleWrap) roleWrap.classList.add('hidden');
+  }
   openModal('modalEditUser');
 }
 function saveEditUser() {
@@ -8292,8 +8317,12 @@ function saveEditUser() {
     'EMAIL': $('editUserEmail').value.trim(),
     'JABATAN': $('editUserJabatan').value,
     'SPPG': $('editUserSPPG').value,
+    'NAMA YAYASAN': $('editUserYayasan').value.trim(),
     _isAdmin: true
   };
+  if (currentUser && currentUser.role === 'SUPER_ADMIN') {
+    fields['ROLE'] = $('editUserRole').value;
+  }
     callApi('updateUserProfile', [
       allUsers.find(function(u) { return u._row == currentEditRow; }).username,
       fields
