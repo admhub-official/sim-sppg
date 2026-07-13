@@ -1220,6 +1220,9 @@
       box-shadow: var(--shadow-sm);
       flex-shrink: 0;
     }
+    .notif-item-icon.action-add { color: var(--emerald); background: var(--emerald-light); }
+    .notif-item-icon.action-edit { color: var(--amber); background: var(--amber-light); }
+    .notif-item-icon.action-delete { color: var(--rose); background: var(--rose-light); }
     .notif-item-content { flex: 1; min-width: 0; }
     .notif-item-title { font-size: 12px; font-weight: 700; color: var(--slate-800); margin-bottom: 2px; }
     .notif-item-desc { font-size: 11px; color: var(--slate-500); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -8197,8 +8200,9 @@ function renderNotifPanel() {
   }
   var html = '';
   notifList.forEach(function(n, idx) {
+    var actionClass = n.actionType === 'DELETE' ? 'action-delete' : (n.actionType === 'EDIT' ? 'action-edit' : 'action-add');
     html += '<div class="notif-item ' + (n.isRead ? '' : 'unread') + '" onclick="handleNotifClick(' + idx + ')">' +
-      '<div class="notif-item-icon"><i class="fas ' + esc(n.icon || 'fa-bell') + '"></i></div>' +
+      '<div class="notif-item-icon ' + actionClass + '"><i class="fas ' + esc(n.icon || 'fa-bell') + '"></i></div>' +
       '<div class="notif-item-content">' +
         '<div class="notif-item-title">' + esc(n.label || 'Aktivitas Baru') + '</div>' +
         '<div class="notif-item-desc">' + esc(n.deskripsi || '-') + '</div>' +
