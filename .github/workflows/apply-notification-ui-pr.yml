@@ -1,0 +1,135 @@
+name: Apply notification UI patch to PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'agent/improve-notifications-ui'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Patch notification UI
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          css = r'''
+
+    /* ============================================================
+       NOTIFICATION CENTER — INFORMATIVE & CLEAN
+       ============================================================ */
+    #notifPanel { width:min(420px,calc(100vw - 24px)); max-height:min(72vh,620px); border:1px solid var(--slate-200); border-radius:16px; box-shadow:0 22px 55px rgba(15,23,42,.22); overflow:hidden; background:var(--white); }
+    #notifPanelList { max-height:min(58vh,500px); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+    .notif-item { position:relative; display:grid; grid-template-columns:44px minmax(0,1fr) 10px; gap:12px; align-items:start; padding:14px 16px; border-bottom:1px solid var(--slate-100); background:var(--white); cursor:pointer; transition:background .18s ease,transform .18s ease; }
+    .notif-item:hover { background:var(--slate-50); }
+    .notif-item:active { transform:scale(.992); }
+    .notif-item.unread { background:linear-gradient(90deg,rgba(30,111,156,.09),rgba(255,255,255,.96) 42%); }
+    .notif-item.unread::before { content:''; position:absolute; inset:0 auto 0 0; width:3px; background:var(--primary); }
+    .notif-item-icon { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:16px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.55); }
+    .notif-item-icon.action-add { background:var(--emerald-light); color:#047857; }
+    .notif-item-icon.action-edit { background:var(--amber-light); color:#b45309; }
+    .notif-item-icon.action-delete { background:var(--rose-light); color:#be123c; }
+    .notif-item-content { min-width:0; }
+    .notif-item-topline { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:5px; }
+    .notif-item-title { color:var(--slate-900); font-size:13px; font-weight:700; line-height:1.35; }
+    .notif-action-chip { flex:0 0 auto; padding:2px 7px; border-radius:999px; font-size:9px; line-height:1.5; font-weight:800; letter-spacing:.04em; text-transform:uppercase; background:var(--slate-100); color:var(--slate-600); }
+    .notif-item-desc { color:var(--slate-600); font-size:11.5px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
+    .notif-item-meta { display:flex; align-items:center; flex-wrap:wrap; gap:5px 10px; margin-top:8px; color:var(--slate-400); font-size:10px; }
+    .notif-item-meta span { display:inline-flex; align-items:center; gap:4px; }
+    .notif-unread-dot { width:8px; height:8px; margin-top:7px; border-radius:50%; background:transparent; }
+    .notif-item.unread .notif-unread-dot { background:var(--primary); box-shadow:0 0 0 3px rgba(30,111,156,.12); }
+    .notif-empty { min-height:220px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px; text-align:center; color:var(--slate-400); }
+    .notif-empty i { font-size:34px; margin-bottom:12px; color:var(--slate-300); }
+    .notif-empty strong { color:var(--slate-700); font-size:13px; }
+    .notif-empty p { margin-top:4px; font-size:11px; }
+    @media (max-width:600px) {
+      #notifPanel { position:fixed!important; top:calc(var(--header-height) + 6px)!important; left:10px!important; right:10px!important; width:auto!important; max-height:calc(100dvh - var(--header-height) - 20px); border-radius:15px; }
+      #notifPanelList { max-height:calc(100dvh - var(--header-height) - 126px); }
+      .notif-item { padding:13px 14px; grid-template-columns:40px minmax(0,1fr) 8px; }
+      .notif-item-icon { width:38px; height:38px; border-radius:11px; }
+    }
+'''
+          if 'NOTIFICATION CENTER — INFORMATIVE & CLEAN' not in text:
+              text = text.replace('</style>', css + '\n  </style>', 1)
+
+          new_js = r'''function getNotifActionLabel(actionType) {
+  var map = { ADD: 'Baru', EDIT: 'Diperbarui', DELETE: 'Dihapus' };
+  return map[actionType] || 'Aktivitas';
+}
+function getNotifRelativeTime(raw, fallback) {
+  if (!raw) return fallback || '-';
+  var d = new Date(raw);
+  if (isNaN(d.getTime())) return fallback || raw;
+  var diff = Date.now() - d.getTime();
+  if (diff < 0) return fallback || d.toLocaleString('id-ID');
+  var minute=60000,hour=3600000,day=86400000;
+  if (diff < minute) return 'Baru saja';
+  if (diff < hour) return Math.floor(diff/minute)+' menit lalu';
+  if (diff < day) return Math.floor(diff/hour)+' jam lalu';
+  if (diff < day*7) return Math.floor(diff/day)+' hari lalu';
+  return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+}
+function getNotifActorLabel(actor) {
+  if (!actor || actor === '-') return 'Sistem';
+  var clean=String(actor).trim();
+  return clean.indexOf('@')>-1 ? clean.split('@')[0] : clean;
+}
+function getNotifDescription(n) {
+  var desc=String(n.deskripsi||'').trim();
+  if (!desc || desc==='-') {
+    var subject=String(n.label||'data aplikasi').replace(/ baru| diedit| dihapus/ig,'').trim();
+    return getNotifActionLabel(n.actionType)+' pada '+subject.toLowerCase()+'.';
+  }
+  return desc;
+}
+function renderNotifPanel() {
+  var listEl=$('notifPanelList');
+  if (!listEl) return;
+  if (!notifList.length) {
+    listEl.innerHTML='<div class="notif-empty"><i class="far fa-bell"></i><strong>Belum ada notifikasi</strong><p>Aktivitas penting aplikasi akan muncul di sini.</p></div>';
+    return;
+  }
+  var html='';
+  notifList.forEach(function(n,idx){
+    var actionClass=n.actionType==='DELETE'?'action-delete':(n.actionType==='EDIT'?'action-edit':'action-add');
+    var actionLabel=getNotifActionLabel(n.actionType);
+    var relativeTime=getNotifRelativeTime(n.waktuRaw,n.waktu);
+    var actor=getNotifActorLabel(n.pelaku);
+    var description=getNotifDescription(n);
+    html+='<div class="notif-item '+(n.isRead?'':'unread')+'" onclick="handleNotifClick('+idx+')" role="button" tabindex="0" aria-label="'+esc(n.label||'Notifikasi')+'">'+
+      '<div class="notif-item-icon '+actionClass+'"><i class="fas '+esc(n.icon||'fa-bell')+'"></i></div>'+
+      '<div class="notif-item-content"><div class="notif-item-topline"><div class="notif-item-title">'+esc(n.label||'Aktivitas Baru')+'</div><span class="notif-action-chip">'+esc(actionLabel)+'</span></div>'+
+      '<div class="notif-item-desc">'+esc(description)+'</div><div class="notif-item-meta"><span title="Waktu aktivitas"><i class="far fa-clock"></i>'+esc(relativeTime)+'</span><span title="Pelaku aktivitas"><i class="far fa-user"></i>'+esc(actor)+'</span></div></div>'+
+      '<span class="notif-unread-dot" aria-hidden="true"></span></div>';
+  });
+  listEl.innerHTML=html;
+}
+'''
+          pattern=re.compile(r'function renderNotifPanel\(\) \{.*?\n\}\n\nfunction toggleNotifPanel\(\)',re.S)
+          text,count=pattern.subn(new_js+'\nfunction toggleNotifPanel()',text,count=1)
+          if count!=1: raise SystemExit('renderNotifPanel block not found')
+          path.write_text(text,encoding='utf-8')
+          for wf in ['.github/workflows/apply-notification-ui-update.yml','.github/workflows/apply-notification-ui-pr.yml']:
+              p=Path(wf)
+              if p.exists(): p.unlink()
+      - name: Commit update to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Improve notification center UI and messaging"
+          git push origin HEAD:${{ github.head_ref }}
