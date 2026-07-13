@@ -44,7 +44,7 @@
 
   <link rel="icon" type="image/png" href="https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png">
 <link rel="apple-touch-icon" href="https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png">
-<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22SIM-SPPG%22%2C%22short_name%22%3A%22SIM-SPPG%22%2C%22description%22%3A%22Sistem%20Informasi%20Manajemen%20SPPG%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231e6f9c%22%2C%22theme_color%22%3A%22%231e6f9c%22%2C%22orientation%22%3A%22portrait-primary%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fdmjsgtichrfxhyywstrt.supabase.co%2Fstorage%2Fv1%2Fobject%2Fpublic%2Fapp-assets%2Flogo.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fdmjsgtichrfxhyywstrt.supabase.co%2Fstorage%2Fv1%2Fobject%2Fpublic%2Fapp-assets%2Flogo.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+<link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1e6f9c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -4296,6 +4296,9 @@
             </div>
           </div>
         </div>
+        <button id="btnEnablePush" class="icon-btn hidden" onclick="promptEnablePushNotification()" title="Aktifkan Notifikasi Push">
+          <i class="fas fa-bell-slash"></i>
+        </button>
         <button id="btnInstallPWA" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install sebagai Aplikasi">
           <i class="fas fa-download"></i>
           <span>Install App</span>
@@ -7913,6 +7916,7 @@ function initApp() {
   buildBottomNav();
   updateFabVisibility();
   initNotifBell();
+  if (_swRegistration) initPushNotification();
 
 // Load foto profil ke icon menu (sidebar & bottom-nav) sejak awal, bukan hanya saat buka halaman Profil
   if (currentUser.fotoProfil && String(currentUser.fotoProfil).trim() !== '' && currentUser.fotoProfil !== '-') {
@@ -8169,13 +8173,22 @@ function initNotifBell() {
   notifPollTimer = setInterval(loadNotifications, 60000); // refresh tiap 60 detik
 }
 
+var _lastUnreadCount = null; // null = belum pernah load (hindari bunyi saat pertama buka app)
+
 function loadNotifications() {
   if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) return;
   callApi('getNotifications', [], function(result) {
       if (result && result.success) {
         notifList = result.data || [];
-        renderNotifBadge(result.unreadCount || 0);
+        var unreadCount = result.unreadCount || 0;
+        renderNotifBadge(unreadCount);
         renderNotifPanel();
+        // Bunyikan suara jika unread bertambah dibanding polling sebelumnya
+        // (mis. ada aksi ADD/EDIT/DELETE baru masuk saat app sedang dibuka)
+        if (_lastUnreadCount !== null && unreadCount > _lastUnreadCount) {
+          playNotifSound();
+        }
+        _lastUnreadCount = unreadCount;
       }
     }, null);
 }
@@ -12444,34 +12457,148 @@ function submitRecovery() {
     }, 8000); // tampilkan lebih lama karena instruksi panjang
   }
 
-  // Register Service Worker (hanya jika berjalan di https / GitHub Pages)
+  // Register Service Worker (file statis /sw.js — WAJIB file nyata, bukan
+  // Blob URL, supaya push notification bisa diterima walau app tertutup)
+  var _swRegistration = null;
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    // SW inline — tidak perlu file terpisah, digenerate dari JS
-    var swContent = [
-      'const CACHE = "simsppg-v1";',
-      'const ASSETS = ["/"];',
-      'self.addEventListener("install", e => {',
-      '  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));',
-      '});',
-      'self.addEventListener("activate", e => {',
-      '  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));',
-      '});',
-      'self.addEventListener("fetch", e => {',
-      '  if (e.request.method !== "GET") return;',
-      '  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));',
-      '});'
-    ].join('\n');
-
-    var swBlob = new Blob([swContent], { type: 'application/javascript' });
-    var swUrl  = URL.createObjectURL(swBlob);
-
-    navigator.serviceWorker.register(swUrl)
+    navigator.serviceWorker.register('/sw.js')
       .then(function(reg) {
-        // SW terdaftar — tidak perlu log ke console produksi
+        _swRegistration = reg;
+        // Setelah SW siap & user sudah login, coba aktifkan push notification
+        if (currentUser) initPushNotification();
       })
       .catch(function(err) {
-        // SW gagal daftar — fitur PWA tidak tersedia, app tetap berjalan normal
+        // SW gagal daftar — fitur PWA/push tidak tersedia, app tetap berjalan normal
       });
+
+    // Terima pesan dari SW (mis. subscription diperbarui otomatis oleh browser)
+    navigator.serviceWorker.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'PUSH_SUBSCRIPTION_RENEWED' && currentUser) {
+        sendSubscriptionToServer(event.data.subscription);
+      }
+    });
+  }
+
+  // ============================================================
+  // PUSH NOTIFICATION — aktivasi izin, subscribe, kirim ke backend
+  // ============================================================
+  var PUBLIC_VAPID_KEY = null; // diisi dari backend saat initPushNotification()
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = window.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  function deviceLabel() {
+    var ua = navigator.userAgent;
+    if (/iPhone|iPad|iPod/.test(ua)) return 'iPhone/iPad';
+    if (/Android/.test(ua)) return 'Android';
+    if (/Windows/.test(ua)) return 'Windows';
+    if (/Macintosh/.test(ua)) return 'Mac';
+    return 'Browser';
+  }
+
+  function sendSubscriptionToServer(subscriptionJson) {
+    if (!currentUser) return;
+    callApi('savePushSubscription', [subscriptionJson, deviceLabel()], function(result) {
+      // Berhasil disimpan — tidak perlu toast tiap kali agar tidak mengganggu
+    }, function(err) {
+      console.error('Gagal simpan push subscription:', err);
+    });
+  }
+
+  function initPushNotification() {
+    if (!_swRegistration || !('PushManager' in window)) return;
+    if (!currentUser) return;
+
+    // Ambil VAPID public key dari backend (sekali per sesi)
+    callApi('getPushPublicKey', [], function(result) {
+      if (!result || !result.success || !result.data || !result.data.publicKey) return;
+      PUBLIC_VAPID_KEY = result.data.publicKey;
+
+      // Cek subscription yang sudah ada
+      _swRegistration.pushManager.getSubscription().then(function(existingSub) {
+        if (existingSub) {
+          sendSubscriptionToServer(existingSub.toJSON());
+          return;
+        }
+        // Belum ada subscription — minta izin & subscribe
+        if (Notification.permission === 'granted') {
+          subscribeUserToPush();
+        }
+        // Jika permission masih 'default', tunggu user klik tombol aktifkan
+        // notifikasi (lihat promptEnablePushNotification()) agar tidak
+        // langsung memunculkan dialog izin tanpa konteks.
+      });
+    }, null);
+  }
+
+  function subscribeUserToPush() {
+    if (!_swRegistration || !PUBLIC_VAPID_KEY) return;
+    _swRegistration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
+    }).then(function(sub) {
+      sendSubscriptionToServer(sub.toJSON());
+      showToast('success', 'Notifikasi Aktif', 'Anda akan menerima notifikasi push di perangkat ini.');
+    }).catch(function(err) {
+      console.error('Gagal subscribe push:', err);
+    });
+  }
+
+  // Dipanggil dari tombol UI (lonceng / pengaturan) untuk meminta izin secara eksplisit
+  function promptEnablePushNotification() {
+    if (!('Notification' in window)) {
+      showToast('warning', 'Tidak Didukung', 'Browser ini tidak mendukung notifikasi push.');
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      showToast('warning', 'Izin Diblokir', 'Aktifkan izin notifikasi lewat pengaturan browser/aplikasi Anda.');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      subscribeUserToPush();
+      return;
+    }
+    Notification.requestPermission().then(function(permission) {
+      if (permission === 'granted') {
+        subscribeUserToPush();
+      } else {
+        showToast('warning', 'Izin Ditolak', 'Anda tidak akan menerima notifikasi push.');
+      }
+    });
+  }
+
+  // ============================================================
+  // SUARA NOTIFIKASI (untuk saat app sedang dibuka — lonceng in-app)
+  // ============================================================
+  var _notifAudioCtx = null;
+  function playNotifSound() {
+    try {
+      if (!_notifAudioCtx) {
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        _notifAudioCtx = new AudioCtx();
+      }
+      var ctx = _notifAudioCtx;
+      var now = ctx.currentTime;
+      [880, 1108].forEach(function(freq, i) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, now + i * 0.12);
+        gain.gain.linearRampToValueAtTime(0.2, now + i * 0.12 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.3);
+      });
+    } catch (e) { /* noop jika browser blokir autoplay audio */ }
   }
 
   document.addEventListener('DOMContentLoaded', function() {
