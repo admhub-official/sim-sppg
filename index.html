@@ -5091,6 +5091,39 @@
   </div>
 </div>
 
+<!-- ==================== MODAL EDIT ADMIN ASSIGNMENT ==================== -->
+<div id="modalEditAdminAssignment" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modalEditAdminAssignmentTitle">
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal('modalEditAdminAssignment')">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalEditAdminAssignmentTitle"><i class="fas fa-user-shield"></i> Edit Assignment Admin</h3>
+        <button class="modal-close" onclick="closeModal('modalEditAdminAssignment')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editAaId">
+        <div class="form-group">
+          <label class="form-label">Email Admin</label>
+          <input type="email" id="editAaEmailDisplay" class="form-input" readonly>
+        </div>
+        <div class="form-group">
+          <label class="form-label">SPPG</label>
+          <select id="editAaSppgInput" class="form-input"><option value="">-- Pilih SPPG --</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Yayasan</label>
+          <input type="text" id="editAaYayasanInput" class="form-input" placeholder="Nama Yayasan">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeModal('modalEditAdminAssignment')" class="btn btn-outline">Batal</button>
+        <button onclick="submitEditAdminAssignment()" class="btn btn-primary">
+          <i class="fas fa-save"></i> Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ==================== MODAL LOGOUT ==================== -->
 <div id="modalLogout" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modalLogoutTitle">
   <div class="modal-overlay" onclick="if(event.target===this)closeModal('modalLogout')">
@@ -11257,6 +11290,9 @@ function renderAdminAssignmentTable() {
       '<td>' + esc(a.yayasan) + '</td>' +
       '<td style="white-space:nowrap;font-size:11px;">' + esc(a.created_at ? String(a.created_at).substring(0, 10) : '-') + '</td>' +
       '<td style="text-align:center;">' +
+        '<button class="btn btn-icon" onclick="openEditAdminAssignmentModal(\'' + a.id + '\',\'' + esc(a.admin_email) + '\',\'' + esc(a.sppg) + '\',\'' + esc(a.yayasan) + '\')" title="Edit" style="margin-right:4px;">' +
+          '<i class="fas fa-edit"></i>' +
+        '</button>' +
         '<button class="btn btn-icon btn-danger-outline" onclick="deleteAdminAssignmentRow(\'' + a.id + '\')" title="Hapus">' +
           '<i class="fas fa-trash"></i>' +
         '</button>' +
@@ -11264,6 +11300,43 @@ function renderAdminAssignmentTable() {
       '</tr>';
   });
   tbody.innerHTML = html;
+}
+
+function openEditAdminAssignmentModal(id, adminEmail, sppg, yayasan) {
+  $('editAaId').value = id;
+  $('editAaEmailDisplay').value = adminEmail;
+  var sppgSel = $('editAaSppgInput');
+  var sppgList = (dropdownOptions.sppgList && dropdownOptions.sppgList.length) ? dropdownOptions.sppgList : [];
+  var opts = '<option value="">-- Pilih SPPG --</option>';
+  sppgList.forEach(function(s) { opts += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
+  sppgSel.innerHTML = opts;
+  sppgSel.value = sppg;
+  $('editAaYayasanInput').value = yayasan;
+  openModal('modalEditAdminAssignment');
+}
+
+function submitEditAdminAssignment() {
+  var id = $('editAaId').value;
+  var sppg = $('editAaSppgInput').value;
+  var yayasan = $('editAaYayasanInput').value.trim();
+  if (!sppg || !yayasan) {
+    showToast('error', 'Gagal', 'SPPG dan Yayasan wajib diisi.');
+    return;
+  }
+  showLoading(true);
+  callApi('updateAdminAssignment', [id, sppg, yayasan], function(result) {
+    showLoading(false);
+    if (result.success) {
+      showToast('success', 'Berhasil', result.message || 'Assignment berhasil diperbarui.');
+      closeModal('modalEditAdminAssignment');
+      loadAdminAssignments();
+    } else {
+      showToast('error', 'Gagal', result.message || 'Tidak dapat memperbarui assignment.');
+    }
+  }, function(err) {
+    showLoading(false);
+    showToast('error', 'Gagal', 'Tidak dapat memperbarui assignment: ' + (err.message || ''));
+  });
 }
 
 function openAddAdminAssignmentModal() {
