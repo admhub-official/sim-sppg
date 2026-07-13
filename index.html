@@ -11238,7 +11238,7 @@ function renderAdminAssignmentTable() {
       '<td>' + esc(a.admin_email) + '</td>' +
       '<td>' + esc(a.sppg) + '</td>' +
       '<td>' + esc(a.yayasan) + '</td>' +
-      '<td style="white-space:nowrap;font-size:11px;">' + esc(fmtDate ? fmtDate(a.created_at) : a.created_at) + '</td>' +
+      '<td style="white-space:nowrap;font-size:11px;">' + esc(a.created_at ? String(a.created_at).substring(0, 10) : '-') + '</td>' +
       '<td style="text-align:center;">' +
         '<button class="btn btn-icon btn-danger-outline" onclick="deleteAdminAssignmentRow(\'' + a.id + '\')" title="Hapus">' +
           '<i class="fas fa-trash"></i>' +
