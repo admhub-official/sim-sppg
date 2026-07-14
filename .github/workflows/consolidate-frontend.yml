@@ -1,0 +1,234 @@
+name: Consolidate frontend files
+
+on:
+  push:
+    branches:
+      - agent/satukan-file-frontend
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge JavaScript into index.html
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          index_path = root / 'index.html'
+          js_files = [
+              root / 'app.js',
+              root / 'dashboard-ui-v2.js',
+              root / 'dashboard-ui-fix.js',
+          ]
+
+          html = index_path.read_text(encoding='utf-8')
+
+          # Remove external references to files that will be inlined.
+          for name in [p.name for p in js_files]:
+              html = re.sub(
+                  r'<script\b[^>]*src=["\'][^"\']*' + re.escape(name) + r'[^"\']*["\'][^>]*>\s*</script>\s*',
+                  '',
+                  html,
+                  flags=re.I,
+              )
+
+          # Remove an earlier generated bundle if this job is re-run.
+          html = re.sub(
+              r'\n?<!-- SIM-SPPG INLINE FRONTEND BUNDLE START -->.*?<!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->\n?',
+              '\n',
+              html,
+              flags=re.S,
+          )
+
+          bundle_parts = []
+          for path in js_files:
+              if not path.exists():
+                  continue
+              code = path.read_text(encoding='utf-8')
+              # Prevent a literal closing script token from terminating HTML parsing.
+              code = re.sub(r'</script', r'<\\/script', code, flags=re.I)
+              bundle_parts.append(f'\n/* ===== INLINE: {path.name} ===== */\n{code.strip()}\n')
+
+          bundle = (
+              '\n<!-- SIM-SPPG INLINE FRONTEND BUNDLE START -->\n'
+              '<script id="sim-sppg-inline-frontend">\n'
+              + ''.join(bundle_parts)
+              + '</script>\n'
+              '<!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->\n'
+          )
+
+          if '</body>' not in html:
+              raise SystemExit('index.html tidak memiliki tag </body>')
+          html = html.replace('</body>', bundle + '</body>', 1)
+          index_path.write_text(html, encoding='utf-8')
+
+      - name: Simplify service worker
+        shell: python
+        run: |
+          from pathlib import Path
+
+          sw = r'''const CACHE = 'simsppg-v16';
+          const SCOPE = self.registration.scope;
+          const HOME = new URL('./', SCOPE).href;
+          const ASSETS = [
+            HOME,
+            new URL('manifest.json', SCOPE).href
+          ];
+
+          self.addEventListener('install', function(event) {
+            event.waitUntil(
+              caches.open(CACHE)
+                .then(function(cache) { return cache.addAll(ASSETS); })
+                .then(function() { return self.skipWaiting(); })
+            );
+          });
+
+          self.addEventListener('activate', function(event) {
+            event.waitUntil(
+              caches.keys()
+                .then(function(keys) {
+                  return Promise.all(keys.filter(function(key) { return key !== CACHE; }).map(function(key) { return caches.delete(key); }));
+                })
+                .then(function() { return self.clients.claim(); })
+            );
+          });
+
+          self.addEventListener('fetch', function(event) {
+            if (event.request.method !== 'GET') return;
+
+            if (event.request.mode === 'navigate') {
+              event.respondWith(
+                fetch(event.request, { cache: 'no-store' })
+                  .catch(function() { return caches.match(HOME); })
+              );
+              return;
+            }
+
+            event.respondWith(
+              fetch(event.request, { cache: 'no-store' })
+                .catch(function() { return caches.match(event.request, { ignoreSearch: true }); })
+            );
+          });
+
+          function targetUrl(value) {
+            try { return new URL(value || './', SCOPE).href; }
+            catch (_) { return HOME; }
+          }
+
+          self.addEventListener('push', function(event) {
+            var data = {};
+            try { data = event.data ? event.data.json() : {}; }
+            catch (_) { data = { body: event.data ? event.data.text() : 'Ada notifikasi baru.' }; }
+
+            event.waitUntil(self.registration.showNotification(data.title || 'SIM-SPPG', {
+              body: data.body || 'Ada aktivitas baru yang perlu diperiksa.',
+              icon: data.icon || 'https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png',
+              badge: data.badge || 'https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png',
+              tag: data.tag || 'sim-sppg-notif',
+              data: { url: targetUrl(data.url) }
+            }));
+          });
+
+          self.addEventListener('notificationclick', function(event) {
+            event.notification.close();
+            var url = targetUrl(event.notification.data && event.notification.data.url);
+            event.waitUntil(
+              clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
+                for (var i = 0; i < list.length; i += 1) {
+                  var client = list[i];
+                  if ('navigate' in client) client.navigate(url);
+                  if ('focus' in client) return client.focus();
+                }
+                return clients.openWindow ? clients.openWindow(url) : undefined;
+              })
+            );
+          });
+          '''
+
+          lines = [line[10:] if line.startswith('          ') else line for line in sw.splitlines()]
+          Path('sw.js').write_text('\n'.join(lines).strip() + '\n', encoding='utf-8')
+
+      - name: Remove obsolete files and update documentation
+        shell: bash
+        run: |
+          rm -f app.js dashboard-ui-v2.js dashboard-ui-fix.js
+          rm -f .github/workflows/consolidate-frontend.yml
+          cat > README.md <<'EOF'
+          # SIM-SPPG
+
+          Sistem Informasi Manajemen SPPG berbasis frontend statis, GitHub Pages, dan Supabase Edge Function.
+
+          ## Struktur inti
+
+          - `index.html` — seluruh HTML, CSS, dan JavaScript frontend aplikasi.
+          - `sw.js` — service worker untuk cache offline dan push notification.
+          - `manifest.json` — konfigurasi instalasi PWA.
+
+          ## Pengembangan
+
+          Untuk perubahan tampilan maupun fungsi frontend, edit `index.html`.
+
+          Untuk perubahan PWA, cache offline, atau push notification, edit `sw.js`.
+
+          Frontend mengakses backend melalui Supabase Edge Function `dynamic-action`.
+
+          Jangan menyimpan `service_role`, password database, JWT secret, SMTP password, atau VAPID private key di repository.
+          EOF
+
+      - name: Validate consolidated structure
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          html = Path('index.html').read_text(encoding='utf-8')
+          sw = Path('sw.js').read_text(encoding='utf-8')
+
+          required = [
+              '<!-- SIM-SPPG INLINE FRONTEND BUNDLE START -->',
+              'INLINE: app.js',
+              'INLINE: dashboard-ui-v2.js',
+              'INLINE: dashboard-ui-fix.js',
+          ]
+          missing = [item for item in required if item not in html]
+          if missing:
+              raise SystemExit('Bundle tidak lengkap: ' + ', '.join(missing))
+
+          for name in ['app.js', 'dashboard-ui-v2.js', 'dashboard-ui-fix.js']:
+              if re.search(r'<script\b[^>]*src=["\'][^"\']*' + re.escape(name), html, re.I):
+                  raise SystemExit('Masih ada referensi eksternal: ' + name)
+              if Path(name).exists():
+                  raise SystemExit('File lama belum terhapus: ' + name)
+              if name in sw:
+                  raise SystemExit('Service worker masih mereferensikan: ' + name)
+
+          if html.count('<script') != html.count('</script>'):
+              raise SystemExit('Jumlah tag script pembuka/penutup tidak seimbang')
+          if 'self.addEventListener(\'push\'' not in sw:
+              raise SystemExit('Push notification hilang dari service worker')
+          if 'self.addEventListener(\'fetch\'' not in sw:
+              raise SystemExit('Fetch handler hilang dari service worker')
+
+          print('Validasi struktur berhasil.')
+
+      - name: Commit consolidated frontend
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Tidak ada perubahan untuk di-commit."
+            exit 0
+          fi
+          git commit -m "Consolidate frontend into index.html"
+          git push origin HEAD:agent/satukan-file-frontend
