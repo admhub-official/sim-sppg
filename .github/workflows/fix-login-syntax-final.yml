@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/fix-login-syntax-final
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -26,35 +29,28 @@ jobs:
 
           path = Path('index.html')
           html = path.read_text(encoding='utf-8')
-
           script_re = re.compile(r'(<script(?![^>]*\bsrc=)[^>]*>)(.*?)(</script\s*>)', re.I | re.S)
           fixed_count = 0
 
           def repair_script(match):
               global fixed_count
               open_tag, script, close_tag = match.groups()
-
-              # Bentuk 1: komentar JS dibuka dengan /* tetapi ditutup dengan -->.
               script, count1 = re.subn(
                   r'(?ms)^(\s*)/\*\s*(=+\s*\n\s*[^\n]+\n\s*=+)\s*-->\s*$',
                   lambda m: m.group(1) + '/* ' + m.group(2) + ' */',
                   script,
               )
-
-              # Bentuk 2: komentar HTML banner berada langsung di dalam JavaScript.
               script, count2 = re.subn(
                   r'(?ms)^(\s*)<!--\s*(=+\s*\n\s*[^\n]+\n\s*=+)\s*-->\s*$',
                   lambda m: m.group(1) + '/* ' + m.group(2) + ' */',
                   script,
               )
-
               fixed_count += count1 + count2
               return open_tag + script + close_tag
 
           repaired = script_re.sub(repair_script, html)
           if fixed_count == 0:
               raise SystemExit('Tidak ada komentar section script yang diperbaiki.')
-
           path.write_text(repaired, encoding='utf-8')
           print(f'Fixed malformed script section comments: {fixed_count}')
           PY
@@ -86,8 +82,6 @@ jobs:
           import re
           before = Path('/tmp/index-before.html').read_text(encoding='utf-8')
           after = Path('index.html').read_text(encoding='utf-8')
-
-          # Selain komentar section yang rusak, tidak boleh ada perubahan fungsi/statement.
           normalize = lambda s: re.sub(
               r'(?ms)^\s*(?:/\*|<!--)\s*=+\s*\n\s*[^\n]+\n\s*=+\s*(?:\*/|-->)\s*$',
               '<SECTION_COMMENT>',
@@ -100,9 +94,9 @@ jobs:
 
       - name: Commit only validated index
         run: |
-          rm -f .github/workflows/fix-login-syntax-final.yml
+          rm -f .github/workflows/fix-login-syntax-final.yml .trigger-final-login-fix
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html .github/workflows/fix-login-syntax-final.yml
+          git add -A
           git commit -m "Perbaiki seluruh komentar script yang memblokir login"
           git push
