@@ -18,7 +18,58 @@ jobs:
         with:
           ref: fix/login-syntax-error
 
-      - name: Check every inline script
+      - name: Simulate Cloudflare Worker rewrite
+        shell: bash
+        run: |
+          cp _worker.js /tmp/sim-sppg-worker.mjs
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs/promises';
+          import worker from 'file:///tmp/sim-sppg-worker.mjs';
+
+          const source = await fs.readFile('index.html', 'utf8');
+          const env = {
+            ASSETS: {
+              async fetch() {
+                return new Response(source, {
+                  status: 200,
+                  headers: {
+                    'content-type': 'text/html; charset=UTF-8',
+                    'content-length': String(Buffer.byteLength(source)),
+                    'content-encoding': 'gzip',
+                    'etag': 'test-etag'
+                  }
+                });
+              }
+            }
+          };
+
+          const response = await worker.fetch(new Request('https://example.test/?page=transaksi'), env);
+          const rewritten = await response.text();
+          await fs.writeFile('/tmp/rewritten-index.html', rewritten);
+
+          const reportScript = '<script src="/laporan-fix.js?v=20260714-3"></script>';
+          const sessionScript = '<script src="/session-fix.js?v=20260714-3"></script>';
+          const realBody = rewritten.toLowerCase().lastIndexOf('</body>');
+          const reportAt = rewritten.indexOf(reportScript);
+          const printStringAt = rewritten.indexOf("'</body></html>';");
+
+          const assertions = [
+            [rewritten.includes(sessionScript), 'session script missing'],
+            [reportAt >= 0, 'report script missing'],
+            [realBody >= 0, 'real closing body missing'],
+            [reportAt < realBody, 'report script must be before real closing body'],
+            [reportAt > printStringAt, 'report script was injected inside print JavaScript string'],
+            [response.headers.get('content-length') === null, 'stale content-length retained'],
+            [response.headers.get('content-encoding') === null, 'stale content-encoding retained'],
+            [response.headers.get('etag') === null, 'stale etag retained']
+          ];
+
+          for (const [ok, message] of assertions) {
+            if (!ok) throw new Error(message);
+          }
+          NODE
+
+      - name: Check rewritten inline scripts
         shell: bash
         run: |
           set +e
@@ -26,29 +77,24 @@ jobs:
           from pathlib import Path
           import re, subprocess
 
-          html_path = Path('index.html')
-          html = html_path.read_text(encoding='utf-8')
+          html = Path('/tmp/rewritten-index.html').read_text(encoding='utf-8')
           report = []
           pattern = re.compile(r'<script\b([^>]*)>(.*?)</script\s*>', re.I | re.S)
           matches = list(pattern.finditer(html))
-          report.append(f'inline script tags found: {len(matches)}')
+          report.append(f'script tags found: {len(matches)}')
 
           failures = 0
           for idx, match in enumerate(matches, 1):
               attrs = match.group(1) or ''
               body = match.group(2)
+              html_start_line = html.count('\n', 0, match.start(2)) + 1
               if re.search(r'\bsrc\s*=', attrs, re.I):
-                  report.append(f'script {idx}: external, skipped')
+                  report.append(f'script {idx}: external, start line {html_start_line}, attrs={attrs.strip()!r}')
                   continue
 
-              html_start_line = html.count('\n', 0, match.start(2)) + 1
-              js_path = Path(f'/tmp/index-inline-{idx}.js')
+              js_path = Path(f'/tmp/rewritten-inline-{idx}.js')
               js_path.write_text(body, encoding='utf-8')
-              proc = subprocess.run(
-                  ['node', '--check', str(js_path)],
-                  text=True,
-                  capture_output=True,
-              )
+              proc = subprocess.run(['node', '--check', str(js_path)], text=True, capture_output=True)
               if proc.returncode == 0:
                   report.append(f'script {idx}: OK (HTML starts line {html_start_line}, {body.count(chr(10))+1} lines)')
                   continue
@@ -58,20 +104,10 @@ jobs:
               report.append(f'\nscript {idx}: FAILED (HTML starts line {html_start_line})')
               report.append(output)
 
-              line_match = re.search(rf'{re.escape(str(js_path))}:(\d+)', output)
-              if line_match:
-                  js_line = int(line_match.group(1))
-                  html_line = html_start_line + js_line - 1
-                  report.append(f'HTML line estimate: {html_line}')
-                  lines = html.splitlines()
-                  lo = max(1, html_line - 8)
-                  hi = min(len(lines), html_line + 8)
-                  report.append('Context:')
-                  for n in range(lo, hi + 1):
-                      report.append(f'{n:>6}: {lines[n-1]}')
-
           report.append(f'\nfailures: {failures}')
-          Path('diagnostics-index-js.txt').write_text('\n'.join(report) + '\n', encoding='utf-8')
+          if failures:
+              raise SystemExit('\n'.join(report))
+          Path('diagnostics-worker-injection.txt').write_text('\n'.join(report) + '\n', encoding='utf-8')
           PY
 
       - name: Commit diagnostic report
@@ -79,6 +115,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add diagnostics-index-js.txt
-          git commit -m "chore: record index JavaScript syntax diagnostic" || exit 0
+          git add diagnostics-worker-injection.txt
+          git commit -m "chore: record Worker injection diagnostic" || exit 0
           git push origin HEAD:fix/login-syntax-error
