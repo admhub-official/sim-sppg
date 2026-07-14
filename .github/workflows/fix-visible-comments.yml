@@ -22,6 +22,7 @@ jobs:
 
       - name: Normalize only comments outside code blocks
         run: |
+          cp index.html /tmp/index-before.html
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -48,20 +49,25 @@ jobs:
               raise SystemExit('Tidak ditemukan komentar kode visual untuk diperbaiki.')
           PY
 
-      - name: Validate JavaScript syntax
+      - name: Validate code block integrity
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
-          html = Path('index.html').read_text(encoding='utf-8')
-          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
-          if not scripts:
-              raise SystemExit('Inline JavaScript tidak ditemukan.')
-          for i, script in enumerate(scripts, 1):
-              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
-          print(f'Inline scripts: {len(scripts)}')
+          import hashlib
+
+          before = Path('/tmp/index-before.html').read_text(encoding='utf-8')
+          after = Path('index.html').read_text(encoding='utf-8')
+          block_re = re.compile(r'<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>', re.I | re.S)
+          before_blocks = block_re.findall(before)
+          after_blocks = block_re.findall(after)
+          if before_blocks != after_blocks:
+              raise SystemExit('Isi blok script/style berubah, perbaikan dibatalkan.')
+          digest = hashlib.sha256(''.join(after_blocks).encode()).hexdigest()
+          print(f'Code blocks unchanged: {len(after_blocks)}, sha256={digest}')
+          if 'function doLogin()' not in after or 'onclick="doLogin()"' not in after:
+              raise SystemExit('Fungsi atau handler login tidak ditemukan.')
           PY
-          for file in /tmp/inline-*.js; do node --check "$file"; done
 
       - name: Validate no comments render as text
         run: |
@@ -99,7 +105,7 @@ jobs:
           if audit.bad:
               raise SystemExit('Teks komentar masih terlihat:\n' + '\n'.join(audit.bad[:20]))
 
-          required = ['function doLogin()', 'onclick="doLogin()"', 'id="dashboardPage"', 'id="appContainer"']
+          required = ['id="dashboardPage"', 'id="appContainer"', 'id="authOverlay"']
           missing = [value for value in required if value not in html]
           if missing:
               raise SystemExit('Elemen penting hilang: ' + ', '.join(missing))
