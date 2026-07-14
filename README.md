@@ -4,13 +4,16 @@ Sistem Informasi Manajemen SPPG berbasis frontend statis, GitHub Pages, dan Supa
 
 ## Struktur inti
 
-- `index.html` — seluruh antarmuka dan logika utama aplikasi
-- `app.js` — satu-satunya file JavaScript eksternal untuk enhancement antarmuka
-- `sw.js` — service worker, cache offline, injeksi `app.js`, dan push notification
-- `manifest.json` — konfigurasi PWA
+- `index.html` — seluruh HTML, CSS, dan JavaScript frontend aplikasi.
+- `sw.js` — service worker untuk cache offline dan push notification.
+- `manifest.json` — konfigurasi instalasi PWA.
 
 ## Pengembangan
 
-Untuk perubahan fitur utama aplikasi, edit `index.html`. Untuk enhancement JavaScript eksternal, edit `app.js`. Untuk cache offline dan push notification, edit `sw.js`.
+Untuk perubahan tampilan maupun fungsi frontend, edit `index.html`.
 
-Frontend mengakses backend melalui Edge Function Supabase `dynamic-action`. Jangan menyimpan `service_role`, password database, JWT secret, SMTP password, atau VAPID private key di repository.
+Untuk perubahan PWA, cache offline, atau push notification, edit `sw.js`.
+
+Frontend mengakses backend melalui Supabase Edge Function `dynamic-action`.
+
+Jangan menyimpan `service_role`, password database, JWT secret, SMTP password, atau VAPID private key di repository.
