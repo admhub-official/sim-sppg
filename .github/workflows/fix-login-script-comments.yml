@@ -25,7 +25,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
           lines = text.splitlines(keepends=True)
@@ -33,7 +32,6 @@ jobs:
           in_script = False
           in_html_banner = False
           converted = 0
-
           for line in lines:
               lower = line.lower()
               if not in_script and re.search(r'<script(?:\s|>)', lower):
@@ -58,21 +56,22 @@ jobs:
                   if re.search(r'</script\s*>', lower):
                       in_script = False
               out.append(line)
-
           fixed = ''.join(out)
-          if converted == 0:
-              raise SystemExit('Tidak ditemukan komentar HTML di dalam script.')
           path.write_text(fixed, encoding='utf-8')
-          print(f'Mengonversi {converted} komentar HTML di dalam script.')
+          print(f'Komentar dikonversi: {converted}')
           PY
 
-      - name: Commit converted comments
+      - name: Commit conversion when needed
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html
-          git commit -m "Ubah komentar pembatas menjadi JavaScript valid"
-          git push
+          if git diff --quiet -- index.html; then
+            echo "Tidak ada konversi tambahan."
+          else
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add index.html
+            git commit -m "Ubah komentar pembatas menjadi JavaScript valid"
+            git push
+          fi
 
       - name: Validate inline JavaScript syntax
         run: |
@@ -87,4 +86,12 @@ jobs:
               Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
           print(f'{len(scripts)} inline script diekstrak.')
           PY
-          for f in /tmp/inline-*.js; do node --check "$f"; done
+          for f in /tmp/inline-*.js; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+
+      - name: Validate login symbols
+        run: |
+          grep -q 'function doLogin()' index.html
+          grep -q 'onclick="doLogin()"' index.html
