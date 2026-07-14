@@ -1,18 +1,15 @@
-name: Fix login script comments
+name: Diagnose login script syntax
 
 on:
   push:
     branches:
       - agent/fix-login-script-comments
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
 
 jobs:
-  fix:
+  diagnose:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -20,78 +17,29 @@ jobs:
         with:
           ref: agent/fix-login-script-comments
 
-      - name: Convert invalid HTML comments inside script blocks
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          path = Path('index.html')
-          text = path.read_text(encoding='utf-8')
-          lines = text.splitlines(keepends=True)
-          out = []
-          in_script = False
-          in_html_banner = False
-          converted = 0
-          for line in lines:
-              lower = line.lower()
-              if not in_script and re.search(r'<script(?:\s|>)', lower):
-                  in_script = True
-                  out.append(line)
-                  continue
-              if in_script:
-                  if not in_html_banner and '<!--' in line:
-                      line = line.replace('<!--', '/*', 1)
-                      in_html_banner = '-->' not in line
-                      if '-->' in line:
-                          line = line.replace('-->', '*/', 1)
-                      converted += 1
-                      out.append(line)
-                      continue
-                  if in_html_banner:
-                      if '-->' in line:
-                          line = line.replace('-->', '*/', 1)
-                          in_html_banner = False
-                      out.append(line)
-                      continue
-                  if re.search(r'</script\s*>', lower):
-                      in_script = False
-              out.append(line)
-          fixed = ''.join(out)
-          path.write_text(fixed, encoding='utf-8')
-          print(f'Komentar dikonversi: {converted}')
-          PY
-
-      - name: Commit conversion when needed
-        run: |
-          if git diff --quiet -- index.html; then
-            echo "Tidak ada konversi tambahan."
-          else
-            git config user.name github-actions[bot]
-            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-            git add index.html
-            git commit -m "Ubah komentar pembatas menjadi JavaScript valid"
-            git push
-          fi
-
-      - name: Validate inline JavaScript syntax
+      - name: Extract and validate inline scripts
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           html = Path('index.html').read_text(encoding='utf-8')
           scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
-          if not scripts:
-              raise SystemExit('Inline script tidak ditemukan.')
           for i, script in enumerate(scripts, 1):
               Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
-          print(f'{len(scripts)} inline script diekstrak.')
+          Path('syntax-check.log').write_text(f'inline_scripts={len(scripts)}\n', encoding='utf-8')
           PY
+          set +e
           for f in /tmp/inline-*.js; do
-            echo "Checking $f"
-            node --check "$f"
+            echo "===== $f =====" >> syntax-check.log
+            node --check "$f" >> syntax-check.log 2>&1
+            echo "exit=$?" >> syntax-check.log
           done
+          set -e
 
-      - name: Validate login symbols
+      - name: Commit diagnostic log
         run: |
-          grep -q 'function doLogin()' index.html
-          grep -q 'onclick="doLogin()"' index.html
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add syntax-check.log
+          git commit -m "Tambahkan diagnostik parser sementara"
+          git push
