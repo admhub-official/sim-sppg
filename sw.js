@@ -1,8 +1,8 @@
-const CACHE = 'simsppg-v14';
+const CACHE = 'simsppg-v15';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
-const DASHBOARD_UI = new URL('dashboard-ui-v2.js?v=2', SCOPE).href;
-const DASHBOARD_FIX = new URL('dashboard-ui-fix.js?v=1', SCOPE).href;
+const DASHBOARD_UI = new URL('dashboard-ui-v2.js?v=3', SCOPE).href;
+const DASHBOARD_FIX = new URL('dashboard-ui-fix.js?v=2', SCOPE).href;
 const ASSETS = [
   HOME,
   new URL('manifest.json', SCOPE).href,
@@ -26,6 +26,14 @@ self.addEventListener('activate', function(event) {
         return Promise.all(keys.filter(function(key) { return key !== CACHE; }).map(function(key) { return caches.delete(key); }));
       })
       .then(function() { return self.clients.claim(); })
+      .then(function() {
+        return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      })
+      .then(function(windowClients) {
+        return Promise.all(windowClients.map(function(client) {
+          return client.navigate ? client.navigate(client.url) : Promise.resolve();
+        }));
+      })
   );
 });
 
@@ -36,11 +44,12 @@ function injectDashboardUi(response) {
 
   return response.text().then(function(html) {
     if (html.indexOf('dashboard-ui-v2.js') === -1) {
-      var scripts = '<script defer src="/dashboard-ui-v2.js?v=2"></script><script defer src="/dashboard-ui-fix.js?v=1"></script>';
+      var scripts = '<script defer src="./dashboard-ui-v2.js?v=3"></script><script defer src="./dashboard-ui-fix.js?v=2"></script>';
       html = html.indexOf('</body>') > -1 ? html.replace('</body>', scripts + '</body>') : html + scripts;
     }
     var headers = new Headers(response.headers);
     headers.delete('content-length');
+    headers.set('cache-control', 'no-store');
     return new Response(html, {
       status: response.status,
       statusText: response.statusText,
@@ -64,7 +73,7 @@ self.addEventListener('fetch', function(event) {
   }
 
   event.respondWith(
-    fetch(event.request).catch(function() {
+    fetch(event.request, { cache: 'no-store' }).catch(function() {
       return caches.match(event.request, { ignoreSearch: true });
     })
   );
