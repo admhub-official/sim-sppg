@@ -1,4 +1,4 @@
-name: Diagnose login script syntax
+name: Repair inline frontend bundle placement
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  diagnose:
+  repair:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -17,36 +17,80 @@ jobs:
         with:
           ref: agent/fix-login-script-comments
 
-      - name: Extract inline scripts and context
+      - name: Move inline bundle to actual closing body
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          start_marker = '/* SIM-SPPG INLINE FRONTEND BUNDLE START */'
+          end_marker = '/* SIM-SPPG INLINE FRONTEND BUNDLE END */'
+
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit('Marker awal bundle tidak ditemukan.')
+          end_start = text.find(end_marker, start)
+          if end_start < 0:
+              raise SystemExit('Marker akhir bundle tidak ditemukan.')
+          end = end_start + len(end_marker)
+
+          bundle = text[start:end].strip()
+          cleaned = text[:start] + text[end:]
+
+          # Sisipkan hanya pada tag </body> terakhir, bukan yang berada di string template.
+          body_pos = cleaned.lower().rfind('</body>')
+          if body_pos < 0:
+              raise SystemExit('Tag penutup body tidak ditemukan.')
+
+          fixed = cleaned[:body_pos].rstrip() + '\n\n' + bundle + '\n' + cleaned[body_pos:]
+          if fixed.count(start_marker) != 1 or fixed.count(end_marker) != 1:
+              raise SystemExit('Jumlah marker bundle tidak valid setelah pemindahan.')
+          path.write_text(fixed, encoding='utf-8')
+          print('Bundle dipindahkan ke tag </body> terakhir.')
+          PY
+
+      - name: Validate all inline JavaScript
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           html = Path('index.html').read_text(encoding='utf-8')
           scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
-          log = [f'inline_scripts={len(scripts)}']
+          if not scripts:
+              raise SystemExit('Inline script tidak ditemukan.')
           for i, script in enumerate(scripts, 1):
-              p = Path(f'/tmp/inline-{i}.js')
-              p.write_text(script, encoding='utf-8')
-              if i == 2:
-                  lines = script.splitlines()
-                  log.append('===== inline-2 context 3548-3568 =====')
-                  for n in range(3548, min(3569, len(lines)+1)):
-                      log.append(f'{n}: {lines[n-1]}')
-          Path('syntax-check.log').write_text('\n'.join(log) + '\n', encoding='utf-8')
+              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
+          print(f'Validating {len(scripts)} inline scripts')
           PY
-          set +e
           for f in /tmp/inline-*.js; do
-            echo "===== $f =====" >> syntax-check.log
-            node --check "$f" >> syntax-check.log 2>&1
-            echo "exit=$?" >> syntax-check.log
+            echo "Checking $f"
+            node --check "$f"
           done
-          set -e
 
-      - name: Commit diagnostic log
+      - name: Validate login and bundle placement
         run: |
+          grep -q 'function doLogin()' index.html
+          grep -q 'onclick="doLogin()"' index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('index.html').read_text(encoding='utf-8')
+          marker = text.find('/* SIM-SPPG INLINE FRONTEND BUNDLE START */')
+          last_body = text.lower().rfind('</body>')
+          if not (0 <= marker < last_body):
+              raise SystemExit('Bundle tidak berada sebelum penutup body terakhir.')
+          # Marker harus berada setelah penutup script utama sebelumnya.
+          previous_script_end = text.lower().rfind('</script>', 0, marker)
+          if previous_script_end < 0:
+              raise SystemExit('Penutup script utama tidak ditemukan sebelum bundle.')
+          print('Login symbols and bundle placement valid.')
+          PY
+
+      - name: Remove temporary diagnostics and workflow
+        run: |
+          rm -f syntax-check.log .github/workflows/fix-login-script-comments.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add syntax-check.log
-          git commit -m "Perbarui diagnostik parser sementara"
+          git add index.html syntax-check.log .github/workflows/fix-login-script-comments.yml
+          git commit -m "Perbaiki bundle script yang memblokir login"
           git push
