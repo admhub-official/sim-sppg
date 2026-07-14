@@ -6,12 +6,16 @@ on:
       - main
     paths:
       - .login-fix-trigger
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   repair:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +27,9 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
 
-          # 1) Convert HTML comments that were inserted inside script blocks.
           lines = text.splitlines(keepends=True)
           out = []
           in_script = False
@@ -57,8 +59,6 @@ jobs:
               out.append(line)
           text = ''.join(out)
 
-          # 2) Move consolidated frontend bundle away from the PDF HTML string
-          #    and place it before the final real </body> tag.
           start_text = 'SIM-SPPG INLINE FRONTEND BUNDLE START'
           end_text = 'SIM-SPPG INLINE FRONTEND BUNDLE END'
           start_content = text.find(start_text)
@@ -77,7 +77,6 @@ jobs:
               raise SystemExit('Tag </body> terakhir tidak ditemukan.')
           text = cleaned[:final_body].rstrip() + '\n\n' + bundle + '\n' + cleaned[final_body:]
 
-          # 3) Restore the truncated end of exportApprovalPDF().
           broken = re.compile(r"    '</table>' \+\n    '\s*\n\s*}\n\s*}\n")
           replacement = """    '</table>' +
     '</body></html>';
@@ -97,7 +96,6 @@ jobs:
           text, count = broken.subn(replacement, text, count=1)
           if count != 1:
               raise SystemExit('Bagian exportApprovalPDF yang terputus tidak ditemukan secara unik.')
-
           path.write_text(text, encoding='utf-8')
           PY
 
@@ -114,10 +112,7 @@ jobs:
               Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
           print(f'Validating {len(scripts)} inline scripts')
           PY
-          for f in /tmp/inline-*.js; do
-            echo "Checking $f"
-            node --check "$f"
-          done
+          for f in /tmp/inline-*.js; do node --check "$f"; done
 
       - name: Validate login symbols and bundle placement
         run: |
@@ -140,4 +135,4 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
           git commit -m "Perbaiki parser JavaScript dan tombol login"
-          git push
+          git push origin HEAD:main
