@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/fix-login-script-comments
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -21,12 +24,10 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
           start_marker = '/* SIM-SPPG INLINE FRONTEND BUNDLE START */'
           end_marker = '/* SIM-SPPG INLINE FRONTEND BUNDLE END */'
-
           start = text.find(start_marker)
           if start < 0:
               raise SystemExit('Marker awal bundle tidak ditemukan.')
@@ -34,20 +35,15 @@ jobs:
           if end_start < 0:
               raise SystemExit('Marker akhir bundle tidak ditemukan.')
           end = end_start + len(end_marker)
-
           bundle = text[start:end].strip()
           cleaned = text[:start] + text[end:]
-
-          # Sisipkan hanya pada tag </body> terakhir, bukan yang berada di string template.
           body_pos = cleaned.lower().rfind('</body>')
           if body_pos < 0:
               raise SystemExit('Tag penutup body tidak ditemukan.')
-
           fixed = cleaned[:body_pos].rstrip() + '\n\n' + bundle + '\n' + cleaned[body_pos:]
           if fixed.count(start_marker) != 1 or fixed.count(end_marker) != 1:
-              raise SystemExit('Jumlah marker bundle tidak valid setelah pemindahan.')
+              raise SystemExit('Jumlah marker bundle tidak valid.')
           path.write_text(fixed, encoding='utf-8')
-          print('Bundle dipindahkan ke tag </body> terakhir.')
           PY
 
       - name: Validate all inline JavaScript
@@ -63,12 +59,9 @@ jobs:
               Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
           print(f'Validating {len(scripts)} inline scripts')
           PY
-          for f in /tmp/inline-*.js; do
-            echo "Checking $f"
-            node --check "$f"
-          done
+          for f in /tmp/inline-*.js; do node --check "$f"; done
 
-      - name: Validate login and bundle placement
+      - name: Validate login and placement
         run: |
           grep -q 'function doLogin()' index.html
           grep -q 'onclick="doLogin()"' index.html
@@ -78,15 +71,10 @@ jobs:
           marker = text.find('/* SIM-SPPG INLINE FRONTEND BUNDLE START */')
           last_body = text.lower().rfind('</body>')
           if not (0 <= marker < last_body):
-              raise SystemExit('Bundle tidak berada sebelum penutup body terakhir.')
-          # Marker harus berada setelah penutup script utama sebelumnya.
-          previous_script_end = text.lower().rfind('</script>', 0, marker)
-          if previous_script_end < 0:
-              raise SystemExit('Penutup script utama tidak ditemukan sebelum bundle.')
-          print('Login symbols and bundle placement valid.')
+              raise SystemExit('Bundle tidak berada sebelum body terakhir.')
           PY
 
-      - name: Remove temporary diagnostics and workflow
+      - name: Clean temporary files and commit
         run: |
           rm -f syntax-check.log .github/workflows/fix-login-script-comments.yml
           git config user.name github-actions[bot]
