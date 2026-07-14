@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/fix-login-script-comments
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -21,32 +24,26 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
-
           start_text = 'SIM-SPPG INLINE FRONTEND BUNDLE START'
           end_text = 'SIM-SPPG INLINE FRONTEND BUNDLE END'
           start_content = text.find(start_text)
           end_content = text.find(end_text, start_content + 1)
           if start_content < 0 or end_content < 0:
               raise SystemExit('Marker bundle tidak lengkap.')
-
           start = text.rfind('/*', 0, start_content)
           end = text.find('*/', end_content)
           if start < 0 or end < 0:
               raise SystemExit('Batas komentar marker bundle tidak ditemukan.')
           end += 2
-
           bundle = text[start:end].strip()
           cleaned = text[:start] + text[end:]
           final_body = cleaned.lower().rfind('</body>')
           if final_body < 0:
               raise SystemExit('Penutup body terakhir tidak ditemukan.')
-
           fixed = cleaned[:final_body].rstrip() + '\n\n' + bundle + '\n' + cleaned[final_body:]
           path.write_text(fixed, encoding='utf-8')
-          print('Bundle berhasil dipindahkan.')
           PY
 
       - name: Validate JavaScript syntax
@@ -62,10 +59,7 @@ jobs:
               Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
           print(f'Inline scripts: {len(scripts)}')
           PY
-          for f in /tmp/inline-*.js; do
-            echo "Checking $f"
-            node --check "$f"
-          done
+          for f in /tmp/inline-*.js; do node --check "$f"; done
 
       - name: Validate login symbols
         run: |
