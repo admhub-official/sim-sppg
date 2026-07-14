@@ -1,0 +1,14 @@
+inline_scripts=2
+===== /tmp/inline-1.js =====
+exit=0
+===== /tmp/inline-2.js =====
+/tmp/inline-2.js:3558
+    '
+    ^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1713:18)
+    at checkSyntax (node:internal/main/check_syntax:78:3)
+
+Node.js v22.23.1
+exit=1
