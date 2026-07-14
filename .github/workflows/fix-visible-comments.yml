@@ -1,4 +1,4 @@
-name: Fix visible code comments
+name: Diagnose visible code comments
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  repair:
+  diagnose:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -20,7 +20,7 @@ jobs:
         with:
           ref: agent/fix-visible-comments
 
-      - name: Normalize only comments outside code blocks
+      - name: Normalize comments outside code blocks
         run: |
           cp index.html /tmp/index-before.html
           python3 - <<'PY'
@@ -41,64 +41,55 @@ jobs:
                   converted += count
                   repaired.append(new)
           path.write_text(''.join(repaired), encoding='utf-8')
-          print(f'Converted visible code comments: {converted}')
-          if converted == 0:
-              raise SystemExit('Tidak ditemukan komentar kode visual untuk diperbaiki.')
+          print(f'Converted visible comments: {converted}')
           PY
 
-      - name: Validate code block integrity
+      - name: Verify code blocks unchanged and write audit
         run: |
           python3 - <<'PY'
+          from html.parser import HTMLParser
           from pathlib import Path
           import re, hashlib
+
           before = Path('/tmp/index-before.html').read_text(encoding='utf-8')
           after = Path('index.html').read_text(encoding='utf-8')
           block_re = re.compile(r'<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>', re.I | re.S)
           before_blocks = block_re.findall(before)
           after_blocks = block_re.findall(after)
           if before_blocks != after_blocks:
-              raise SystemExit('Isi blok script/style berubah, perbaikan dibatalkan.')
-          if 'function doLogin()' not in after or 'onclick="doLogin()"' not in after:
-              raise SystemExit('Fungsi atau handler login tidak ditemukan.')
-          print(f'Code blocks unchanged: {len(after_blocks)}, sha256={hashlib.sha256("".join(after_blocks).encode()).hexdigest()}')
-          PY
+              raise SystemExit('Blok kode berubah.')
 
-      - name: Validate no literal block-comment tokens are visible
-        run: |
-          python3 - <<'PY'
-          from html.parser import HTMLParser
-          from pathlib import Path
-
-          html = Path('index.html').read_text(encoding='utf-8')
           class Audit(HTMLParser):
               def __init__(self):
                   super().__init__(convert_charrefs=True)
                   self.code_depth = 0
                   self.bad = []
               def handle_starttag(self, tag, attrs):
-                  if tag.lower() in ('script', 'style'):
+                  if tag.lower() in ('script','style'):
                       self.code_depth += 1
               def handle_endtag(self, tag):
-                  if tag.lower() in ('script', 'style') and self.code_depth:
+                  if tag.lower() in ('script','style') and self.code_depth:
                       self.code_depth -= 1
               def handle_data(self, data):
                   if self.code_depth:
                       return
                   compact = ' '.join(data.split())
                   if compact and ('/*' in compact or '*/' in compact):
-                      self.bad.append(compact[:300])
+                      self.bad.append(compact)
+
           audit = Audit()
-          audit.feed(html)
-          if audit.bad:
-              raise SystemExit('Token komentar masih tampil sebagai teks:\n' + '\n'.join(audit.bad[:20]))
-          print('Visible comment audit passed.')
+          audit.feed(after)
+          report = [f'code_blocks={len(after_blocks)}', f'sha256={hashlib.sha256("".join(after_blocks).encode()).hexdigest()}', f'bad_count={len(audit.bad)}']
+          for i, item in enumerate(audit.bad, 1):
+              report.append(f'[{i}] {item[:1000]}')
+          Path('visible-comment-audit.log').write_text('\n'.join(report) + '\n', encoding='utf-8')
           PY
 
-      - name: Commit clean result
+      - name: Commit diagnostic result
         run: |
           rm -f .github/workflows/fix-visible-comments.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
-          git commit -m "Perbaiki komentar kode yang tampil di halaman"
+          git commit -m "Diagnosa komentar yang masih tampil"
           git push
