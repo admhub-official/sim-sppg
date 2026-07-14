@@ -1,1 +1,0 @@
-Worker injection smoke test passed; 3 inline scripts valid.
