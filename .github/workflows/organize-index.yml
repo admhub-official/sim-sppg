@@ -1,0 +1,72 @@
+name: Organize index sections
+on:
+  push:
+    branches: [agent/rapikan-struktur-index]
+permissions:
+  contents: write
+jobs:
+  organize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/rapikan-struktur-index
+      - name: Add navigation banners
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          before=s
+          banner=lambda title: f"\n<!-- ============================================================\n     {title}\n     ============================================================ -->\n"
+          markers=[
+            ('function switchPage(', 'APP SHELL & NAVIGATION'),
+            ('function doLogin(', 'AUTHENTICATION & SESSION'),
+            ('function initApp(', 'APPLICATION INITIALIZATION'),
+            ('function loadDashboardData(', 'DASHBOARD'),
+            ('function loadTransactions(', 'TRANSACTIONS'),
+            ('function loadApprovalData(', 'APPROVAL & PAYMENT VERIFICATION'),
+            ('function loadPendingPayment(', 'PENDING PAYMENT'),
+            ('function loadMasterBB(', 'MASTER DATA - BAHAN BAKU'),
+            ('function loadSuppliers(', 'MASTER DATA - SUPPLIER'),
+            ('function loadSurvei(', 'SURVEY'),
+            ('function loadSerahTerima(', 'SERAH TERIMA'),
+            ('function loadMenuMBG(', 'MENU MBG'),
+            ('function loadAuditLog(', 'AUDIT LOG & NOTIFICATIONS'),
+            ('function renderProfil(', 'PROFILE'),
+          ]
+          added=[]
+          for needle,title in markers:
+            tag=banner(title)
+            i=s.find(needle)
+            if i>=0 and tag.strip() not in s[max(0,i-250):i]:
+              s=s[:i]+tag+s[i:]
+              added.append(title)
+          nav='''\n<!-- ============================================================\n     INDEX NAVIGASI KODE FRONTEND\n     Cari judul bagian berikut untuk perbaikan cepat:\n     APP SHELL | AUTHENTICATION | INITIALIZATION | DASHBOARD\n     TRANSACTIONS | APPROVAL | PENDING PAYMENT | MASTER DATA\n     SURVEY | SERAH TERIMA | MENU MBG | AUDIT LOG | PROFILE\n     ============================================================ -->\n'''
+          pos=s.find('<script>')
+          if pos>=0 and 'INDEX NAVIGASI KODE FRONTEND' not in s:
+            s=s[:pos]+nav+s[pos:]
+          if s==before:
+            raise SystemExit('Tidak ada perubahan yang diterapkan')
+          p.write_text(s,encoding='utf-8')
+          print('Sections:', ', '.join(added))
+          PY
+      - name: Validate structure
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert s.count('<script') == s.count('</script>'), 'Tag script tidak seimbang'
+          assert 'INDEX NAVIGASI KODE FRONTEND' in s
+          assert 'DASHBOARD' in s and 'TRANSACTIONS' in s
+          print('Validation OK')
+          PY
+      - name: Remove temporary workflow and commit
+        run: |
+          rm -f .github/workflows/organize-index.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html .github/workflows/organize-index.yml
+          git commit -m "Rapikan struktur internal index.html"
+          git push
