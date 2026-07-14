@@ -1,63 +1,50 @@
 /* SIM-SPPG laporan hotfix
- * - Ambil token dari session Supabase, fallback ke anon/publishable key.
- * - Kirim PDF ke Telegram sebelum mencoba upload Storage.
+ * - Menggunakan JWT login yang masih valid; anon key hanya untuk operasi yang diizinkan anon.
+ * - Mengirim PDF ke Telegram sebelum mencoba upload Storage.
  * - Kegagalan Storage/Riwayat tidak membatalkan pengiriman Telegram.
  */
 (function () {
   'use strict';
 
-  function getSupabaseClient() {
-    if (typeof window.supabase !== 'undefined' && window.supabase && window.supabase.auth) {
-      return window.supabase;
-    }
-    if (typeof supabase !== 'undefined' && supabase && supabase.auth) {
-      return supabase;
-    }
-    return null;
-  }
-
   function getAnonKey() {
     return String(window._supabaseKey || window.SUPABASE_ANON_KEY || '').trim();
   }
 
-  async function getSupabaseAuthorizationToken() {
-    var client = getSupabaseClient();
-    if (client) {
-      try {
-        var result = await client.auth.getSession();
-        var accessToken = result && result.data && result.data.session
-          ? result.data.session.access_token
-          : null;
-        if (accessToken) {
-          window._supabaseToken = accessToken;
-          return accessToken;
-        }
-      } catch (error) {
-        console.warn('[LAPORAN AUTH] Gagal membaca session:', error);
-      }
+  function getValidUserToken() {
+    if (window.SPPGSessionGuard && typeof window.SPPGSessionGuard.getToken === 'function') {
+      return window.SPPGSessionGuard.getToken();
     }
 
-    // Supabase REST/Storage tetap memerlukan Authorization. Untuk request anon,
-    // anon/publishable key digunakan sebagai bearer token.
-    return getAnonKey();
+    var token = '';
+    try { token = localStorage.getItem('sppg_jwt') || ''; } catch (_e) { token = ''; }
+    return token || String(window._supabaseToken || '').trim();
   }
 
-  function buildAuthHeaders(extra) {
-    return Object.assign({
-      apikey: getAnonKey()
-    }, extra || {});
+  async function getSupabaseAuthorizationToken(allowAnonFallback) {
+    var userToken = getValidUserToken();
+    if (userToken) return userToken;
+    return allowAnonFallback ? getAnonKey() : '';
+  }
+
+  function buildAuthHeaders(token, extra) {
+    var anonKey = getAnonKey();
+    var headers = Object.assign({ apikey: anonKey }, extra || {});
+    if (token) headers.Authorization = 'Bearer ' + token;
+    return headers;
+  }
+
+  function handleAuthHttpError(status) {
+    if ((status === 401 || status === 403) && window.SPPGSessionGuard && typeof window.SPPGSessionGuard.clearAuth === 'function') {
+      window.SPPGSessionGuard.clearAuth('Sesi berakhir. Silakan login kembali.');
+    }
   }
 
   async function uploadLaporanToStorageFixed(blob, fileName) {
-    if (!(blob instanceof Blob)) {
-      throw new Error('File PDF tidak valid.');
-    }
+    if (!(blob instanceof Blob)) throw new Error('File PDF tidak valid.');
 
-    var token = await getSupabaseAuthorizationToken();
+    var token = await getSupabaseAuthorizationToken(true);
     var anonKey = getAnonKey();
-    if (!token || !anonKey) {
-      throw new Error('Token atau API key Supabase tidak tersedia. Silakan login ulang.');
-    }
+    if (!token || !anonKey) throw new Error('Token atau API key Supabase tidak tersedia.');
 
     var safeName = String(fileName || ('laporan_' + Date.now() + '.pdf'))
       .replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -67,8 +54,7 @@
 
     var res = await fetch(baseUrl + '/storage/v1/object/laporan_pdf/' + encodedPath, {
       method: 'POST',
-      headers: buildAuthHeaders({
-        Authorization: 'Bearer ' + token,
+      headers: buildAuthHeaders(token, {
         'Content-Type': 'application/pdf',
         'x-upsert': 'true'
       }),
@@ -76,6 +62,7 @@
     });
 
     if (!res.ok) {
+      handleAuthHttpError(res.status);
       var err = await res.text();
       throw new Error('Upload storage gagal: ' + (err || res.statusText));
     }
@@ -84,16 +71,13 @@
   }
 
   async function simpanRiwayatLaporanFixed(payload) {
-    var token = await getSupabaseAuthorizationToken();
+    var token = await getSupabaseAuthorizationToken(true);
     var anonKey = getAnonKey();
-    if (!token || !anonKey) {
-      throw new Error('Token atau API key Supabase tidak tersedia.');
-    }
+    if (!token || !anonKey) throw new Error('Token atau API key Supabase tidak tersedia.');
 
     var res = await fetch(String(SUPABASE_URL_LAPORAN).replace(/\/$/, '') + '/rest/v1/riwayat_laporan', {
       method: 'POST',
-      headers: buildAuthHeaders({
-        Authorization: 'Bearer ' + token,
+      headers: buildAuthHeaders(token, {
         'Content-Type': 'application/json',
         Prefer: 'return=minimal'
       }),
@@ -101,6 +85,7 @@
     });
 
     if (!res.ok) {
+      handleAuthHttpError(res.status);
       var err = await res.text();
       throw new Error('Gagal menyimpan riwayat: ' + (err || res.statusText));
     }
@@ -139,20 +124,18 @@
 
     try {
       updateLaporanProgress('📡 Step 1/5 — Mengambil data transaksi...');
-      var token = await getSupabaseAuthorizationToken();
+      var token = await getSupabaseAuthorizationToken(false);
       var anonKey = getAnonKey();
-      if (!token || !anonKey) throw new Error('Session Supabase tidak tersedia. Silakan login ulang.');
+      if (!token || !anonKey) throw new Error('Sesi login tidak tersedia atau sudah berakhir. Silakan login ulang.');
 
       var txUrl = String(SUPABASE_URL_LAPORAN).replace(/\/$/, '') +
         '/rest/v1/TRANSAKSI?select=*&Tanggal=gte.' + encodeURIComponent(tglMulai) +
         '&Tanggal=lte.' + encodeURIComponent(tglSelesai) + '&order=Tanggal.asc';
       var resTx = await fetch(txUrl, {
-        headers: buildAuthHeaders({
-          Authorization: 'Bearer ' + token,
-          'Content-Type': 'application/json'
-        })
+        headers: buildAuthHeaders(token, { 'Content-Type': 'application/json' })
       });
       if (!resTx.ok) {
+        handleAuthHttpError(resTx.status);
         var txErr = await resTx.text();
         throw new Error('Gagal fetch TRANSAKSI: ' + resTx.status + ' ' + txErr);
       }
@@ -162,7 +145,6 @@
       var pdfBlob = await generateLaporanPDF(transaksiData, tglMulai, tglSelesai, userName, userRole);
       fileName = 'laporan_' + tglMulai + '_' + tglSelesai + '_' + Date.now() + '.pdf';
 
-      // Telegram adalah tujuan utama. Jangan biarkan Storage menggagalkan pengiriman.
       updateLaporanProgress('📨 Step 3/5 — Mengirim PDF ke Telegram...');
       await kirimLaporanTelegram(pdfBlob, fileName, chatId, {
         tglMulai: tglMulai,
@@ -238,11 +220,10 @@
     }
   }
 
-  // Override fungsi lama setelah seluruh bundle utama selesai dimuat.
   window.getSupabaseAuthorizationToken = getSupabaseAuthorizationToken;
   window.uploadLaporanToStorage = uploadLaporanToStorageFixed;
   window.simpanRiwayatLaporan = simpanRiwayatLaporanFixed;
   window.handleKirimLaporan = handleKirimLaporanFixed;
 
-  console.info('[SIM-SPPG] Laporan auth/storage hotfix aktif.');
+  console.info('[SIM-SPPG] Laporan auth/storage hotfix v2 aktif.');
 })();
