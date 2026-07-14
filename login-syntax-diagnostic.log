@@ -3,30 +3,21 @@ inline_scripts=3
 ===== inline-1: hybrid_js_html=0 hybrid_html_js=0 =====
 node_check_exit=0
 
-===== inline-2: hybrid_js_html=1 hybrid_html_js=0 =====
-[JS_OPEN_HTML_CLOSE #1] line=18 chars=172166
-  00018: /**
-  00019:  * callApi(fnName, params, onSuccess, onFailure)
-  00020:  * - fnName   : string — nama fungsi backend (sama persis dengan key di AUTHENTICATED_FUNCTIONS / PUBLIC_HANDLERS di index.ts)
-  00021:  * - params   : array — argumen fungsi (tanpa caller, server isi dari JWT)
-  00022:  * - onSuccess: function(result) — dipanggil jika sukses
-  00023:  * - onFailure: function(err)    — dipanggil jika gagal (opsional)
-  00024:  */
-  00025: function callApi(fnName, params, onSuccess, onFailure) {
-  00026:   var headers = { 'Content-Type': 'application/json' };
-  00027:   if (!PUBLIC_FN[fnName]) {
-  00028:     var token = getJwtToken();
-  00029:     if (token) headers['Authorization'] = 'Bearer ' + token;
-node_check_exit=1
-/tmp/inline-2.js:3944
-/* ============================================================
-
-SyntaxError: Invalid or unexpected token
-    at wrapSafe (node:internal/modules/cjs/loader:1713:18)
-    at checkSyntax (node:internal/main/check_syntax:78:3)
-
-Node.js v22.23.1
-
+===== inline-2: hybrid_js_html=0 hybrid_html_js=1 =====
+[HTML_OPEN_JS_CLOSE #1] line=3607 chars=14579
+  03607: <!--,.pdf" capture="environment" onchange="handleApprovalFile(this)">' +
+  03608:       '<p class="form-hint"><i class="fas fa-info-circle"></i> Di HP akan langsung membuka kamera. Di desktop akan membuka file browser.</p>' +
+  03609:     '</div>' +
+  03610:     '<div class="form-group">' +
+  03611:       '<label class="form-label">Catatan Approval (Opsional)</label>' +
+  03612:       '<textarea id="approvalCatatan" class="form-input" placeholder="Catatan untuk user..."></textarea>' +
+  03613:     '</div>' +
+  03614:     '<div class="form-group">' +
+  03615:       '<label class="form-label">Tanda Tangan Digital Verifikator</label>' +
+  03616:       '<div class="canvas-container" id="approvalTtdWrap"><canvas id="approvalTtdCanvas"></canvas></div>' +
+  03617:       '<div class="canvas-actions">' +
+  03618:         '<button type="button" onclick="clearApprovalCanvas()"><i class="fas fa-eraser"></i> Hapus</button>' +
+node_check_exit=0
 
 ===== inline-3: hybrid_js_html=0 hybrid_html_js=0 =====
 node_check_exit=0
