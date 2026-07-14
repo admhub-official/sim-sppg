@@ -12,6 +12,14 @@
 <link id="faCssLink" rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
       onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css';">
+
+<!-- ============================================================
+     INDEX NAVIGASI KODE FRONTEND
+     Cari judul bagian berikut untuk perbaikan cepat:
+     APP SHELL | AUTHENTICATION | INITIALIZATION | DASHBOARD
+     TRANSACTIONS | APPROVAL | PENDING PAYMENT | MASTER DATA
+     SURVEY | SERAH TERIMA | MENU MBG | AUDIT LOG | PROFILE
+     ============================================================ -->
 <script>
 (function(){
   function iconsConverted(){
@@ -6938,6 +6946,10 @@ function previewEditFoto(input) {
   reader.readAsDataURL(file);
 }
 
+
+<!-- ============================================================
+     AUTHENTICATION & SESSION
+     ============================================================ -->
 function doLogin() {
   var username = $('loginUsername').value.trim().toLowerCase();
   var password = $('loginPassword').value;
@@ -7656,6 +7668,10 @@ document.addEventListener('click', function(e) {
   if (bar && !bar.contains(e.target)) closeGlobalDateFilterPanel();
 });
 
+
+<!-- ============================================================
+     APP SHELL & NAVIGATION
+     ============================================================ -->
 function switchPage(page, el) {
   // SAFETY NET: pastikan body tidak terkunci sisa dari modal yang gagal
   // ditutup dengan benar (mis. alur Approval->PIN atau Verifikasi->PIN
@@ -7903,6 +7919,10 @@ function finishAppLoadingProgress() {
   if (text) text.textContent = '100%';
 }
 
+
+<!-- ============================================================
+     APPLICATION INITIALIZATION
+     ============================================================ -->
 function initApp() {
   if (!currentUser) return;
 
@@ -8051,6 +8071,10 @@ function populatePendingTransaksiSelect() {
 // ============================================================
 // 7. DASHBOARD
 // ============================================================
+
+<!-- ============================================================
+     DASHBOARD
+     ============================================================ -->
 function loadDashboardData() {
   return new Promise(function(resolve) {
     if (!currentUser) { resolve(); return; }
@@ -8363,6 +8387,10 @@ function updateMenuProfilAvatar(url) {
   });
 }
 
+
+<!-- ============================================================
+     PROFILE
+     ============================================================ -->
 function renderProfil() {
   if (!currentUser) return;
   $('profilNama').textContent = currentUser.namaLengkap || currentUser.username;
@@ -8631,6 +8659,10 @@ function saveEditUser() {
 // ============================================================
 // 10. TRANSAKSI
 // ============================================================
+
+<!-- ============================================================
+     TRANSACTIONS
+     ============================================================ -->
 function loadTransactions() {
   if (!currentUser) return;
   showLoading(true);
@@ -9135,6 +9167,10 @@ function renderFilePreview(fileInfo, title, iconClass) {
 // ============================================================
 // 11. APPROVAL
 // ============================================================
+
+<!-- ============================================================
+     APPROVAL & PAYMENT VERIFICATION
+     ============================================================ -->
 function loadApprovalData() {
   showLoading(true);
   // R3: Tampilkan skeleton placeholder
@@ -10480,6 +10516,10 @@ function doSubmitVerifikasiPembayaran() {
 // ============================================================
 // 12. MASTER BAHAN BAKU
 // ============================================================
+
+<!-- ============================================================
+     MASTER DATA - BAHAN BAKU
+     ============================================================ -->
 function loadMasterBB() {
   showLoading(true);
     callApi('getMasterBahanBaku', [], function(result) {
@@ -10864,6 +10904,10 @@ function exportMasterBB(format) {
 // ============================================================
 // 13. SUPPLIER
 // ============================================================
+
+<!-- ============================================================
+     MASTER DATA - SUPPLIER
+     ============================================================ -->
 function loadSuppliers(silent) {
   return new Promise(function(resolve) {
     if (!currentUser) { resolve(); return; }
@@ -11092,6 +11136,10 @@ function clearSupTtd() { clearTtdCanvas('supTtdCanvas'); }
 // ============================================================
 // 14. SURVEI HARGA
 // ============================================================
+
+<!-- ============================================================
+     SURVEY
+     ============================================================ -->
 function loadSurvei() {
   showLoading(true);
     callApi('getSurveiBahanBaku', [], function(result) {
@@ -11332,6 +11380,10 @@ function submitSurveiData(data) {
 // ============================================================
 // 15. SERAH TERIMA
 // ============================================================
+
+<!-- ============================================================
+     SERAH TERIMA
+     ============================================================ -->
 function loadSerahTerima() {
   showLoading(true);
     callApi('getSerahTerima', [], function(result) {
@@ -11536,6 +11588,10 @@ function saveAddSerahTerima() {
 // ============================================================
 // 16. MENU MBG (AHLI GIZI)
 // ============================================================
+
+<!-- ============================================================
+     MENU MBG
+     ============================================================ -->
 function loadMenuMBG() {
   showLoading(true);
     callApi('getMenuHarian', [{}], function(result) {
@@ -11707,6 +11763,10 @@ function saveAddMenuMBG() {
 // ============================================================
 // 17. PENDING PAYMENT
 // ============================================================
+
+<!-- ============================================================
+     PENDING PAYMENT
+     ============================================================ -->
 function loadPendingPayment() {
   showLoading(true);
     callApi('getPendingPayments', [], function(data) {
@@ -11821,6 +11881,10 @@ var allAuditLog = [];
 var filteredAuditLog = [];
 var auditLogPage = 1;
 
+
+<!-- ============================================================
+     AUDIT LOG & NOTIFICATIONS
+     ============================================================ -->
 function loadAuditLog() {
   if (!currentUser || currentUser.role !== 'ADMIN') return;
   showLoading(true);
