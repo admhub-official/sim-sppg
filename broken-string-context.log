@@ -1,0 +1,33 @@
+inline_scripts=3
+===== inline-1 =====
+===== inline-2 =====
+3548:     '<th style="text-align:right;">Total Nominal</th>' +
+3549:     '<th style="text-align:center;color:#047857;">Dok. Lengkap</th>' +
+3550:     '<th style="text-align:right;color:#047857;">Nominal Lengkap</th>' +
+3551:     '<th style="text-align:center;color:#be123c;">Dok. Tdk Lengkap</th>' +
+3552:     '<th style="text-align:right;color:#be123c;">Nominal Tdk Lengkap</th>' +
+3553:     '<th style="text-align:center;color:#92400e;">Tanpa Bukti</th>' +
+3554:     '<th style="text-align:center;color:#92400e;">Tanpa Nota</th>' +
+3555:     '</tr></thead>' +
+3556:     '<tbody>' + sppgRows + '</tbody>' +
+3557:     '</table>' +
+3558:     '
+3559:  }
+3560:   }
+3561: 
+3562:   document.addEventListener('DOMContentLoaded', function() {
+3563:     var lpwd = document.getElementById('loginPassword');
+3564:     if (lpwd) lpwd.addEventListener('keypress', function(e) { if (e.key === 'Enter') doLogin(); });
+3565:   });
+3566: 
+3567:   document.addEventListener('click', function(e) {
+3568:     var boxes = document.querySelectorAll('.autocomplete-box');
+3569:     boxes.forEach(function(box) {
+3570:       if (!box.contains(e.target)) {
+3571:         var dd = box.querySelector('.autocomplete-dropdown');
+3572:         if (dd) dd.classList.remove('active');
+3573:       }
+3574:     });
+absolute_start_line=6280
+absolute_error_line=9837
+===== inline-3 =====
