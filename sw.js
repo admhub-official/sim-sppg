@@ -1,14 +1,9 @@
-const CACHE = 'simsppg-v15';
+const CACHE = 'simsppg-v16';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
-const DASHBOARD_UI = new URL('dashboard-ui-v2.js?v=3', SCOPE).href;
-const DASHBOARD_FIX = new URL('dashboard-ui-fix.js?v=2', SCOPE).href;
 const ASSETS = [
   HOME,
-  new URL('manifest.json', SCOPE).href,
-  new URL('app.js?v=12', SCOPE).href,
-  DASHBOARD_UI,
-  DASHBOARD_FIX
+  new URL('manifest.json', SCOPE).href
 ];
 
 self.addEventListener('install', function(event) {
@@ -26,37 +21,8 @@ self.addEventListener('activate', function(event) {
         return Promise.all(keys.filter(function(key) { return key !== CACHE; }).map(function(key) { return caches.delete(key); }));
       })
       .then(function() { return self.clients.claim(); })
-      .then(function() {
-        return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      })
-      .then(function(windowClients) {
-        return Promise.all(windowClients.map(function(client) {
-          return client.navigate ? client.navigate(client.url) : Promise.resolve();
-        }));
-      })
   );
 });
-
-function injectDashboardUi(response) {
-  if (!response || !response.ok) return Promise.resolve(response);
-  var contentType = response.headers.get('content-type') || '';
-  if (contentType.indexOf('text/html') === -1) return Promise.resolve(response);
-
-  return response.text().then(function(html) {
-    if (html.indexOf('dashboard-ui-v2.js') === -1) {
-      var scripts = '<script defer src="./dashboard-ui-v2.js?v=3"></script><script defer src="./dashboard-ui-fix.js?v=2"></script>';
-      html = html.indexOf('</body>') > -1 ? html.replace('</body>', scripts + '</body>') : html + scripts;
-    }
-    var headers = new Headers(response.headers);
-    headers.delete('content-length');
-    headers.set('cache-control', 'no-store');
-    return new Response(html, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: headers
-    });
-  });
-}
 
 self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return;
@@ -64,18 +30,14 @@ self.addEventListener('fetch', function(event) {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
-        .then(injectDashboardUi)
-        .catch(function() {
-          return caches.match(HOME).then(injectDashboardUi);
-        })
+        .catch(function() { return caches.match(HOME); })
     );
     return;
   }
 
   event.respondWith(
-    fetch(event.request, { cache: 'no-store' }).catch(function() {
-      return caches.match(event.request, { ignoreSearch: true });
-    })
+    fetch(event.request, { cache: 'no-store' })
+      .catch(function() { return caches.match(event.request, { ignoreSearch: true }); })
   );
 });
 
