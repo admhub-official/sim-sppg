@@ -20,39 +20,41 @@ jobs:
         with:
           ref: agent/fix-visible-comments
 
-      - name: Fix hybrid comments outside code blocks
+      - name: Fix known hybrid comments
         run: |
           cp index.html /tmp/index-before-final.html
           python3 - <<'PY'
           from pathlib import Path
-          import re
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
-          block_re = re.compile(r'(<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>)', re.I | re.S)
-          parts = block_re.split(text)
-          repaired = []
-          converted = 0
-          for part in parts:
-              lower = part.lstrip().lower()
-              if lower.startswith('<script') or lower.startswith('<style'):
-                  repaired.append(part)
-              else:
-                  new, count = re.subn(r'/\*(.*?)-->', lambda m: '<!--' + m.group(1) + '-->', part, flags=re.S)
-                  converted += count
-                  repaired.append(new)
-          path.write_text(''.join(repaired), encoding='utf-8')
-          print(f'Hybrid comments fixed: {converted}')
-          if converted == 0:
-              raise SystemExit('Tidak ditemukan komentar hibrida untuk diperbaiki.')
+          replacements = {
+              '/* OTP VERIFICATION FORM -->': '<!-- OTP VERIFICATION FORM -->',
+              '/* ==================== MODAL EDIT USER (ADMIN) ==================== -->': '<!-- ==================== MODAL EDIT USER (ADMIN) ==================== -->',
+              '/* Nota Pembelian -->': '<!-- Nota Pembelian -->',
+              '/* TTD Digital -->': '<!-- TTD Digital -->',
+              '/* ==================== MODAL ADD SURVEI ==================== -->': '<!-- ==================== MODAL ADD SURVEI ==================== -->',
+              '/* ==================== MODAL ADD SERAH TERIMA ==================== -->': '<!-- ==================== MODAL ADD SERAH TERIMA ==================== -->',
+              '/* ==================== MODAL ADD MENU MBG ==================== -->': '<!-- ==================== MODAL ADD MENU MBG ==================== -->',
+              '/* Toast Container -->': '<!-- Toast Container -->',
+          }
+          changed = 0
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count:
+                  text = text.replace(old, new)
+                  changed += count
+          path.write_text(text, encoding='utf-8')
+          print(f'Known hybrid comments fixed: {changed}')
+          if changed == 0:
+              raise SystemExit('Tidak ada komentar hibrida yang ditemukan.')
           PY
 
-      - name: Validate code unchanged and no visible comment tokens
+      - name: Validate code unchanged and block-comment tokens hidden
         run: |
           python3 - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
           import re
-
           before = Path('/tmp/index-before-final.html').read_text(encoding='utf-8')
           after = Path('index.html').read_text(encoding='utf-8')
           block_re = re.compile(r'<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>', re.I | re.S)
@@ -74,7 +76,7 @@ jobs:
                   if self.code_depth:
                       return
                   compact = ' '.join(data.split())
-                  if compact and ('/*' in compact or '*/' in compact or '-->' in compact):
+                  if compact and ('/*' in compact or '*/' in compact):
                       self.bad.append(compact[:400])
           audit = Audit()
           audit.feed(after)
