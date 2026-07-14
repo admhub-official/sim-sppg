@@ -1,5 +1,0 @@
-PASS
-inline scripts valid: 3
-report script position: 587228
-real body position: 587281
-Production validation passed on attempt 1
