@@ -9835,6 +9835,80 @@ function exportApprovalPDF(data, metodeSummary, grandTotal, grandCount, pageLabe
     '<tbody>' + sppgRows + '</tbody>' +
     '</table>' +
     '
+ }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var lpwd = document.getElementById('loginPassword');
+    if (lpwd) lpwd.addEventListener('keypress', function(e) { if (e.key === 'Enter') doLogin(); });
+  });
+
+  document.addEventListener('click', function(e) {
+    var boxes = document.querySelectorAll('.autocomplete-box');
+    boxes.forEach(function(box) {
+      if (!box.contains(e.target)) {
+        var dd = box.querySelector('.autocomplete-dropdown');
+        if (dd) dd.classList.remove('active');
+      }
+    });
+  });
+
+  try {
+    if (safeStorage('get', 'sidebarCollapsed') === '1') {
+      sidebarCollapsed = true;
+      document.getElementById('mainSidebar').classList.add('collapsed');
+      document.getElementById('mainWrapper').classList.add('sidebar-collapsed');
+    }
+  } catch(e) {}
+
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+
+  if (checkSession()) {
+    document.getElementById('authOverlay').classList.add('hidden');
+    document.getElementById('appContainer').classList.remove('hidden');
+    initApp();
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeLightbox();
+      // Tutup modal teratas yang sedang terbuka (selain lightbox, yang sudah ditangani di atas)
+      var openModals = document.querySelectorAll('[id^="modal"]:not(.hidden)');
+      if (openModals.length > 0) {
+        var topModal = openModals[openModals.length - 1];
+        closeModal(topModal.id);
+      }
+    }
+  });
+</script>
+
+<div id="printAllContainer" class="print-all-container">
+  <div id="printAllHeader" style="text-align:center;margin-bottom:16px;border-bottom:2px solid #000;padding-bottom:12px;">
+    <h2 style="font-size:18px;margin-bottom:4px;">SPPG — Sistem Manajemen Internal</h2>
+    <p id="printAllMeta" style="font-size:11px;color:#333;margin:0;">-</p>
+  </div>
+  <div id="printAllBody"></div>
+</div>
+
+<!-- ==================== MODAL RECOVERY FORM ==================== -->
+<div id="modalRecovery" class="hidden">
+  <div class="modal-overlay" style="z-index:10000;" onclick="if(event.target===this)closeModal('modalRecovery')">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-header">
+        <h3 id="recoveryTitle">Recovery</h3>
+        <button onclick="closeModal('modalRecovery')" class="modal-close"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body" id="recoveryBody"></div>
+      <div class="modal-footer">
+        <button onclick="closeModal('modalRecovery')" class="btn btn-outline">Batal</button>
+        <button onclick="submitRecovery()" class="btn btn-primary" id="btnRecoverySubmit" style="display:none;">Verifikasi</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ==================== MODAL RECOVERY RESULT ==================== -->
+
 /* SIM-SPPG INLINE FRONTEND BUNDLE START */
 <script id="sim-sppg-inline-frontend">
 
@@ -12978,78 +13052,6 @@ function submitRecovery() {
         osc.start(now + i * 0.12);
         osc.stop(now + i * 0.12 + 0.3);
       });
-    } catch (e) { /* noop jika browser blokir autoplay audio */ }
-  }
-
-  document.addEventListener('DOMContentLoaded', function() {
-    var lpwd = document.getElementById('loginPassword');
-    if (lpwd) lpwd.addEventListener('keypress', function(e) { if (e.key === 'Enter') doLogin(); });
-  });
-
-  document.addEventListener('click', function(e) {
-    var boxes = document.querySelectorAll('.autocomplete-box');
-    boxes.forEach(function(box) {
-      if (!box.contains(e.target)) {
-        var dd = box.querySelector('.autocomplete-dropdown');
-        if (dd) dd.classList.remove('active');
-      }
-    });
-  });
-
-  try {
-    if (safeStorage('get', 'sidebarCollapsed') === '1') {
-      sidebarCollapsed = true;
-      document.getElementById('mainSidebar').classList.add('collapsed');
-      document.getElementById('mainWrapper').classList.add('sidebar-collapsed');
-    }
-  } catch(e) {}
-
-  document.body.style.overflow = '';
-  document.body.style.position = '';
-
-  if (checkSession()) {
-    document.getElementById('authOverlay').classList.add('hidden');
-    document.getElementById('appContainer').classList.remove('hidden');
-    initApp();
-  }
-
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      closeLightbox();
-      // Tutup modal teratas yang sedang terbuka (selain lightbox, yang sudah ditangani di atas)
-      var openModals = document.querySelectorAll('[id^="modal"]:not(.hidden)');
-      if (openModals.length > 0) {
-        var topModal = openModals[openModals.length - 1];
-        closeModal(topModal.id);
-      }
-    }
-  });
-</script>
-
-<div id="printAllContainer" class="print-all-container">
-  <div id="printAllHeader" style="text-align:center;margin-bottom:16px;border-bottom:2px solid #000;padding-bottom:12px;">
-    <h2 style="font-size:18px;margin-bottom:4px;">SPPG — Sistem Manajemen Internal</h2>
-    <p id="printAllMeta" style="font-size:11px;color:#333;margin:0;">-</p>
-  </div>
-  <div id="printAllBody"></div>
-</div>
-
-<!-- ==================== MODAL RECOVERY FORM ==================== -->
-<div id="modalRecovery" class="hidden">
-  <div class="modal-overlay" style="z-index:10000;" onclick="if(event.target===this)closeModal('modalRecovery')">
-    <div class="modal-box" style="max-width:460px;">
-      <div class="modal-header">
-        <h3 id="recoveryTitle">Recovery</h3>
-        <button onclick="closeModal('modalRecovery')" class="modal-close"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal-body" id="recoveryBody"></div>
-      <div class="modal-footer">
-        <button onclick="closeModal('modalRecovery')" class="btn btn-outline">Batal</button>
-        <button onclick="submitRecovery()" class="btn btn-primary" id="btnRecoverySubmit" style="display:none;">Verifikasi</button>
-      </div>
-    </div>
-  </div>
-</div>
-<!-- ==================== MODAL RECOVERY RESULT ==================== -->
+    } catch (e) { /* noop jika browser blokir autoplay audio */
 </body>
 </html>
