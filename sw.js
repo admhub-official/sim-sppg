@@ -1,12 +1,14 @@
-const CACHE = 'simsppg-v13';
+const CACHE = 'simsppg-v14';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
-const DASHBOARD_UI = new URL('dashboard-ui.js?v=1', SCOPE).href;
+const DASHBOARD_UI = new URL('dashboard-ui-v2.js?v=2', SCOPE).href;
+const DASHBOARD_FIX = new URL('dashboard-ui-fix.js?v=1', SCOPE).href;
 const ASSETS = [
   HOME,
   new URL('manifest.json', SCOPE).href,
   new URL('app.js?v=12', SCOPE).href,
-  DASHBOARD_UI
+  DASHBOARD_UI,
+  DASHBOARD_FIX
 ];
 
 self.addEventListener('install', function(event) {
@@ -33,9 +35,9 @@ function injectDashboardUi(response) {
   if (contentType.indexOf('text/html') === -1) return Promise.resolve(response);
 
   return response.text().then(function(html) {
-    if (html.indexOf('dashboard-ui.js') === -1) {
-      var script = '<script defer src="/dashboard-ui.js?v=1"></script>';
-      html = html.indexOf('</body>') > -1 ? html.replace('</body>', script + '</body>') : html + script;
+    if (html.indexOf('dashboard-ui-v2.js') === -1) {
+      var scripts = '<script defer src="/dashboard-ui-v2.js?v=2"></script><script defer src="/dashboard-ui-fix.js?v=1"></script>';
+      html = html.indexOf('</body>') > -1 ? html.replace('</body>', scripts + '</body>') : html + scripts;
     }
     var headers = new Headers(response.headers);
     headers.delete('content-length');
