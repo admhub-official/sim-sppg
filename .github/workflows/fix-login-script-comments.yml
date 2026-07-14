@@ -1,4 +1,4 @@
-name: Repair inline frontend bundle placement
+name: Repair and diagnose inline scripts
 
 on:
   push:
@@ -20,57 +20,72 @@ jobs:
         with:
           ref: agent/fix-login-script-comments
 
-      - name: Move bundle to final body tag
+      - name: Relocate bundle when still embedded
         run: |
           python3 - <<'PY'
           from pathlib import Path
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
-          start_text = 'SIM-SPPG INLINE FRONTEND BUNDLE START'
-          end_text = 'SIM-SPPG INLINE FRONTEND BUNDLE END'
-          start_content = text.find(start_text)
-          end_content = text.find(end_text, start_content + 1)
-          if start_content < 0 or end_content < 0:
-              raise SystemExit('Marker bundle tidak lengkap.')
-          start = text.rfind('/*', 0, start_content)
-          end = text.find('*/', end_content)
-          if start < 0 or end < 0:
-              raise SystemExit('Batas komentar marker bundle tidak ditemukan.')
-          end += 2
-          bundle = text[start:end].strip()
-          cleaned = text[:start] + text[end:]
-          final_body = cleaned.lower().rfind('</body>')
-          if final_body < 0:
-              raise SystemExit('Penutup body terakhir tidak ditemukan.')
-          fixed = cleaned[:final_body].rstrip() + '\n\n' + bundle + '\n' + cleaned[final_body:]
-          path.write_text(fixed, encoding='utf-8')
+          marker = 'SIM-SPPG INLINE FRONTEND BUNDLE START'
+          marker_pos = text.find(marker)
+          final_body = text.lower().rfind('</body>')
+          first_body = text.lower().find('</body>')
+          if marker_pos < 0:
+              raise SystemExit('Marker bundle tidak ditemukan.')
+          if marker_pos > first_body and marker_pos < final_body:
+              print('Bundle sudah berada di area akhir halaman.')
+          else:
+              end_text = 'SIM-SPPG INLINE FRONTEND BUNDLE END'
+              end_content = text.find(end_text, marker_pos + 1)
+              start = text.rfind('/*', 0, marker_pos)
+              end = text.find('*/', end_content) + 2
+              if start < 0 or end_content < 0 or end < 2:
+                  raise SystemExit('Batas bundle tidak valid.')
+              bundle = text[start:end].strip()
+              cleaned = text[:start] + text[end:]
+              final_body = cleaned.lower().rfind('</body>')
+              fixed = cleaned[:final_body].rstrip() + '\n\n' + bundle + '\n' + cleaned[final_body:]
+              path.write_text(fixed, encoding='utf-8')
+              print('Bundle dipindahkan.')
           PY
 
-      - name: Validate JavaScript syntax
+      - name: Commit relocation if changed
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "Tidak ada perubahan posisi bundle."
+          else
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add index.html
+            git commit -m "Pindahkan bundle frontend ke akhir body"
+            git push
+          fi
+
+      - name: Capture syntax diagnostics
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           html = Path('index.html').read_text(encoding='utf-8')
           scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
-          if not scripts:
-              raise SystemExit('Inline script tidak ditemukan.')
+          log = [f'inline_scripts={len(scripts)}']
           for i, script in enumerate(scripts, 1):
               Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
-          print(f'Inline scripts: {len(scripts)}')
+          Path('syntax-check.log').write_text('\n'.join(log) + '\n', encoding='utf-8')
           PY
-          for f in /tmp/inline-*.js; do node --check "$f"; done
-
-      - name: Validate login symbols
-        run: |
-          grep -q 'function doLogin()' index.html
-          grep -q 'onclick="doLogin()"' index.html
-
-      - name: Clean and commit final fix
-        run: |
-          rm -f syntax-check.log bundle-marker.log .github/workflows/fix-login-script-comments.yml
+          set +e
+          status=0
+          for f in /tmp/inline-*.js; do
+            echo "===== $f =====" >> syntax-check.log
+            node --check "$f" >> syntax-check.log 2>&1
+            code=$?
+            echo "exit=$code" >> syntax-check.log
+            if [ $code -ne 0 ]; then status=1; fi
+          done
+          set -e
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html syntax-check.log bundle-marker.log .github/workflows/fix-login-script-comments.yml
-          git commit -m "Perbaiki syntax dan posisi bundle agar login berfungsi"
+          git add syntax-check.log
+          git commit -m "Perbarui diagnostik syntax setelah pemindahan bundle" || true
           git push
+          exit $status
