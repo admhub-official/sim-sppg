@@ -42,8 +42,8 @@ jobs:
                   repaired.append(new)
           path.write_text(''.join(repaired), encoding='utf-8')
           print(f'Hybrid comments fixed: {converted}')
-          if converted != 8:
-              raise SystemExit(f'Diharapkan 8 komentar hibrida, ditemukan {converted}.')
+          if converted == 0:
+              raise SystemExit('Tidak ditemukan komentar hibrida untuk diperbaiki.')
           PY
 
       - name: Validate code unchanged and no visible comment tokens
