@@ -17,38 +17,34 @@ jobs:
         with:
           ref: agent/diagnose-login-syntax
 
-      - name: Extract browser-visible inline scripts and diagnose syntax
+      - name: Audit all malformed comments inside inline scripts
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re, subprocess
 
           html = Path('index.html').read_text(encoding='utf-8')
-          pattern = re.compile(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', re.I | re.S)
-          scripts = pattern.findall(html)
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
           report = [f'inline_scripts={len(scripts)}']
 
           for idx, script in enumerate(scripts, 1):
+              hybrids = list(re.finditer(r'/\*.*?-->', script, flags=re.S))
+              reverse = list(re.finditer(r'<!--.*?\*/', script, flags=re.S))
+              report.append(f'\n===== inline-{idx}: hybrid_js_html={len(hybrids)} hybrid_html_js={len(reverse)} =====')
+              for kind, matches in [('JS_OPEN_HTML_CLOSE', hybrids), ('HTML_OPEN_JS_CLOSE', reverse)]:
+                  for n, match in enumerate(matches, 1):
+                      line_no = script.count('\n', 0, match.start()) + 1
+                      snippet_lines = match.group(0).splitlines()
+                      report.append(f'[{kind} #{n}] line={line_no} chars={len(match.group(0))}')
+                      for offset, value in enumerate(snippet_lines[:12]):
+                          report.append(f'  {line_no + offset:05d}: {value}')
+
               js_path = Path(f'/tmp/inline-{idx}.js')
               js_path.write_text(script, encoding='utf-8')
               proc = subprocess.run(['node', '--check', str(js_path)], text=True, capture_output=True)
-              report.append(f'\n===== inline-{idx} exit={proc.returncode} lines={script.count(chr(10))+1} =====')
-              if proc.stdout:
-                  report.append(proc.stdout)
+              report.append(f'node_check_exit={proc.returncode}')
               if proc.stderr:
                   report.append(proc.stderr)
-              if proc.returncode:
-                  m = re.search(r':(\d+)\s*$', proc.stderr.splitlines()[0] if proc.stderr.splitlines() else '')
-                  if not m:
-                      m = re.search(r'inline-\d+\.js:(\d+)', proc.stderr)
-                  if m:
-                      line_no = int(m.group(1))
-                      lines = script.splitlines()
-                      start = max(1, line_no - 15)
-                      end = min(len(lines), line_no + 15)
-                      report.append(f'--- context {start}-{end} ---')
-                      for n in range(start, end + 1):
-                          report.append(f'{n:05d}: {lines[n-1]}')
 
           Path('login-syntax-diagnostic.log').write_text('\n'.join(report) + '\n', encoding='utf-8')
           PY
@@ -58,5 +54,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add login-syntax-diagnostic.log
-          git commit -m "Catat lokasi pasti syntax error login"
+          git commit -m "Audit seluruh komentar hibrida JavaScript"
           git push
