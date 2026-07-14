@@ -1,4 +1,4 @@
-name: Inspect remaining broken string
+name: Finalize login syntax repair
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  inspect:
+  finalize:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -20,31 +20,82 @@ jobs:
         with:
           ref: agent/fix-login-script-comments
 
-      - name: Write inline script context
+      - name: Restore exportApprovalPDF tail
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          old = """    '</table>' +
+    '
+ }
+  }
+"""
+          new = """    '</table>' +
+    '</body></html>';
+
+  var printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(function() { printWindow.print(); }, 400);
+  } else {
+    showToast('error', 'Cetak PDF', 'Popup diblokir browser. Izinkan popup lalu coba lagi.');
+  }
+}
+"""
+          if old not in text:
+              # Gunakan pola lebih toleran terhadap spasi.
+              import re
+              pattern = re.compile(r"    '</table>' \+\n    '\s*\n\s*}\n\s*}\n")
+              fixed, count = pattern.subn(new, text, count=1)
+              if count != 1:
+                  raise SystemExit('Tail exportApprovalPDF yang rusak tidak ditemukan secara unik.')
+          else:
+              fixed = text.replace(old, new, 1)
+          path.write_text(fixed, encoding='utf-8')
+          PY
+
+      - name: Validate every inline JavaScript block
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           html = Path('index.html').read_text(encoding='utf-8')
-          matches = list(re.finditer(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S))
-          scripts = [m.group(1) for m in matches]
-          lines_out = [f'inline_scripts={len(scripts)}']
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
+          if not scripts:
+              raise SystemExit('Inline script tidak ditemukan.')
           for i, script in enumerate(scripts, 1):
-              lines = script.splitlines()
-              lines_out.append(f'===== inline-{i} =====')
-              if i == 2:
-                  for n in range(3548, min(3575, len(lines)+1)):
-                      lines_out.append(f'{n}: {lines[n-1]}')
-                  absolute_start_line = html[:matches[i-1].start(1)].count('\n') + 1
-                  lines_out.append(f'absolute_start_line={absolute_start_line}')
-                  lines_out.append(f'absolute_error_line={absolute_start_line + 3558 - 1}')
-          Path('broken-string-context.log').write_text('\n'.join(lines_out) + '\n', encoding='utf-8')
+              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
+          print(f'Inline scripts: {len(scripts)}')
+          PY
+          for f in /tmp/inline-*.js; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+
+      - name: Validate login and bundle structure
+        run: |
+          grep -q 'function doLogin()' index.html
+          grep -q 'onclick="doLogin()"' index.html
+          grep -q 'function exportApprovalPDF' index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('index.html').read_text(encoding='utf-8')
+          marker = text.find('SIM-SPPG INLINE FRONTEND BUNDLE START')
+          final_body = text.lower().rfind('</body>')
+          if marker < 0 or marker > final_body:
+              raise SystemExit('Posisi bundle frontend tidak valid.')
           PY
 
-      - name: Commit context
+      - name: Remove diagnostics and commit final result
         run: |
+          rm -f syntax-check.log bundle-marker.log broken-string-context.log .github/workflows/fix-login-script-comments.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add broken-string-context.log
-          git commit -m "Tambahkan konteks string rusak sementara"
+          git add index.html syntax-check.log bundle-marker.log broken-string-context.log .github/workflows/fix-login-script-comments.yml
+          git commit -m "Perbaiki parser JavaScript dan aktifkan kembali login"
           git push
