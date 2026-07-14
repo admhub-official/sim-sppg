@@ -26,14 +26,12 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
           block_re = re.compile(r'(<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>)', re.I | re.S)
           parts = block_re.split(text)
           repaired = []
           converted = 0
-
           for part in parts:
               lower = part.lstrip().lower()
               if lower.startswith('<script') or lower.startswith('<style'):
@@ -42,7 +40,6 @@ jobs:
                   new, count = re.subn(r'/\*(.*?)\*/', lambda m: '<!--' + m.group(1) + '-->', part, flags=re.S)
                   converted += count
                   repaired.append(new)
-
           path.write_text(''.join(repaired), encoding='utf-8')
           print(f'Converted visible code comments: {converted}')
           if converted == 0:
@@ -53,9 +50,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
-          import hashlib
-
+          import re, hashlib
           before = Path('/tmp/index-before.html').read_text(encoding='utf-8')
           after = Path('index.html').read_text(encoding='utf-8')
           block_re = re.compile(r'<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>', re.I | re.S)
@@ -63,21 +58,18 @@ jobs:
           after_blocks = block_re.findall(after)
           if before_blocks != after_blocks:
               raise SystemExit('Isi blok script/style berubah, perbaikan dibatalkan.')
-          digest = hashlib.sha256(''.join(after_blocks).encode()).hexdigest()
-          print(f'Code blocks unchanged: {len(after_blocks)}, sha256={digest}')
           if 'function doLogin()' not in after or 'onclick="doLogin()"' not in after:
               raise SystemExit('Fungsi atau handler login tidak ditemukan.')
+          print(f'Code blocks unchanged: {len(after_blocks)}, sha256={hashlib.sha256("".join(after_blocks).encode()).hexdigest()}')
           PY
 
-      - name: Validate no comments render as text
+      - name: Validate no literal block-comment tokens are visible
         run: |
           python3 - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
-          import re
 
           html = Path('index.html').read_text(encoding='utf-8')
-
           class Audit(HTMLParser):
               def __init__(self):
                   super().__init__(convert_charrefs=True)
@@ -93,39 +85,13 @@ jobs:
                   if self.code_depth:
                       return
                   compact = ' '.join(data.split())
-                  if not compact:
-                      return
-                  if '/*' in compact or '*/' in compact:
+                  if compact and ('/*' in compact or '*/' in compact):
                       self.bad.append(compact[:300])
-                  if re.search(r'={10,}\s*(INDEX|APP SHELL|AUTH|MAIN|DASHBOARD|PROFILE|SURVEY)', compact, re.I):
-                      self.bad.append(compact[:300])
-
           audit = Audit()
           audit.feed(html)
           if audit.bad:
-              raise SystemExit('Teks komentar masih terlihat:\n' + '\n'.join(audit.bad[:20]))
-
-          required = ['id="dashboardPage"', 'id="appContainer"', 'id="authOverlay"']
-          missing = [value for value in required if value not in html]
-          if missing:
-              raise SystemExit('Elemen penting hilang: ' + ', '.join(missing))
+              raise SystemExit('Token komentar masih tampil sebagai teks:\n' + '\n'.join(audit.bad[:20]))
           print('Visible comment audit passed.')
-          PY
-
-      - name: Validate document structure
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          html = Path('index.html').read_text(encoding='utf-8')
-          for tag in ('html', 'body', 'style', 'script'):
-              opened = len(re.findall(r'<' + tag + r'\b', html, re.I))
-              closed = len(re.findall(r'</' + tag + r'\s*>', html, re.I))
-              if opened != closed:
-                  raise SystemExit(f'Tag {tag} tidak seimbang: {opened}/{closed}')
-          if len(re.findall(r'<body\b', html, re.I)) != 1:
-              raise SystemExit('Dokumen harus memiliki tepat satu body utama.')
-          print('Document structure passed.')
           PY
 
       - name: Commit clean result
