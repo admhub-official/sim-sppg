@@ -1,0 +1,10 @@
+inline script tags found: 7
+script 1: external, skipped
+script 2: OK (HTML starts line 23, 29 lines)
+script 3: external, skipped
+script 4: external, skipped
+script 5: external, skipped
+script 6: OK (HTML starts line 6343, 6457 lines)
+script 7: OK (HTML starts line 12828, 730 lines)
+
+failures: 0
