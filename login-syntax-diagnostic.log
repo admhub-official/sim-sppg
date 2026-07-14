@@ -1,0 +1,48 @@
+inline_scripts=3
+
+===== inline-1 exit=0 lines=29 =====
+
+===== inline-2 exit=1 lines=6450 =====
+/tmp/inline-2.js:3944
+/* ============================================================
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1713:18)
+    at checkSyntax (node:internal/main/check_syntax:78:3)
+
+Node.js v22.23.1
+
+--- context 3929-3959 ---
+03929:                 loadDashboardData();
+03930:               } else {
+03931:                 showToast('error', 'Gagal', result.message);
+03932:               }
+03933:       },
+03934:       function(err) {
+03935:         showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+03936:       }
+03937:     );
+03938: }
+03939: 
+03940: // ============================================================
+03941: // 12. MASTER BAHAN BAKU
+03942: // ============================================================
+03943: 
+03944: /* ============================================================
+03945:      MASTER DATA - BAHAN BAKU
+03946:      ============================================================ -->
+03947: function loadMasterBB() {
+03948:   showLoading(true);
+03949:     callApi('getMasterBahanBaku', [], function(result) {
+03950:         showLoading(false);
+03951:               if (result.success) {
+03952:                 allMasterBB = result.data || [];
+03953:                 filteredMasterBB = allMasterBB.slice();
+03954:                 bbPage = 1;
+03955:                 renderMasterBBTable();
+03956:               }
+03957:       },
+03958:       function(err) {
+03959:         showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data');
+
+===== inline-3 exit=0 lines=295 =====
