@@ -10222,7 +10222,7 @@ function doSubmitVerifikasiPembayaran() {
 
 /* ============================================================
      MASTER DATA - BAHAN BAKU
-     ============================================================ -->
+     ============================================================ */
 function loadMasterBB() {
   showLoading(true);
     callApi('getMasterBahanBaku', [], function(result) {
@@ -10608,9 +10608,9 @@ function exportMasterBB(format) {
 // 13. SUPPLIER
 // ============================================================
 
-<!-- ============================================================
+/* ============================================================
      MASTER DATA - SUPPLIER
-     ============================================================ -->
+     ============================================================ */
 function loadSuppliers(silent) {
   return new Promise(function(resolve) {
     if (!currentUser) { resolve(); return; }
@@ -10840,9 +10840,9 @@ function clearSupTtd() { clearTtdCanvas('supTtdCanvas'); }
 // 14. SURVEI HARGA
 // ============================================================
 
-<!-- ============================================================
+/* ============================================================
      SURVEY
-     ============================================================ -->
+     ============================================================ */
 function loadSurvei() {
   showLoading(true);
     callApi('getSurveiBahanBaku', [], function(result) {
@@ -11084,9 +11084,9 @@ function submitSurveiData(data) {
 // 15. SERAH TERIMA
 // ============================================================
 
-<!-- ============================================================
+/* ============================================================
      SERAH TERIMA
-     ============================================================ -->
+     ============================================================ */
 function loadSerahTerima() {
   showLoading(true);
     callApi('getSerahTerima', [], function(result) {
@@ -11292,9 +11292,9 @@ function saveAddSerahTerima() {
 // 16. MENU MBG (AHLI GIZI)
 // ============================================================
 
-<!-- ============================================================
+/* ============================================================
      MENU MBG
-     ============================================================ -->
+     ============================================================ */
 function loadMenuMBG() {
   showLoading(true);
     callApi('getMenuHarian', [{}], function(result) {
@@ -11467,9 +11467,9 @@ function saveAddMenuMBG() {
 // 17. PENDING PAYMENT
 // ============================================================
 
-<!-- ============================================================
+/* ============================================================
      PENDING PAYMENT
-     ============================================================ -->
+     ============================================================ */
 function loadPendingPayment() {
   showLoading(true);
     callApi('getPendingPayments', [], function(data) {
@@ -11585,9 +11585,9 @@ var filteredAuditLog = [];
 var auditLogPage = 1;
 
 
-<!-- ============================================================
+/* ============================================================
      AUDIT LOG & NOTIFICATIONS
-     ============================================================ -->
+     ============================================================ */
 function loadAuditLog() {
   if (!currentUser || currentUser.role !== 'ADMIN') return;
   showLoading(true);
@@ -12680,7 +12680,7 @@ function submitRecovery() {
         osc.start(now + i * 0.12);
         osc.stop(now + i * 0.12 + 0.3);
       });
-    } catch (e) { <!-- noop jika browser blokir autoplay audio --> }
+    } catch (e) { /* noop jika browser blokir autoplay audio */ }
   }
 
   document.addEventListener('DOMContentLoaded', function() {
