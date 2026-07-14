@@ -1,0 +1,145 @@
+name: Clean login parser repair
+
+on:
+  push:
+    branches:
+      - agent/fix-login-clean
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-login-clean
+
+      - name: Repair index structure and JavaScript
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          # 1. Convert HTML section comments that were inserted inside script blocks.
+          lines = text.splitlines(keepends=True)
+          out = []
+          in_script = False
+          in_banner = False
+          for line in lines:
+              lower = line.lower()
+              if not in_script and re.search(r'<script(?:\s|>)', lower):
+                  in_script = True
+                  out.append(line)
+                  continue
+              if in_script:
+                  if not in_banner and '<!--' in line:
+                      line = line.replace('<!--', '/*', 1)
+                      if '-->' in line:
+                          line = line.replace('-->', '*/', 1)
+                      else:
+                          in_banner = True
+                      out.append(line)
+                      continue
+                  if in_banner:
+                      if '-->' in line:
+                          line = line.replace('-->', '*/', 1)
+                          in_banner = False
+                      out.append(line)
+                      continue
+                  if re.search(r'</script\s*>', lower):
+                      in_script = False
+              out.append(line)
+          text = ''.join(out)
+
+          # 2. Remove the inline frontend bundle from the accidental location.
+          start_phrase = 'SIM-SPPG INLINE FRONTEND BUNDLE START'
+          end_phrase = 'SIM-SPPG INLINE FRONTEND BUNDLE END'
+          start_inner = text.find(start_phrase)
+          end_inner = text.find(end_phrase)
+          if start_inner < 0 or end_inner < 0 or end_inner <= start_inner:
+              raise SystemExit('Marker bundle frontend tidak lengkap.')
+          start = text.rfind('/*', 0, start_inner)
+          end = text.find('*/', end_inner)
+          if start < 0 or end < 0:
+              raise SystemExit('Batas komentar bundle frontend tidak ditemukan.')
+          end += 2
+          bundle = text[start:end]
+          text = text[:start] + text[end:]
+
+          # 3. Repair the string that was split when the bundle was inserted
+          #    before an embedded </body> in the report/PDF template.
+          repaired, count = re.subn(
+              r"('</table>'\s*\+)\s*'\s*\n\s*(</body></html>';)",
+              r"\1\n    '\2",
+              text,
+              count=1,
+              flags=re.I,
+          )
+          if count == 0:
+              # Accept an already-correct tail.
+              if not re.search(r"'</table>'\s*\+\s*\n\s*'</body></html>';", text, flags=re.I):
+                  raise SystemExit('String penutup laporan yang rusak tidak ditemukan.')
+              repaired = text
+          text = repaired
+
+          # 4. Insert the bundle before the actual final body closing tag.
+          final_body = text.lower().rfind('</body>')
+          if final_body < 0:
+              raise SystemExit('Penutup body utama tidak ditemukan.')
+          text = text[:final_body] + '\n' + bundle.strip() + '\n' + text[final_body:]
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate every inline JavaScript block
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
+          if not scripts:
+              raise SystemExit('Inline script tidak ditemukan.')
+          for i, script in enumerate(scripts, 1):
+              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
+          print(f'Validated inline script count: {len(scripts)}')
+          PY
+          for file in /tmp/inline-*.js; do
+            node --check "$file"
+          done
+
+      - name: Validate login and final bundle placement
+        run: |
+          grep -q 'function doLogin()' index.html
+          grep -q 'onclick="doLogin()"' index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('index.html').read_text(encoding='utf-8')
+          marker = text.find('SIM-SPPG INLINE FRONTEND BUNDLE START')
+          final_body = text.lower().rfind('</body>')
+          if marker < 0 or marker > final_body:
+              raise SystemExit('Bundle frontend belum berada sebelum body utama.')
+          if '<!--' in text[text.find('<script'):text.rfind('</script>')]:
+              raise SystemExit('Masih ada komentar HTML di dalam rentang script.')
+          PY
+
+      - name: Clean temporary files and commit
+        run: |
+          rm -f \
+            .github/workflows/clean-fix-login.yml \
+            .github/workflows/fix-login-script-comments.yml \
+            .trigger-login-fix \
+            syntax-check.log \
+            bundle-marker.log \
+            broken-string-context.log
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Perbaiki parser JavaScript dan tombol login"
+          git push
