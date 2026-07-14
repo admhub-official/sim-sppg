@@ -1,0 +1,159 @@
+name: Fix visible code comments
+
+on:
+  push:
+    branches:
+      - agent/fix-visible-comments
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-visible-comments
+
+      - name: Normalize comments by document context
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          # Split around complete style/script blocks so comments are normalized
+          # only according to the language context where they live.
+          block_re = re.compile(r'(<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>)', re.I | re.S)
+          parts = block_re.split(text)
+          repaired = []
+          converted_html = 0
+          converted_code = 0
+
+          for part in parts:
+              lower = part.lstrip().lower()
+              if lower.startswith('<script'):
+                  # HTML comments inside JS are invalid/legacy and may break parsing.
+                  def js_comment(match):
+                      nonlocal_placeholder = None
+                      return '/*' + match.group(1) + '*/'
+                  new, count = re.subn(r'<!--(.*?)-->', lambda m: '/*' + m.group(1) + '*/', part, flags=re.S)
+                  converted_code += count
+                  repaired.append(new)
+              elif lower.startswith('<style'):
+                  # CSS block comments are already correct.
+                  repaired.append(part)
+              else:
+                  # CSS/JS block comments outside code blocks are rendered as text.
+                  new, count = re.subn(r'/\*(.*?)\*/', lambda m: '<!--' + m.group(1) + '-->', part, flags=re.S)
+                  converted_html += count
+                  repaired.append(new)
+
+          text = ''.join(repaired)
+          path.write_text(text, encoding='utf-8')
+          print(f'Converted outside-code comments to HTML: {converted_html}')
+          print(f'Converted HTML comments inside JS: {converted_code}')
+          PY
+
+      - name: Validate JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
+          if not scripts:
+              raise SystemExit('Inline JavaScript tidak ditemukan.')
+          for i, script in enumerate(scripts, 1):
+              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
+          print(f'Inline scripts: {len(scripts)}')
+          PY
+          for file in /tmp/inline-*.js; do node --check "$file"; done
+
+      - name: Validate no code comments render as page text
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import re
+
+          html = Path('index.html').read_text(encoding='utf-8')
+
+          class VisibleTextAudit(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.stack = []
+                  self.bad = []
+              def handle_starttag(self, tag, attrs):
+                  self.stack.append(tag.lower())
+              def handle_startendtag(self, tag, attrs):
+                  pass
+              def handle_endtag(self, tag):
+                  tag = tag.lower()
+                  for i in range(len(self.stack)-1, -1, -1):
+                      if self.stack[i] == tag:
+                          del self.stack[i:]
+                          break
+              def handle_data(self, data):
+                  if any(tag in ('script','style') for tag in self.stack):
+                      return
+                  compact = ' '.join(data.split())
+                  if not compact:
+                      return
+                  if '/*' in compact or '*/' in compact:
+                      self.bad.append(compact[:240])
+                  elif re.search(r'={12,}\s*(APP SHELL|AUTH|DASHBOARD|MAIN|PROFILE|SURVEY)', compact, re.I):
+                      self.bad.append(compact[:240])
+
+          parser = VisibleTextAudit()
+          parser.feed(html)
+          if parser.bad:
+              raise SystemExit('Komentar kode masih menjadi teks visual:\n' + '\n'.join(parser.bad[:20]))
+
+          required = [
+              'function doLogin()',
+              'onclick="doLogin()"',
+              'id="dashboardPage"',
+              'id="appContainer"'
+          ]
+          missing = [item for item in required if item not in html]
+          if missing:
+              raise SystemExit('Elemen/fungsi penting hilang: ' + ', '.join(missing))
+          print('Visible text audit passed.')
+          PY
+
+      - name: Validate basic HTML structure
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          checks = {
+              'html open/close': (len(re.findall(r'<html\b', html, re.I)), len(re.findall(r'</html\s*>', html, re.I))),
+              'body open/close': (len(re.findall(r'<body\b', html, re.I)), len(re.findall(r'</body\s*>', html, re.I))),
+              'style open/close': (len(re.findall(r'<style\b', html, re.I)), len(re.findall(r'</style\s*>', html, re.I))),
+              'script open/close': (len(re.findall(r'<script\b', html, re.I)), len(re.findall(r'</script\s*>', html, re.I))),
+          }
+          for name, pair in checks.items():
+              if pair[0] != pair[1]:
+                  raise SystemExit(f'{name} tidak seimbang: {pair}')
+          if checks['body open/close'] != (1, 1):
+              raise SystemExit(f'Jumlah body tidak valid: {checks["body open/close"]}')
+          print(checks)
+          PY
+
+      - name: Commit clean result
+        run: |
+          rm -f .github/workflows/fix-visible-comments.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Perbaiki komentar kode yang tampil di halaman"
+          git push
