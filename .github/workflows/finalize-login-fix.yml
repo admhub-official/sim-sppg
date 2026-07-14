@@ -1,0 +1,143 @@
+name: Finalize SIM-SPPG login repair
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .login-fix-trigger
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Repair index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          # 1) Convert HTML comments that were inserted inside script blocks.
+          lines = text.splitlines(keepends=True)
+          out = []
+          in_script = False
+          in_banner = False
+          for line in lines:
+              lower = line.lower()
+              if not in_script and re.search(r'<script(?:\s|>)', lower):
+                  in_script = True
+                  out.append(line)
+                  continue
+              if in_script:
+                  if not in_banner and '<!--' in line:
+                      line = line.replace('<!--', '/*', 1)
+                      in_banner = '-->' not in line
+                      if '-->' in line:
+                          line = line.replace('-->', '*/', 1)
+                      out.append(line)
+                      continue
+                  if in_banner:
+                      if '-->' in line:
+                          line = line.replace('-->', '*/', 1)
+                          in_banner = False
+                      out.append(line)
+                      continue
+                  if re.search(r'</script\s*>', lower):
+                      in_script = False
+              out.append(line)
+          text = ''.join(out)
+
+          # 2) Move consolidated frontend bundle away from the PDF HTML string
+          #    and place it before the final real </body> tag.
+          start_text = 'SIM-SPPG INLINE FRONTEND BUNDLE START'
+          end_text = 'SIM-SPPG INLINE FRONTEND BUNDLE END'
+          start_content = text.find(start_text)
+          end_content = text.find(end_text, start_content + 1)
+          if start_content < 0 or end_content < 0:
+              raise SystemExit('Marker bundle frontend tidak lengkap.')
+          start = text.rfind('/*', 0, start_content)
+          end = text.find('*/', end_content)
+          if start < 0 or end < 0:
+              raise SystemExit('Batas marker bundle frontend tidak ditemukan.')
+          end += 2
+          bundle = text[start:end].strip()
+          cleaned = text[:start] + text[end:]
+          final_body = cleaned.lower().rfind('</body>')
+          if final_body < 0:
+              raise SystemExit('Tag </body> terakhir tidak ditemukan.')
+          text = cleaned[:final_body].rstrip() + '\n\n' + bundle + '\n' + cleaned[final_body:]
+
+          # 3) Restore the truncated end of exportApprovalPDF().
+          broken = re.compile(r"    '</table>' \+\n    '\s*\n\s*}\n\s*}\n")
+          replacement = """    '</table>' +
+    '</body></html>';
+
+  var printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(function() { printWindow.print(); }, 400);
+  } else {
+    showToast('error', 'Cetak PDF', 'Popup diblokir browser. Izinkan popup lalu coba lagi.');
+  }
+}
+"""
+          text, count = broken.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit('Bagian exportApprovalPDF yang terputus tidak ditemukan secara unik.')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate every inline JavaScript block
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
+          if not scripts:
+              raise SystemExit('Inline script tidak ditemukan.')
+          for i, script in enumerate(scripts, 1):
+              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
+          print(f'Validating {len(scripts)} inline scripts')
+          PY
+          for f in /tmp/inline-*.js; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+
+      - name: Validate login symbols and bundle placement
+        run: |
+          grep -q 'function doLogin()' index.html
+          grep -q 'onclick="doLogin()"' index.html
+          grep -q 'printWindow.document.write(html)' index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('index.html').read_text(encoding='utf-8')
+          marker = text.find('SIM-SPPG INLINE FRONTEND BUNDLE START')
+          last_body = text.lower().rfind('</body>')
+          if marker < 0 or marker > last_body:
+              raise SystemExit('Bundle frontend tidak berada sebelum body terakhir.')
+          PY
+
+      - name: Remove one-time files and commit
+        run: |
+          rm -f .login-fix-trigger .github/workflows/finalize-login-fix.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Perbaiki parser JavaScript dan tombol login"
+          git push
