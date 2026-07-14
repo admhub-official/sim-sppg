@@ -20,7 +20,7 @@ jobs:
         with:
           ref: agent/fix-visible-comments
 
-      - name: Normalize comments by document context
+      - name: Normalize only comments outside code blocks
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -28,38 +28,24 @@ jobs:
 
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
-
-          # Split around complete style/script blocks so comments are normalized
-          # only according to the language context where they live.
           block_re = re.compile(r'(<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>)', re.I | re.S)
           parts = block_re.split(text)
           repaired = []
-          converted_html = 0
-          converted_code = 0
+          converted = 0
 
           for part in parts:
               lower = part.lstrip().lower()
-              if lower.startswith('<script'):
-                  # HTML comments inside JS are invalid/legacy and may break parsing.
-                  def js_comment(match):
-                      nonlocal_placeholder = None
-                      return '/*' + match.group(1) + '*/'
-                  new, count = re.subn(r'<!--(.*?)-->', lambda m: '/*' + m.group(1) + '*/', part, flags=re.S)
-                  converted_code += count
-                  repaired.append(new)
-              elif lower.startswith('<style'):
-                  # CSS block comments are already correct.
+              if lower.startswith('<script') or lower.startswith('<style'):
                   repaired.append(part)
               else:
-                  # CSS/JS block comments outside code blocks are rendered as text.
                   new, count = re.subn(r'/\*(.*?)\*/', lambda m: '<!--' + m.group(1) + '-->', part, flags=re.S)
-                  converted_html += count
+                  converted += count
                   repaired.append(new)
 
-          text = ''.join(repaired)
-          path.write_text(text, encoding='utf-8')
-          print(f'Converted outside-code comments to HTML: {converted_html}')
-          print(f'Converted HTML comments inside JS: {converted_code}')
+          path.write_text(''.join(repaired), encoding='utf-8')
+          print(f'Converted visible code comments: {converted}')
+          if converted == 0:
+              raise SystemExit('Tidak ditemukan komentar kode visual untuk diperbaiki.')
           PY
 
       - name: Validate JavaScript syntax
@@ -77,7 +63,7 @@ jobs:
           PY
           for file in /tmp/inline-*.js; do node --check "$file"; done
 
-      - name: Validate no code comments render as page text
+      - name: Validate no comments render as text
         run: |
           python3 - <<'PY'
           from html.parser import HTMLParser
@@ -86,67 +72,54 @@ jobs:
 
           html = Path('index.html').read_text(encoding='utf-8')
 
-          class VisibleTextAudit(HTMLParser):
+          class Audit(HTMLParser):
               def __init__(self):
                   super().__init__(convert_charrefs=True)
-                  self.stack = []
+                  self.code_depth = 0
                   self.bad = []
               def handle_starttag(self, tag, attrs):
-                  self.stack.append(tag.lower())
-              def handle_startendtag(self, tag, attrs):
-                  pass
+                  if tag.lower() in ('script', 'style'):
+                      self.code_depth += 1
               def handle_endtag(self, tag):
-                  tag = tag.lower()
-                  for i in range(len(self.stack)-1, -1, -1):
-                      if self.stack[i] == tag:
-                          del self.stack[i:]
-                          break
+                  if tag.lower() in ('script', 'style') and self.code_depth:
+                      self.code_depth -= 1
               def handle_data(self, data):
-                  if any(tag in ('script','style') for tag in self.stack):
+                  if self.code_depth:
                       return
                   compact = ' '.join(data.split())
                   if not compact:
                       return
                   if '/*' in compact or '*/' in compact:
-                      self.bad.append(compact[:240])
-                  elif re.search(r'={12,}\s*(APP SHELL|AUTH|DASHBOARD|MAIN|PROFILE|SURVEY)', compact, re.I):
-                      self.bad.append(compact[:240])
+                      self.bad.append(compact[:300])
+                  if re.search(r'={10,}\s*(INDEX|APP SHELL|AUTH|MAIN|DASHBOARD|PROFILE|SURVEY)', compact, re.I):
+                      self.bad.append(compact[:300])
 
-          parser = VisibleTextAudit()
-          parser.feed(html)
-          if parser.bad:
-              raise SystemExit('Komentar kode masih menjadi teks visual:\n' + '\n'.join(parser.bad[:20]))
+          audit = Audit()
+          audit.feed(html)
+          if audit.bad:
+              raise SystemExit('Teks komentar masih terlihat:\n' + '\n'.join(audit.bad[:20]))
 
-          required = [
-              'function doLogin()',
-              'onclick="doLogin()"',
-              'id="dashboardPage"',
-              'id="appContainer"'
-          ]
-          missing = [item for item in required if item not in html]
+          required = ['function doLogin()', 'onclick="doLogin()"', 'id="dashboardPage"', 'id="appContainer"']
+          missing = [value for value in required if value not in html]
           if missing:
-              raise SystemExit('Elemen/fungsi penting hilang: ' + ', '.join(missing))
-          print('Visible text audit passed.')
+              raise SystemExit('Elemen penting hilang: ' + ', '.join(missing))
+          print('Visible comment audit passed.')
           PY
 
-      - name: Validate basic HTML structure
+      - name: Validate document structure
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           html = Path('index.html').read_text(encoding='utf-8')
-          checks = {
-              'html open/close': (len(re.findall(r'<html\b', html, re.I)), len(re.findall(r'</html\s*>', html, re.I))),
-              'body open/close': (len(re.findall(r'<body\b', html, re.I)), len(re.findall(r'</body\s*>', html, re.I))),
-              'style open/close': (len(re.findall(r'<style\b', html, re.I)), len(re.findall(r'</style\s*>', html, re.I))),
-              'script open/close': (len(re.findall(r'<script\b', html, re.I)), len(re.findall(r'</script\s*>', html, re.I))),
-          }
-          for name, pair in checks.items():
-              if pair[0] != pair[1]:
-                  raise SystemExit(f'{name} tidak seimbang: {pair}')
-          if checks['body open/close'] != (1, 1):
-              raise SystemExit(f'Jumlah body tidak valid: {checks["body open/close"]}')
-          print(checks)
+          for tag in ('html', 'body', 'style', 'script'):
+              opened = len(re.findall(r'<' + tag + r'\b', html, re.I))
+              closed = len(re.findall(r'</' + tag + r'\s*>', html, re.I))
+              if opened != closed:
+                  raise SystemExit(f'Tag {tag} tidak seimbang: {opened}/{closed}')
+          if len(re.findall(r'<body\b', html, re.I)) != 1:
+              raise SystemExit('Dokumen harus memiliki tepat satu body utama.')
+          print('Document structure passed.')
           PY
 
       - name: Commit clean result
