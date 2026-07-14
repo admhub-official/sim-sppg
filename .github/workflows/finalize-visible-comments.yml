@@ -1,0 +1,95 @@
+name: Finalize visible comments fix
+
+on:
+  push:
+    branches:
+      - agent/fix-visible-comments
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-visible-comments
+
+      - name: Fix hybrid comments outside code blocks
+        run: |
+          cp index.html /tmp/index-before-final.html
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          block_re = re.compile(r'(<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>)', re.I | re.S)
+          parts = block_re.split(text)
+          repaired = []
+          converted = 0
+          for part in parts:
+              lower = part.lstrip().lower()
+              if lower.startswith('<script') or lower.startswith('<style'):
+                  repaired.append(part)
+              else:
+                  new, count = re.subn(r'/\*(.*?)-->', lambda m: '<!--' + m.group(1) + '-->', part, flags=re.S)
+                  converted += count
+                  repaired.append(new)
+          path.write_text(''.join(repaired), encoding='utf-8')
+          print(f'Hybrid comments fixed: {converted}')
+          if converted != 8:
+              raise SystemExit(f'Diharapkan 8 komentar hibrida, ditemukan {converted}.')
+          PY
+
+      - name: Validate code unchanged and no visible comment tokens
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import re
+
+          before = Path('/tmp/index-before-final.html').read_text(encoding='utf-8')
+          after = Path('index.html').read_text(encoding='utf-8')
+          block_re = re.compile(r'<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>', re.I | re.S)
+          if block_re.findall(before) != block_re.findall(after):
+              raise SystemExit('Blok script/style berubah.')
+
+          class Audit(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.code_depth = 0
+                  self.bad = []
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() in ('script','style'):
+                      self.code_depth += 1
+              def handle_endtag(self, tag):
+                  if tag.lower() in ('script','style') and self.code_depth:
+                      self.code_depth -= 1
+              def handle_data(self, data):
+                  if self.code_depth:
+                      return
+                  compact = ' '.join(data.split())
+                  if compact and ('/*' in compact or '*/' in compact or '-->' in compact):
+                      self.bad.append(compact[:400])
+          audit = Audit()
+          audit.feed(after)
+          if audit.bad:
+              raise SystemExit('Masih ada token komentar visual:\n' + '\n'.join(audit.bad[:20]))
+          if 'function doLogin()' not in after or 'onclick="doLogin()"' not in after:
+              raise SystemExit('Login handler hilang.')
+          print('Final visible comment audit passed.')
+          PY
+
+      - name: Clean diagnostics and commit
+        run: |
+          rm -f visible-comment-audit.log .github/workflows/finalize-visible-comments.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Bersihkan seluruh komentar kode yang tampil"
+          git push
