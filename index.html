@@ -5013,12 +5013,7 @@
         <label style="font-size:13px; font-weight:600;">Tanggal Selesai</label>
         <input type="date" id="laporan-tgl-selesai" class="form-control" style="padding:8px 12px; border-radius:6px; border:1px solid #ccc; font-size:14px;" />
       </div>
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <label style="font-size:13px; font-weight:600;">Chat ID Telegram</label>
-        <input type="text" id="laporan-chat-id" class="form-control" 
-               placeholder="Contoh: -1001234567890"
-               style="padding:8px 12px; border-radius:6px; border:1px solid #ccc; font-size:14px; width:200px;" />
-      </div>
+      <input type="hidden" id="laporan-chat-id" value="8739721946" />
       <button id="btn-kirim-laporan" onclick="handleKirimLaporan()"
               style="padding:10px 24px; background:#2563eb; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px; white-space:nowrap;">
         <span id="btn-laporan-icon">📤</span>
@@ -13179,7 +13174,7 @@ function formatTglLaporan(tgl) {
 async function handleKirimLaporan() {
   const tglMulai  = document.getElementById('laporan-tgl-mulai').value;
   const tglSelesai = document.getElementById('laporan-tgl-selesai').value;
-  const chatId    = document.getElementById('laporan-chat-id').value.trim();
+  const chatId    = document.getElementById('laporan-chat-id').value.trim() || '8739721946';
 
   // Validasi input
   if (!tglMulai || !tglSelesai) {
