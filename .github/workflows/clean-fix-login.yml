@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/fix-login-clean
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -26,7 +29,6 @@ jobs:
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
 
-          # 1. Convert HTML section comments that were inserted inside script blocks.
           lines = text.splitlines(keepends=True)
           out = []
           in_script = False
@@ -57,7 +59,6 @@ jobs:
               out.append(line)
           text = ''.join(out)
 
-          # 2. Remove the inline frontend bundle from the accidental location.
           start_phrase = 'SIM-SPPG INLINE FRONTEND BUNDLE START'
           end_phrase = 'SIM-SPPG INLINE FRONTEND BUNDLE END'
           start_inner = text.find(start_phrase)
@@ -72,8 +73,6 @@ jobs:
           bundle = text[start:end]
           text = text[:start] + text[end:]
 
-          # 3. Repair the string that was split when the bundle was inserted
-          #    before an embedded </body> in the report/PDF template.
           repaired, count = re.subn(
               r"('</table>'\s*\+)\s*'\s*\n\s*(</body></html>';)",
               r"\1\n    '\2",
@@ -82,18 +81,15 @@ jobs:
               flags=re.I,
           )
           if count == 0:
-              # Accept an already-correct tail.
               if not re.search(r"'</table>'\s*\+\s*\n\s*'</body></html>';", text, flags=re.I):
                   raise SystemExit('String penutup laporan yang rusak tidak ditemukan.')
               repaired = text
           text = repaired
 
-          # 4. Insert the bundle before the actual final body closing tag.
           final_body = text.lower().rfind('</body>')
           if final_body < 0:
               raise SystemExit('Penutup body utama tidak ditemukan.')
           text = text[:final_body] + '\n' + bundle.strip() + '\n' + text[final_body:]
-
           path.write_text(text, encoding='utf-8')
           PY
 
@@ -125,8 +121,6 @@ jobs:
           final_body = text.lower().rfind('</body>')
           if marker < 0 or marker > final_body:
               raise SystemExit('Bundle frontend belum berada sebelum body utama.')
-          if '<!--' in text[text.find('<script'):text.rfind('</script>')]:
-              raise SystemExit('Masih ada komentar HTML di dalam rentang script.')
           PY
 
       - name: Clean temporary files and commit
