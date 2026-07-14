@@ -1,0 +1,26 @@
+SIM-SPPG INLINE FRONTEND BUNDLE START: [403829]
+SIM-SPPG INLINE FRONTEND BUNDLE END: [433153]
+<script id="sim-sppg-inline-frontend">: [403870]
+</script>: [462, 2239, 3037, 433138, 565134]
+</body>: [433193, 566444]
+--- start context ---
+'<th style="text-align:right;color:#be123c;">Nominal Tdk Lengkap</th>' +
+    '<th style="text-align:center;color:#92400e;">Tanpa Bukti</th>' +
+    '<th style="text-align:center;color:#92400e;">Tanpa Nota</th>' +
+    '</tr></thead>' +
+    '<tbody>' + sppgRows + '</tbody>' +
+    '</table>' +
+    '
+/* SIM-SPPG INLINE FRONTEND BUNDLE START */
+<script id="sim-sppg-inline-frontend">
+
+/* ===== INLINE: app.js ===== */
+(function () {
+  'use strict';
+
+  var style = document.createElement('style');
+  style.id = 'sim-sppg-runtime-fixes';
+  style.textContent = [
+    '.auth-container .auth-sub{color:var(--slate-400);font-size:13px;margin-bottom:24px;text-align:center;line-height:1.5}',
+    '#btnLogin{touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:46px}',
+    '.quick-access-
