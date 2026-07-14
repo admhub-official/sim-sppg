@@ -17,16 +17,23 @@ jobs:
         with:
           ref: agent/fix-login-script-comments
 
-      - name: Extract and validate inline scripts
+      - name: Extract inline scripts and context
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
           html = Path('index.html').read_text(encoding='utf-8')
           scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
+          log = [f'inline_scripts={len(scripts)}']
           for i, script in enumerate(scripts, 1):
-              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
-          Path('syntax-check.log').write_text(f'inline_scripts={len(scripts)}\n', encoding='utf-8')
+              p = Path(f'/tmp/inline-{i}.js')
+              p.write_text(script, encoding='utf-8')
+              if i == 2:
+                  lines = script.splitlines()
+                  log.append('===== inline-2 context 3548-3568 =====')
+                  for n in range(3548, min(3569, len(lines)+1)):
+                      log.append(f'{n}: {lines[n-1]}')
+          Path('syntax-check.log').write_text('\n'.join(log) + '\n', encoding='utf-8')
           PY
           set +e
           for f in /tmp/inline-*.js; do
@@ -41,5 +48,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add syntax-check.log
-          git commit -m "Tambahkan diagnostik parser sementara"
+          git commit -m "Perbarui diagnostik parser sementara"
           git push
