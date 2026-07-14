@@ -1,26 +1,4 @@
-inline_scripts=2
-===== inline-2 context 3548-3568 =====
-3548:     '<th style="text-align:right;">Total Nominal</th>' +
-3549:     '<th style="text-align:center;color:#047857;">Dok. Lengkap</th>' +
-3550:     '<th style="text-align:right;color:#047857;">Nominal Lengkap</th>' +
-3551:     '<th style="text-align:center;color:#be123c;">Dok. Tdk Lengkap</th>' +
-3552:     '<th style="text-align:right;color:#be123c;">Nominal Tdk Lengkap</th>' +
-3553:     '<th style="text-align:center;color:#92400e;">Tanpa Bukti</th>' +
-3554:     '<th style="text-align:center;color:#92400e;">Tanpa Nota</th>' +
-3555:     '</tr></thead>' +
-3556:     '<tbody>' + sppgRows + '</tbody>' +
-3557:     '</table>' +
-3558:     '
-3559: /* SIM-SPPG INLINE FRONTEND BUNDLE START */
-3560: <script id="sim-sppg-inline-frontend">
-3561: 
-3562: /* ===== INLINE: app.js ===== */
-3563: (function () {
-3564:   'use strict';
-3565: 
-3566:   var style = document.createElement('style');
-3567:   style.id = 'sim-sppg-runtime-fixes';
-3568:   style.textContent = [
+inline_scripts=3
 ===== /tmp/inline-1.js =====
 exit=0
 ===== /tmp/inline-2.js =====
@@ -34,3 +12,5 @@ SyntaxError: Invalid or unexpected token
 
 Node.js v22.23.1
 exit=1
+===== /tmp/inline-3.js =====
+exit=0
