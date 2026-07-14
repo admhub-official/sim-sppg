@@ -24,14 +24,10 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
+          import re
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
-          old = """    '</table>' +
-    '
- }
-  }
-"""
+          pattern = re.compile(r"    '</table>' \+\n    '\s*\n\s*}\n\s*}\n")
           new = """    '</table>' +
     '</body></html>';
 
@@ -47,15 +43,13 @@ jobs:
   }
 }
 """
-          if old not in text:
-              # Gunakan pola lebih toleran terhadap spasi.
-              import re
-              pattern = re.compile(r"    '</table>' \+\n    '\s*\n\s*}\n\s*}\n")
-              fixed, count = pattern.subn(new, text, count=1)
-              if count != 1:
-                  raise SystemExit('Tail exportApprovalPDF yang rusak tidak ditemukan secara unik.')
-          else:
-              fixed = text.replace(old, new, 1)
+          fixed, count = pattern.subn(new, text, count=1)
+          if count == 0:
+              if "function exportApprovalPDF" in text and "printWindow.document.write(html)" in text:
+                  fixed = text
+                  print('Tail exportApprovalPDF sudah diperbaiki.')
+              else:
+                  raise SystemExit('Tail exportApprovalPDF yang rusak tidak ditemukan.')
           path.write_text(fixed, encoding='utf-8')
           PY
 
@@ -72,10 +66,7 @@ jobs:
               Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
           print(f'Inline scripts: {len(scripts)}')
           PY
-          for f in /tmp/inline-*.js; do
-            echo "Checking $f"
-            node --check "$f"
-          done
+          for f in /tmp/inline-*.js; do node --check "$f"; done
 
       - name: Validate login and bundle structure
         run: |
@@ -93,9 +84,9 @@ jobs:
 
       - name: Remove diagnostics and commit final result
         run: |
-          rm -f syntax-check.log bundle-marker.log broken-string-context.log .github/workflows/fix-login-script-comments.yml
+          rm -f syntax-check.log bundle-marker.log broken-string-context.log .trigger-login-fix .github/workflows/fix-login-script-comments.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html syntax-check.log bundle-marker.log broken-string-context.log .github/workflows/fix-login-script-comments.yml
+          git add -A
           git commit -m "Perbaiki parser JavaScript dan aktifkan kembali login"
           git push
