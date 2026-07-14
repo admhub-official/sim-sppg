@@ -1,1 +1,54 @@
-(convert_script.py and index_temp.html are source files, so no ignores needed)
+# Secrets and local environment
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+service-account.json
+secrets.json
+
+# Logs
+*.log
+logs/
+
+# Temporary and backup files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*~
+tmp/
+temp/
+
+# Editor and OS files
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Dependencies and local caches
+node_modules/
+.cache/
+.npm/
+.pnpm-store/
+.yarn/cache/
+
+# Build output not used by this static GitHub Pages app
+dist/
+build/
+out/
+
+# Local archives and database dumps
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.sql
+*.dump
