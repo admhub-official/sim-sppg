@@ -1,4 +1,4 @@
-name: Inspect inline bundle markers
+name: Repair inline frontend bundle placement
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  inspect:
+  repair:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -17,39 +17,66 @@ jobs:
         with:
           ref: agent/fix-login-script-comments
 
-      - name: Write bundle marker diagnostics
+      - name: Move bundle to final body tag
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          text = Path('index.html').read_text(encoding='utf-8')
-          needles = [
-              'SIM-SPPG INLINE FRONTEND BUNDLE START',
-              'SIM-SPPG INLINE FRONTEND BUNDLE END',
-              '<script id="sim-sppg-inline-frontend">',
-              '</script>',
-              '</body>'
-          ]
-          lines = []
-          for needle in needles:
-              positions = []
-              start = 0
-              while True:
-                  i = text.find(needle, start)
-                  if i < 0: break
-                  positions.append(i)
-                  start = i + 1
-              lines.append(f'{needle}: {positions}')
-          start = text.find('SIM-SPPG INLINE FRONTEND BUNDLE START')
-          if start >= 0:
-              lines.append('--- start context ---')
-              lines.append(text[max(0,start-300):start+500])
-          Path('bundle-marker.log').write_text('\n'.join(lines), encoding='utf-8')
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          start_text = 'SIM-SPPG INLINE FRONTEND BUNDLE START'
+          end_text = 'SIM-SPPG INLINE FRONTEND BUNDLE END'
+          start_content = text.find(start_text)
+          end_content = text.find(end_text, start_content + 1)
+          if start_content < 0 or end_content < 0:
+              raise SystemExit('Marker bundle tidak lengkap.')
+
+          start = text.rfind('/*', 0, start_content)
+          end = text.find('*/', end_content)
+          if start < 0 or end < 0:
+              raise SystemExit('Batas komentar marker bundle tidak ditemukan.')
+          end += 2
+
+          bundle = text[start:end].strip()
+          cleaned = text[:start] + text[end:]
+          final_body = cleaned.lower().rfind('</body>')
+          if final_body < 0:
+              raise SystemExit('Penutup body terakhir tidak ditemukan.')
+
+          fixed = cleaned[:final_body].rstrip() + '\n\n' + bundle + '\n' + cleaned[final_body:]
+          path.write_text(fixed, encoding='utf-8')
+          print('Bundle berhasil dipindahkan.')
           PY
 
-      - name: Commit diagnostic
+      - name: Validate JavaScript syntax
         run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
+          if not scripts:
+              raise SystemExit('Inline script tidak ditemukan.')
+          for i, script in enumerate(scripts, 1):
+              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
+          print(f'Inline scripts: {len(scripts)}')
+          PY
+          for f in /tmp/inline-*.js; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+
+      - name: Validate login symbols
+        run: |
+          grep -q 'function doLogin()' index.html
+          grep -q 'onclick="doLogin()"' index.html
+
+      - name: Clean and commit final fix
+        run: |
+          rm -f syntax-check.log bundle-marker.log .github/workflows/fix-login-script-comments.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add bundle-marker.log
-          git commit -m "Tambahkan diagnostik marker bundle sementara"
+          git add index.html syntax-check.log bundle-marker.log .github/workflows/fix-login-script-comments.yml
+          git commit -m "Perbaiki syntax dan posisi bundle agar login berfungsi"
           git push
