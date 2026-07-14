@@ -1,8 +1,23 @@
 inline_scripts=3
 
-===== inline-1 exit=0 lines=29 =====
+===== inline-1: hybrid_js_html=0 hybrid_html_js=0 =====
+node_check_exit=0
 
-===== inline-2 exit=1 lines=6450 =====
+===== inline-2: hybrid_js_html=1 hybrid_html_js=0 =====
+[JS_OPEN_HTML_CLOSE #1] line=18 chars=172166
+  00018: /**
+  00019:  * callApi(fnName, params, onSuccess, onFailure)
+  00020:  * - fnName   : string — nama fungsi backend (sama persis dengan key di AUTHENTICATED_FUNCTIONS / PUBLIC_HANDLERS di index.ts)
+  00021:  * - params   : array — argumen fungsi (tanpa caller, server isi dari JWT)
+  00022:  * - onSuccess: function(result) — dipanggil jika sukses
+  00023:  * - onFailure: function(err)    — dipanggil jika gagal (opsional)
+  00024:  */
+  00025: function callApi(fnName, params, onSuccess, onFailure) {
+  00026:   var headers = { 'Content-Type': 'application/json' };
+  00027:   if (!PUBLIC_FN[fnName]) {
+  00028:     var token = getJwtToken();
+  00029:     if (token) headers['Authorization'] = 'Bearer ' + token;
+node_check_exit=1
 /tmp/inline-2.js:3944
 /* ============================================================
 
@@ -12,37 +27,6 @@ SyntaxError: Invalid or unexpected token
 
 Node.js v22.23.1
 
---- context 3929-3959 ---
-03929:                 loadDashboardData();
-03930:               } else {
-03931:                 showToast('error', 'Gagal', result.message);
-03932:               }
-03933:       },
-03934:       function(err) {
-03935:         showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
-03936:       }
-03937:     );
-03938: }
-03939: 
-03940: // ============================================================
-03941: // 12. MASTER BAHAN BAKU
-03942: // ============================================================
-03943: 
-03944: /* ============================================================
-03945:      MASTER DATA - BAHAN BAKU
-03946:      ============================================================ -->
-03947: function loadMasterBB() {
-03948:   showLoading(true);
-03949:     callApi('getMasterBahanBaku', [], function(result) {
-03950:         showLoading(false);
-03951:               if (result.success) {
-03952:                 allMasterBB = result.data || [];
-03953:                 filteredMasterBB = allMasterBB.slice();
-03954:                 bbPage = 1;
-03955:                 renderMasterBBTable();
-03956:               }
-03957:       },
-03958:       function(err) {
-03959:         showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data');
 
-===== inline-3 exit=0 lines=295 =====
+===== inline-3: hybrid_js_html=0 hybrid_html_js=0 =====
+node_check_exit=0
