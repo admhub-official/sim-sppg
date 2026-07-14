@@ -1,4 +1,4 @@
-name: Fix login syntax final
+name: Diagnose remaining login syntax
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  repair:
+  diagnose:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -20,83 +20,72 @@ jobs:
         with:
           ref: agent/fix-login-syntax-final
 
-      - name: Repair only malformed section comments inside inline scripts
+      - name: Apply targeted comment repair in working tree
         run: |
-          cp index.html /tmp/index-before.html
+          cp index.html /tmp/index-original.html
           python3 - <<'PY'
           from pathlib import Path
           import re
-
           path = Path('index.html')
           html = path.read_text(encoding='utf-8')
           script_re = re.compile(r'(<script(?![^>]*\bsrc=)[^>]*>)(.*?)(</script\s*>)', re.I | re.S)
           fixed_count = 0
-
           def repair_script(match):
               global fixed_count
               open_tag, script, close_tag = match.groups()
-              script, count1 = re.subn(
+              script, c1 = re.subn(
                   r'(?ms)^(\s*)/\*\s*(=+\s*\n\s*[^\n]+\n\s*=+)\s*-->\s*$',
                   lambda m: m.group(1) + '/* ' + m.group(2) + ' */',
                   script,
               )
-              script, count2 = re.subn(
+              script, c2 = re.subn(
                   r'(?ms)^(\s*)<!--\s*(=+\s*\n\s*[^\n]+\n\s*=+)\s*-->\s*$',
                   lambda m: m.group(1) + '/* ' + m.group(2) + ' */',
                   script,
               )
-              fixed_count += count1 + count2
+              fixed_count += c1 + c2
               return open_tag + script + close_tag
-
           repaired = script_re.sub(repair_script, html)
-          if fixed_count == 0:
-              raise SystemExit('Tidak ada komentar section script yang diperbaiki.')
           path.write_text(repaired, encoding='utf-8')
-          print(f'Fixed malformed script section comments: {fixed_count}')
+          print(f'Working-tree banner fixes: {fixed_count}')
           PY
 
-      - name: Validate every browser-visible inline script
+      - name: Produce exact parser report
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
+          import re, subprocess
           html = Path('index.html').read_text(encoding='utf-8')
           scripts = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S)
-          if not scripts:
-              raise SystemExit('Inline script tidak ditemukan.')
-          for i, script in enumerate(scripts, 1):
-              Path(f'/tmp/inline-{i}.js').write_text(script, encoding='utf-8')
-          print(f'Inline scripts: {len(scripts)}')
-          PY
-          for file in /tmp/inline-*.js; do
-            echo "Checking $file"
-            node --check "$file"
-          done
-
-      - name: Validate login symbols and exact scope
-        run: |
-          grep -q 'function doLogin()' index.html
-          grep -q 'onclick="doLogin()"' index.html
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          before = Path('/tmp/index-before.html').read_text(encoding='utf-8')
-          after = Path('index.html').read_text(encoding='utf-8')
-          normalize = lambda s: re.sub(
-              r'(?ms)^\s*(?:/\*|<!--)\s*=+\s*\n\s*[^\n]+\n\s*=+\s*(?:\*/|-->)\s*$',
-              '<SECTION_COMMENT>',
-              s,
-          )
-          if normalize(before) != normalize(after):
-              raise SystemExit('Perubahan melampaui komentar section yang ditargetkan.')
-          print('Scope validation passed.')
+          report = [f'inline_scripts={len(scripts)}']
+          all_ok = True
+          for idx, script in enumerate(scripts, 1):
+              p = Path(f'/tmp/inline-{idx}.js')
+              p.write_text(script, encoding='utf-8')
+              proc = subprocess.run(['node','--check',str(p)], text=True, capture_output=True)
+              report.append(f'\n===== inline-{idx} exit={proc.returncode} lines={len(script.splitlines())} =====')
+              if proc.stderr:
+                  report.append(proc.stderr)
+              if proc.returncode:
+                  all_ok = False
+                  m = re.search(r'inline-\d+\.js:(\d+)', proc.stderr)
+                  if m:
+                      line_no = int(m.group(1))
+                      lines = script.splitlines()
+                      start = max(1, line_no - 20)
+                      end = min(len(lines), line_no + 20)
+                      report.append(f'--- context {start}-{end} ---')
+                      for n in range(start, end+1):
+                          report.append(f'{n:05d}: {lines[n-1]}')
+          report.append(f'\nall_scripts_ok={all_ok}')
+          Path('remaining-login-syntax.log').write_text('\n'.join(report) + '\n', encoding='utf-8')
           PY
 
-      - name: Commit only validated index
+      - name: Restore application and commit diagnostic only
         run: |
-          rm -f .github/workflows/fix-login-syntax-final.yml .trigger-final-login-fix
+          cp /tmp/index-original.html index.html
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git commit -m "Perbaiki seluruh komentar script yang memblokir login"
+          git add remaining-login-syntax.log
+          git commit -m "Catat error parser setelah perbaikan komentar terkontrol"
           git push
