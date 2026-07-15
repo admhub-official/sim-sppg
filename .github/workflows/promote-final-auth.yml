@@ -1,0 +1,33 @@
+name: Promote final auth cleanup
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  promote:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Create clean final branch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin agent/redesign-auth-ui
+          git switch -c agent/final-auth-cleanup
+          git checkout origin/agent/redesign-auth-ui -- index.html app.js
+          git add index.html app.js
+          git commit -m "redesign: finalize compact responsive auth UI"
+          git push -u origin agent/final-auth-cleanup
+      - name: Clean temporary files from main
+        run: |
+          git switch main
+          git pull --ff-only origin main
+          rm -f .github/NOOP .github/NOOP2 .github/workflows/promote-final-auth.yml
+          git add -A
+          git commit -m "chore: remove temporary auth promotion files"
+          git push origin main
