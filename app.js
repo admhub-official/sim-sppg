@@ -38,6 +38,7 @@
 // 0. API HELPER — langsung ke Supabase Edge Function
 // ============================================================
 var SUPABASE_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dynamic-action';
+var SECURE_USER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/secure-user-action';
 // Expose anon key untuk modul Laporan (REST API langsung)
 window._supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtanNndGljaHJmeGh5eXdzdHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MTU2MTUsImV4cCI6MjA5ODM5MTYxNX0.D_ZJ286uSpLeZEsg_vSf3iEoG-SnokHV62X6hPXreHM';
 
@@ -60,9 +61,14 @@ function getJwtToken() {
  */
 function callApi(fnName, params, onSuccess, onFailure) {
   var headers = { 'Content-Type': 'application/json' };
+  var isSecureUserAction = fnName === 'updateUserProfile' || fnName === 'uploadFotoProfil';
+  var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : SUPABASE_FN_URL;
   if (!PUBLIC_FN[fnName]) {
     var token = getJwtToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
+  }
+  if (isSecureUserAction && window._supabaseKey) {
+    headers.apikey = window._supabaseKey;
   }
 
   var TIMEOUT_MS = 20000;
@@ -72,7 +78,7 @@ function callApi(fnName, params, onSuccess, onFailure) {
     var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var tid = controller ? setTimeout(function(){ controller.abort(); }, TIMEOUT_MS) : null;
 
-    fetch(SUPABASE_FN_URL, {
+    fetch(requestUrl, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({ function: fnName, parameters: params }),
