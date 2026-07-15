@@ -1,0 +1,1 @@
+Final authentication UI cleanup validated.
