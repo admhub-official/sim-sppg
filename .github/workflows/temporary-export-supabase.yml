@@ -1,0 +1,53 @@
+name: Temporary Supabase Function Export
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-function:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify Supabase credential is available
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "SUPABASE_ACCESS_TOKEN repository secret is not configured." >&2
+            exit 1
+          fi
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Download deployed dynamic-action source
+        shell: bash
+        run: |
+          set -euo pipefail
+          export_dir="$RUNNER_TEMP/supabase-export"
+          mkdir -p "$export_dir"
+          cd "$export_dir"
+          supabase init
+          supabase functions download dynamic-action \
+            --project-ref "$SUPABASE_PROJECT_REF" \
+            --use-api
+          test -s supabase/functions/dynamic-action/index.ts
+
+      - name: Upload function source
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-action-source-${{ github.sha }}
+          path: ${{ runner.temp }}/supabase-export/supabase/functions/dynamic-action
+          if-no-files-found: error
+          retention-days: 1
