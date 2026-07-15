@@ -1,0 +1,46 @@
+name: Inspect auth recovery once
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/auth-recovery-adjustments
+      - name: Show recovery implementation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('app.js').read_text(encoding='utf-8')
+          for name in ['showRecoveryModal','submitRecovery']:
+              marker = 'function ' + name + '('
+              start = text.find(marker)
+              print('\n===== ' + name + ' =====')
+              if start < 0:
+                  print('NOT FOUND')
+                  continue
+              brace = text.find('{', start)
+              depth = 0
+              quote = None
+              escape = False
+              i = brace
+              while i < len(text):
+                  ch = text[i]
+                  if quote:
+                      if escape: escape = False
+                      elif ch == '\\': escape = True
+                      elif ch == quote: quote = None
+                  else:
+                      if ch in "'\"`": quote = ch
+                      elif ch == '{': depth += 1
+                      elif ch == '}':
+                          depth -= 1
+                          if depth == 0:
+                              print(text[start:i+1])
+                              break
+                  i += 1
+          PY
