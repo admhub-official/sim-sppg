@@ -7477,7 +7477,7 @@ async function loadRiwayatLaporan() {
     title.textContent = content[1];
     description.textContent = content[2];
   }
-
+ 
   function repairInputs() {
     document.querySelectorAll('input[type="file"]').forEach(function (input) {
       var accept = input.getAttribute('accept') || '';
