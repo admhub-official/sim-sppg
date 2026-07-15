@@ -1,0 +1,82 @@
+
+===== showRecoveryModal =====
+function showRecoveryModal(type) {
+  currentRecoveryType = type;
+  var title = '';
+  var html = '';
+
+  if (type === 'password') {
+    title = 'Lupa Kata Sandi';
+    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan username Anda. Link reset kata sandi akan dikirim ke email yang terdaftar.</p>' +
+      '<div class="form-group"><label class="form-label">Username <span class="req">*</span></label><input type="text" id="recUsername" class="form-input" placeholder="Username"></div>';
+  } else if (type === 'username') {
+    title = 'Lupa Username';
+    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan email terdaftar Anda. Username dan link reset kata sandi akan dikirim ke email tersebut.</p>' +
+      '<div class="form-group"><label class="form-label">Email <span class="req">*</span></label><input type="email" id="recEmail" class="form-input" placeholder="...@gmail.com"></div>';
+  } else if (type === 'token') {
+    title = 'Fitur Tidak Tersedia';
+    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Fitur token login sudah tidak digunakan pada sistem saat ini. Silakan gunakan menu "Lupa Password" untuk reset kata sandi via email.</p>';
+  }
+
+  document.getElementById('recoveryTitle').textContent = title;
+  document.getElementById('recoveryBody').innerHTML = html + '<div id="recoveryError" class="form-error" style="margin-top:10px;"><i class="fas fa-exclamation-circle"></i><span></span></div>';
+  var submitBtn = document.getElementById('btnRecoverySubmit');
+  if (submitBtn) submitBtn.style.display = (type === 'token') ? 'none' : '';
+  openModal('modalRecovery');
+}
+
+===== submitRecovery =====
+function submitRecovery() {
+  var errorEl = $('recoveryError');
+  errorEl.classList.remove('show');
+
+  // "token" mode sudah tidak fungsional di backend — tombol Verifikasi disembunyikan untuk mode ini.
+  if (currentRecoveryType === 'token') {
+    return;
+  }
+
+  var btn = $('btnRecoverySubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memverifikasi...';
+
+  var data = {};
+
+  if (currentRecoveryType === 'password') {
+    data = { username: $('recUsername').value.trim() };
+    if (!data.username) {
+      errorEl.querySelector('span').textContent = 'Username wajib diisi.';
+      errorEl.classList.add('show');
+      btn.disabled = false; btn.innerHTML = 'Verifikasi';
+      return;
+    }
+  } else if (currentRecoveryType === 'username') {
+    data = { email: $('recEmail').value.trim() };
+    if (!data.email) {
+      errorEl.querySelector('span').textContent = 'Email wajib diisi.';
+      errorEl.classList.add('show');
+      btn.disabled = false; btn.innerHTML = 'Verifikasi';
+      return;
+    }
+  }
+
+  var backendFn = currentRecoveryType === 'password' ? 'recoverPassword' : 'recoverUsername';
+
+    callApi(backendFn, [data], function(result) {
+        btn.disabled = false;
+              btn.innerHTML = 'Verifikasi';
+              if (result.success) {
+                closeModal('modalRecovery');
+                showToast('success', 'Berhasil', result.message || 'Silakan cek email Anda.');
+              } else {
+                errorEl.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
+                errorEl.classList.add('show');
+              }
+      },
+      function(err) {
+        btn.disabled = false;
+              btn.innerHTML = 'Verifikasi';
+              errorEl.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
+              errorEl.classList.add('show');
+      }
+    );
+}
