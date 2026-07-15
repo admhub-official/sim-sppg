@@ -6093,22 +6093,22 @@ function showRecoveryModal(type) {
   currentRecoveryType = type;
   var title = '';
   var html = '';
-
   if (type === 'password') {
     title = 'Lupa Kata Sandi';
-    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan username Anda. Link reset kata sandi akan dikirim ke email yang terdaftar.</p>' +
-      '<div class="form-group"><label class="form-label">Username <span class="req">*</span></label><input type="text" id="recUsername" class="form-input" placeholder="Username"></div>';
+    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan username dan email yang terdaftar untuk memverifikasi akun Anda.</p>' +
+      '<div class="form-group"><label class="form-label" for="recUsername">Username <span class="req">*</span></label><input type="text" id="recUsername" class="form-input" placeholder="Username" autocomplete="username"></div>' +
+      '<div class="form-group"><label class="form-label" for="recEmail">Email <span class="req">*</span></label><input type="email" id="recEmail" class="form-input" placeholder="nama@gmail.com" autocomplete="email" inputmode="email"></div>';
   } else if (type === 'username') {
     title = 'Lupa Username';
-    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan email terdaftar Anda. Username dan link reset kata sandi akan dikirim ke email tersebut.</p>' +
-      '<div class="form-group"><label class="form-label">Email <span class="req">*</span></label><input type="email" id="recEmail" class="form-input" placeholder="...@gmail.com"></div>';
+    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan email dan kata sandi akun untuk menampilkan kembali username Anda.</p>' +
+      '<div class="form-group"><label class="form-label" for="recEmail">Email <span class="req">*</span></label><input type="email" id="recEmail" class="form-input" placeholder="nama@gmail.com" autocomplete="email" inputmode="email"></div>' +
+      '<div class="form-group"><label class="form-label" for="recPassword">Kata Sandi <span class="req">*</span></label><div class="password-wrap"><input type="password" id="recPassword" class="form-input" placeholder="Masukkan kata sandi" autocomplete="current-password"><button type="button" class="toggle-password" onclick="togglePw(\'recPassword\',this)" aria-label="Tampilkan kata sandi"><i class="fas fa-eye"></i></button></div></div>';
   } else if (type === 'token') {
     title = 'Fitur Tidak Tersedia';
-    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Fitur token login sudah tidak digunakan pada sistem saat ini. Silakan gunakan menu "Lupa Password" untuk reset kata sandi via email.</p>';
+    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Fitur token login sudah tidak digunakan. Gunakan menu Lupa Kata Sandi untuk memulihkan akses akun.</p>';
   }
-
   document.getElementById('recoveryTitle').textContent = title;
-  document.getElementById('recoveryBody').innerHTML = html + '<div id="recoveryError" class="form-error" style="margin-top:10px;"><i class="fas fa-exclamation-circle"></i><span></span></div>';
+  document.getElementById('recoveryBody').innerHTML = html + '<div id="recoveryError" class="form-error" style="margin-top:10px;" role="alert"><i class="fas fa-exclamation-circle"></i><span></span></div>';
   var submitBtn = document.getElementById('btnRecoverySubmit');
   if (submitBtn) submitBtn.style.display = (type === 'token') ? 'none' : '';
   openModal('modalRecovery');
@@ -6116,57 +6116,36 @@ function showRecoveryModal(type) {
 
 function submitRecovery() {
   var errorEl = $('recoveryError');
+  if (!errorEl || currentRecoveryType === 'token') return;
   errorEl.classList.remove('show');
-
-  // "token" mode sudah tidak fungsional di backend — tombol Verifikasi disembunyikan untuk mode ini.
-  if (currentRecoveryType === 'token') {
-    return;
-  }
-
   var btn = $('btnRecoverySubmit');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memverifikasi...';
-
+  var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   var data = {};
-
-  if (currentRecoveryType === 'password') {
-    data = { username: $('recUsername').value.trim() };
-    if (!data.username) {
-      errorEl.querySelector('span').textContent = 'Username wajib diisi.';
-      errorEl.classList.add('show');
-      btn.disabled = false; btn.innerHTML = 'Verifikasi';
-      return;
-    }
-  } else if (currentRecoveryType === 'username') {
-    data = { email: $('recEmail').value.trim() };
-    if (!data.email) {
-      errorEl.querySelector('span').textContent = 'Email wajib diisi.';
-      errorEl.classList.add('show');
-      btn.disabled = false; btn.innerHTML = 'Verifikasi';
-      return;
-    }
+  function fail(message) {
+    errorEl.querySelector('span').textContent = message;
+    errorEl.classList.add('show');
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Verifikasi'; }
   }
-
+  if (currentRecoveryType === 'password') {
+    data = { username: ($('recUsername') && $('recUsername').value || '').trim(), email: ($('recEmail') && $('recEmail').value || '').trim().toLowerCase() };
+    if (!data.username) return fail('Username wajib diisi.');
+    if (!data.email) return fail('Email wajib diisi.');
+    if (!emailPattern.test(data.email)) return fail('Format email tidak valid.');
+  } else if (currentRecoveryType === 'username') {
+    data = { email: ($('recEmail') && $('recEmail').value || '').trim().toLowerCase(), password: ($('recPassword') && $('recPassword').value || '') };
+    if (!data.email) return fail('Email wajib diisi.');
+    if (!emailPattern.test(data.email)) return fail('Format email tidak valid.');
+    if (!data.password) return fail('Kata sandi wajib diisi.');
+  } else return;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memverifikasi...'; }
   var backendFn = currentRecoveryType === 'password' ? 'recoverPassword' : 'recoverUsername';
-
-    callApi(backendFn, [data], function(result) {
-        btn.disabled = false;
-              btn.innerHTML = 'Verifikasi';
-              if (result.success) {
-                closeModal('modalRecovery');
-                showToast('success', 'Berhasil', result.message || 'Silakan cek email Anda.');
-              } else {
-                errorEl.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
-                errorEl.classList.add('show');
-              }
-      },
-      function(err) {
-        btn.disabled = false;
-              btn.innerHTML = 'Verifikasi';
-              errorEl.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
-              errorEl.classList.add('show');
-      }
-    );
+  callApi(backendFn, [data], function(result) {
+    if (btn) { btn.disabled = false; btn.innerHTML = 'Verifikasi'; }
+    if (result && result.success) {
+      closeModal('modalRecovery');
+      showToast('success', 'Berhasil', result.message || 'Data akun berhasil diverifikasi. Silakan cek email Anda.');
+    } else fail(result && result.message || 'Data verifikasi tidak cocok.');
+  }, function(err) { fail(err && err.message ? err.message : 'Terjadi kesalahan sistem.'); });
 }
 
 // ============================================================
