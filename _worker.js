@@ -1,8 +1,6 @@
-const SESSION_SCRIPT = '<script src="/session-fix.js?v=20260715-1"></script>';
-const REPORT_DOWNLOAD_SCRIPT = '<script src="/report-download.js?v=20260715-2"></script>';
-const REPORT_RUNTIME_SCRIPT = '<script src="/report-runtime-fix.js?v=20260715-1"></script>';
-const AUTH_UI_SCRIPT = '<script src="/auth-ui-v2.js?v=20260715-1"></script>';
-const AUTH_RESPONSIVE_SCRIPT = '<script src="/auth-responsive-fix.js?v=20260715-2"></script>';
+const APP_SCRIPT = '<script defer src="/assets/js/app.js?v=20260715-1"></script>';
+
+const LEGACY_RUNTIME_PATTERN = /\s*<script\b[^>]*src=["'][^"']*\/(?:session-fix|report-download|report-runtime-fix|auth-ui-v2|auth-responsive-fix|laporan-fix)\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi;
 
 function withSafeHtmlHeaders(response) {
   const headers = new Headers(response.headers);
@@ -15,24 +13,17 @@ function withSafeHtmlHeaders(response) {
   return headers;
 }
 
-function injectAfterOpeningHead(html, script) {
-  const match = /<head(?:\s[^>]*)?>/i.exec(html);
-  if (!match) return script + '\n' + html;
-  const insertAt = match.index + match[0].length;
-  return html.slice(0, insertAt) + '\n' + script + '\n' + html.slice(insertAt);
-}
-
-function injectBeforeRealClosingBody(html, script) {
+function injectBeforeClosingBody(html, script) {
   const insertAt = html.toLowerCase().lastIndexOf('</body>');
   if (insertAt === -1) return html + '\n' + script + '\n';
   return html.slice(0, insertAt) + script + '\n' + html.slice(insertAt);
 }
 
-function removeLegacyReportInjection(html) {
-  return html.replace(
-    /\s*<script\b[^>]*src=["'][^"']*\/laporan-fix\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi,
-    '\n'
-  );
+function sanitizeLegacyHtml(html) {
+  return html
+    .replace(LEGACY_RUNTIME_PATTERN, '\n')
+    .replace(/accept=["']image<!--/gi, 'accept="image/*')
+    .replace(/}\s*28px;\s*text-align:\s*center;\s*}/gi, '}');
 }
 
 export default {
@@ -41,12 +32,8 @@ export default {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('text/html')) return response;
 
-    let html = removeLegacyReportInjection(await response.text());
-    if (!html.includes('/session-fix.js')) html = injectAfterOpeningHead(html, SESSION_SCRIPT);
-    if (!html.includes('/report-download.js')) html = injectBeforeRealClosingBody(html, REPORT_DOWNLOAD_SCRIPT);
-    if (!html.includes('/report-runtime-fix.js')) html = injectBeforeRealClosingBody(html, REPORT_RUNTIME_SCRIPT);
-    if (!html.includes('/auth-ui-v2.js')) html = injectBeforeRealClosingBody(html, AUTH_UI_SCRIPT);
-    if (!html.includes('/auth-responsive-fix.js')) html = injectBeforeRealClosingBody(html, AUTH_RESPONSIVE_SCRIPT);
+    let html = sanitizeLegacyHtml(await response.text());
+    if (!html.includes('/assets/js/app.js')) html = injectBeforeClosingBody(html, APP_SCRIPT);
 
     return new Response(html, {
       status: response.status,

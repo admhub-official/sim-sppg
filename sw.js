@@ -1,7 +1,8 @@
-const CACHE = 'simsppg-v22-refresh-recovery';
+const CACHE = 'simsppg-v23-unified-runtime';
 const SCOPE = self.registration.scope;
 const MANIFEST = new URL('manifest.json', SCOPE).href;
-const STATIC_ASSETS = [MANIFEST];
+const APP_RUNTIME = new URL('assets/js/app.js?v=20260715-1', SCOPE).href;
+const STATIC_ASSETS = [MANIFEST, APP_RUNTIME];
 
 self.addEventListener('install', function(event) {
   event.waitUntil(
