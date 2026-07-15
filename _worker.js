@@ -2,6 +2,7 @@ const SESSION_SCRIPT = '<script src="/session-fix.js?v=20260715-1"></script>';
 const REPORT_DOWNLOAD_SCRIPT = '<script src="/report-download.js?v=20260715-2"></script>';
 const REPORT_RUNTIME_SCRIPT = '<script src="/report-runtime-fix.js?v=20260715-1"></script>';
 const AUTH_UI_SCRIPT = '<script src="/auth-ui-v2.js?v=20260715-1"></script>';
+const AUTH_RESPONSIVE_SCRIPT = '<script src="/auth-responsive-fix.js?v=20260715-2"></script>';
 
 function withSafeHtmlHeaders(response) {
   const headers = new Headers(response.headers);
@@ -45,6 +46,7 @@ export default {
     if (!html.includes('/report-download.js')) html = injectBeforeRealClosingBody(html, REPORT_DOWNLOAD_SCRIPT);
     if (!html.includes('/report-runtime-fix.js')) html = injectBeforeRealClosingBody(html, REPORT_RUNTIME_SCRIPT);
     if (!html.includes('/auth-ui-v2.js')) html = injectBeforeRealClosingBody(html, AUTH_UI_SCRIPT);
+    if (!html.includes('/auth-responsive-fix.js')) html = injectBeforeRealClosingBody(html, AUTH_RESPONSIVE_SCRIPT);
 
     return new Response(html, {
       status: response.status,
