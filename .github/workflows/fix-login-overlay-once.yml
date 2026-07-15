@@ -1,0 +1,46 @@
+name: Fix login overlay once
+
+on:
+  push:
+    branches:
+      - fix/login-session-race-20260715
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/login-session-race-20260715
+          fetch-depth: 0
+      - name: Patch malformed hidden selector
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '#authOverlay\n.auth-architecture.hidden{display:none!important}'
+          new = '#authOverlay.auth-architecture.hidden{display:none!important}'
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one malformed selector, found {count}')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+      - name: Verify login overlay selector and JavaScript
+        run: |
+          grep -F '#authOverlay.auth-architecture.hidden{display:none!important}' index.html
+          ! grep -F $'#authOverlay\n.auth-architecture.hidden{display:none!important}' index.html
+          node --check app.js
+      - name: Remove one-time workflow
+        run: rm .github/workflows/fix-login-overlay-once.yml
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html .github/workflows/fix-login-overlay-once.yml
+          git commit -m 'fix: hide authentication overlay after successful login'
+          git push origin HEAD:fix/login-session-race-20260715
