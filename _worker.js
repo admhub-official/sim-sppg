@@ -1,5 +1,6 @@
 const SESSION_SCRIPT = '<script src="/session-fix.js?v=20260715-1"></script>';
-const REPORT_DOWNLOAD_SCRIPT = '<script src="/report-download.js?v=20260715-1"></script>';
+const REPORT_DOWNLOAD_SCRIPT = '<script src="/report-download.js?v=20260715-2"></script>';
+const REPORT_RUNTIME_SCRIPT = '<script src="/report-runtime-fix.js?v=20260715-1"></script>';
 
 function withSafeHtmlHeaders(response) {
   const headers = new Headers(response.headers);
@@ -53,6 +54,9 @@ export default {
 
     if (!html.includes('/report-download.js')) {
       html = injectBeforeRealClosingBody(html, REPORT_DOWNLOAD_SCRIPT);
+    }
+    if (!html.includes('/report-runtime-fix.js')) {
+      html = injectBeforeRealClosingBody(html, REPORT_RUNTIME_SCRIPT);
     }
 
     return new Response(html, {
