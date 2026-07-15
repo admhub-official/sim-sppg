@@ -7137,7 +7137,7 @@ if (dashboardObserverTarget) {
     var description = heading.querySelector('p');
     var content = {
       login: ['Selamat datang', 'Masuk ke SIM-SPPG', 'Gunakan email dan password akun Anda untuk melanjutkan.'],
-      register: ['Registrasi akun', 'Bangun akses operasional Anda', 'Lengkapi identitas, unit SPPG, dan yayasan secara akurat.'],
+      register: ['Registrasi akun', 'Buat akun SIM-SPPG', 'Lengkapi data akun dan unit kerja Anda.'],
       otp: ['Verifikasi akun', 'Masukkan kode OTP', 'Periksa email Anda lalu masukkan enam digit kode verifikasi.'],
       recovery: ['Pemulihan akun', 'Pulihkan akses SIM-SPPG', 'Ikuti langkah verifikasi untuk mendapatkan kembali akses akun.']
     }[mode];
@@ -7186,64 +7186,21 @@ if (dashboardObserverTarget) {
     var overlay = byId('authOverlay');
     if (!overlay) return false;
     repairInputs();
-
-    if (overlay.dataset.architectureReady !== '1') {
-      var container = overlay.querySelector('.auth-container');
-      if (!container) return false;
-      overlay.dataset.architectureReady = '1';
-      overlay.classList.add('auth-architecture');
-
-      var story = document.createElement('section');
-      story.className = 'auth-architecture-story';
-      story.innerHTML =
-        '<div class="auth-architecture-brand"><span class="auth-architecture-logo"><img src="' + CONFIG.logoUrl + '" alt="Logo SIM-SPPG"></span><span>SIM-SPPG</span></div>' +
-        '<div class="auth-architecture-copy"><span class="auth-architecture-kicker"><i class="fas fa-compass-drafting"></i> Arsitektur operasional terintegrasi</span>' +
-        '<h1>Satu fondasi digital untuk operasional SPPG.</h1>' +
-        '<p>Kelola transaksi, bahan baku, supplier, menu, serah terima, approval, dan pelaporan melalui struktur kerja yang konsisten dan terukur.</p>' +
-        '<div class="auth-architecture-metrics">' +
-        '<div class="auth-architecture-metric"><i class="fas fa-layer-group"></i><b>Terstruktur</b><span>Alur kerja dan data tersusun dalam satu sistem.</span></div>' +
-        '<div class="auth-architecture-metric"><i class="fas fa-shield-halved"></i><b>Terkendali</b><span>Akses mengikuti role, SPPG, dan cakupan yayasan.</span></div>' +
-        '<div class="auth-architecture-metric"><i class="fas fa-mobile-screen-button"></i><b>Adaptif</b><span>Nyaman digunakan di desktop, tablet, dan mobile.</span></div>' +
-        '</div></div><div class="auth-architecture-foot"><span>Sistem Informasi Manajemen SPPG</span><span>Operasional • Keuangan • Pelaporan</span></div>';
-
-      var side = document.createElement('section');
-      side.className = 'auth-architecture-formside';
-      container.parentNode.insertBefore(story, container);
-      container.parentNode.insertBefore(side, container);
-      side.appendChild(container);
-
-      var heading = document.createElement('div');
-      heading.className = 'auth-architecture-heading';
-      heading.innerHTML = '<div class="auth-brand-inline"><img src="' + CONFIG.logoUrl + '" alt="Logo SIM-SPPG"><span>SIM-SPPG</span></div><span class="auth-eyebrow">Selamat datang</span><h2>Masuk ke SIM-SPPG</h2><p>Gunakan email dan password akun Anda untuk melanjutkan.</p>';
-      container.insertBefore(heading, container.firstChild);
-
-      var note = document.createElement('div');
-      note.className = 'auth-architecture-note';
-      note.innerHTML = '<i class="fas fa-shield-halved"></i><span><strong>Keamanan akses:</strong> sesi mengikuti masa berlaku token Supabase dan data ditampilkan sesuai peran pengguna.</span>';
-      container.appendChild(note);
-    }
+    overlay.classList.add('auth-architecture');
+    overlay.dataset.architectureReady = '1';
 
     var yayasan = byId('regYayasan');
     if (yayasan) {
       yayasan.required = true;
       yayasan.setAttribute('aria-required', 'true');
-      var label = yayasan.closest('.form-group') && yayasan.closest('.form-group').querySelector('label');
-      if (label && label.textContent.indexOf('*') === -1) label.insertAdjacentHTML('beforeend', ' <span class="req">*</span>');
-    }
-    var register = byId('registerForm');
-    if (register && !register.querySelector('.auth-register-note')) {
-      var registerNote = document.createElement('div');
-      registerNote.className = 'auth-register-note';
-      registerNote.innerHTML = '<i class="fas fa-circle-info"></i> Foto profil dapat ditambahkan setelah akun aktif melalui menu <b>Profil</b>.';
-      register.insertBefore(registerNote, register.firstChild);
     }
 
     updateAuthHeading();
     if (!authObserver) {
       authObserver = new MutationObserver(function () {
         window.requestAnimationFrame(function () {
-          repairInputs();
-          updateAuthHeading();
+repairInputs();
+updateAuthHeading();
         });
       });
       authObserver.observe(overlay, { subtree:true, attributes:true, attributeFilter:['class','style','hidden'] });
