@@ -1,0 +1,1 @@
+Trigger authentication redesign workflow for PR #60.
