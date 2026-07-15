@@ -1,10 +1,11 @@
-const CACHE = 'simsppg-v20-auth-rbac-print';
+const CACHE = 'simsppg-v21-auth-responsive';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
 const REPORT_MODULE = new URL('report-download.js', SCOPE).href;
 const REPORT_RUNTIME = new URL('report-runtime-fix.js', SCOPE).href;
 const AUTH_UI = new URL('auth-ui-v2.js', SCOPE).href;
-const ASSETS = [HOME, new URL('manifest.json', SCOPE).href, REPORT_MODULE, REPORT_RUNTIME, AUTH_UI];
+const AUTH_RESPONSIVE = new URL('auth-responsive-fix.js', SCOPE).href;
+const ASSETS = [HOME, new URL('manifest.json', SCOPE).href, REPORT_MODULE, REPORT_RUNTIME, AUTH_UI, AUTH_RESPONSIVE];
 
 self.addEventListener('install', function(event) {
   event.waitUntil(caches.open(CACHE).then(function(cache) { return cache.addAll(ASSETS); }).then(function() { return self.skipWaiting(); }));
@@ -29,9 +30,10 @@ function injectRuntimeModules(response) {
     html = html
       .replace(/(?:const|let|var)\s+TELEGRAM_BOT_TOKEN\s*=\s*[^;]+;/g, "const TELEGRAM_BOT_TOKEN = ''; // Telegram disabled")
       .replace(/(?:const|let|var)\s+TELEGRAM_CHAT_ID\s*=\s*[^;]+;/g, "const TELEGRAM_CHAT_ID = ''; // Telegram disabled");
-    if (html.indexOf('report-download.js') === -1) html = injectBeforeRealClosingBody(html, '<script src="report-download.js?v=20"></script>');
-    if (html.indexOf('report-runtime-fix.js') === -1) html = injectBeforeRealClosingBody(html, '<script src="report-runtime-fix.js?v=20"></script>');
-    if (html.indexOf('auth-ui-v2.js') === -1) html = injectBeforeRealClosingBody(html, '<script src="auth-ui-v2.js?v=20"></script>');
+    if (html.indexOf('report-download.js') === -1) html = injectBeforeRealClosingBody(html, '<script src="report-download.js?v=21"></script>');
+    if (html.indexOf('report-runtime-fix.js') === -1) html = injectBeforeRealClosingBody(html, '<script src="report-runtime-fix.js?v=21"></script>');
+    if (html.indexOf('auth-ui-v2.js') === -1) html = injectBeforeRealClosingBody(html, '<script src="auth-ui-v2.js?v=21"></script>');
+    if (html.indexOf('auth-responsive-fix.js') === -1) html = injectBeforeRealClosingBody(html, '<script src="auth-responsive-fix.js?v=21"></script>');
 
     var headers = new Headers(response.headers);
     headers.delete('content-length');
