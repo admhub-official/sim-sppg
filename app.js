@@ -1347,9 +1347,12 @@ function loadGlobalDateFilterState() {
     if (saved) {
       var parsed = JSON.parse(saved);
       globalDateFilter = parsed;
-      $('globalDateStart').value = parsed.start || '';
-      $('globalDateEnd').value = parsed.end || '';
-      $('globalDateFilterLabel').textContent = parsed.label || 'Semua Tanggal';
+      var startInput = $('globalDateStart');
+      var endInput = $('globalDateEnd');
+      var labelElement = $('globalDateFilterLabel');
+      if (startInput) startInput.value = parsed.start || '';
+      if (endInput) endInput.value = parsed.end || '';
+      if (labelElement) labelElement.textContent = parsed.label || 'Semua Tanggal';
     }
   } catch (e) { /* biarkan default jika parsing gagal */ }
 }
@@ -1359,11 +1362,13 @@ function saveGlobalDateFilterState() {
 }
 
 function toggleGlobalDateFilterPanel() {
-  $('globalDateFilterPanel').classList.toggle('hidden');
+  var panel = $('globalDateFilterPanel');
+  if (panel) panel.classList.toggle('hidden');
 }
 
 function closeGlobalDateFilterPanel() {
-  $('globalDateFilterPanel').classList.add('hidden');
+  var panel = $('globalDateFilterPanel');
+  if (panel) panel.classList.add('hidden');
 }
 
 function setGlobalDatePreset(preset) {
@@ -1377,9 +1382,12 @@ function setGlobalDatePreset(preset) {
   else if (preset === 'month') { start = new Date(end.getFullYear(), end.getMonth(), 1); label = 'Bulan Ini'; }
   else if (preset === 'all') {
     globalDateFilter = { start: null, end: null, label: 'Semua Tanggal' };
-    $('globalDateStart').value = '';
-    $('globalDateEnd').value = '';
-    $('globalDateFilterLabel').textContent = 'Semua Tanggal';
+    var allStartInput = $('globalDateStart');
+    var allEndInput = $('globalDateEnd');
+    var allLabelElement = $('globalDateFilterLabel');
+    if (allStartInput) allStartInput.value = '';
+    if (allEndInput) allEndInput.value = '';
+    if (allLabelElement) allLabelElement.textContent = 'Semua Tanggal';
     saveGlobalDateFilterState();
     closeGlobalDateFilterPanel();
     applyGlobalDateFilter();
@@ -1389,20 +1397,26 @@ function setGlobalDatePreset(preset) {
   var startStr = formatDateInput(start);
   var endStr = formatDateInput(end);
   globalDateFilter = { start: startStr, end: endStr, label: label };
-  $('globalDateStart').value = startStr;
-  $('globalDateEnd').value = endStr;
-  $('globalDateFilterLabel').textContent = label;
+  var presetStartInput = $('globalDateStart');
+  var presetEndInput = $('globalDateEnd');
+  var presetLabelElement = $('globalDateFilterLabel');
+  if (presetStartInput) presetStartInput.value = startStr;
+  if (presetEndInput) presetEndInput.value = endStr;
+  if (presetLabelElement) presetLabelElement.textContent = label;
   saveGlobalDateFilterState();
   closeGlobalDateFilterPanel();
   applyGlobalDateFilter();
 }
 
 function applyGlobalDateFilterCustom() {
-  var start = $('globalDateStart').value || null;
-  var end = $('globalDateEnd').value || null;
+  var startInput = $('globalDateStart');
+  var endInput = $('globalDateEnd');
+  var start = startInput ? (startInput.value || null) : null;
+  var end = endInput ? (endInput.value || null) : null;
   var label = (start || end) ? (formatTglLabel(start) + ' - ' + formatTglLabel(end)) : 'Semua Tanggal';
   globalDateFilter = { start: start, end: end, label: label };
-  $('globalDateFilterLabel').textContent = label;
+  var labelElement = $('globalDateFilterLabel');
+  if (labelElement) labelElement.textContent = label;
   saveGlobalDateFilterState();
   closeGlobalDateFilterPanel();
   applyGlobalDateFilter();
@@ -1487,7 +1501,7 @@ function switchPage(page, el) {
   if (page === 'pending-payment') loadPendingPayment();
   if (page === 'audit-log' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
   if (page === 'admin-assignment' && currentUser.role === 'SUPER_ADMIN') { loadAdminAssignments(); }
-  if (page === 'laporan') { loadRiwayatLaporan(); }
+  if (page === 'laporan') { /* Unified report center is installed by bootstrapRuntime(). */ }
     if (page === 'profil') renderProfil();
   
   // Hide/show local print buttons for non-admin/akuntan
@@ -1931,8 +1945,15 @@ function updateChart() {
       { sppgFilter: sppgFilterVal },
       filters
     ], function(data) {
-        if (!data || !data.length) { $('chartDataCount').textContent = '0 data'; chartInstance.data.labels = []; chartInstance.data.datasets.forEach(function(ds){ ds.data = []; }); chartInstance.update(); return; }
-              $('chartDataCount').textContent = data.length + ' data';
+        var chartCount = $('chartDataCount');
+        if (!data || !data.length) {
+          if (chartCount) chartCount.textContent = '0 data';
+          chartInstance.data.labels = [];
+          chartInstance.data.datasets.forEach(function(ds){ ds.data = []; });
+          chartInstance.update();
+          return;
+        }
+        if (chartCount) chartCount.textContent = data.length + ' data';
               chartInstance.data.labels = data.map(function(d) { return d.tanggal; });
               chartInstance.data.datasets[0].data = data.map(function(d) { return d.pemasukan; });
               chartInstance.data.datasets[1].data = data.map(function(d) { return d.pengeluaran; });
@@ -2596,9 +2617,9 @@ function saveEditTransaksi() {
 function getMetodeBadge(m) {
   var metode = String(m || '').trim().toUpperCase();
   if (!metode || metode === '-') return '<span class="badge badge-slate">-</span>';
-  if (metode === 'SUDAH_DIBAYAR') return '<span class="badge badge-green"><i class="fas fa-check-double" style="font-size:8px"></i> Sudah Dibayar</span>';
-  if (metode === 'MENUNGGU_VERIFIKASI') return '<span class="badge badge-orange"><i class="fas fa-stamp" style="font-size:8px"></i> Menunggu TTD Verifikator</span>';
-  if (metode === 'BELUM_LUNAS') return '<span class="badge badge-amber"><i class="fas fa-exclamation-circle" style="font-size:8px"></i> Belum Lunas</span>';
+  if (metode === 'SUDAH_DIBAYAR') return '<span class="badge badge-green"><i class="fas fa-check-double" style="font-size:10px"></i> Sudah Dibayar</span>';
+  if (metode === 'MENUNGGU_VERIFIKASI') return '<span class="badge badge-orange"><i class="fas fa-stamp" style="font-size:10px"></i> Menunggu TTD Verifikator</span>';
+  if (metode === 'BELUM_LUNAS') return '<span class="badge badge-amber"><i class="fas fa-exclamation-circle" style="font-size:10px"></i> Belum Lunas</span>';
   if (metode === 'TRANSFER') return '<span class="badge badge-blue">Transfer</span>';
   if (metode === 'CASH') return '<span class="badge badge-green">Cash</span>';
   if (metode === 'BELUM_BAYAR') return '<span class="badge badge-red">Belum Bayar</span>';
@@ -3502,25 +3523,25 @@ function exportApprovalPDF(data, metodeSummary, grandTotal, grandCount, pageLabe
     '<td style="color:#047857;font-weight:600;">Dokumen Lengkap</td>' +
     '<td style="text-align:center;color:#047857;font-weight:600;">' + totalLengkap + '</td>' +
     '<td style="text-align:right;color:#047857;font-weight:600;">Rp ' + Math.round(nominalLengkap).toLocaleString('id-ID') + '</td>' +
-    '<td style="color:#64748b;font-size:9px;">Bukti + Nota + TTD semua ada</td>' +
+    '<td style="color:#64748b;font-size:10px;">Bukti + Nota + TTD semua ada</td>' +
     '</tr>' +
     '<tr style="background:#fff1f2;">' +
     '<td style="color:#be123c;font-weight:600;">Dokumen Tidak Lengkap</td>' +
     '<td style="text-align:center;color:#be123c;font-weight:600;">' + totalTdkLengkap + '</td>' +
     '<td style="text-align:right;color:#be123c;font-weight:600;">Rp ' + Math.round(nominalTdkLengkap).toLocaleString('id-ID') + '</td>' +
-    '<td style="color:#64748b;font-size:9px;">Ada dokumen yang kurang</td>' +
+    '<td style="color:#64748b;font-size:10px;">Ada dokumen yang kurang</td>' +
     '</tr>' +
     '<tr>' +
     '<td style="padding-left:20px;color:#64748b;">&nbsp;&nbsp;&#x2514; Tanpa Bukti Transaksi</td>' +
     '<td style="text-align:center;color:#64748b;">' + totalTanpaBukti + '</td>' +
     '<td style="text-align:right;color:#64748b;">Rp ' + Math.round(nominalTanpaBukti).toLocaleString('id-ID') + '</td>' +
-    '<td style="color:#94a3b8;font-size:9px;">Belum upload foto/file bukti</td>' +
+    '<td style="color:#94a3b8;font-size:10px;">Belum upload foto/file bukti</td>' +
     '</tr>' +
     '<tr>' +
     '<td style="padding-left:20px;color:#64748b;">&nbsp;&nbsp;&#x2514; Tanpa Nota Pembelian</td>' +
     '<td style="text-align:center;color:#64748b;">' + totalTanpaNota + '</td>' +
     '<td style="text-align:right;color:#64748b;">Rp ' + Math.round(nominalTanpaNota).toLocaleString('id-ID') + '</td>' +
-    '<td style="color:#94a3b8;font-size:9px;">Belum upload nota pembelian</td>' +
+    '<td style="color:#94a3b8;font-size:10px;">Belum upload nota pembelian</td>' +
     '</tr>' +
     '<tr style="background:#f1f5f9;font-weight:700;">' +
     '<td>TOTAL KESELURUHAN</td>' +
@@ -3536,7 +3557,7 @@ function exportApprovalPDF(data, metodeSummary, grandTotal, grandCount, pageLabe
     'h2{font-size:15px;margin:0 0 2px 0;text-align:center;}' +
     '.meta{font-size:10px;color:#64748b;text-align:center;margin-bottom:14px;}' +
     'table{width:100%;border-collapse:collapse;margin-bottom:18px;}' +
-    'thead th{background:#f1f5f9;padding:6px 8px;text-align:left;border:1px solid #cbd5e1;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;}' +
+    'thead th{background:#f1f5f9;padding:6px 8px;text-align:left;border:1px solid #cbd5e1;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;}' +
     'tbody td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:middle;}' +
     'tbody tr:nth-child(even){background:#fafafa;}' +
     '.section-title{font-size:11px;font-weight:700;margin:0 0 6px 0;color:#334155;border-left:3px solid #10b981;padding-left:8px;}' +
@@ -3571,7 +3592,7 @@ function exportApprovalPDF(data, metodeSummary, grandTotal, grandCount, pageLabe
     '<tbody>' + summaryRows + '</tbody>' +
     '</table>' +
     '<p class="section-title">Ringkasan 2 — Status Kelengkapan Dokumen</p>' +
-    '<p style="font-size:9px;color:#64748b;margin:0 0 6px 0;">&#9432; TTD User diasumsikan selalu ada dan tidak dihitung sebagai kekurangan</p>' +
+    '<p style="font-size:10px;color:#64748b;margin:0 0 6px 0;">&#9432; TTD User diasumsikan selalu ada dan tidak dihitung sebagai kekurangan</p>' +
     '<table style="max-width:640px;">' +
     '<thead><tr>' +
     '<th>Status Kelengkapan</th>' +
@@ -3664,8 +3685,8 @@ function renderApprovalForm(tx) {
 function getStatusDokumenBadge(status) {
   if (!status) return '<span class="badge badge-slate">-</span>';
   if (status.indexOf('Lengkap') > -1 && status.indexOf('Tidak') === -1)
-    return '<span class="badge badge-green"><i class="fas fa-check" style="font-size:8px"></i> Lengkap</span>';
-  return '<span class="badge badge-red"><i class="fas fa-times" style="font-size:8px"></i> Tidak Lengkap</span>';
+    return '<span class="badge badge-green"><i class="fas fa-check" style="font-size:10px"></i> Lengkap</span>';
+  return '<span class="badge badge-red"><i class="fas fa-times" style="font-size:10px"></i> Tidak Lengkap</span>';
 }
 
 // initApprovalCanvas & clearApprovalCanvas sudah didefinisikan
@@ -6493,7 +6514,7 @@ function submitRecovery() {
     '.notif-item-icon.action-add{background:#dcfce7;color:#15803d}.notif-item-icon.action-edit{background:#fef3c7;color:#b45309}.notif-item-icon.action-delete{background:#ffe4e6;color:#be123c}',
     '.notif-item-content{min-width:0;flex:1}.notif-item-head{display:flex;align-items:center;gap:8px;padding-right:14px;margin-bottom:5px}',
     '.notif-item-title{font-weight:700;color:var(--slate-800);font-size:13px;line-height:1.35;flex:1}',
-    '.notif-action-chip{font-size:9px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;padding:3px 7px;border-radius:999px;white-space:nowrap}',
+    '.notif-action-chip{font-size:10px;font-weight:800;letter-spacing:.35px;text-transform:uppercase;padding:3px 7px;border-radius:999px;white-space:nowrap}',
     '.notif-action-chip.add{background:#dcfce7;color:#166534}.notif-action-chip.edit{background:#fef3c7;color:#92400e}.notif-action-chip.delete{background:#ffe4e6;color:#9f1239}',
     '.notif-item-desc{font-size:12px;line-height:1.5;color:var(--slate-600);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:8px}',
     '.notif-item-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:10px;color:var(--slate-400)}.notif-item-meta span{display:inline-flex;align-items:center;gap:4px}.notif-item-arrow{margin-left:auto;color:var(--slate-300)}',
@@ -6763,442 +6784,14 @@ function repair(){
     },120);
   }
 }
-new MutationObserver(function(){setTimeout(repair,30)}).observe(document.documentElement,{childList:true,subtree:true});
+var dashboardObserverTarget = document.getElementById('page-dashboard') || document.getElementById('dashPanels');
+if (dashboardObserverTarget) {
+  new MutationObserver(function(){ setTimeout(repair,30); })
+    .observe(dashboardObserverTarget,{childList:true,subtree:true});
+}
 })();
 
-// ============================================================
-// MODUL: LAPORAN — Generate PDF & Kirim ke Telegram
-// ============================================================
-
-const TELEGRAM_BOT_TOKEN = '8824501449:AAGIkv_IuenEXdQZdZov11g5Vz-4Qmg-_vI';
-const SUPABASE_URL_LAPORAN = 'https://dmjsgtichrfxhyywstrt.supabase.co';
-
-// --- State tombol ---
-function setLaporanLoading(isLoading, stepText) {
-  const btn = document.getElementById('btn-kirim-laporan');
-  const icon = document.getElementById('btn-laporan-icon');
-  const text = document.getElementById('btn-laporan-text');
-  const progress = document.getElementById('laporan-progress');
-  const progressText = document.getElementById('laporan-progress-text');
-  if (isLoading) {
-    btn.disabled = true;
-    btn.style.opacity = '0.7';
-    btn.style.cursor = 'not-allowed';
-    icon.textContent = '⏳';
-    text.textContent = 'Memproses...';
-    progress.style.display = 'block';
-    progressText.textContent = stepText || '⏳ Memproses...';
-  } else {
-    btn.disabled = false;
-    btn.style.opacity = '1';
-    btn.style.cursor = 'pointer';
-    icon.textContent = '📤';
-    text.textContent = 'Kirim Laporan ke Telegram';
-    progress.style.display = 'none';
-  }
-}
-
-function updateLaporanProgress(text) {
-  const el = document.getElementById('laporan-progress-text');
-  if (el) el.textContent = text;
-}
-
-// --- Format angka Rupiah ---
-function formatRupiahLaporan(n) {
-  if (!n && n !== 0) return 'Rp 0';
-  return 'Rp ' + Number(n).toLocaleString('id-ID');
-}
-
-// --- Format tanggal Indonesia ---
-function formatTglLaporan(tgl) {
-  if (!tgl) return '-';
-  const d = new Date(tgl);
-  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-
-// --- MAIN HANDLER: Tombol Kirim Laporan ---
-async function handleKirimLaporan() {
-  const tglMulai  = document.getElementById('laporan-tgl-mulai').value;
-  const tglSelesai = document.getElementById('laporan-tgl-selesai').value;
-  const chatId    = document.getElementById('laporan-chat-id').value.trim() || '8739721946';
-
-  // Validasi input
-  if (!tglMulai || !tglSelesai) {
-    if (typeof Swal !== 'undefined') {
-      Swal.fire('Peringatan', 'Harap isi Tanggal Mulai dan Tanggal Selesai.', 'warning');
-    } else {
-      alert('Harap isi Tanggal Mulai dan Tanggal Selesai.');
-    }
-    return;
-  }
-  if (new Date(tglMulai) > new Date(tglSelesai)) {
-    if (typeof Swal !== 'undefined') {
-      Swal.fire('Peringatan', 'Tanggal Mulai tidak boleh lebih besar dari Tanggal Selesai.', 'warning');
-    } else {
-      alert('Tanggal Mulai tidak boleh lebih besar dari Tanggal Selesai.');
-    }
-    return;
-  }
-  if (!chatId) {
-    if (typeof Swal !== 'undefined') {
-      Swal.fire('Peringatan', 'Harap isi Chat ID Telegram tujuan.', 'warning');
-    } else {
-      alert('Harap isi Chat ID Telegram tujuan.');
-    }
-    return;
-  }
-
-  // Ambil info user saat ini
-  const currentUser = window.currentUser || {};
-  const userEmail   = currentUser.email || currentUser.EMAIL || '-';
-  const userName    = currentUser['NAMA LENGKAP'] || currentUser.nama || '-';
-  const userRole    = currentUser.ROLE || '-';
-
-  setLaporanLoading(true, '📡 Mengambil data transaksi dari Supabase...');
-
-  let transaksiData = [];
-  let statusKirim   = false;
-  let fileUrl       = null;
-  let fileName      = null;
-  let errorMsg      = null;
-
-  try {
-    // STEP 1: Fetch data TRANSAKSI
-    updateLaporanProgress('📡 Step 1/5 — Mengambil data transaksi...');
-    const sbToken = window._supabaseToken || (typeof supabase !== 'undefined' && supabase.auth ?
-      (await supabase.auth.getSession()).data.session?.access_token : null);
-
-    const resTx = await fetch(
-      `${SUPABASE_URL_LAPORAN}/rest/v1/TRANSAKSI?select=*&Tanggal=gte.${tglMulai}&Tanggal=lte.${tglSelesai}&order=Tanggal.asc`,
-      {
-        headers: {
-          apikey: window._supabaseKey || '',
-          Authorization: sbToken ? `Bearer ${sbToken}` : '',
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    if (!resTx.ok) throw new Error(`Gagal fetch TRANSAKSI: ${resTx.status}`);
-    transaksiData = await resTx.json();
-
-    // STEP 2: Generate PDF
-    updateLaporanProgress('📄 Step 2/5 — Membuat file PDF...');
-    const pdfBlob = await generateLaporanPDF(transaksiData, tglMulai, tglSelesai, userName, userRole);
-
-    // STEP 3: Upload ke Supabase Storage
-    updateLaporanProgress('☁️ Step 3/5 — Mengupload PDF ke Storage...');
-    const ts = Date.now();
-    fileName = `laporan_${tglMulai}_${tglSelesai}_${ts}.pdf`;
-    const uploadResult = await uploadLaporanToStorage(pdfBlob, fileName, sbToken);
-    fileUrl = uploadResult;
-
-    // STEP 4: Kirim ke Telegram
-    updateLaporanProgress('📨 Step 4/5 — Mengirim ke Telegram...');
-    await kirimLaporanTelegram(pdfBlob, fileName, chatId, {
-      tglMulai, tglSelesai, userName, userRole,
-      jumlahTransaksi: transaksiData.length
-    });
-    statusKirim = true;
-
-    // STEP 5: Catat riwayat
-    updateLaporanProgress('💾 Step 5/5 — Menyimpan riwayat...');
-    await simpanRiwayatLaporan({
-      periode_awal: tglMulai,
-      periode_akhir: tglSelesai,
-      file_url: fileUrl,
-      file_name: fileName,
-      generated_by: userEmail,
-      generated_by_name: userName,
-      generated_by_role: userRole,
-      status_kirim: true,
-      jumlah_transaksi: transaksiData.length,
-      keterangan: `Chat ID: ${chatId}`
-    }, sbToken);
-
-    setLaporanLoading(false);
-    if (typeof Swal !== 'undefined') {
-      Swal.fire('Berhasil! ✅', `Laporan berhasil dikirim ke Telegram.\n\nTotal: ${transaksiData.length} transaksi dalam periode ${formatTglLaporan(tglMulai)} s/d ${formatTglLaporan(tglSelesai)}.`, 'success');
-    } else {
-      alert('Laporan berhasil dikirim ke Telegram!');
-    }
-    loadRiwayatLaporan();
-
-  } catch (err) {
-    console.error('[LAPORAN ERROR]', err);
-    errorMsg = err.message || 'Terjadi kesalahan tidak diketahui.';
-
-    // Coba catat riwayat gagal
-    try {
-      const sbToken2 = window._supabaseToken || null;
-      const currentUser2 = window.currentUser || {};
-      await simpanRiwayatLaporan({
-        periode_awal: tglMulai,
-        periode_akhir: tglSelesai,
-        file_url: fileUrl,
-        file_name: fileName,
-        generated_by: currentUser2.email || currentUser2.EMAIL || '-',
-        generated_by_name: currentUser2['NAMA LENGKAP'] || '-',
-        generated_by_role: currentUser2.ROLE || '-',
-        status_kirim: false,
-        jumlah_transaksi: transaksiData.length,
-        keterangan: `GAGAL: ${errorMsg}`
-      }, sbToken2);
-    } catch (e2) { /* silent */ }
-
-    setLaporanLoading(false);
-    if (typeof Swal !== 'undefined') {
-      Swal.fire('Gagal ❌', `Terjadi kesalahan: ${errorMsg}`, 'error');
-    } else {
-      alert('Gagal: ' + errorMsg);
-    }
-    loadRiwayatLaporan();
-  }
-}
-
-// --- Generate PDF menggunakan jsPDF ---
-async function generateLaporanPDF(transaksiData, tglMulai, tglSelesai, userName, userRole) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 15;
-
-  // KOP LAPORAN
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 64, 175);
-  doc.text('LAPORAN REKAPAN DATA TRANSAKSI', pageWidth / 2, y, { align: 'center' });
-  y += 7;
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 60, 60);
-  doc.text('SIM-SPPG — Sistem Informasi Manajemen SPPG', pageWidth / 2, y, { align: 'center' });
-  y += 5;
-
-  doc.setFontSize(9);
-  doc.text(`Periode: ${formatTglLaporan(tglMulai)} s/d ${formatTglLaporan(tglSelesai)}`, pageWidth / 2, y, { align: 'center' });
-  y += 4;
-  doc.text(`Dibuat oleh: ${userName} (${userRole}) pada ${new Date().toLocaleString('id-ID')}`, pageWidth / 2, y, { align: 'center' });
-  y += 6;
-
-  // Garis pemisah
-  doc.setDrawColor(30, 64, 175);
-  doc.setLineWidth(0.5);
-  doc.line(10, y, pageWidth - 10, y);
-  y += 6;
-
-  // RINGKASAN
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0, 0, 0);
-  doc.text('RINGKASAN', 10, y);
-  y += 6;
-
-  const totalNominal = transaksiData.reduce((s, r) => s + (Number(r['Nominal']) || 0), 0);
-  const approved = transaksiData.filter(r => r['APPROVED BY']).length;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(`Total Transaksi   : ${transaksiData.length} transaksi`, 10, y); y += 5;
-  doc.text(`Total Nominal     : ${formatRupiahLaporan(totalNominal)}`, 10, y); y += 5;
-  doc.text(`Sudah Diapprove   : ${approved} transaksi`, 10, y); y += 5;
-  doc.text(`Belum Diapprove   : ${transaksiData.length - approved} transaksi`, 10, y); y += 8;
-
-  // TABEL TRANSAKSI
-  if (transaksiData.length > 0) {
-    doc.autoTable({
-      startY: y,
-      head: [[
-        'No', 'Tanggal', 'Kode', 'SPPG', 'Kategori',
-        'Nama Item', 'Nominal', 'Metode', 'Status Dok', 'Approved By'
-      ]],
-      body: transaksiData.map((r, i) => [
-        i + 1,
-        r['Tanggal'] ? new Date(r['Tanggal']).toLocaleDateString('id-ID') : '-',
-        r['Kode Pemasukan'] || '-',
-        r['SPPG'] || '-',
-        r['Kategori'] || '-',
-        r['Nama Item/ Bahan Baku'] || '-',
-        formatRupiahLaporan(r['Nominal']),
-        r['Metode Transaksi'] || '-',
-        r['STATUS DOKUMEN'] || '-',
-        r['APPROVED BY'] || '-'
-      ]),
-      styles: { fontSize: 7.5, cellPadding: 2.5 },
-      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      alternateRowStyles: { fillColor: [239, 246, 255] },
-      columnStyles: {
-        0: { cellWidth: 8 },
-        6: { halign: 'right' }
-      },
-      margin: { left: 10, right: 10 }
-    });
-  } else {
-    doc.setFontSize(10);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Tidak ada data transaksi pada periode ini.', 10, y + 10);
-  }
-
-  // Footer setiap halaman
-  const pageCount = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text(`Halaman ${i} dari ${pageCount} — SIM-SPPG`, pageWidth / 2,
-      doc.internal.pageSize.getHeight() - 8, { align: 'center' });
-  }
-
-  return doc.output('blob');
-}
-
-// --- Upload PDF ke Supabase Storage ---
-async function uploadLaporanToStorage(blob, fileName, token) {
-  const url = `${SUPABASE_URL_LAPORAN}/storage/v1/object/laporan_pdf/${fileName}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: token ? `Bearer ${token}` : '',
-      apikey: window._supabaseKey || '',
-      'Content-Type': 'application/pdf',
-      'x-upsert': 'true'
-    },
-    body: blob
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Upload storage gagal: ${err}`);
-  }
-  return `${SUPABASE_URL_LAPORAN}/storage/v1/object/public/laporan_pdf/${fileName}`;
-}
-
-// --- Kirim PDF ke Telegram via Bot API ---
-async function kirimLaporanTelegram(blob, fileName, chatId, meta) {
-  const caption =
-    `📢 *LAPORAN REKAPAN DATA SIM-SPPG*\n` +
-    `📅 *Periode:* ${formatTglLaporan(meta.tglMulai)} s/d ${formatTglLaporan(meta.tglSelesai)}\n` +
-    `👤 *Dibuat Oleh:* ${meta.userName} (${meta.userRole})\n\n` +
-    `📊 *Ringkasan Data:*\n` +
-    `• Total Transaksi: ${meta.jumlahTransaksi} transaksi\n\n` +
-    `_File PDF laporan lengkap terlampir di bawah ini._`;
-
-  const formData = new FormData();
-  formData.append('chat_id', chatId);
-  formData.append('document', new File([blob], fileName, { type: 'application/pdf' }));
-  formData.append('caption', caption);
-  formData.append('parse_mode', 'Markdown');
-
-  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
-    method: 'POST',
-    body: formData
-  });
-
-  const data = await res.json();
-  if (!data.ok) {
-    throw new Error(`Telegram API error: ${data.description || JSON.stringify(data)}`);
-  }
-  return data;
-}
-
-// --- Simpan riwayat ke tabel riwayat_laporan ---
-async function simpanRiwayatLaporan(payload, token) {
-  const res = await fetch(`${SUPABASE_URL_LAPORAN}/rest/v1/riwayat_laporan`, {
-    method: 'POST',
-    headers: {
-      apikey: window._supabaseKey || '',
-      Authorization: token ? `Bearer ${token}` : '',
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal'
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    console.warn('[LAPORAN] Gagal simpan riwayat:', err);
-  }
-}
-
-// --- Load tabel riwayat laporan ---
-async function loadRiwayatLaporan() {
-  const tbody = document.getElementById('riwayat-laporan-tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#9ca3af;">⏳ Memuat riwayat...</td></tr>';
-
-  try {
-    const sbToken = window._supabaseToken ||
-      (typeof supabase !== 'undefined' && supabase.auth ?
-        (await supabase.auth.getSession()).data.session?.access_token : null);
-
-    const res = await fetch(
-      `${SUPABASE_URL_LAPORAN}/rest/v1/riwayat_laporan?select=*&order=tanggal_generate.desc&limit=50`,
-      {
-        headers: {
-          apikey: window._supabaseKey || '',
-          Authorization: sbToken ? `Bearer ${sbToken}` : ''
-        }
-      }
-    );
-
-    if (!res.ok) throw new Error('Gagal memuat riwayat');
-    const data = await res.json();
-
-    if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:#9ca3af;">Belum ada riwayat laporan.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = data.map(row => {
-      const tglGen = row.tanggal_generate
-        ? new Date(row.tanggal_generate).toLocaleString('id-ID') : '-';
-      const periode = `${formatTglLaporan(row.periode_awal)} — ${formatTglLaporan(row.periode_akhir)}`;
-      const statusBadge = row.status_kirim
-        ? '<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">✅ Terkirim</span>'
-        : '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">❌ Gagal</span>';
-      const downloadBtn = row.file_url
-        ? `<a href="${row.file_url}" target="_blank" style="padding:4px 10px;background:#2563eb;color:#fff;border-radius:6px;font-size:12px;text-decoration:none;">⬇️ Unduh</a>`
-        : '<span style="color:#9ca3af;font-size:12px;">-</span>';
-
-      return `<tr style="border-bottom:1px solid #f3f4f6;">
-        <td style="padding:10px 12px;">${tglGen}</td>
-        <td style="padding:10px 12px;">${periode}</td>
-        <td style="padding:10px 12px;">${row.generated_by_name || row.generated_by || '-'}<br><span style="font-size:11px;color:#6b7280;">${row.generated_by_role || ''}</span></td>
-        <td style="padding:10px 12px;text-align:center;">${row.jumlah_transaksi ?? '-'}</td>
-        <td style="padding:10px 12px;text-align:center;">${statusBadge}</td>
-        <td style="padding:10px 12px;text-align:center;">${downloadBtn}</td>
-      </tr>`;
-    }).join('');
-
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#ef4444;">❌ Gagal memuat: ${err.message}</td></tr>`;
-  }
-}
-
-// --- Auto-load riwayat saat panel Laporan dibuka ---
-// Tambahkan ini ke fungsi showPanel / navigasi yang sudah ada:
-// if (panelId === 'laporan') { loadRiwayatLaporan(); }
-// Atau gunakan observer di bawah ini sebagai fallback:
-(function() {
-  const observer = new MutationObserver(function() {
-    const panel = document.getElementById('panel-laporan');
-    if (panel && panel.style.display !== 'none') {
-      const tbody = document.getElementById('riwayat-laporan-tbody');
-      if (tbody && tbody.innerHTML.includes('Memuat data...')) {
-        loadRiwayatLaporan();
-      }
-    }
-  });
-  // Observe setelah DOM ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      const container = document.body;
-      if (container) observer.observe(container, { attributes: true, subtree: true, attributeFilter: ['style'] });
-    });
-  } else {
-    observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['style'] });
-  }
-})();
+// Legacy report/Telegram runtime removed after security audit.
 
 /* ===== UNIFIED HARDENING RUNTIME ===== */
 /* SIM-SPPG unified runtime
@@ -7869,6 +7462,8 @@ async function loadRiwayatLaporan() {
     byId('reportUnifiedDownload').addEventListener('click', downloadReport);
     updateReportCount();
     window.generateDanKirimLaporan = downloadReport;
+    window.handleKirimLaporan = downloadReport;
+    window.loadRiwayatLaporan = function () { return installReportCenter(); };
     window.kirimLaporanTelegram = function () { throw new Error('Pengiriman Telegram dinonaktifkan. Gunakan Download Laporan.'); };
     reportInstalled = true;
     return true;
