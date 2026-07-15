@@ -4,26 +4,26 @@
  */
 
 /* ===== INLINE MODULE 1 ===== */
-(function(){
-  function iconsConverted(){
+(function() {
+  function iconsConverted() {
     // Kalau SVG+JS berhasil, <i class="fas ..."> sudah diganti jadi <svg class="svg-inline--fa">
     return document.querySelectorAll('svg.svg-inline--fa').length > 0;
   }
-  function fontLoaded(){
+  function fontLoaded() {
     try { return document.fonts.check('900 1em "Font Awesome 6 Free"'); }
-    catch(e){ return false; }
+    catch (error) { return false; }
   }
-  function fallbackCDN(){
+  function fallbackCDN() {
     var link = document.getElementById('faCssLink');
     if (link && link.getAttribute('data-fallback-applied') !== '1') {
-      link.setAttribute('data-fallback-applied','1');
+      link.setAttribute('data-fallback-applied', '1');
       link.href = 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css';
     }
   }
-  setTimeout(function(){
+  setTimeout(function() {
     if (!iconsConverted() && !fontLoaded()) {
       fallbackCDN();
-      setTimeout(function(){
+      setTimeout(function() {
         if (!iconsConverted() && !fontLoaded()) {
           console.warn('Font Awesome gagal dimuat dari semua sumber. Cek koneksi internet / firewall / ad-blocker.');
         }
@@ -650,17 +650,43 @@ function showToast(type, title, message) {
 // ============================================================
 // 4. AUTHENTICATION
 // ============================================================
+function setAuthMode(mode) {
+  var forms = {
+    login: $('loginForm'),
+    register: $('registerForm'),
+    otp: $('otpForm')
+  };
+
+  Object.keys(forms).forEach(function(key) {
+    if (!forms[key]) return;
+    forms[key].classList.toggle('hidden', key !== mode);
+  });
+
+  var overlay = $('authOverlay');
+  if (overlay) overlay.dataset.authMode = mode;
+
+  if (typeof updateAuthHeading === 'function') updateAuthHeading();
+}
+
 function showLogin() {
-  $('loginForm').classList.remove('hidden');
-  $('registerForm').classList.add('hidden');
+  setAuthMode('login');
   $('loginError').classList.remove('show');
-  $('recoveryLinks').classList.remove('show'); // Sembunyikan link recovery
+  $('recoveryLinks').classList.remove('show');
+
+  window.requestAnimationFrame(function() {
+    var emailInput = $('loginUsername');
+    if (emailInput) emailInput.focus();
+  });
 }
 
 function showRegister() {
-  $('loginForm').classList.add('hidden');
-  $('registerForm').classList.remove('hidden');
+  setAuthMode('register');
   $('regError').classList.remove('show');
+
+  window.requestAnimationFrame(function() {
+    var nameInput = $('regNama');
+    if (nameInput) nameInput.focus();
+  });
 }
 function togglePw(fieldId, btn) {
   var input = $(fieldId);
@@ -762,6 +788,46 @@ function doLogin() {
               $('recoveryLinks').classList.add('show');
       }
     );
+}
+
+function initAuthKeyboardActions() {
+  var loginPassword = $('loginPassword');
+  var otpInput = $('otpCode');
+
+  if (loginPassword && loginPassword.dataset.enterReady !== '1') {
+    loginPassword.dataset.enterReady = '1';
+    loginPassword.addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') doLogin();
+    });
+  }
+
+  if (otpInput && otpInput.dataset.otpReady !== '1') {
+    otpInput.dataset.otpReady = '1';
+
+    otpInput.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '').slice(0, 6);
+      $('otpError').classList.remove('show');
+    });
+
+    otpInput.addEventListener('paste', function(event) {
+      var pasted = (event.clipboardData || window.clipboardData).getData('text');
+      var digits = pasted.replace(/\D/g, '').slice(0, 6);
+      if (!digits) return;
+      event.preventDefault();
+      this.value = digits;
+      this.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    otpInput.addEventListener('keydown', function(event) {
+      if (event.key === 'Enter' && this.value.length === 6) doVerifyOtp();
+    });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAuthKeyboardActions);
+} else {
+  initAuthKeyboardActions();
 }
 
 // ============================================================
@@ -891,16 +957,19 @@ var pendingOtpEmail = '';
 var pendingOtpUsername = '';
 
 function showOtpVerification(email) {
-  $('loginForm').classList.add('hidden');
-  $('registerForm').classList.add('hidden');
-  $('otpForm').classList.remove('hidden');
-  $('otpEmailLabel').textContent = email;
+  setAuthMode('otp');
+  $('otpEmailLabel').textContent = email || '-';
   $('otpCode').value = '';
   $('otpError').classList.remove('show');
+
+  window.requestAnimationFrame(function() {
+    var otpInput = $('otpCode');
+    if (otpInput) otpInput.focus();
+  });
 }
 
 function doVerifyOtp() {
-  var otp = $('otpCode').value.trim();
+  var otp = $('otpCode').value.replace(/\D/g, '').slice(0, 6);
   var btn = $('btnVerifyOtp');
   var err = $('otpError');
 
@@ -917,7 +986,7 @@ function doVerifyOtp() {
       otp
     ], function(result) {
         btn.disabled = false;
-              btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi</span>';
+              btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi akun</span>';
               if (result.success) {
                 showToast('success', 'Verifikasi Berhasil', result.message);
                 $('otpForm').classList.add('hidden');
