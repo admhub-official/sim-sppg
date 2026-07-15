@@ -1,19 +1,32 @@
 # SIM-SPPG
 
-Sistem Informasi Manajemen SPPG berbasis frontend statis, GitHub Pages, dan Supabase Edge Function.
+Sistem Informasi Manajemen SPPG berbasis frontend statis, GitHub Pages, dan Supabase Edge Functions.
 
 ## Struktur inti
 
-- `index.html` — seluruh HTML, CSS, dan JavaScript frontend aplikasi.
-- `sw.js` — service worker untuk cache offline dan push notification.
-- `manifest.json` — konfigurasi instalasi PWA.
+- `index.html` — markup aplikasi, komponen halaman/modal, dan CSS antarmuka.
+- `app.js` — seluruh logika frontend, state, integrasi API, validasi, navigasi, laporan, dan event handler.
+- `sw.js` — service worker PWA. Navigasi memakai strategi network-first agar deployment terbaru tidak tertahan cache lama.
+- `manifest.json` — metadata instalasi PWA.
 
-## Pengembangan
+Frontend mengakses backend melalui Supabase Edge Function `dynamic-action` dan fungsi khusus pengguna yang diizinkan aplikasi.
 
-Untuk perubahan tampilan maupun fungsi frontend, edit `index.html`.
+## Aturan pengembangan
 
-Untuk perubahan PWA, cache offline, atau push notification, edit `sw.js`.
+1. Jangan menambahkan JavaScript baru secara inline di `index.html`; tempatkan logika di `app.js`.
+2. Jangan menduplikasi handler atau fungsi global. Cari nama fungsi yang sudah ada sebelum menambahkan implementasi baru.
+3. Gunakan helper API dan helper sanitasi yang sudah tersedia.
+4. Setelah mengubah `index.html`, `app.js`, `sw.js`, atau `manifest.json`, naikkan versi cache di `sw.js` dan query version pada asset utama bila diperlukan.
+5. Uji minimal pada desktop, tablet, dan perangkat seluler sebelum deployment.
+6. Jangan menyimpan `service_role`, password database, JWT secret, SMTP password, atau VAPID private key di repository.
 
-Frontend mengakses backend melalui Supabase Edge Function `dynamic-action`.
+## Pemeriksaan sebelum rilis
 
-Jangan menyimpan `service_role`, password database, JWT secret, SMTP password, atau VAPID private key di repository.
+- Login, logout, pemulihan akun, dan pemeriksaan sesi.
+- Navigasi seluruh menu berdasarkan role.
+- Tambah/edit/hapus transaksi serta upload bukti.
+- Approval dan pending payment.
+- Master bahan baku dan supplier.
+- Survey, serah terima, menu MBG, laporan, dan profil.
+- Modal, toast, loading state, fokus keyboard, dan tampilan responsif.
+- Instalasi PWA, refresh setelah deployment, serta mode offline untuk shell aplikasi.
