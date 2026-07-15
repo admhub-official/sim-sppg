@@ -1,30 +1,77 @@
-name: Inspect auth recovery once
+name: Apply auth recovery adjustments once
 on:
   push:
     branches: [main]
 permissions:
   contents: write
 jobs:
-  inspect:
+  patch:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: agent/auth-recovery-adjustments
           fetch-depth: 0
-      - name: Capture recovery implementation
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch authentication UI and recovery flow
         run: |
-          python - <<'PY'
+          cat > /tmp/patch_auth.py <<'PY'
           from pathlib import Path
-          text = Path('app.js').read_text(encoding='utf-8')
-          out = []
-          for name in ['showRecoveryModal','submitRecovery']:
+
+          index_path = Path('index.html')
+          app_path = Path('app.js')
+          html = index_path.read_text(encoding='utf-8')
+          js = app_path.read_text(encoding='utf-8')
+
+          brand = '''      <div class="auth-card-brand">
+                <img src="https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png" alt="Logo SIM-SPPG">
+                <span>SIM-SPPG</span>
+              </div>
+
+          '''
+          if brand not in html:
+              raise SystemExit('auth-card-brand markup not found')
+          html = html.replace(brand, '', 1)
+
+          html = html.replace('''.auth-card-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            color: #155f9f;
+            font-size: 15px;
+            font-weight: 800;
+          }
+          .auth-card-brand img { width: 36px; height: 36px; object-fit: contain; }
+          ''', '', 1)
+          html = html.replace('''  min-height: 26px;
+            padding: 5px 10px;
+            margin-bottom: 10px;
+''', '''  min-height: 34px;
+            padding: 7px 13px;
+            margin-bottom: 12px;
+''', 1)
+          html = html.replace('''  font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+''', '''  font-size: 13px;
+            font-weight: 800;
+            letter-spacing: .8px;
+''', 1)
+          html = html.replace('''  .auth-card-brand { margin-bottom: 16px; }
+''', '', 1)
+          html = html.replace('''  .auth-card-brand { margin-bottom: 14px; }
+            .auth-card-brand img { width: 31px; height: 31px; }
+''', '', 1)
+
+          def replace_function(text, name, replacement):
               marker = 'function ' + name + '('
               start = text.find(marker)
-              out.append('\n===== ' + name + ' =====\n')
               if start < 0:
-                  out.append('NOT FOUND\n')
-                  continue
+                  raise SystemExit(name + ' not found')
               brace = text.find('{', start)
               depth = 0
               quote = None
@@ -33,22 +80,137 @@ jobs:
               while i < len(text):
                   ch = text[i]
                   if quote:
-                      if escape: escape = False
-                      elif ch == '\\': escape = True
-                      elif ch == quote: quote = None
+                      if escape:
+                          escape = False
+                      elif ch == '\\':
+                          escape = True
+                      elif ch == quote:
+                          quote = None
                   else:
-                      if ch in "'\"`": quote = ch
-                      elif ch == '{': depth += 1
+                      if ch in "'\"`":
+                          quote = ch
+                      elif ch == '{':
+                          depth += 1
                       elif ch == '}':
                           depth -= 1
                           if depth == 0:
-                              out.append(text[start:i+1] + '\n')
-                              break
+                              return text[:start] + replacement + text[i+1:]
                   i += 1
-          Path('.github/AUTH_RECOVERY_CURRENT.txt').write_text(''.join(out), encoding='utf-8')
+              raise SystemExit('unbalanced function ' + name)
+
+          show_recovery = r'''function showRecoveryModal(type) {
+            currentRecoveryType = type;
+            var title = '';
+            var html = '';
+
+            if (type === 'password') {
+              title = 'Lupa Kata Sandi';
+              html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan username dan email yang terdaftar untuk memverifikasi akun Anda.</p>' +
+                '<div class="form-group"><label class="form-label" for="recUsername">Username <span class="req">*</span></label><input type="text" id="recUsername" class="form-input" placeholder="Username" autocomplete="username"></div>' +
+                '<div class="form-group"><label class="form-label" for="recEmail">Email <span class="req">*</span></label><input type="email" id="recEmail" class="form-input" placeholder="nama@gmail.com" autocomplete="email" inputmode="email"></div>';
+            } else if (type === 'username') {
+              title = 'Lupa Username';
+              html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan email dan kata sandi akun untuk menampilkan kembali username Anda.</p>' +
+                '<div class="form-group"><label class="form-label" for="recEmail">Email <span class="req">*</span></label><input type="email" id="recEmail" class="form-input" placeholder="nama@gmail.com" autocomplete="email" inputmode="email"></div>' +
+                '<div class="form-group"><label class="form-label" for="recPassword">Kata Sandi <span class="req">*</span></label><div class="password-wrap"><input type="password" id="recPassword" class="form-input" placeholder="Masukkan kata sandi" autocomplete="current-password"><button type="button" class="toggle-password" onclick="togglePw(\'recPassword\',this)" aria-label="Tampilkan kata sandi"><i class="fas fa-eye"></i></button></div></div>';
+            } else if (type === 'token') {
+              title = 'Fitur Tidak Tersedia';
+              html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Fitur token login sudah tidak digunakan. Gunakan menu Lupa Kata Sandi untuk memulihkan akses akun.</p>';
+            }
+
+            document.getElementById('recoveryTitle').textContent = title;
+            document.getElementById('recoveryBody').innerHTML = html + '<div id="recoveryError" class="form-error" style="margin-top:10px;" role="alert"><i class="fas fa-exclamation-circle"></i><span></span></div>';
+            var submitBtn = document.getElementById('btnRecoverySubmit');
+            if (submitBtn) submitBtn.style.display = (type === 'token') ? 'none' : '';
+            openModal('modalRecovery');
+          }'''
+
+          submit_recovery = r'''function submitRecovery() {
+            var errorEl = $('recoveryError');
+            if (!errorEl) return;
+            errorEl.classList.remove('show');
+
+            if (currentRecoveryType === 'token') return;
+
+            var btn = $('btnRecoverySubmit');
+            var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            var data = {};
+
+            function fail(message) {
+              errorEl.querySelector('span').textContent = message;
+              errorEl.classList.add('show');
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Verifikasi';
+              }
+            }
+
+            if (currentRecoveryType === 'password') {
+              data = {
+                username: ($('recUsername') && $('recUsername').value || '').trim(),
+                email: ($('recEmail') && $('recEmail').value || '').trim().toLowerCase()
+              };
+              if (!data.username) return fail('Username wajib diisi.');
+              if (!data.email) return fail('Email wajib diisi.');
+              if (!emailPattern.test(data.email)) return fail('Format email tidak valid.');
+            } else if (currentRecoveryType === 'username') {
+              data = {
+                email: ($('recEmail') && $('recEmail').value || '').trim().toLowerCase(),
+                password: ($('recPassword') && $('recPassword').value || '')
+              };
+              if (!data.email) return fail('Email wajib diisi.');
+              if (!emailPattern.test(data.email)) return fail('Format email tidak valid.');
+              if (!data.password) return fail('Kata sandi wajib diisi.');
+            } else {
+              return;
+            }
+
+            if (btn) {
+              btn.disabled = true;
+              btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memverifikasi...';
+            }
+
+            var backendFn = currentRecoveryType === 'password' ? 'recoverPassword' : 'recoverUsername';
+            callApi(backendFn, [data], function(result) {
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Verifikasi';
+              }
+              if (result && result.success) {
+                closeModal('modalRecovery');
+                showToast('success', 'Berhasil', result.message || 'Data akun berhasil diverifikasi. Silakan cek email Anda.');
+              } else {
+                fail(result && result.message || 'Data verifikasi tidak cocok.');
+              }
+            }, function(err) {
+              fail(err && err.message ? err.message : 'Terjadi kesalahan sistem.');
+            });
+          }'''
+
+          js = replace_function(js, 'showRecoveryModal', show_recovery)
+          js = replace_function(js, 'submitRecovery', submit_recovery)
+
+          index_path.write_text(html, encoding='utf-8')
+          app_path.write_text(js, encoding='utf-8')
           PY
+          python /tmp/patch_auth.py
+          node --check app.js
+          python - <<'PY'
+          from pathlib import Path
+          html = Path('index.html').read_text(encoding='utf-8')
+          js = Path('app.js').read_text(encoding='utf-8')
+          assert '<div class="auth-card-brand">' not in html
+          assert '.auth-card-brand {' not in html
+          assert 'font-size: 13px;' in html
+          assert 'username dan email yang terdaftar' in js
+          assert 'email dan kata sandi akun' in js
+          assert "data = {\n                username:" in js
+          assert "password: ($('recPassword')" in js
+          assert html.count('<div') == html.count('</div>')
+          PY
+          rm -f .github/AUTH_RECOVERY_CURRENT.txt
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/AUTH_RECOVERY_CURRENT.txt
-          git commit -m "chore: capture recovery implementation"
+          git add index.html app.js .github/AUTH_RECOVERY_CURRENT.txt
+          git commit -m "fix: refine auth heading and recovery verification"
           git push origin agent/auth-recovery-adjustments
