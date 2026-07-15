@@ -1,11 +1,13 @@
-const CACHE = 'simsppg-v18-login-fix';
+const CACHE = 'simsppg-v19-report-backend';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
 const REPORT_MODULE = new URL('report-download.js', SCOPE).href;
+const REPORT_RUNTIME = new URL('report-runtime-fix.js', SCOPE).href;
 const ASSETS = [
   HOME,
   new URL('manifest.json', SCOPE).href,
-  REPORT_MODULE
+  REPORT_MODULE,
+  REPORT_RUNTIME
 ];
 
 self.addEventListener('install', function(event) {
@@ -26,40 +28,33 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-function injectBeforeRealClosingBody(html, scriptTag) {
-  // index.html memiliki beberapa teks </body> di dalam string JavaScript untuk
-  // dokumen cetak. Gunakan kemunculan terakhir agar script tidak masuk ke string.
+function injectBeforeRealClosingBody(html, script) {
   var insertAt = html.toLowerCase().lastIndexOf('</body>');
-  if (insertAt === -1) return html + '\n' + scriptTag + '\n';
-  return html.slice(0, insertAt) + scriptTag + '\n' + html.slice(insertAt);
+  if (insertAt === -1) return html + '\n' + script;
+  return html.slice(0, insertAt) + script + '\n' + html.slice(insertAt);
 }
 
-function injectReportDownloadModule(response) {
+function injectReportModules(response) {
   var contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('text/html')) return Promise.resolve(response);
 
   return response.text().then(function(html) {
-    // Hilangkan credential Telegram dari HTML yang disajikan. Jalur laporan lama
-    // tidak lagi dimuat; report-download.js menyediakan unduhan PDF/XLSX.
     html = html
       .replace(/(?:const|let|var)\s+TELEGRAM_BOT_TOKEN\s*=\s*[^;]+;/g, "const TELEGRAM_BOT_TOKEN = ''; // Telegram disabled")
-      .replace(/(?:const|let|var)\s+TELEGRAM_CHAT_ID\s*=\s*[^;]+;/g, "const TELEGRAM_CHAT_ID = ''; // Telegram disabled")
-      .replace(/\s*<script\b[^>]*src=["'][^"']*\/laporan-fix\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi, '\n');
+      .replace(/(?:const|let|var)\s+TELEGRAM_CHAT_ID\s*=\s*[^;]+;/g, "const TELEGRAM_CHAT_ID = ''; // Telegram disabled");
 
-    if (html.indexOf('/report-download.js') === -1 && html.indexOf('src="report-download.js') === -1) {
-      html = injectBeforeRealClosingBody(
-        html,
-        '<script src="/report-download.js?v=20260715-2"></script>'
-      );
+    if (html.indexOf('report-download.js') === -1) {
+      html = injectBeforeRealClosingBody(html, '<script src="report-download.js?v=19"></script>');
+    }
+    if (html.indexOf('report-runtime-fix.js') === -1) {
+      html = injectBeforeRealClosingBody(html, '<script src="report-runtime-fix.js?v=19"></script>');
     }
 
     var headers = new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');
     headers.delete('etag');
-    headers.set('cache-control', 'no-cache, no-store, must-revalidate');
-    headers.set('pragma', 'no-cache');
-    headers.set('expires', '0');
+    headers.set('cache-control', 'no-store');
     return new Response(html, {
       status: response.status,
       statusText: response.statusText,
@@ -74,10 +69,10 @@ self.addEventListener('fetch', function(event) {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
-        .then(injectReportDownloadModule)
+        .then(injectReportModules)
         .catch(function() {
           return caches.match(HOME).then(function(response) {
-            return response ? injectReportDownloadModule(response) : Response.error();
+            return response ? injectReportModules(response) : Response.error();
           });
         })
     );
