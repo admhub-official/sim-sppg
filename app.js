@@ -7464,7 +7464,7 @@ async function loadRiwayatLaporan() {
     overlay.dataset.authMode = mode;
     var heading = overlay.querySelector('.auth-architecture-heading');
     if (!heading) return;
-    var eyebrow = heading.querySelector('span');
+    var eyebrow = heading.querySelector('.auth-eyebrow');
     var title = heading.querySelector('h2');
     var description = heading.querySelector('p');
     var content = {
@@ -7546,12 +7546,12 @@ async function loadRiwayatLaporan() {
 
       var heading = document.createElement('div');
       heading.className = 'auth-architecture-heading';
-      heading.innerHTML = '<span>Selamat datang</span><h2>Masuk ke SIM-SPPG</h2><p>Gunakan email dan password akun Anda untuk melanjutkan.</p>';
+      heading.innerHTML = '<div class="auth-brand-inline"><img src="' + CONFIG.logoUrl + '" alt="Logo SIM-SPPG"><span>SIM-SPPG</span></div><span class="auth-eyebrow">Selamat datang</span><h2>Masuk ke SIM-SPPG</h2><p>Gunakan email dan password akun Anda untuk melanjutkan.</p>';
       container.insertBefore(heading, container.firstChild);
 
       var note = document.createElement('div');
       note.className = 'auth-architecture-note';
-      note.innerHTML = '<strong>Keamanan akses:</strong> sesi mengikuti masa berlaku token Supabase dan data ditampilkan sesuai peran pengguna.';
+      note.innerHTML = '<i class="fas fa-shield-halved"></i><span><strong>Keamanan akses:</strong> sesi mengikuti masa berlaku token Supabase dan data ditampilkan sesuai peran pengguna.</span>';
       container.appendChild(note);
     }
 
