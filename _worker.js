@@ -1,14 +1,16 @@
-const SESSION_SCRIPT = '<script src="/session-fix.js?v=20260714-3"></script>';
-const REPORT_SCRIPT = '<script src="/laporan-fix.js?v=20260714-3"></script>';
+const SESSION_SCRIPT = '<script src="/session-fix.js?v=20260715-1"></script>';
+const REPORT_DOWNLOAD_SCRIPT = '<script src="/report-download.js?v=20260715-1"></script>';
 
 function withSafeHtmlHeaders(response) {
   const headers = new Headers(response.headers);
-  // Body sudah dibaca dan ditulis ulang sebagai teks; metadata kompresi/ukuran lama
-  // tidak boleh dipakai lagi karena dapat membuat browser gagal mem-parsing HTML.
+  // HTML ditulis ulang oleh Worker. Header ukuran/kompresi lama harus dibuang
+  // agar browser tidak menerima dokumen terpotong atau gagal diparsing.
   headers.delete('content-length');
   headers.delete('content-encoding');
   headers.delete('etag');
   headers.set('cache-control', 'no-cache, no-store, must-revalidate');
+  headers.set('pragma', 'no-cache');
+  headers.set('expires', '0');
   return headers;
 }
 
@@ -16,18 +18,23 @@ function injectAfterOpeningHead(html, script) {
   const match = /<head(?:\s[^>]*)?>/i.exec(html);
   if (!match) return script + '\n' + html;
   const insertAt = match.index + match[0].length;
-  return html.slice(0, insertAt) + '\n' + script + html.slice(insertAt);
+  return html.slice(0, insertAt) + '\n' + script + '\n' + html.slice(insertAt);
 }
 
 function injectBeforeRealClosingBody(html, script) {
-  // Jangan memakai String.replace(/<\/body>/i, ...): index.html mempunyai teks
-  // "</body>" di dalam string JavaScript untuk dokumen cetak. replace() akan
-  // memilih kemunculan pertama itu dan menyisipkan tag <script> ke tengah kode JS.
-  // Kemunculan terakhir adalah tag penutup dokumen HTML yang sebenarnya.
-  const lower = html.toLowerCase();
-  const insertAt = lower.lastIndexOf('</body>');
-  if (insertAt === -1) return html + '\n' + script;
+  // index.html memiliki teks </body> di dalam string JavaScript untuk dokumen
+  // cetak. Karena itu wajib memakai kemunculan terakhir, bukan String.replace().
+  const insertAt = html.toLowerCase().lastIndexOf('</body>');
+  if (insertAt === -1) return html + '\n' + script + '\n';
   return html.slice(0, insertAt) + script + '\n' + html.slice(insertAt);
+}
+
+function removeLegacyReportInjection(html) {
+  // Hilangkan tag hotfix Telegram lama bila pernah tertanam pada asset HTML.
+  return html.replace(
+    /\s*<script\b[^>]*src=["'][^"']*\/laporan-fix\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi,
+    '\n'
+  );
 }
 
 export default {
@@ -38,16 +45,14 @@ export default {
     if (!contentType.includes('text/html')) return response;
 
     let html = await response.text();
+    html = removeLegacyReportInjection(html);
 
-    // Session guard dimuat sinkron di <head>, sebelum bundle utama mencoba
-    // memulihkan sesi lama. Hotfix laporan dimuat tepat sebelum </body> dokumen
-    // sebenarnya, bukan pada teks </body> yang berada di dalam string JavaScript.
     if (!html.includes('/session-fix.js')) {
       html = injectAfterOpeningHead(html, SESSION_SCRIPT);
     }
 
-    if (!html.includes('/laporan-fix.js')) {
-      html = injectBeforeRealClosingBody(html, REPORT_SCRIPT);
+    if (!html.includes('/report-download.js')) {
+      html = injectBeforeRealClosingBody(html, REPORT_DOWNLOAD_SCRIPT);
     }
 
     return new Response(html, {
