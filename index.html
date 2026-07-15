@@ -3953,24 +3953,350 @@
  
 <style id="sppg-unified-styles">
 /* ============================================================
-   AUTHENTICATION — CLEAN MODERN UI
+   AUTHENTICATION — MINIMAL COMPACT UI
    ============================================================ */
-#authOverlay.auth-architecture{position:fixed!important;inset:0!important;z-index:9999!important;display:grid!important;grid-template-columns:minmax(320px,38%) minmax(480px,62%)!important;min-height:100dvh;padding:0!important;overflow:auto!important;background:#f6f8fb!important;color:#172033}
-#authOverlay.auth-architecture.hidden{display:none!important}
-.auth-architecture-story{position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:space-between;min-height:100dvh;padding:clamp(32px,5vw,70px);overflow:hidden;color:#fff;background:#163b59}
-.auth-architecture-story:before{position:absolute;inset:auto -20% -28% auto;z-index:-1;width:min(54vw,720px);aspect-ratio:1;content:"";border:1px solid rgba(255,255,255,.13);border-radius:50%;box-shadow:inset 0 0 0 70px rgba(255,255,255,.025),inset 0 0 0 145px rgba(255,255,255,.018)}
-.auth-architecture-brand,.auth-brand-inline{display:flex;align-items:center}.auth-architecture-brand{gap:12px;font-size:17px;font-weight:800}.auth-architecture-logo{display:grid;width:48px;height:48px;place-items:center;background:#fff;border-radius:14px;box-shadow:0 12px 30px rgba(8,25,40,.2)}.auth-architecture-logo img{width:38px;height:38px;object-fit:contain}
-.auth-architecture-copy{max-width:620px;margin:clamp(44px,9vh,100px) 0}.auth-architecture-kicker,.auth-eyebrow{display:inline-flex;align-items:center;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase}.auth-architecture-kicker{gap:8px;padding:7px 11px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15)}.auth-architecture-copy h1{max-width:600px;margin:18px 0 15px;font-size:clamp(36px,4.5vw,60px);line-height:1.04;letter-spacing:-1.8px}.auth-architecture-copy>p{max-width:520px;color:rgba(255,255,255,.74);font-size:14px;line-height:1.75}
-.auth-architecture-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:640px;margin-top:30px}.auth-architecture-metric{min-height:88px;padding:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);border-radius:14px}.auth-architecture-metric i{margin-bottom:11px;font-size:16px}.auth-architecture-metric b,.auth-architecture-metric span{display:block}.auth-architecture-metric b{font-size:11px}.auth-architecture-metric span{margin-top:4px;color:rgba(255,255,255,.62);font-size:10px;line-height:1.45}.auth-architecture-foot{display:flex;justify-content:space-between;gap:16px;color:rgba(255,255,255,.55);font-size:10px}
-.auth-architecture-formside{position:relative;display:flex;align-items:center;justify-content:center;min-height:100dvh;padding:clamp(24px,5vw,72px);background:#f8fafc}.auth-architecture-formside .auth-container{position:static!important;inset:auto!important;width:min(100%,460px)!important;min-width:0!important;max-width:460px!important;height:auto!important;max-height:none!important;margin:auto!important;padding:34px!important;overflow:visible!important;visibility:visible!important;background:#fff!important;border:1px solid #e3e8ef!important;border-radius:20px!important;box-shadow:0 18px 55px rgba(23,32,51,.09)!important;opacity:1!important;transform:none!important}.auth-architecture-formside .auth-logo,.auth-architecture-formside>.auth-container>h1,.auth-architecture-formside>.auth-container>.auth-sub{display:none!important}
-.auth-architecture-heading{margin-bottom:26px}.auth-brand-inline{gap:9px;margin-bottom:18px}.auth-brand-inline img{width:31px;height:31px;border-radius:9px}.auth-brand-inline span{color:#1e6f9c;font-size:13px;font-weight:800}.auth-eyebrow{padding:5px 9px;margin-bottom:8px;color:#1e6f9c;background:#eaf4fa}.auth-architecture-heading h2{margin:5px 0 8px;color:#172033;font-size:clamp(25px,2.8vw,31px);font-weight:800;line-height:1.15;letter-spacing:-.6px}.auth-architecture-heading p{margin:0;color:#667085;font-size:13px;line-height:1.6}
-.auth-architecture-formside .form-group{margin-bottom:15px}.auth-architecture-formside .form-label{display:block;margin-bottom:7px!important;color:#344054!important;font-size:11px!important;font-weight:700!important}.auth-architecture-formside .form-input,.auth-architecture-formside input,.auth-architecture-formside select{min-height:48px!important;border:1px solid #d0d5dd!important;border-radius:10px!important;background:#fff!important;color:#172033!important;font-size:14px!important;box-shadow:0 1px 2px rgba(16,24,40,.03)!important}.auth-architecture-formside input:focus,.auth-architecture-formside select:focus{border-color:#1e6f9c!important;box-shadow:0 0 0 4px rgba(30,111,156,.1)!important;outline:0!important}.auth-architecture-formside .password-wrap .toggle-password{top:0!important;width:44px!important;height:48px!important;color:#98a2b3!important;transform:none!important}
-.auth-architecture-formside #btnLogin,.auth-architecture-formside #btnRegister,.auth-architecture-formside #btnVerifyOtp{width:100%;min-height:50px!important;margin-top:3px;border:0!important;border-radius:10px!important;background:#1e6f9c!important;box-shadow:0 5px 16px rgba(30,111,156,.22)!important;font-size:14px!important;font-weight:700!important;transition:background .15s ease,box-shadow .15s ease,transform .15s ease!important}.auth-architecture-formside #btnLogin:hover,.auth-architecture-formside #btnRegister:hover,.auth-architecture-formside #btnVerifyOtp:hover{background:#175f87!important;box-shadow:0 8px 22px rgba(30,111,156,.28)!important;transform:translateY(-1px)!important}.auth-architecture-formside button:focus-visible,.auth-architecture-formside a:focus-visible{outline:3px solid rgba(30,111,156,.25);outline-offset:2px}
-.auth-architecture-formside .auth-footer{margin-top:17px;color:#667085;font-size:12px;text-align:center}.auth-architecture-formside .auth-footer a,.auth-architecture-formside .recovery-links a{color:#1e6f9c;font-weight:700;cursor:pointer}.auth-architecture-formside .recovery-links{display:flex;justify-content:space-between;gap:12px;margin:0 0 15px;font-size:11px}.auth-architecture-formside .form-error.show{margin:0 0 13px;padding:10px 12px;color:#b42318;background:#fef3f2;border:1px solid #fecdca;border-radius:9px}.auth-architecture-note{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;margin-top:18px;color:#475467;font-size:10px;line-height:1.55;background:#f2f7fa;border:1px solid #dcebf3;border-radius:10px}.auth-architecture-note i{flex-shrink:0;margin-top:1px;color:#1e6f9c}.auth-register-note{grid-column:1/-1;margin:-2px 0 12px;color:#667085;font-size:10px;line-height:1.55}.auth-hidden-field{display:none!important}
-#authOverlay.auth-architecture[data-auth-mode="register"]{grid-template-columns:minmax(280px,30%) minmax(680px,70%)!important}.auth-architecture[data-auth-mode="register"] .auth-architecture-formside{align-items:flex-start;padding-top:28px;padding-bottom:32px;overflow-y:auto}.auth-architecture[data-auth-mode="register"] .auth-container{width:min(100%,780px)!important;max-width:780px!important}.auth-architecture[data-auth-mode="register"] #registerForm{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:15px}.auth-architecture[data-auth-mode="register"] #registerForm>.form-row,.auth-architecture[data-auth-mode="register"] #registerForm>#regError,.auth-architecture[data-auth-mode="register"] #registerForm>#btnRegister,.auth-architecture[data-auth-mode="register"] #registerForm>.auth-footer,.auth-architecture[data-auth-mode="register"] #registerForm>.auth-register-note{grid-column:1/-1}
-.auth-architecture[data-auth-mode="otp"] .auth-container{width:min(100%,420px)!important;max-width:420px!important}.otp-destination{padding:11px 13px;margin-bottom:15px;color:#475467;font-size:11px;line-height:1.55;text-align:center;background:#f8fafc;border:1px solid #e4e7ec;border-radius:10px}.otp-destination strong{display:block;margin-top:3px;color:#1e6f9c;font-size:12px;word-break:break-word}#otpCode.otp-code-input{height:58px!important;padding:0 14px!important;color:#172033;font-size:23px!important;font-weight:800;letter-spacing:clamp(8px,2vw,13px);text-align:center;font-variant-numeric:tabular-nums;caret-color:#1e6f9c}#otpCode.otp-code-input::placeholder{color:#d0d5dd;font-size:18px;letter-spacing:5px}
-@media(max-width:900px){#authOverlay.auth-architecture,#authOverlay.auth-architecture[data-auth-mode="register"]{display:flex!important;flex-direction:column!important;min-height:100dvh!important;padding:0!important;overflow-y:auto!important;background:#f6f8fb!important}.auth-architecture-story{min-height:auto;flex-shrink:0;padding:22px 20px 70px;background:#163b59}.auth-architecture-brand{font-size:15px}.auth-architecture-logo{width:42px;height:42px}.auth-architecture-copy{margin:20px 0 0}.auth-architecture-copy h1{margin:10px 0 7px;font-size:25px;line-height:1.12;letter-spacing:-.7px}.auth-architecture-copy>p,.auth-architecture-metrics,.auth-architecture-foot{display:none}.auth-architecture-formside,.auth-architecture[data-auth-mode="register"] .auth-architecture-formside{align-items:stretch;justify-content:flex-start;min-height:0;padding:0 16px 34px;margin-top:-34px;overflow:visible;background:transparent}.auth-architecture-formside .auth-container{width:100%!important;max-width:620px!important;padding:26px 23px!important;margin:0 auto!important;border-radius:18px!important;box-shadow:0 12px 36px rgba(23,32,51,.11)!important}.auth-architecture[data-auth-mode="register"] #registerForm{grid-template-columns:1fr!important}.auth-architecture[data-auth-mode="register"] #registerForm>*{grid-column:1!important}}
-@media(max-width:520px){.auth-architecture-story{padding:15px 15px 64px}.auth-architecture-copy{margin-top:16px}.auth-architecture-copy h1{font-size:21px}.auth-architecture-kicker{padding:5px 8px;font-size:9px}.auth-architecture-formside,.auth-architecture[data-auth-mode="register"] .auth-architecture-formside{padding:0 11px calc(28px + env(safe-area-inset-bottom,0px));margin-top:-30px}.auth-architecture-formside .auth-container{padding:22px 17px!important;border-radius:16px!important}.auth-architecture-heading{margin-bottom:20px}.auth-architecture-heading h2{font-size:21px}.auth-architecture-formside .form-input,.auth-architecture-formside input,.auth-architecture-formside select{min-height:47px!important}#otpCode.otp-code-input{height:55px!important;font-size:21px!important;letter-spacing:8px}}
+#authOverlay.auth-architecture {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: grid !important;
+  grid-template-columns: 300px minmax(0, 1fr) !important;
+  min-height: 100dvh;
+  overflow: auto !important;
+  background: #f5f7fa !important;
+  color: #172033;
+}
+#authOverlay.auth-architecture.hidden { display: none !important; }
+.auth-brand-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 48px 42px;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(180deg, #155f9f 0%, #0e4d88 100%);
+}
+.auth-brand-panel::after {
+  position: absolute;
+  left: -140px;
+  bottom: -190px;
+  width: 430px;
+  height: 430px;
+  content: "";
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 50%;
+  box-shadow: 0 0 0 54px rgba(255,255,255,.025), 0 0 0 108px rgba(255,255,255,.018);
+  pointer-events: none;
+}
+.auth-brand-logo {
+  position: relative;
+  z-index: 1;
+  width: 76px;
+  height: 76px;
+  padding: 10px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 14px 32px rgba(8,31,55,.18);
+}
+.auth-brand-name {
+  position: relative;
+  z-index: 1;
+  margin-top: 24px;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+.auth-brand-line {
+  position: relative;
+  z-index: 1;
+  width: 46px;
+  height: 2px;
+  margin: 22px 0;
+  background: rgba(255,255,255,.9);
+  border-radius: 999px;
+}
+.auth-brand-panel h1 {
+  position: relative;
+  z-index: 1;
+  max-width: 220px;
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -.45px;
+}
+.auth-brand-panel p {
+  position: relative;
+  z-index: 1;
+  max-width: 220px;
+  margin: 14px 0 0;
+  color: rgba(255,255,255,.76);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.auth-form-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 100dvh;
+  padding: 32px;
+}
+.auth-card {
+  width: min(100%, 520px);
+  padding: 34px 36px 30px;
+  background: #fff;
+  border: 1px solid #e1e6ec;
+  border-radius: 18px;
+  box-shadow: 0 16px 44px rgba(23,32,51,.08);
+}
+.auth-card-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: #155f9f;
+  font-size: 15px;
+  font-weight: 800;
+}
+.auth-card-brand img { width: 36px; height: 36px; object-fit: contain; }
+.auth-architecture-heading { margin-bottom: 22px; }
+.auth-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 5px 10px;
+  margin-bottom: 10px;
+  color: #155f9f;
+  background: #eaf3fa;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.auth-architecture-heading h2 {
+  margin: 0 0 7px;
+  color: #172033;
+  font-size: 30px;
+  line-height: 1.16;
+  letter-spacing: -.7px;
+}
+.auth-architecture-heading p {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.auth-card .auth-container {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  visibility: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+.auth-card .auth-container.hidden { display: none !important; }
+.auth-card .form-group { margin-bottom: 14px; }
+.auth-card .form-label {
+  display: block;
+  margin-bottom: 6px !important;
+  color: #344054 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+.auth-card .form-input,
+.auth-card input,
+.auth-card select {
+  width: 100%;
+  min-height: 47px !important;
+  padding: 10px 13px !important;
+  color: #172033 !important;
+  background: #fff !important;
+  border: 1px solid #cfd6df !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+  font-size: 14px !important;
+}
+.auth-card input:focus,
+.auth-card select:focus {
+  border-color: #1972b5 !important;
+  outline: 0 !important;
+  box-shadow: 0 0 0 3px rgba(25,114,181,.11) !important;
+}
+.auth-card .password-wrap { position: relative; }
+.auth-card .password-wrap .form-input { padding-right: 46px !important; }
+.auth-card .toggle-password {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 44px !important;
+  height: 47px !important;
+  padding: 0 !important;
+  color: #98a2b3 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.auth-card .recovery-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2px 0 15px;
+  font-size: 11px;
+}
+.auth-card a { color: #126aa7; font-weight: 700; cursor: pointer; }
+.auth-card #btnLogin,
+.auth-card #btnRegister,
+.auth-card #btnVerifyOtp {
+  width: 100%;
+  min-height: 48px !important;
+  margin-top: 1px;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: #1972b5 !important;
+  box-shadow: 0 6px 16px rgba(25,114,181,.18) !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+.auth-card #btnLogin:hover,
+.auth-card #btnRegister:hover,
+.auth-card #btnVerifyOtp:hover { background: #145f98 !important; }
+.auth-card .auth-footer {
+  margin-top: 16px;
+  color: #667085;
+  font-size: 12px;
+  text-align: center;
+}
+.auth-card .form-error.show {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  border-radius: 8px;
+  font-size: 11px;
+}
+.auth-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  margin-top: 18px;
+  color: #475467;
+  background: #f2f7fa;
+  border: 1px solid #dce8f0;
+  border-radius: 9px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.auth-security-note i { flex-shrink: 0; margin-top: 1px; color: #1972b5; }
+.auth-register-note {
+  grid-column: 1 / -1;
+  margin: 0 0 12px;
+  color: #667085;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.auth-hidden-field { display: none !important; }
+#authOverlay[data-auth-mode="register"] .auth-card { width: min(100%, 760px); }
+#authOverlay[data-auth-mode="register"] .auth-form-panel { align-items: flex-start; padding-top: 28px; padding-bottom: 28px; }
+#registerForm { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 14px; }
+#registerForm > .form-row,
+#registerForm > #regError,
+#registerForm > #btnRegister,
+#registerForm > .auth-footer,
+#registerForm > .auth-register-note,
+#registerForm > .auth-hidden-field { grid-column: 1 / -1; }
+#registerForm .form-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.otp-destination {
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  color: #475467;
+  background: #f8fafc;
+  border: 1px solid #e4e7ec;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+.otp-destination strong { display: block; margin-top: 2px; color: #1972b5; font-size: 12px; }
+#otpCode.otp-code-input {
+  height: 55px !important;
+  text-align: center;
+  font-size: 22px !important;
+  font-weight: 800;
+  letter-spacing: 10px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 820px) {
+  #authOverlay.auth-architecture,
+  #authOverlay.auth-architecture[data-auth-mode="register"] {
+    display: block !important;
+    min-height: 100dvh;
+    background: #f5f7fa !important;
+  }
+  .auth-brand-panel {
+    min-height: 164px;
+    padding: 22px 20px 54px;
+    justify-content: flex-start;
+  }
+  .auth-brand-logo { width: 48px; height: 48px; padding: 6px; border-radius: 12px; }
+  .auth-brand-name { margin-top: 0; margin-left: 12px; font-size: 18px; }
+  .auth-brand-head { display: flex; align-items: center; }
+  .auth-brand-line, .auth-brand-panel p { display: none; }
+  .auth-brand-panel h1 { max-width: none; margin-top: 18px; font-size: 21px; }
+  .auth-form-panel,
+  #authOverlay[data-auth-mode="register"] .auth-form-panel {
+    min-height: 0;
+    padding: 0 14px calc(28px + env(safe-area-inset-bottom,0px));
+    margin-top: -34px;
+  }
+  .auth-card {
+    width: min(100%, 620px) !important;
+    padding: 25px 22px 22px;
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgba(23,32,51,.11);
+  }
+  .auth-card-brand { margin-bottom: 16px; }
+  .auth-architecture-heading { margin-bottom: 19px; }
+  .auth-architecture-heading h2 { font-size: 25px; }
+  #registerForm, #registerForm .form-row { grid-template-columns: 1fr; gap: 0; }
+  #registerForm > * { grid-column: 1 !important; }
+}
+@media (max-width: 480px) {
+  .auth-brand-panel { min-height: 150px; padding: 16px 15px 48px; }
+  .auth-brand-logo { width: 42px; height: 42px; }
+  .auth-brand-name { font-size: 16px; }
+  .auth-brand-panel h1 { margin-top: 14px; font-size: 18px; }
+  .auth-form-panel,
+  #authOverlay[data-auth-mode="register"] .auth-form-panel { padding-inline: 10px; margin-top: -30px; }
+  .auth-card { padding: 21px 17px 19px; border-radius: 14px; }
+  .auth-card-brand { margin-bottom: 14px; }
+  .auth-card-brand img { width: 31px; height: 31px; }
+  .auth-architecture-heading h2 { font-size: 22px; }
+  .auth-card .form-input, .auth-card input, .auth-card select { min-height: 45px !important; }
+  .auth-card .toggle-password { height: 45px !important; }
+  .auth-card #btnLogin, .auth-card #btnRegister, .auth-card #btnVerifyOtp { min-height: 46px !important; }
+  .auth-security-note { margin-top: 15px; }
+}
+
 
 /* ============================================================
    REPORT UI — EXISTING STYLES
@@ -3985,173 +4311,86 @@
 <!-- ============================================================ -->
 <!-- AUTH OVERLAY (LOGIN & REGISTER)                              -->
 <!-- ============================================================ -->
-<div id="authOverlay">
-
-    <!-- LOGIN FORM -->
-    <div id="loginForm" class="auth-container">
-
-      <div class="form-group">
-        <label class="form-label" for="loginUsername">Email</label>
-        <input type="email" id="loginUsername" class="form-input" placeholder="nama@gmail.com" autocomplete="email" inputmode="email" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="loginPassword">Password</label>
-        <div class="password-wrap">
-          <input type="password" id="loginPassword" class="form-input" placeholder="Masukkan password" autocomplete="current-password" required>
-          <button type="button" class="toggle-password" onclick="togglePw('loginPassword',this)">
-            <i class="fas fa-eye"></i>
-          </button>
-        </div>
-      </div>
-      <div id="loginError" class="form-error">
-        <i class="fas fa-exclamation-circle"></i><span></span>
-      </div>
-      <div id="recoveryLinks" class="recovery-links">
-        <a onclick="showRecoveryModal('password')">Lupa Kata Sandi?</a>
-        <div>
-          <a onclick="showRecoveryModal('username')">Lupa Username?</a>
-        </div>
-      </div>
-      <button id="btnLogin" class="btn btn-primary w-full" onclick="doLogin()">
-        <i class="fas fa-sign-in-alt"></i><span>Masuk</span>
-      </button>
-      <div class="auth-footer">
-        Belum punya akun? <a onclick="showRegister()">Daftar sekarang</a>
-      </div>
+<div id="authOverlay" class="auth-architecture" data-auth-mode="login">
+  <aside class="auth-brand-panel" aria-label="Tentang SIM-SPPG">
+    <div class="auth-brand-head">
+      <img class="auth-brand-logo" src="https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png" alt="Logo SIM-SPPG">
+      <div class="auth-brand-name">SIM-SPPG</div>
     </div>
+    <div class="auth-brand-line"></div>
+    <h1>Satu fondasi digital untuk operasional SPPG.</h1>
+    <p>Kelola transaksi, bahan baku, supplier, dan pelaporan secara terstruktur.</p>
+  </aside>
 
-    <!-- REGISTER FORM -->
-    <div id="registerForm" class="auth-container hidden">
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Nama Lengkap <span class="req">*</span></label>
-          <input type="text" id="regNama" class="form-input" placeholder="Nama lengkap">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email <span class="req">*</span></label>
-          <input type="email" id="regEmail" class="form-input" placeholder="...@gmail.com">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Jabatan <span class="req">*</span></label>
-          <select id="regJabatan" class="form-input">
-            <option value="">Pilih Jabatan</option>
-            <option value="ADMIN">ADMIN</option>
-            <option value="PIC">PIC</option>
-            <option value="ASISTEN LAPANGAN">ASISTEN LAPANGAN</option>
-            <option value="WAKIL ASISTEN LAPANGAN">WAKIL ASISTEN LAPANGAN</option>
-            <option value="AKUNTAN">AKUNTAN</option>
-            <option value="AHLI GIZI">AHLI GIZI</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">SPPG <span class="req">*</span></label>
-          <div class="sppg-autocomplete-wrap" style="position:relative;">
-            <input type="text" id="regSPPG" class="form-input" placeholder="Ketik atau pilih SPPG..." autocomplete="off"
-              oninput="showSppgSuggestions('regSPPG','regSppgList')"
-              onblur="hideSppgSuggestions('regSppgList')"
-              onfocus="showSppgSuggestions('regSPPG','regSppgList')">
-            <ul id="regSppgList" class="sppg-suggestions hidden"></ul>
-          </div>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Nama Yayasan</label>
-          <input type="text" id="regYayasan" class="form-input" placeholder="Nama yayasan (opsional)">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Foto Profil</label>
-        <div class="file-input-wrap">
-          <input type="file" id="regFoto" accept="image/*" onchange="previewRegFoto(this)">
-          <div class="file-input-label" id="regFotoLabel">
-            <i class="fas fa-camera"></i><span id="regFotoText">Pilih foto profil</span>
-          </div>
-        </div>
-        <img id="regFotoPreview" class="img-preview hidden" alt="Preview">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Username <span class="req">*</span></label>
-        <input type="text" id="regUsername" class="form-input" placeholder="huruf kecil, min 6 karakter">
-        <p class="form-hint">Minimal 6 karakter, huruf kecil semua</p>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Password <span class="req">*</span></label>
-          <div class="password-wrap">
-            <input type="password" id="regPassword" class="form-input" placeholder="Password" oninput="checkPasswordStrength()">
-            <button type="button" class="toggle-password" onclick="togglePw('regPassword',this)">
-              <i class="fas fa-eye"></i>
-            </button>
-          </div>
-          <div class="strength-bar" id="strengthBar">
-            <span></span><span></span><span></span><span></span>
-          </div>
-          <p class="form-hint">Min. 1 huruf besar, 1 huruf kecil, 1 angka</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Konfirmasi Password <span class="req">*</span></label>
-          <div class="password-wrap">
-            <input type="password" id="regPassword2" class="form-input" placeholder="Ulangi password">
-            <button type="button" class="toggle-password" onclick="togglePw('regPassword2',this)">
-              <i class="fas fa-eye"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-      <div id="regError" class="form-error">
-        <i class="fas fa-exclamation-circle"></i><span></span>
-      </div>
-      <button id="btnRegister" class="btn btn-primary w-full" onclick="doRegister()">
-        <i class="fas fa-user-plus"></i><span>Daftar</span>
-      </button>
-      <div class="auth-footer">
-        Sudah punya akun? <a onclick="showLogin()">Login disini</a>
-      </div>
-    </div>
-
-    <!-- OTP VERIFICATION FORM -->
-    <div id="otpForm" class="auth-container hidden">
-      <div class="otp-destination">
-        Kode OTP 6 digit telah dikirim ke
-        <strong id="otpEmailLabel">-</strong>
+  <main class="auth-form-panel">
+    <section class="auth-card" aria-live="polite">
+      <div class="auth-card-brand">
+        <img src="https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png" alt="Logo SIM-SPPG">
+        <span>SIM-SPPG</span>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="otpCode">Kode OTP <span class="req">*</span></label>
-        <div class="otp-input-wrap">
-          <input
-            type="text"
-            id="otpCode"
-            class="form-input otp-code-input"
-            placeholder="••••••"
-            maxlength="6"
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            pattern="[0-9]{6}"
-            aria-describedby="otpHint"
-            required
-          >
+      <div class="auth-architecture-heading">
+        <span class="auth-eyebrow">Selamat datang</span>
+        <h2>Masuk ke SIM-SPPG</h2>
+        <p>Gunakan email dan password akun Anda untuk melanjutkan.</p>
+      </div>
+
+      <div id="loginForm" class="auth-container">
+        <div class="form-group">
+<label class="form-label" for="loginUsername">Email</label>
+<input type="email" id="loginUsername" class="form-input" placeholder="nama@gmail.com" autocomplete="email" inputmode="email" required>
         </div>
-        <p class="form-hint" id="otpHint">Masukkan enam angka dari email. Periksa juga folder Spam atau Promosi.</p>
+        <div class="form-group">
+<label class="form-label" for="loginPassword">Password</label>
+<div class="password-wrap">
+  <input type="password" id="loginPassword" class="form-input" placeholder="Masukkan password" autocomplete="current-password" required>
+  <button type="button" class="toggle-password" onclick="togglePw('loginPassword',this)" aria-label="Tampilkan password"><i class="fas fa-eye"></i></button>
+</div>
+        </div>
+        <div id="loginError" class="form-error" role="alert"><i class="fas fa-exclamation-circle"></i><span></span></div>
+        <div id="recoveryLinks" class="recovery-links">
+<a onclick="showRecoveryModal('password')">Lupa Kata Sandi?</a>
+<a onclick="showRecoveryModal('username')">Lupa Username?</a>
+        </div>
+        <button id="btnLogin" class="btn btn-primary w-full" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i><span>Masuk</span></button>
+        <div class="auth-footer">Belum punya akun? <a onclick="showRegister()">Daftar sekarang</a></div>
+        <div class="auth-security-note"><i class="fas fa-shield-halved"></i><span><strong>Keamanan akses:</strong> sesi mengikuti masa berlaku token dan data ditampilkan sesuai peran pengguna.</span></div>
       </div>
 
-      <div id="otpError" class="form-error" role="alert">
-        <i class="fas fa-exclamation-circle"></i><span></span>
+      <div id="registerForm" class="auth-container hidden">
+        <div class="form-row">
+<div class="form-group"><label class="form-label" for="regNama">Nama Lengkap <span class="req">*</span></label><input type="text" id="regNama" class="form-input" placeholder="Nama lengkap"></div>
+<div class="form-group"><label class="form-label" for="regEmail">Email <span class="req">*</span></label><input type="email" id="regEmail" class="form-input" placeholder="nama@gmail.com" autocomplete="email"></div>
+        </div>
+        <div class="form-row">
+<div class="form-group"><label class="form-label" for="regJabatan">Jabatan <span class="req">*</span></label><select id="regJabatan" class="form-input"><option value="">Pilih Jabatan</option><option value="ADMIN">ADMIN</option><option value="PIC">PIC</option><option value="ASISTEN LAPANGAN">ASISTEN LAPANGAN</option><option value="WAKIL ASISTEN LAPANGAN">WAKIL ASISTEN LAPANGAN</option><option value="AKUNTAN">AKUNTAN</option><option value="AHLI GIZI">AHLI GIZI</option></select></div>
+<div class="form-group"><label class="form-label" for="regSPPG">SPPG <span class="req">*</span></label><div class="sppg-autocomplete-wrap" style="position:relative"><input type="text" id="regSPPG" class="form-input" placeholder="Ketik atau pilih SPPG" autocomplete="off" oninput="showSppgSuggestions('regSPPG','regSppgList')" onblur="hideSppgSuggestions('regSppgList')" onfocus="showSppgSuggestions('regSPPG','regSppgList')"><ul id="regSppgList" class="sppg-suggestions hidden"></ul></div></div>
+        </div>
+        <div class="form-row">
+<div class="form-group"><label class="form-label" for="regYayasan">Nama Yayasan <span class="req">*</span></label><input type="text" id="regYayasan" class="form-input" placeholder="Nama yayasan"></div>
+<div class="form-group"><label class="form-label" for="regUsername">Username <span class="req">*</span></label><input type="text" id="regUsername" class="form-input" placeholder="huruf kecil, min. 6 karakter"><p class="form-hint">Minimal 6 karakter, huruf kecil semua.</p></div>
+        </div>
+        <div class="form-row">
+<div class="form-group"><label class="form-label" for="regPassword">Password <span class="req">*</span></label><div class="password-wrap"><input type="password" id="regPassword" class="form-input" placeholder="Password" autocomplete="new-password" oninput="checkPasswordStrength()"><button type="button" class="toggle-password" onclick="togglePw('regPassword',this)" aria-label="Tampilkan password"><i class="fas fa-eye"></i></button></div><div class="strength-bar" id="strengthBar"><span></span><span></span><span></span><span></span></div><p class="form-hint">Min. 1 huruf besar, 1 huruf kecil, dan 1 angka.</p></div>
+<div class="form-group"><label class="form-label" for="regPassword2">Konfirmasi Password <span class="req">*</span></label><div class="password-wrap"><input type="password" id="regPassword2" class="form-input" placeholder="Ulangi password" autocomplete="new-password"><button type="button" class="toggle-password" onclick="togglePw('regPassword2',this)" aria-label="Tampilkan password"><i class="fas fa-eye"></i></button></div></div>
+        </div>
+        <div class="auth-hidden-field"><input type="file" id="regFoto" accept="image/*"><span id="regFotoText"></span><div id="regFotoLabel"></div><img id="regFotoPreview" class="hidden" alt=""></div>
+        <div class="auth-register-note"><i class="fas fa-circle-info"></i> Foto profil dapat ditambahkan setelah akun aktif melalui menu <b>Profil</b>.</div>
+        <div id="regError" class="form-error" role="alert"><i class="fas fa-exclamation-circle"></i><span></span></div>
+        <button id="btnRegister" class="btn btn-primary w-full" onclick="doRegister()"><i class="fas fa-user-plus"></i><span>Daftar</span></button>
+        <div class="auth-footer">Sudah punya akun? <a onclick="showLogin()">Masuk di sini</a></div>
       </div>
 
-      <button id="btnVerifyOtp" class="btn btn-primary w-full" onclick="doVerifyOtp()">
-        <i class="fas fa-check-circle"></i><span>Verifikasi akun</span>
-      </button>
-
-      <div class="auth-footer">
-        Tidak menerima kode? <a onclick="doResendOtp()">Kirim ulang OTP</a>
+      <div id="otpForm" class="auth-container hidden">
+        <div class="otp-destination">Kode OTP 6 digit telah dikirim ke<strong id="otpEmailLabel">-</strong></div>
+        <div class="form-group"><label class="form-label" for="otpCode">Kode OTP <span class="req">*</span></label><input type="text" id="otpCode" class="form-input otp-code-input" placeholder="••••••" maxlength="6" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" aria-describedby="otpHint" required><p class="form-hint" id="otpHint">Masukkan enam angka dari email. Periksa juga folder Spam atau Promosi.</p></div>
+        <div id="otpError" class="form-error" role="alert"><i class="fas fa-exclamation-circle"></i><span></span></div>
+        <button id="btnVerifyOtp" class="btn btn-primary w-full" onclick="doVerifyOtp()"><i class="fas fa-check-circle"></i><span>Verifikasi akun</span></button>
+        <div class="auth-footer">Tidak menerima kode? <a onclick="doResendOtp()">Kirim ulang OTP</a></div>
       </div>
-    </div>
-  </div><!-- /authOverlay -->
+    </section>
+  </main>
+</div><!-- /authOverlay -->
 
 <!-- ============================================================ -->
 <!-- MAIN APP CONTAINER                                           -->
