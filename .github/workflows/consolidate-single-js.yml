@@ -1,0 +1,198 @@
+name: Consolidate frontend into one JavaScript file
+
+on:
+  push:
+    branches:
+      - chatgpt/consolidate-single-js
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/consolidate-single-js
+          fetch-depth: 0
+
+      - name: Consolidate HTML, CSS, and JavaScript
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+
+          const HTML_PATH = 'index.html';
+          const RUNTIME_PATH = 'assets/js/app.js';
+          const OUTPUT_JS = 'app.js';
+
+          let html = fs.readFileSync(HTML_PATH, 'utf8');
+          let runtime = fs.readFileSync(RUNTIME_PATH, 'utf8');
+
+          function findMatchingBrace(source, openIndex) {
+            let depth = 0;
+            let state = 'code';
+            let quote = '';
+            for (let i = openIndex; i < source.length; i += 1) {
+              const ch = source[i];
+              const next = source[i + 1];
+              if (state === 'line-comment') {
+                if (ch === '\n') state = 'code';
+                continue;
+              }
+              if (state === 'block-comment') {
+                if (ch === '*' && next === '/') { state = 'code'; i += 1; }
+                continue;
+              }
+              if (state === 'string') {
+                if (ch === '\\') { i += 1; continue; }
+                if (ch === quote) { state = 'code'; quote = ''; }
+                continue;
+              }
+              if (ch === '/' && next === '/') { state = 'line-comment'; i += 1; continue; }
+              if (ch === '/' && next === '*') { state = 'block-comment'; i += 1; continue; }
+              if (ch === '"' || ch === "'" || ch === '`') { state = 'string'; quote = ch; continue; }
+              if (ch === '{') depth += 1;
+              if (ch === '}') {
+                depth -= 1;
+                if (depth === 0) return i;
+              }
+            }
+            throw new Error('Kurung kurawal penutup tidak ditemukan.');
+          }
+
+          function replaceFunction(source, functionName, replacement) {
+            const pattern = new RegExp('function\\s+' + functionName + '\\s*\\([^)]*\\)\\s*\\{');
+            const match = pattern.exec(source);
+            if (!match) throw new Error('Fungsi ' + functionName + ' tidak ditemukan.');
+            const open = source.indexOf('{', match.index);
+            const close = findMatchingBrace(source, open);
+            return source.slice(0, match.index) + replacement + source.slice(close + 1);
+          }
+
+          function removeServiceWorkerBlocks(source) {
+            let output = source;
+            let guard = 0;
+            while (/serviceWorker\.register\s*\(/.test(output) && guard < 20) {
+              guard += 1;
+              const registrationIndex = output.search(/serviceWorker\.register\s*\(/);
+              const searchStart = Math.max(0, registrationIndex - 1500);
+              const prefix = output.slice(searchStart, registrationIndex);
+              const pattern = /if\s*\([^)]*serviceWorker[^)]*\)\s*\{/g;
+              let match;
+              let selected = null;
+              while ((match = pattern.exec(prefix))) selected = match;
+              if (!selected) break;
+              const ifStart = searchStart + selected.index;
+              const open = output.indexOf('{', ifStart);
+              const close = findMatchingBrace(output, open);
+              output = output.slice(0, ifStart) + '/* Service worker lama dihapus: aplikasi sekarang memakai satu app.js. */' + output.slice(close + 1);
+            }
+            return output;
+          }
+
+          const assignmentMarker = 'style.textContent = [';
+          const assignmentStart = runtime.indexOf(assignmentMarker);
+          if (assignmentStart < 0) throw new Error('CSS runtime terpadu tidak ditemukan.');
+          const arrayStart = runtime.indexOf('[', assignmentStart);
+          const joinEndMarker = "].join('');";
+          const joinEnd = runtime.indexOf(joinEndMarker, arrayStart);
+          if (joinEnd < 0) throw new Error('Akhir CSS runtime tidak ditemukan.');
+          const cssExpression = runtime.slice(arrayStart, joinEnd + 1);
+          const cssParts = vm.runInNewContext(cssExpression, Object.create(null));
+          if (!Array.isArray(cssParts)) throw new Error('CSS runtime tidak dapat diekstrak.');
+          const unifiedCss = cssParts.join('');
+
+          runtime = replaceFunction(runtime, 'installStyles', 'function installStyles() { return; }');
+
+          html = html
+            .replace(/\s*<script\b[^>]*src=["'][^"']*\/(?:assets\/js\/app|app|session-fix|report-download|report-runtime-fix|auth-ui-v2|auth-responsive-fix|laporan-fix)\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi, '\n')
+            .replace(/<style\b[^>]*id=["']sppg-unified-styles["'][^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/accept=(["'])image<!--/gi, 'accept=$1image/*')
+            .replace(/}\s*28px;\s*text-align:\s*center;\s*}/gi, '}');
+
+          const inlineScripts = [];
+          html = html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi, (full, attrs, code) => {
+            if (/\bsrc\s*=/i.test(attrs)) return full;
+            if (/\btype\s*=\s*["'](?:application\/ld\+json|application\/json|importmap)["']/i.test(attrs)) return full;
+            if (code.trim()) inlineScripts.push(code.trim());
+            return '';
+          });
+
+          if (!inlineScripts.length) throw new Error('Tidak ada JavaScript inline yang ditemukan di index.html.');
+
+          const styleBlock = '\n<style id="sppg-unified-styles">\n' + unifiedCss + '\n</style>\n';
+          const headClose = html.toLowerCase().lastIndexOf('</head>');
+          if (headClose < 0) throw new Error('Tag </head> tidak ditemukan.');
+          html = html.slice(0, headClose) + styleBlock + html.slice(headClose);
+
+          let combined = [
+            '/* SIM-SPPG SINGLE JAVASCRIPT BUNDLE',
+            ' * Seluruh logika lokal aplikasi dipusatkan dalam file ini.',
+            ' * UI, UX, markup, dan CSS berada di index.html.',
+            ' */',
+            '',
+            inlineScripts.map((code, index) => '/* ===== INLINE MODULE ' + (index + 1) + ' ===== */\n' + code).join('\n\n'),
+            '',
+            '/* ===== UNIFIED HARDENING RUNTIME ===== */',
+            runtime.trim(),
+            ''
+          ].join('\n');
+
+          combined = removeServiceWorkerBlocks(combined)
+            .replace(/\/?assets\/js\/app\.js(?:\?[^'"\s)]*)?/g, 'app.js');
+
+          const bodyClose = html.toLowerCase().lastIndexOf('</body>');
+          if (bodyClose < 0) throw new Error('Tag </body> tidak ditemukan.');
+          const appTag = '\n<script src="./app.js?v=20260715-2"></script>\n';
+          html = html.slice(0, bodyClose) + appTag + html.slice(bodyClose);
+
+          fs.writeFileSync(HTML_PATH, html.replace(/\n{4,}/g, '\n\n\n'), 'utf8');
+          fs.writeFileSync(OUTPUT_JS, combined, 'utf8');
+          NODE
+
+          find . -type f -name '*.js' ! -path './app.js' ! -path './.git/*' -delete
+          rm -rf assets/js tests
+          rm -f .github/workflows/consolidate-single-js.yml
+          find assets .github -type d -empty -delete 2>/dev/null || true
+
+      - name: Validate consolidated frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          test "$(find . -type f -name '*.js' ! -path './.git/*' | wc -l | tr -d ' ')" = "1"
+          test -f index.html
+          test -f app.js
+          test ! -e _worker.js
+          test ! -e sw.js
+          test ! -e assets/js/app.js
+          grep -q 'id="sppg-unified-styles"' index.html
+          grep -q 'src="./app.js?v=20260715-2"' index.html
+          grep -q 'function doLogin' app.js
+          grep -q 'function showRegister' app.js
+          node <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const inline = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)]
+            .filter((match) => !/\bsrc\s*=/i.test(match[1]) && !/\btype\s*=\s*["'](?:application\/ld\+json|application\/json|importmap)["']/i.test(match[1]));
+          if (inline.length) throw new Error('Masih ada ' + inline.length + ' blok JavaScript inline di index.html.');
+          if ((html.match(/\.\/app\.js/g) || []).length !== 1) throw new Error('Referensi app.js harus tepat satu.');
+          const js = fs.readFileSync('app.js', 'utf8');
+          if (/serviceWorker\.register\s*\(/.test(js)) throw new Error('Registrasi service worker lama masih tersisa.');
+          if (/accept=["']image<!--/i.test(html)) throw new Error('Atribut file input rusak masih tersisa.');
+          NODE
+          echo 'Struktur akhir:'
+          find . -maxdepth 3 -type f ! -path './.git/*' | sort
+
+      - name: Commit consolidated structure
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'refactor: consolidate frontend into index.html and one app.js'
+          git push origin HEAD:chatgpt/consolidate-single-js
