@@ -1,4 +1,4 @@
-const CACHE = 'simsppg-v17-report-download';
+const CACHE = 'simsppg-v18-login-fix';
 const SCOPE = self.registration.scope;
 const HOME = new URL('./', SCOPE).href;
 const REPORT_MODULE = new URL('report-download.js', SCOPE).href;
@@ -26,24 +26,40 @@ self.addEventListener('activate', function(event) {
   );
 });
 
+function injectBeforeRealClosingBody(html, scriptTag) {
+  // index.html memiliki beberapa teks </body> di dalam string JavaScript untuk
+  // dokumen cetak. Gunakan kemunculan terakhir agar script tidak masuk ke string.
+  var insertAt = html.toLowerCase().lastIndexOf('</body>');
+  if (insertAt === -1) return html + '\n' + scriptTag + '\n';
+  return html.slice(0, insertAt) + scriptTag + '\n' + html.slice(insertAt);
+}
+
 function injectReportDownloadModule(response) {
   var contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('text/html')) return Promise.resolve(response);
 
   return response.text().then(function(html) {
-    // Hilangkan credential Telegram dari HTML yang disajikan dan nonaktifkan
-    // jalur lama. report-download.js mengganti UI serta handler laporan.
+    // Hilangkan credential Telegram dari HTML yang disajikan. Jalur laporan lama
+    // tidak lagi dimuat; report-download.js menyediakan unduhan PDF/XLSX.
     html = html
       .replace(/(?:const|let|var)\s+TELEGRAM_BOT_TOKEN\s*=\s*[^;]+;/g, "const TELEGRAM_BOT_TOKEN = ''; // Telegram disabled")
-      .replace(/(?:const|let|var)\s+TELEGRAM_CHAT_ID\s*=\s*[^;]+;/g, "const TELEGRAM_CHAT_ID = ''; // Telegram disabled");
+      .replace(/(?:const|let|var)\s+TELEGRAM_CHAT_ID\s*=\s*[^;]+;/g, "const TELEGRAM_CHAT_ID = ''; // Telegram disabled")
+      .replace(/\s*<script\b[^>]*src=["'][^"']*\/laporan-fix\.js(?:\?[^"']*)?["'][^>]*><\/script>\s*/gi, '\n');
 
-    if (html.indexOf('report-download.js') === -1) {
-      html = html.replace(/<\/body>/i, '<script src="report-download.js?v=17" defer></script></body>');
+    if (html.indexOf('/report-download.js') === -1 && html.indexOf('src="report-download.js') === -1) {
+      html = injectBeforeRealClosingBody(
+        html,
+        '<script src="/report-download.js?v=20260715-2"></script>'
+      );
     }
 
     var headers = new Headers(response.headers);
     headers.delete('content-length');
-    headers.set('cache-control', 'no-store');
+    headers.delete('content-encoding');
+    headers.delete('etag');
+    headers.set('cache-control', 'no-cache, no-store, must-revalidate');
+    headers.set('pragma', 'no-cache');
+    headers.set('expires', '0');
     return new Response(html, {
       status: response.status,
       statusText: response.statusText,
