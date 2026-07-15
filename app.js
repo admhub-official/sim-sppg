@@ -7886,7 +7886,9 @@ async function loadRiwayatLaporan() {
 
     installAttempts += 1;
     if (installAttempts < 200 && (!window.__sppgUnifiedSessionInstalled || !window.callApi || !window.MENU_CONFIG)) {
-      setTimeout(bootstrapRuntime, 60);
+      setTimeout(bootstrapRuntime, 150);
+    } else if (installAttempts >= 200) {
+      enhanceAuthentication();
     }
   }
 
@@ -7908,12 +7910,12 @@ async function loadRiwayatLaporan() {
   }, CONFIG.sessionCheckMs);
 
   var domObserver = new MutationObserver(function () {
+    var overlay = byId('authOverlay');
+    if (!overlay || overlay.classList.contains('hidden')) return;
     window.requestAnimationFrame(function () {
       repairInputs();
       updateAuthHeading();
-      hideRestrictedUserWidgets();
-      if (!reportInstalled) installReportCenter();
     });
   });
-  domObserver.observe(document.documentElement, { childList:true, subtree:true });
+  domObserver.observe(document.documentElement, { childList:false, subtree:false, attributes:true, attributeFilter:['class'] });
 })();
