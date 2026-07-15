@@ -1,0 +1,40 @@
+name: Inspect login session flow
+
+on:
+  push:
+    branches:
+      - agent/fix-login-session-loop-20260715
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build login debug report
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '=== MATCHES ==='
+            grep -nE 'function doLogin|function clearAuthState|function readValidSession|function restore|function initApp|function logout|sessionExpiry|sppg_session|authOverlay|setInterval.*session|installSession' app.js | head -n 240
+            echo '=== DOLOGIN CONTEXT ==='
+            line=$(grep -n 'function doLogin' app.js | head -n1 | cut -d: -f1)
+            sed -n "$((line-30)),$((line+110))p" app.js
+            echo '=== SESSION RUNTIME CONTEXT ==='
+            line=$(grep -n 'function clearAuthState' app.js | tail -n1 | cut -d: -f1)
+            sed -n "$((line-120)),$((line+360))p" app.js
+            echo '=== INITIALIZATION CONTEXT ==='
+            grep -nE 'DOMContentLoaded|window.onload|initApp\(|readValidSession\(|installSessionGuard\(' app.js | tail -n 160
+          } > login-debug.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: login-debug
+          path: login-debug.txt
+          retention-days: 1
