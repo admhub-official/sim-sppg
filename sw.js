@@ -2,8 +2,8 @@
  * Network-first for application shell so deployments are not trapped by stale HTML/JS.
  * Cache-first only for stable static assets. API and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260717-uiux-1';
-const APP_SHELL = ['./', './index.html', './app.js', './manifest.json'];
+const CACHE_VERSION = 'sim-sppg-v20260717-uiux-2';
+const APP_SHELL = ['./', './index.html', './app.js', './uiux-fixes.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -42,6 +42,21 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  // Inject isolated UI/UX runtime after the existing app bundle without
+  // replacing the large app.js file. This keeps the patch reversible.
+  if (url.origin === self.location.origin && /\/app\.js$/.test(url.pathname)) {
+    event.respondWith(
+      Promise.all([
+        fetch(request).then((r) => r.text()),
+        fetch('./uiux-fixes.js').then((r) => r.text())
+      ]).then(([appSource, fixesSource]) => new Response(
+        appSource + '\n\n/* injected by sw.js */\n' + fixesSource,
+        { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } }
+      )).catch(() => caches.match(request))
     );
     return;
   }
