@@ -1038,10 +1038,11 @@ function checkSession() {
 }
 
 function logout() { $('modalLogout').classList.remove('hidden'); }
-function executeLogout() {
+function executeLogout(isAutoLogout) {
   safeStorage('remove', 'sppg_session');
   try { localStorage.removeItem('sppg_jwt'); } catch(e) {}
   if (notifPollTimer) { clearInterval(notifPollTimer); notifPollTimer = null; }
+  stopIdleLogoutWatcher();
   currentUser = null;
   $('appContainer').classList.add('hidden');
   $('authOverlay').classList.remove('hidden');
@@ -1049,7 +1050,45 @@ function executeLogout() {
   if (appLoadingEl) appLoadingEl.classList.add('hidden');
   showLogin();
   closeModal('modalLogout');
-  showToast('success', 'Logout', 'Anda telah keluar.');
+  if (isAutoLogout) {
+    showToast('info', 'Sesi Berakhir', 'Anda otomatis keluar karena tidak ada aktivitas selama 3 jam.');
+  } else {
+    showToast('success', 'Logout', 'Anda telah keluar.');
+  }
+}
+
+// ============================================================
+// 4b. AUTO LOGOUT KARENA TIDAK ADA AKTIVITAS (IDLE)
+// ============================================================
+// Aturan: jika tidak ada aktivitas apapun (klik, tap, scroll, keyboard)
+// selama lebih dari 3 jam, user otomatis logout.
+var IDLE_LOGOUT_MS = 3 * 60 * 60 * 1000; // 3 jam
+var _idleLogoutTimer = null;
+var _idleActivityBound = false;
+
+function resetIdleLogoutTimer() {
+  if (!currentUser) return;
+  if (_idleLogoutTimer) clearTimeout(_idleLogoutTimer);
+  _idleLogoutTimer = setTimeout(function() {
+    if (currentUser) executeLogout(true);
+  }, IDLE_LOGOUT_MS);
+}
+
+function startIdleLogoutWatcher() {
+  if (!_idleActivityBound) {
+    ['click', 'touchstart', 'scroll', 'keydown', 'mousemove'].forEach(function(evt) {
+      document.addEventListener(evt, resetIdleLogoutTimer, { passive: true, capture: true });
+    });
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') resetIdleLogoutTimer();
+    });
+    _idleActivityBound = true;
+  }
+  resetIdleLogoutTimer();
+}
+
+function stopIdleLogoutWatcher() {
+  if (_idleLogoutTimer) { clearTimeout(_idleLogoutTimer); _idleLogoutTimer = null; }
 }
 
 // ============================================================
@@ -1787,6 +1826,7 @@ function initApp() {
   buildBottomNav();
   updateFabVisibility();
   initNotifBell();
+  startIdleLogoutWatcher();
   if (_swRegistration) initPushNotification();
 
 // Load foto profil ke icon menu (sidebar & bottom-nav) sejak awal, bukan hanya saat buka halaman Profil
@@ -6834,7 +6874,7 @@ function renderCharts(rows){if(!window.Chart)return;Chart.defaults.font.family='
 function renderSppg(rows){var box=$('dashSppgList'),data=(rows||[]).slice().sort((a,b)=>(+b.pengeluaran||0)-(+a.pengeluaran||0)).slice(0,7);if(!data.length){box.innerHTML='<div class="dash-empty"><div><i class="fas fa-building"></i><strong>Data per SPPG belum tersedia.</strong></div></div>';return}var max=Math.max.apply(null,data.map(r=>+r.pengeluaran||0))||1;box.innerHTML=data.map(r=>`<div class="dash-sppg-row"><div class="dash-sppg-name" title="${esc(r.name)}">${esc(r.name)}</div><div class="dash-track"><span style="width:${Math.max(3,Math.round((+r.pengeluaran||0)/max*100))}%"></span></div><div class="dash-val">${compact(r.pengeluaran)}</div></div>`).join('')}
 function insights(rows,sppg){var box=$('dashInsights'),queue=num('statAntrian'),pending=num('statAntrianNominal'),last=rows[rows.length-1],top=(sppg||[]).slice().sort((a,b)=>(+b.pengeluaran||0)-(+a.pengeluaran||0))[0],items=[['fa-hourglass-half','#fff7ed','#c2410c',queue+' transaksi menunggu approval',pending?'Nominal tertunda '+money(pending)+'.':'Tidak ada nominal tertunda.'],['fa-calendar-check','#ecfdf5','#047857',last?'Aktivitas terakhir '+last.tanggal:'Belum ada aktivitas harian',last?'Pemasukan '+money(last.pemasukan)+' dan pengeluaran '+money(last.pengeluaran)+'.':'Data muncul setelah transaksi tercatat.'],['fa-building','#eff6ff','#1d4ed8',top?top.name+' tertinggi':'Perbandingan SPPG belum tersedia',top?'Pengeluaran tercatat '+money(top.pengeluaran)+'.':'Data unit belum tersedia.'],['fa-shield-alt','#f5f3ff','#6d28d9','Kontrol pengeluaran','Pastikan bukti transaksi dan approval selalu lengkap.']];box.innerHTML=items.map(i=>`<div class="dash-insight"><i class="fas ${i[0]}" style="background:${i[1]};color:${i[2]}"></i><div><strong>${esc(i[3])}</strong><span>${esc(i[4])}</span></div></div>`).join('')}
 var loading=false,lastLoad=0;async function load(force){if(loading||!window.currentUser||(!force&&Date.now()-lastLoad<30000))return;loading=true;var days=+$('dashPeriod').value||30,r=range(days),res=await Promise.all([api('getChartData',[{dateStart:r.start,dateEnd:r.end}]),api('getSPPGData',[r.start,r.end])]),rows=Array.isArray(res[0])?res[0]:[],sppg=Array.isArray(res[1])?res[1]:[];renderCharts(rows);renderSppg(sppg);insights(rows,sppg);identity();health();lastLoad=Date.now();loading=false}
-function init(){var page=$('page-dashboard'),stats=$('dashboardStats'),quick=$('quickAccessSection');if(!page||!stats||!quick)return setTimeout(init,300);if($('dashPanels'))return;css();stats.insertAdjacentHTML('beforebegin',hero());page.insertBefore(quick,stats);stats.insertAdjacentHTML('afterend',panels());applyDashboardRoleVisibility();$('dashPeriod').addEventListener('change',()=>load(true));['statSaldo','statPemasukan','statPengeluaran','statAntrian','statAntrianNominal'].forEach(id=>{var n=$(id);if(n)new MutationObserver(function(){health();if(id!=='statSaldo')setTimeout(function(){renderCharts([])},0)}).observe(n,{childList:true,subtree:true,characterData:true})});identity();health();setInterval(function(){var p=$('page-dashboard');if(p&&!p.classList.contains('hidden')&&getComputedStyle(p).display!=='none')load(false)},1400);setTimeout(()=>load(true),700)}
+function init(){var page=$('page-dashboard'),stats=$('dashboardStats'),quick=$('quickAccessSection');if(!page||!stats||!quick)return setTimeout(init,300);if($('dashPanels'))return;css();stats.insertAdjacentHTML('beforebegin',hero());page.insertBefore(quick,stats);stats.insertAdjacentHTML('afterend',panels());applyDashboardRoleVisibility();$('dashPeriod').addEventListener('change',()=>load(true));['statSaldo','statPemasukan','statPengeluaran','statAntrian','statAntrianNominal'].forEach(id=>{var n=$(id);if(n)new MutationObserver(function(){health()}).observe(n,{childList:true,subtree:true,characterData:true})});identity();health();setInterval(function(){var p=$('page-dashboard');if(p&&!p.classList.contains('hidden')&&getComputedStyle(p).display!=='none')load(false)},30000);setTimeout(()=>load(true),700)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 
