@@ -1,0 +1,12 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+export const sb=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+export const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
+export type Caller={id:string,email:string,username:string,role:string,sppg:string,yayasan:string};
+export const s=(v:unknown)=>String(v??'').trim();
+export const lo=(v:unknown)=>s(v).toLowerCase();
+export const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...CORS,'Content-Type':'application/json'}});
+export async function caller(req:Request):Promise<Caller>{const h=req.headers.get('Authorization')||'';const t=h.startsWith('Bearer ')?h.slice(7):'';if(!t)throw new Error('Token tidak ditemukan.');const a=await sb.auth.getUser(t);if(a.error||!a.data.user)throw new Error('Token tidak valid atau kedaluwarsa.');const q=await sb.from('USERS').select('ID,EMAIL,USERNAME,ROLE,SPPG,"NAMA YAYASAN"').eq('ID',a.data.user.id).maybeSingle();if(q.error||!q.data)throw new Error('Profil user tidak ditemukan.');return{id:s(q.data.ID),email:lo(a.data.user.email||q.data.EMAIL),username:lo(q.data.USERNAME),role:s(q.data.ROLE).toUpperCase(),sppg:s(q.data.SPPG),yayasan:s(q.data['NAMA YAYASAN'])}}
+export async function pairs(c:Caller){if(c.role!=='ADMIN')return[];const q=await sb.from('ADMIN_ASSIGNMENT').select('sppg,yayasan').eq('admin_email',c.email);if(q.error)throw q.error;return(q.data||[]).map((r:any)=>[s(r.sppg),s(r.yayasan)] as const)}
+export async function userProfileByIdentifier(v:string){const x=lo(v);const q=await sb.from('USERS').select('ID,EMAIL,USERNAME,ROLE,SPPG,"NAMA YAYASAN"').or(`EMAIL.eq.${x},USERNAME.eq.${x}`).maybeSingle();if(q.error)throw q.error;return q.data}
+export async function mayAccessUser(c:Caller,u:any){if(!u)return false;if(c.role==='SUPER_ADMIN')return true;if(c.role==='USER')return lo(u.EMAIL)===c.email||lo(u.USERNAME)===c.username;if(c.role==='ADMIN'){const ps=await pairs(c);return ps.some(([sp,ya])=>sp===s(u.SPPG)&&ya===s(u['NAMA YAYASAN']))}return false}
+export async function mayAccessOwner(c:Caller,owner:unknown){if(c.role==='SUPER_ADMIN')return true;const x=lo(owner);if(c.role==='USER')return x===c.email||x===c.username;const u=await userProfileByIdentifier(x);return mayAccessUser(c,u)}
