@@ -42,6 +42,7 @@ var TRANSACTION_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/
 var OPERATIONS_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/operations-action';
 var REPORTING_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/reporting-action';
 var MASTER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/master-action';
+var FILE_ACCESS_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/file-access-action';
 var REGISTER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/register-user-v2';
 var SECURE_USER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/secure-user-action';
 var TRANSACTION_FN = {
@@ -68,6 +69,7 @@ var MASTER_FN = {
   getMasterSupplier:1, addMasterSupplier:1, updateMasterSupplier:1, deleteSupplier:1,
   uploadSupplierFile:1, uploadFotoSurvei:1, uploadSerahTerimaFile:1
 };
+var FILE_ACCESS_FN = { getFileUrl:1, showCredentials:1 };
 var PUBLIC_FN = {
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
   loginUser:1, checkSession:1, recoverPassword:1, recoverUsername:1,
@@ -88,7 +90,7 @@ function getJwtToken() {
 function callApi(fnName, params, onSuccess, onFailure) {
   var headers = { 'Content-Type': 'application/json' };
   var isSecureUserAction = fnName === 'updateUserProfile' || fnName === 'uploadFotoProfil';
-  var requestUrl = fnName === 'registerUser' ? REGISTER_FN_URL : (isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : (REPORTING_FN[fnName] ? REPORTING_FN_URL : (MASTER_FN[fnName] ? MASTER_FN_URL : SUPABASE_FN_URL)))));
+  var requestUrl = fnName === 'registerUser' ? REGISTER_FN_URL : (isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : (REPORTING_FN[fnName] ? REPORTING_FN_URL : (MASTER_FN[fnName] ? MASTER_FN_URL : (FILE_ACCESS_FN[fnName] ? FILE_ACCESS_FN_URL : SUPABASE_FN_URL))))));
   if (!PUBLIC_FN[fnName]) {
     var token = getJwtToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
