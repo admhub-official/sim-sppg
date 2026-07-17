@@ -1575,7 +1575,7 @@ function switchPage(page, el) {
   if (page === 'menu-mbg') loadMenuMBG();
   if (page === 'pending-payment') loadPendingPayment();
   if (page === 'audit-log' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
-  if (page === 'admin-assignment' && currentUser.role === 'SUPER_ADMIN') { loadAdminAssignments(); }
+  if (page === 'admin-assignment' && currentUser.role === 'SUPER_ADMIN') { loadAdminAssignments(); restoreFilterBarState('adminAssignmentFilterBar'); }
   if (page === 'laporan') { /* Unified report center is installed by bootstrapRuntime(). */ }
     if (page === 'profil') renderProfil();
   
@@ -1614,9 +1614,9 @@ function restoreFilterBarState(barId) {
   var bar = $(barId);
   if (!bar) return;
   var saved = safeStorage('get', 'filterCollapsed_' + barId);
-  // Default: mobile (<=768px) selalu ciut kecuali user pernah membuka manual (saved === '0')
-  var isMobile = window.innerWidth <= 768;
-  var shouldCollapse = saved === '1' || (saved === null && isMobile);
+  // Default: filter selalu ciut di semua ukuran layar, kecuali user pernah
+  // membuka manual (saved === '0'). Ditutup lagi via toggleFilterBar('...').
+  var shouldCollapse = saved === null || saved === '1';
   bar.classList.toggle('collapsed', shouldCollapse);
 }
 
@@ -2047,8 +2047,7 @@ function updateChart() {
 function initNotifBell() {
   var wrap = $('notifBellWrap');
   if (!wrap) return;
-  var isAdminRole = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
-  if (!isAdminRole) { wrap.classList.add('hidden'); return; }
+  if (!currentUser) { wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
   loadNotifications();
   if (notifPollTimer) clearInterval(notifPollTimer);
@@ -2058,7 +2057,7 @@ function initNotifBell() {
 var _lastUnreadCount = null; // null = belum pernah load (hindari bunyi saat pertama buka app)
 
 function loadNotifications() {
-  if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) return;
+  if (!currentUser) return;
   callApi('getNotifications', [], function(result) {
       if (result && result.success) {
         notifList = result.data || [];
@@ -3081,7 +3080,7 @@ function renderApprovalTable() {
   var start = (approvalPage - 1) * ITEMS_PER_PAGE;
   var pageData = approvalData.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
-  var isAdmin = currentUser && currentUser.role === 'ADMIN';
+  var isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
   // R2: Status class mapping untuk left border indicator
   function getStatusRowClass(metode) {
     var m = String(metode || '').trim().toUpperCase();
@@ -7403,27 +7402,132 @@ updateAuthHeading();
     window.XLSX.writeFile(workbook, 'laporan-sim-sppg_' + start + '_' + end + '.xlsx', { compression:true });
   }
 
-  async function createPdf(datasets, start, end) {
-    await loadLibrary('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', function () { return !!(window.jspdf && window.jspdf.jsPDF); });
-    await loadLibrary('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js', function () { return !!window.jspdf.jsPDF.API.autoTable; });
-    var doc = new window.jspdf.jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
-    var width = doc.internal.pageSize.getWidth();
-    function header(title, subtitle) {
-      doc.setFillColor(30,111,156);
-      doc.roundedRect(10,10,width - 20,24,3,3,'F');
-      doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text(title,16,21);
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(subtitle,16,28); doc.setTextColor(30);
-    }
-    header('Laporan SIM-SPPG', 'Periode ' + start + ' s.d. ' + end + ' • ' + (email() || '-'));
-    doc.autoTable({ startY:42, head:[['No','Kelompok Data','Jumlah']], body:datasets.map(function (dataset, index) { return [index + 1, dataset.config.label, dataset.rows.length]; }), headStyles:{fillColor:[30,111,156]}, styles:{fontSize:8} });
-    datasets.forEach(function (dataset) {
-      doc.addPage();
-      header(dataset.config.label, 'Periode ' + start + ' s.d. ' + end + ' • ' + dataset.rows.length + ' baris');
-      if (!dataset.rows.length) { doc.text('Tidak ada data pada periode yang dipilih.',14,48); return; }
-      var columns = reportColumns(dataset.rows).slice(0,12);
-      doc.autoTable({ startY:40, head:[['No'].concat(columns)], body:dataset.rows.map(function (row, index) { return [index + 1].concat(columns.map(function (key) { return reportCell(row[key]); })); }), headStyles:{fillColor:[30,111,156],fontSize:7}, styles:{fontSize:6.2,cellPadding:1.6,overflow:'linebreak'}, alternateRowStyles:{fillColor:[243,248,251]} });
+  var REPORT_HISTORY_KEY = 'sim_sppg_report_history_v1';
+
+  function reportHistoryList() {
+    try { return JSON.parse(storageGet(REPORT_HISTORY_KEY) || '[]'); } catch (_) { return []; }
+  }
+
+  function reportNumericTotal(rows) {
+    var total = 0, found = false;
+    var candidates = ['nominal','NOMINAL','Nominal','total','TOTAL','Total','totalNominal','TOTAL NOMINAL'];
+    rows.forEach(function (row) {
+      for (var i = 0; i < candidates.length; i += 1) {
+        var key = candidates[i];
+        if (row && Object.prototype.hasOwnProperty.call(row, key) && row[key] !== '' && row[key] != null && !isNaN(parseFloat(row[key]))) {
+          total += parseFloat(row[key]);
+          found = true;
+          break;
+        }
+      }
     });
-    doc.save('laporan-sim-sppg_' + start + '_' + end + '.pdf');
+    return found ? total : null;
+  }
+
+  function recordReportHistory(datasets, start, end, format) {
+    var jumlah = datasets.reduce(function (sum, d) { return sum + d.rows.length; }, 0);
+    var total = 0;
+    datasets.forEach(function (d) { var t = reportNumericTotal(d.rows); if (t != null) total += t; });
+    var entry = {
+      tanggal: new Date().toISOString(),
+      periodeAwal: start,
+      periodeAkhir: end,
+      periode: start + ' s.d. ' + end,
+      format: format.toUpperCase(),
+      jumlah: jumlah,
+      total: total,
+      dibuatOleh: email() || '-'
+    };
+    var list = reportHistoryList();
+    list.unshift(entry);
+    if (list.length > 20) list = list.slice(0, 20);
+    storageSet(REPORT_HISTORY_KEY, JSON.stringify(list));
+    renderReportHistory();
+  }
+
+  function renderReportHistory() {
+    var target = byId('reportHistoryList');
+    if (!target) return;
+    var list = reportHistoryList();
+    if (!list.length) {
+      target.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:14px;">Belum ada laporan yang dibuat.</td></tr>';
+      return;
+    }
+    target.innerHTML = list.map(function (r) {
+      return '<tr><td>' + escapeHtml(new Date(r.tanggal).toLocaleString('id-ID')) + '</td>' +
+        '<td>' + escapeHtml(r.periode || '-') + '</td>' +
+        '<td>' + escapeHtml(r.format || '-') + '</td>' +
+        '<td>' + escapeHtml(String(r.jumlah || 0)) + '</td>' +
+        '<td>Rp ' + Math.round(r.total || 0).toLocaleString('id-ID') + '</td></tr>';
+    }).join('');
+  }
+
+  async function createPdf(datasets, start, end) {
+    var now = new Date();
+    var tgl = now.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+    var jam = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+    var printedBy = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.namaLengkap + ' (' + currentUser.role + ')') : (email() || '-');
+    var grandRows = 0;
+    var summaryRows = '';
+    datasets.forEach(function (dataset, idx) {
+      grandRows += dataset.rows.length;
+      var total = reportNumericTotal(dataset.rows);
+      var bg = idx % 2 === 0 ? '' : 'background:#fafafa;';
+      summaryRows +=
+        '<tr style="' + bg + '">' +
+        '<td style="font-weight:600;">' + escapeHtml(dataset.config.label) + '</td>' +
+        '<td style="text-align:center;">' + dataset.rows.length + '</td>' +
+        '<td style="text-align:right;font-weight:600;color:' + (total == null ? '#94a3b8' : '#047857') + ';">' + (total == null ? '-' : 'Rp ' + Math.round(total).toLocaleString('id-ID')) + '</td>' +
+        '</tr>';
+    });
+    summaryRows +=
+      '<tr style="background:#f1f5f9;font-weight:700;">' +
+      '<td>TOTAL KESELURUHAN</td>' +
+      '<td style="text-align:center;">' + grandRows + '</td>' +
+      '<td></td>' +
+      '</tr>';
+
+    var detailSections = datasets.map(function (dataset) {
+      var columns = reportColumns(dataset.rows).slice(0, 12);
+      var rowsHtml = dataset.rows.length ? dataset.rows.map(function (row, i) {
+        var bg = i % 2 === 0 ? '' : 'background:#fafafa;';
+        return '<tr style="' + bg + '"><td style="text-align:center;">' + (i + 1) + '</td>' +
+          columns.map(function (key) { return '<td>' + escapeHtml(reportCell(row[key])) + '</td>'; }).join('') +
+          '</tr>';
+      }).join('') : '<tr><td colspan="' + (columns.length + 1) + '" style="text-align:center;color:#94a3b8;padding:14px;">Tidak ada data pada periode terpilih.</td></tr>';
+      return '<p class="section-title">' + escapeHtml(dataset.config.label) + ' <span style="font-weight:400;color:#64748b;">(' + dataset.rows.length + ' baris)</span></p>' +
+        '<table><thead><tr><th style="width:26px;">No</th>' +
+        columns.map(function (key) { return '<th>' + escapeHtml(key) + '</th>'; }).join('') +
+        '</tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+    }).join('');
+
+    var html =
+      '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">' +
+      '<title>Laporan SIM-SPPG</title>' +
+      '<style>' +
+      'body{font-family:Arial,sans-serif;font-size:10px;color:#0f172a;margin:0;padding:16px;}' +
+      '.hero{background:#1e6f9c;color:#fff;border-radius:8px;padding:14px 18px;margin-bottom:14px;}' +
+      '.hero h2{margin:0 0 4px 0;font-size:16px;}' +
+      '.hero p{margin:0;font-size:10px;opacity:.9;}' +
+      'table{width:100%;border-collapse:collapse;margin-bottom:18px;}' +
+      'thead th{background:#f1f5f9;padding:6px 8px;text-align:left;border:1px solid #cbd5e1;font-size:9px;text-transform:uppercase;letter-spacing:0.5px;}' +
+      'tbody td{padding:5px 8px;border:1px solid #e2e8f0;vertical-align:middle;font-size:9px;}' +
+      '.section-title{font-size:12px;font-weight:700;margin:16px 0 6px 0;color:#334155;border-left:3px solid #10b981;padding-left:8px;}' +
+      '@media print{@page{size:A4 landscape;margin:10mm;}}' +
+      '</style></head><body>' +
+      '<div class="hero"><h2>Laporan SIM-SPPG</h2>' +
+      '<p>Periode ' + start + ' s.d. ' + end + ' &nbsp;|&nbsp; Dicetak oleh: ' + escapeHtml(printedBy) + ' &nbsp;|&nbsp; Tanggal: ' + tgl + ' ' + jam + '</p></div>' +
+      '<p class="section-title">Ringkasan Umum</p>' +
+      '<table style="max-width:520px;"><thead><tr><th>Kelompok Data</th><th style="text-align:center;">Jumlah</th><th style="text-align:right;">Total Nominal (Rp)</th></tr></thead>' +
+      '<tbody>' + summaryRows + '</tbody></table>' +
+      detailSections +
+      '</body></html>';
+
+    var win = window.open('', '_blank');
+    if (!win) { notify('error', 'Gagal', 'Pop-up diblokir browser. Izinkan pop-up lalu coba lagi.'); throw new Error('Popup diblokir.'); }
+    win.document.write(html);
+    win.document.close();
+    win.onload = function () { win.print(); };
   }
 
   function selectedReportDatasets() {
@@ -7457,7 +7561,8 @@ updateAuthHeading();
       }
       progress.textContent = 'Menyusun file ' + format.toUpperCase() + '...';
       if (format === 'xlsx') await createExcel(datasets, start, end); else await createPdf(datasets, start, end);
-      notify('success','Laporan berhasil dibuat','File ' + format.toUpperCase() + ' telah diunduh ke perangkat.');
+      recordReportHistory(datasets, start, end, format);
+      notify('success','Laporan berhasil dibuat', format === 'pdf' ? 'Jendela cetak/simpan PDF telah dibuka.' : 'File ' + format.toUpperCase() + ' telah diunduh ke perangkat.');
     } catch (error) {
       console.error('[SIM-SPPG REPORT]', error);
       notify('error','Gagal membuat laporan',error.message || String(error));
@@ -7486,13 +7591,16 @@ updateAuthHeading();
         return '<label class="report-unified-check"><input type="checkbox" value="' + escapeHtml(dataset.key) + '" ' + (index < 8 ? 'checked' : '') + '><i class="fas ' + dataset.icon + '"></i><span><b>' + escapeHtml(dataset.label) + '</b><small>Sumber backend aplikasi</small></span></label>';
       }).join('') + '</div></section></div>' +
       '<div id="reportUnifiedProgress" class="report-unified-progress hidden">Menyiapkan data...</div>' +
-      '<div class="report-unified-bar"><div><strong>File dibuat langsung di perangkat</strong><span>Data mengikuti cakupan akses pengguna yang sedang login.</span></div><button id="reportUnifiedDownload" type="button" class="btn btn-primary"><i class="fas fa-download"></i><span>Download Laporan</span></button></div>';
+      '<div class="report-unified-bar"><div><strong>File dibuat langsung di perangkat</strong><span>Data mengikuti cakupan akses pengguna yang sedang login.</span></div><button id="reportUnifiedDownload" type="button" class="btn btn-primary"><i class="fas fa-download"></i><span>Download Laporan</span></button></div>' +
+      '<section class="report-unified-card" style="margin-top:18px;"><div class="report-unified-title"><span><i class="fas fa-history"></i></span><div><h3>Riwayat File Laporan</h3><p>Daftar laporan yang pernah dibuat di perangkat ini.</p></div></div>' +
+      '<div class="table-scroll"><table><thead><tr><th>Dibuat</th><th>Periode</th><th>Format</th><th>Jumlah</th><th>Total</th></tr></thead><tbody id="reportHistoryList"></tbody></table></div></section>';
 
     document.querySelectorAll('.report-unified-check input').forEach(function (input) { input.addEventListener('change', updateReportCount); });
     byId('reportUnifiedAll').addEventListener('click', function () { document.querySelectorAll('.report-unified-check input').forEach(function (input) { input.checked = true; }); updateReportCount(); });
     byId('reportUnifiedNone').addEventListener('click', function () { document.querySelectorAll('.report-unified-check input').forEach(function (input) { input.checked = false; }); updateReportCount(); });
     byId('reportUnifiedDownload').addEventListener('click', downloadReport);
     updateReportCount();
+    renderReportHistory();
     window.generateDanKirimLaporan = downloadReport;
     window.handleKirimLaporan = downloadReport;
     window.loadRiwayatLaporan = function () { return installReportCenter(); };

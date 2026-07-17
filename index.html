@@ -1774,6 +1774,12 @@
     .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
     .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* Tombol Tambah Transaksi khusus tampilan desktop (mobile pakai FAB) */
+    .desktop-add-transaction { display: none; }
+    @media (min-width: 769px) {
+      .desktop-add-transaction { display: inline-flex; }
+    }
+
     /* ============================================================
        FILTER BAR — Modern Compact Design for Mobile
        ============================================================ */
@@ -4645,12 +4651,15 @@
             <p class="page-desc" id="transaksiDesc">Daftar transaksi</p>
           </div>
           <div class="page-header-actions">
+            <button class="btn btn-primary btn-sm no-print desktop-add-transaction" onclick="openAddTransaksiModal()" title="Tambah Transaksi">
+              <i class="fas fa-plus"></i><span class="btn-label-hide"> Tambah Transaksi</span>
+            </button>
             <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
               <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
             </button>
           </div>
         </div>
-        <div class="filter-bar">
+        <div class="filter-bar" id="txFilterBar">
           <div class="search-box">
             <i class="fas fa-search"></i>
             <input type="text" id="txSearchInput" placeholder="Cari kode, item, user..." oninput="filterTransaksi()">
