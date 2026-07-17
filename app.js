@@ -3317,6 +3317,7 @@ function filterApproval() {
   var search = $('apprSearchInput') ? $('apprSearchInput').value.toLowerCase().trim() : '';
   var sppg = $('apprFilterSPPG') ? $('apprFilterSPPG').value : 'ALL';
   var jenisKat = $('apprFilterJenisKat') ? $('apprFilterJenisKat').value : 'ALL';
+  var kelengkapan = $('apprFilterKelengkapan') ? $('apprFilterKelengkapan').value : 'ALL';
   var dateStart = $('apprFilterTglStart') ? $('apprFilterTglStart').value : '';
   var dateEnd = $('apprFilterTglEnd') ? $('apprFilterTglEnd').value : '';
 
@@ -3332,6 +3333,7 @@ function filterApproval() {
     }
     if (sppg !== 'ALL' && tx.sppg !== sppg) return false;
     if (jenisKat !== 'ALL' && tx.jenisKategori !== jenisKat) return false;
+    if (kelengkapan !== 'ALL' && _approvalDocStatus(tx).status !== kelengkapan) return false;
     if (dateStart || dateEnd) {
       var parts = (tx.tanggal || '').split('/');
       if (parts.length === 3) {
@@ -3357,6 +3359,7 @@ function resetApprovalFilter() {
   if ($('apprSearchInput')) $('apprSearchInput').value = '';
   if ($('apprFilterSPPG')) $('apprFilterSPPG').value = 'ALL';
   if ($('apprFilterJenisKat')) $('apprFilterJenisKat').value = 'ALL';
+  if ($('apprFilterKelengkapan')) $('apprFilterKelengkapan').value = 'ALL';
   if ($('apprFilterTglStart')) $('apprFilterTglStart').value = '';
   if ($('apprFilterTglEnd')) $('apprFilterTglEnd').value = '';
   filterApproval();
@@ -6014,6 +6017,14 @@ function getActiveFilterInfo() {
   if (currentPage === 'master-bahan') {
     if ($('bbFilterKategori').value !== 'ALL') info.push('Kat=' + $('bbFilterKategori').value);
     if ($('bbSearchInput').value.trim()) info.push('Cari=' + $('bbSearchInput').value.trim());
+  }
+  if (currentPage === 'approval') {
+    if ($('apprFilterSPPG') && $('apprFilterSPPG').value !== 'ALL') info.push('SPPG=' + $('apprFilterSPPG').value);
+    if ($('apprFilterJenisKat') && $('apprFilterJenisKat').value !== 'ALL') info.push('Jenis Kategori=' + $('apprFilterJenisKat').value);
+    if ($('apprFilterKelengkapan') && $('apprFilterKelengkapan').value !== 'ALL') info.push('Kelengkapan=' + $('apprFilterKelengkapan').value);
+    if ($('apprFilterTglStart') && $('apprFilterTglStart').value) info.push('Dari=' + $('apprFilterTglStart').value);
+    if ($('apprFilterTglEnd') && $('apprFilterTglEnd').value) info.push('Sampai=' + $('apprFilterTglEnd').value);
+    if ($('apprSearchInput') && $('apprSearchInput').value.trim()) info.push('Cari=' + $('apprSearchInput').value.trim());
   }
   return info.length ? info.join(', ') : '';
 }

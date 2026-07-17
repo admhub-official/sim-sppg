@@ -4745,6 +4745,11 @@
             <select id="apprFilterJenisKat" class="form-input" onchange="filterApproval()">
               <option value="ALL">Semua Jenis Kategori</option>
             </select>
+            <select id="apprFilterKelengkapan" class="form-input" onchange="filterApproval()">
+              <option value="ALL">Semua Kelengkapan</option>
+              <option value="Lengkap">Lengkap</option>
+              <option value="Tidak Lengkap">Tidak Lengkap</option>
+            </select>
             <input type="date" id="apprFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Dari Tanggal">
             <input type="date" id="apprFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Sampai Tanggal">
             <button class="btn btn-outline btn-sm" onclick="resetApprovalFilter()" title="Reset Filter">
