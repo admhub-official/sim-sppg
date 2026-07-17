@@ -1,0 +1,30 @@
+name: Apply transaction pagination
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-transaction-pagination.py'
+      - '.github/workflows/apply-transaction-pagination.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply compatible pagination
+        run: python scripts/apply-transaction-pagination.py
+      - name: Commit source
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add supabase/functions/transaction-action/index.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add compatible transaction pagination"
+          git push
