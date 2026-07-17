@@ -4723,8 +4723,10 @@
             </select>
             <select id="apprFilterKelengkapan" class="form-input" onchange="filterApproval()">
               <option value="ALL">Semua Kelengkapan</option>
-              <option value="Lengkap">Lengkap</option>
-              <option value="Tidak Lengkap">Tidak Lengkap</option>
+              <option value="Lengkap">Lengkap (Bukti + Nota)</option>
+              <option value="Hanya Bukti">Hanya Bukti Transaksi</option>
+              <option value="Hanya Nota">Hanya Nota Pembelian</option>
+              <option value="Tidak Ada Keduanya">Tidak Ada Keduanya</option>
             </select>
             <input type="date" id="apprFilterTglStart" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Dari Tanggal">
             <input type="date" id="apprFilterTglEnd" class="form-input" style="max-width:160px;" onchange="filterApproval()" title="Sampai Tanggal">

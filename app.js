@@ -3489,11 +3489,17 @@ function _approvalDocStatus(tx) {
   var bukti = ada(tx.uploadFoto) || ada(tx.uploadFile);
   var nota  = ada(tx.notaPembelian);
   var ttd   = ada(tx.ttdUser);
+  // Status kelengkapan sekarang dihitung hanya dari Bukti Transaksi + Nota Pembelian (TTD tidak ikut menentukan status ini).
+  var status;
+  if (bukti && nota) status = 'Lengkap';
+  else if (bukti && !nota) status = 'Hanya Bukti';
+  else if (!bukti && nota) status = 'Hanya Nota';
+  else status = 'Tidak Ada Keduanya';
   return {
     bukti:  bukti ? 'Ada' : 'Tidak Ada',
     nota:   nota  ? 'Ada' : 'Tidak Ada',
     ttd:    ttd   ? 'Ada' : 'Tidak Ada',
-    status: (bukti && nota && ttd) ? 'Lengkap' : 'Tidak Lengkap'
+    status: status
   };
 }
 
@@ -3620,7 +3626,9 @@ function exportApprovalPDF(data, metodeSummary, grandTotal, grandCount, pageLabe
     var m   = String(tx.metodeTransaksi || 'BELUM_BAYAR').trim().toUpperCase();
     var mLabel = m === 'BELUM_BAYAR' ? 'Belum Bayar' : m === 'TRANSFER' ? 'Transfer' : m === 'CASH' ? 'Cash' : m;
     var mColor = m === 'BELUM_BAYAR' ? '#be123c' : m === 'TRANSFER' ? '#1e40af' : m === 'CASH' ? '#047857' : '#334155';
-    var statusColor = doc.status === 'Lengkap' ? '#047857' : '#be123c';
+    var statusColor = doc.status === 'Lengkap' ? '#047857'
+      : (doc.status === 'Hanya Bukti' || doc.status === 'Hanya Nota') ? '#b45309'
+      : '#be123c';
     var buktiColor  = doc.bukti === 'Ada' ? '#047857' : '#be123c';
     var notaColor   = doc.nota  === 'Ada' ? '#047857' : '#be123c';
     var ttdColor    = doc.ttd   === 'Ada' ? '#047857' : '#be123c';
