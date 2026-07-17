@@ -56,4 +56,4 @@ jobs:
         run: |
           set -euo pipefail
           supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
-          echo "Deployment triggered for transaction-action v3 safeguards."
+          echo "Deployment retriggered from hardened source commit dd0d23c6."
