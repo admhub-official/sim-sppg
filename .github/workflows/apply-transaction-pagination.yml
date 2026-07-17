@@ -20,6 +20,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Apply compatible pagination
         run: python scripts/apply-transaction-pagination.py
+      - name: Validate pagination source
+        run: |
+          grep -q 'function txPageSpec' supabase/functions/transaction-action/index.ts
+          grep -q 'hasMore:pg.to+1<total' supabase/functions/transaction-action/index.ts
       - name: Commit source
         run: |
           git config user.name github-actions[bot]
