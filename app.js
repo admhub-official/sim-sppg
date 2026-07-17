@@ -6419,9 +6419,21 @@ function submitRecovery() {
   }
 
   // Register Service Worker (file statis /sw.js — WAJIB file nyata, bukan
-  // Blob URL, supaya push notification bisa diterima walau app tertutup)
+  // Blob URL, supaya push notification bisa diterima walau app tertutup,
+  // dan supaya aplikasi bisa di-install sebagai PWA oleh browser).
   var _swRegistration = null;
-  /* Service worker lama dihapus: aplikasi sekarang memakai satu app.js. */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('./sw.js')
+        .then(function(reg) {
+          _swRegistration = reg;
+          if (currentUser) initPushNotification();
+        })
+        .catch(function(err) {
+          console.error('Service worker registration gagal:', err);
+        });
+    });
+  }
 
   // ============================================================
   // PUSH NOTIFICATION — aktivasi izin, subscribe, kirim ke backend
