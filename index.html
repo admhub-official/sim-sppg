@@ -5678,11 +5678,15 @@
         <!-- Metode Transaksi -->
         <div class="form-group">
           <label class="form-label">Metode Transaksi <span class="req">*</span></label>
-          <select id="addTxMetodeTransaksi" class="form-input">
+          <select id="addTxMetodeTransaksi" class="form-input" onchange="updateAddTxMetodeStyle()">
             <option value="BELUM_BAYAR">BELUM BAYAR</option>
             <option value="CASH">CASH</option>
             <option value="TRANSFER">TRANSFER</option>
+            <option value="SUDAH_DIBAYAR" style="color:#16a34a;font-weight:700;">SUDAH DIBAYAR</option>
           </select>
+          <p class="form-hint" id="addTxSudahDibayarWarning" style="display:none;color:#dc2626;">
+            <i class="fas fa-exclamation-triangle"></i> Transaksi dengan status "Sudah Dibayar" akan langsung terkunci dan tidak dapat diedit lagi.
+          </p>
         </div>
 
         <!-- Bukti Transaksi -->

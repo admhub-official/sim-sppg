@@ -2862,6 +2862,7 @@ function openAddTransaksiModal() {
   $('addTxItem').value = '';
   $('addTxCatatan').value = '';
   $('addTxMetodeTransaksi').value = 'BELUM_BAYAR';
+  updateAddTxMetodeStyle();
   $('addTxNominal').value = '';
   $('addTxNominal').setAttribute('data-raw', '0');
   var nomConf = $('addTxNominalConfirm'); if (nomConf) nomConf.textContent = '';
@@ -2872,6 +2873,18 @@ function openAddTransaksiModal() {
   openModal('modalAddTransaksi');
   setTimeout(initAddTxTtd, 100);
 }
+
+function updateAddTxMetodeStyle() {
+  var sel = $('addTxMetodeTransaksi');
+  var warn = $('addTxSudahDibayarWarning');
+  if (!sel) return;
+  var isSudahDibayar = sel.value === 'SUDAH_DIBAYAR';
+  sel.style.color = isSudahDibayar ? '#16a34a' : '';
+  sel.style.fontWeight = isSudahDibayar ? '700' : '';
+  if (warn) warn.style.display = isSudahDibayar ? 'block' : 'none';
+}
+
+function saveAddTransaksi() {
 
 function saveAddTransaksi() {
   var data = {
