@@ -54,3 +54,4 @@ jobs:
         run: |
           set -euo pipefail
           supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
+          echo "Deployment retry triggered after access-token refresh."
