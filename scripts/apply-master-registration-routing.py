@@ -18,3 +18,4 @@ if new not in t:
     t=t.replace(old,new,1)
 p.write_text(t,encoding='utf-8')
 print('master and registration routing installed')
+print('routing retry version 2')
