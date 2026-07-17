@@ -38,7 +38,13 @@
 // 0. API HELPER — langsung ke Supabase Edge Function
 // ============================================================
 var SUPABASE_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dynamic-action';
+var TRANSACTION_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/transaction-action';
 var SECURE_USER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/secure-user-action';
+var TRANSACTION_FN = {
+  getTransactions:1, getTransactionDetail:1, addTransaction:1, editTransaction:1,
+  approveTransaction:1, submitUserBuktiPembayaran:1, verifyUserPayment:1,
+  sendCatatanApproval:1, uploadTxFile:1, deleteTransaction:1
+};
 // Expose anon key untuk modul Laporan (REST API langsung)
 window._supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtanNndGljaHJmeGh5eXdzdHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MTU2MTUsImV4cCI6MjA5ODM5MTYxNX0.D_ZJ286uSpLeZEsg_vSf3iEoG-SnokHV62X6hPXreHM';
 
@@ -62,7 +68,7 @@ function getJwtToken() {
 function callApi(fnName, params, onSuccess, onFailure) {
   var headers = { 'Content-Type': 'application/json' };
   var isSecureUserAction = fnName === 'updateUserProfile' || fnName === 'uploadFotoProfil';
-  var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : SUPABASE_FN_URL;
+  var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : SUPABASE_FN_URL);
   if (!PUBLIC_FN[fnName]) {
     var token = getJwtToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
