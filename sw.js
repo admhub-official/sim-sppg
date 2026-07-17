@@ -2,7 +2,7 @@
  * Network-first for application shell so deployments are not trapped by stale HTML/JS.
  * Cache-first only for stable static assets. API and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260717-uiux-2';
+const CACHE_VERSION = 'sim-sppg-v20260717-uiux-3';
 const APP_SHELL = ['./', './index.html', './app.js', './uiux-fixes.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
