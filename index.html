@@ -639,11 +639,6 @@
       .bnav-item span { font-size:10px; }
       .bnav-fab { width: 52px; height: 52px; }
     }
-    @media (max-width: 360px) {
-      .pin-grid { gap: 5px; }
-      .pin-input { padding: 12px 2px; font-size: 17px; }
-    }
-
     @media (min-width: 768px) {
       .main-container {
         max-width: 480px;
@@ -2680,25 +2675,6 @@
     }
     .pin-lock-icon-primary { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: var(--primary); }
     .pin-lock-icon-danger { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #dc2626; }
-    .pin-grid {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-    .pin-input {
-      width: 100%;
-      padding: 14px 4px;
-      border: 2px solid var(--slate-200);
-      border-radius: 10px;
-      font-size: 20px;
-      text-align: center;
-      font-weight: 700;
-      outline: none;
-      color: var(--slate-800);
-      transition:color 0.2s,background-color 0.2s,border-color 0.2s,box-shadow 0.2s,opacity 0.2s,transform 0.2s;
-    }
-    .pin-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(30,111,156,0.08); }
 
 
     /* ============================================================
@@ -5318,7 +5294,7 @@
       <div class="modal-footer">
         <button onclick="closeModal('modalApproval')" class="btn btn-outline">Batal</button>
         <button onclick="preSubmitApproval()" class="btn btn-success" id="btnPreSubmit">
-          <i class="fas fa-check"></i><span>Lanjutkan ke PIN</span>
+          <i class="fas fa-check"></i><span>Lanjutkan ke Konfirmasi</span>
         </button>
       </div>
     </div>
@@ -5369,31 +5345,30 @@
   </div>
 </div>
 
-<!-- ==================== MODAL PIN ==================== -->
+<!-- ==================== MODAL KONFIRMASI NOMINAL (pengganti MODAL PIN) ==================== -->
 <div id="modalPin" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modalPinTitle">
   <div class="modal-overlay" onclick="if(event.target===this)closeModal('modalPin')">
     <div class="modal-box modal-center-box">
       <div class="modal-header modal-header-center">
-        <div class="pin-lock-icon pin-lock-icon-primary"><i class="fas fa-lock"></i></div>
-        <h3 id="modalPinTitle">Konfirmasi PIN</h3>
-        <p style="font-size:12px;color:var(--slate-400);margin-top:4px;">Masukkan PIN 6 digit untuk approve</p>
+        <div class="pin-lock-icon pin-lock-icon-primary"><i class="fas fa-shield-alt"></i></div>
+        <h3 id="modalPinTitle">Konfirmasi Approval</h3>
+        <p id="nominalConfirmLabel" style="font-size:12px;color:var(--slate-400);margin-top:4px;">Ketik ulang nominal untuk melanjutkan</p>
       </div>
       <div class="modal-body">
-        <div class="pin-grid">
-          <input type="password" class="pin-input" maxlength="1" data-index="0" oninput="handlePinInput(this,event)">
-          <input type="password" class="pin-input" maxlength="1" data-index="1" oninput="handlePinInput(this,event)">
-          <input type="password" class="pin-input" maxlength="1" data-index="2" oninput="handlePinInput(this,event)">
-          <input type="password" class="pin-input" maxlength="1" data-index="3" oninput="handlePinInput(this,event)">
-          <input type="password" class="pin-input" maxlength="1" data-index="4" oninput="handlePinInput(this,event)">
-          <input type="password" class="pin-input" maxlength="1" data-index="5" oninput="handlePinInput(this,event)">
+        <div class="info-card" style="background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border-color:#86efac;margin-bottom:14px;">
+          <div class="info-row" style="border-color:#86efac;"><span class="info-label" id="nominalConfirmTitle">Nominal</span><span class="info-value" id="nominalConfirmDisplay" style="font-size:18px;color:#047857;">Rp 0</span></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ketik ulang nominal (angka saja, tanpa titik/Rp)</label>
+          <input type="text" inputmode="numeric" id="nominalConfirmInput" class="form-input" placeholder="Contoh: 150000" autocomplete="off">
         </div>
         <div id="pinError" style="color:var(--rose);font-size:13px;text-align:center;margin-bottom:10px;display:none;">
-          <i class="fas fa-exclamation-circle"></i> PIN tidak valid
+          <i class="fas fa-exclamation-circle"></i> <span id="pinErrorText">Nominal tidak cocok.</span>
         </div>
       </div>
       <div class="modal-footer modal-footer-center">
         <button onclick="submitApprovalWithPin()" class="btn btn-success" style="width:100%;">
-          <i class="fas fa-unlock"></i><span>Konfirmasi &amp; Approve</span>
+          <i class="fas fa-check-circle"></i><span>Konfirmasi &amp; Approve</span>
         </button>
       </div>
     </div>

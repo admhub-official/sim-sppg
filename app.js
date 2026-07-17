@@ -159,10 +159,11 @@ var uploadBuktiModeEnabled = false;
 var currentUserBuktiTxId = null;
 var userBuktiFileData = null;
 var currentVerifikasiTxId = null;
+var currentVerifikasiNominal = 0;
 var verifCatatanTemp = '';
 
 // Modal / form state
-var currentTrxId = null;
+var currentApprovalNominal = 0;
 var currentEditRow = null;
 var approvalFileData = null;
 var chartInstance = null;
@@ -3213,31 +3214,34 @@ function updateApprovalBulkBar() {
 function openBulkApprovalPin() {
   if (!selectedApprovalIds.size) { showToast('warning', 'Perhatian', 'Pilih minimal satu transaksi.'); return; }
   bulkApprovalMode = true;
-  document.querySelectorAll('.pin-input').forEach(function(p) { p.value = ''; });
+  var ids = Array.from(selectedApprovalIds);
+  var total = 0;
+  filteredApprovalData.forEach(function(tx) {
+    if (ids.indexOf(tx.id) > -1) total += parseFloat(tx.nominal) || 0;
+  });
+  pendingConfirmNominal = total;
+  $('nominalConfirmTitle').textContent = 'Total Nominal (' + ids.length + ' transaksi)';
+  $('nominalConfirmDisplay').textContent = formatRupiah(total);
+  $('nominalConfirmLabel').textContent = 'Ketik ulang TOTAL nominal untuk konfirmasi bulk approve';
+  $('nominalConfirmInput').value = '';
   $('pinError').style.display = 'none';
   openModal('modalPin');
 }
 
-function submitBulkApproval(pin) {
+function submitBulkApproval() {
   var ids = Array.from(selectedApprovalIds);
   if (!ids.length) return;
   showLoading(true);
   var total = ids.length;
   var done = 0, success = 0, failed = 0;
-  var pinRejectedCount = 0;
   var approvedByName = currentUser ? (currentUser.namaLengkap || currentUser.username) : 'Admin';
 
   function next() {
     if (done >= total) {
       showLoading(false);
       selectedApprovalIds.clear();
-      if (pinRejectedCount > 0 && success === 0) {
-        // Semua gagal karena PIN salah — beri tahu spesifik & buka ulang modal PIN
-        showToast('error', 'PIN Salah', 'Bulk approve dibatalkan, PIN tidak valid.');
-      } else {
-        showToast(failed ? 'warning' : 'success', 'Bulk Approve Selesai',
-          success + ' berhasil, ' + failed + ' gagal dari ' + total + ' transaksi.');
-      }
+      showToast(failed ? 'warning' : 'success', 'Bulk Approve Selesai',
+        success + ' berhasil, ' + failed + ' gagal dari ' + total + ' transaksi.');
       loadTransactions();
       loadDashboardData();
       loadApprovalData();
@@ -3245,13 +3249,12 @@ function submitBulkApproval(pin) {
     }
     var id = ids[done];
     callApi('approveTransaction', [
-      { id: id, approvalPin: pin, approvedBy: approvedByName, ttdBase64: '', catatanApproval: '' }
+      { id: id, approvedBy: approvedByName, ttdBase64: '', catatanApproval: '' }
     ], function(result) {
         if (result && result.success) {
                   success++;
                 } else {
                   failed++;
-                  if (result && result.message && result.message.toLowerCase().indexOf('pin') > -1) pinRejectedCount++;
                 }
                 done++;
                 next();
@@ -3753,6 +3756,7 @@ function openApprovalModal(id) {
     callApi('getTransactionDetail', [id], function(tx) {
         showLoading(false);
               if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
+              currentApprovalNominal = parseFloat(tx.nominal) || 0;
               renderApprovalForm(tx);
               openModal('modalApproval');
               setTimeout(initApprovalCanvas, 100);
@@ -3819,32 +3823,48 @@ function handleApprovalFile(input) {
 }
 
 function preSubmitApproval() {
-  // Show PIN modal
-  document.querySelectorAll('.pin-input').forEach(function(p) { p.value = ''; });
+  pendingConfirmNominal = currentApprovalNominal || 0;
+  $('nominalConfirmTitle').textContent = 'Nominal Transaksi';
+  $('nominalConfirmDisplay').textContent = formatRupiah(pendingConfirmNominal);
+  $('nominalConfirmLabel').textContent = 'Ketik ulang nominal untuk konfirmasi approve';
+  $('nominalConfirmInput').value = '';
   $('pinError').style.display = 'none';
   openModal('modalPin');
 }
 
 function submitApprovalWithPin() {
-  var pin = Array.from(document.querySelectorAll('.pin-input')).map(function(p) { return p.value; }).join('');
+  var inputEl = $('nominalConfirmInput');
   var pinErrorEl = $('pinError');
+  var pinErrorText = $('pinErrorText');
+  var typed = String(inputEl ? inputEl.value : '').trim();
 
-  if (pin.length !== 6) { pinErrorEl.style.display = 'block'; return; }
+  if (!typed) {
+    pinErrorText.textContent = 'Nominal konfirmasi wajib diisi.';
+    pinErrorEl.style.display = 'block';
+    return;
+  }
+  if (!/^\d+$/.test(typed)) {
+    pinErrorText.textContent = 'Masukkan angka saja, tanpa titik, koma, atau Rp.';
+    pinErrorEl.style.display = 'block';
+    return;
+  }
+  if (parseInt(typed, 10) !== Math.round(pendingConfirmNominal)) {
+    pinErrorText.textContent = 'Nominal yang Anda ketik tidak cocok dengan nominal transaksi.';
+    pinErrorEl.style.display = 'block';
+    return;
+  }
 
-  // PIN TIDAK divalidasi di client. PIN dikirim ke server (approveTransaction / submitBulkApproval)
-  // dan server yang menentukan benar/salah. Ini mencegah PIN ter-expose di DevTools/View Source.
   closeModal('modalPin');
 
   if (verifikasiPembayaranMode) {
     verifikasiPembayaranMode = false;
-    verifPinTemp = pin;
     doSubmitVerifikasiPembayaran();
     return;
   }
 
   if (bulkApprovalMode) {
     bulkApprovalMode = false;
-    submitBulkApproval(pin);
+    submitBulkApproval();
     return;
   }
 
@@ -3858,7 +3878,6 @@ function submitApprovalWithPin() {
 
   var data = {
     id: currentTrxId,
-    approvalPin: pin,
     approvedBy: currentUser ? currentUser.namaLengkap || currentUser.username : 'Admin',
     ttdBase64: ttdBase64,
     catatanApproval: $('approvalCatatan') ? $('approvalCatatan').value : ''
@@ -3876,34 +3895,13 @@ function submitApprovalWithPin() {
                 loadTransactions();
                 loadDashboardData();
               } else {
-                // PIN salah atau gagal lain dari server — buka kembali modal PIN agar user bisa coba lagi
                 showToast('error', 'Gagal', result.message);
-                if (result.message && result.message.toLowerCase().indexOf('pin') > -1) {
-                  document.querySelectorAll('.pin-input').forEach(function(p) { p.value = ''; });
-                  openModal('modalPin');
-                  var firstPin = document.querySelector('.pin-input[data-index="0"]');
-                  if (firstPin) setTimeout(function(){ firstPin.focus(); }, 200);
-                }
               }
       },
       function(err) {
         showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
       }
     );
-}
-
-function handlePinInput(input, e) {
-  var val = input.value;
-  if (val.length >= 1) {
-    var idx = parseInt(input.getAttribute('data-index'));
-    var next = document.querySelector('.pin-input[data-index="' + (idx + 1) + '"]');
-    if (next) next.focus();
-  }
-  if (e.inputType === 'deleteContentBackward') {
-    var idx = parseInt(input.getAttribute('data-index'));
-    var prev = document.querySelector('.pin-input[data-index="' + (idx - 1) + '"]');
-    if (prev) prev.focus();
-  }
 }
 
 // ===== MODE UPLOAD BUKTI MANDIRI (ON/OFF) =====
@@ -4038,6 +4036,7 @@ function openVerifikasiModal(id) {
     callApi('getTransactionDetail', [id], function(tx) {
         showLoading(false);
               if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
+              currentVerifikasiNominal = parseFloat(tx.nominal) || 0;
               renderVerifikasiForm(tx);
               openModal('modalVerifikasiPembayaran');
               setTimeout(function() { initTtdCanvas('verifTtdCanvas'); }, 100);
@@ -4074,17 +4073,21 @@ function renderVerifikasiForm(tx) {
     '</div>';
 }
 
-var verifPinTemp = '';
+var pendingConfirmNominal = 0;
 
 function submitVerifikasiPembayaran() {
   var ttdCanvas = $('verifTtdCanvas');
   if (!ttdCanvas || isCanvasBlank('verifTtdCanvas')) {
     showToast('error', 'Validasi', 'Tanda tangan verifikator wajib diisi'); return;
   }
-  // Simpan catatan sementara karena modal approval akan ditutup, lalu modal PIN dibuka
+  // Simpan catatan sementara karena modal verifikasi akan ditutup, lalu modal konfirmasi nominal dibuka
   verifCatatanTemp = $('verifCatatan') ? $('verifCatatan').value : '';
   verifikasiPembayaranMode = true;
-  document.querySelectorAll('.pin-input').forEach(function(p) { p.value = ''; });
+  pendingConfirmNominal = currentVerifikasiNominal || 0;
+  $('nominalConfirmTitle').textContent = 'Nominal Transaksi';
+  $('nominalConfirmDisplay').textContent = formatRupiah(pendingConfirmNominal);
+  $('nominalConfirmLabel').textContent = 'Ketik ulang nominal untuk konfirmasi verifikasi';
+  $('nominalConfirmInput').value = '';
   $('pinError').style.display = 'none';
   openModal('modalPin');
 }
@@ -4098,7 +4101,7 @@ function doSubmitVerifikasiPembayaran() {
   closeModal('modalVerifikasiPembayaran');
   showLoading(true);
     callApi('verifyUserPayment', [
-      {       txId: currentVerifikasiTxId,       approvalPin: verifPinTemp,       ttdBase64: ttdBase64,       catatanApproval: verifCatatanTemp,       approvedBy: currentUser ? (currentUser.namaLengkap || currentUser.username) : 'Admin'     }
+      {       txId: currentVerifikasiTxId,       ttdBase64: ttdBase64,       catatanApproval: verifCatatanTemp,       approvedBy: currentUser ? (currentUser.namaLengkap || currentUser.username) : 'Admin'     }
     ], function(result) {
         showLoading(false);
               if (result.success) {
