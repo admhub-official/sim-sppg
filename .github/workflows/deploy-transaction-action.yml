@@ -36,6 +36,9 @@ jobs:
           grep -q "requireCompleteDocs" supabase/functions/transaction-action/index.ts
           grep -q "async function removeFiles" supabase/functions/transaction-action/index.ts
           grep -q "submit_transaction_payment_atomic" supabase/functions/transaction-action/index.ts
+          grep -q "function ownedUpload" supabase/functions/transaction-action/index.ts
+          grep -q "cleanup add orphan" supabase/functions/transaction-action/index.ts
+          grep -q "cleanup edit orphan" supabase/functions/transaction-action/index.ts
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -57,4 +60,4 @@ jobs:
         run: |
           set -euo pipefail
           supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
-          echo "Deployment contains atomic payment submission and orphan cleanup."
+          echo "Deployment contains atomic payment submission and transaction orphan cleanup."
