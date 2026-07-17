@@ -1,0 +1,43 @@
+name: Deploy reporting-action
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/reporting-action/**'
+      - '.github/workflows/deploy-reporting-action.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-reporting-action-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Validate source
+        run: |
+          set -euo pipefail
+          test -s supabase/functions/reporting-action/index.ts
+          grep -q 'visibleTransactions' supabase/functions/reporting-action/core.ts
+          grep -q 'getDashboardKPI' supabase/functions/reporting-action/reports.ts
+          grep -q 'getNotifications' supabase/functions/reporting-action/activity.ts
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          supabase functions deploy reporting-action --project-ref "$SUPABASE_PROJECT_REF" --use-api --debug
+      - name: Verify
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
