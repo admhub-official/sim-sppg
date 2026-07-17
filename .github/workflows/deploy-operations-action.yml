@@ -24,13 +24,15 @@ jobs:
       SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
     steps:
       - uses: actions/checkout@v4
-      - name: Validate hardened source
+      - name: Validate hardened paginated source
         run: |
           set -euo pipefail
           test -s supabase/functions/operations-action/index.ts
           grep -q 'pairOK' supabase/functions/operations-action/index.ts
           grep -q 'requireRecord' supabase/functions/operations-action/index.ts
           grep -q 'ownerOK' supabase/functions/operations-action/index.ts
+          grep -q 'function pageSpec' supabase/functions/operations-action/index.ts
+          grep -q 'function ownedResult' supabase/functions/operations-action/index.ts
       - uses: supabase/setup-cli@v1
         with:
           version: latest
