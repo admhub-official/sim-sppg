@@ -2385,6 +2385,9 @@ function openEditProfilModal() {
   // Sembunyikan dropdown list kalau masih terbuka
   var editList = $('editSppgList');
   if (editList) editList.classList.add('hidden');
+  var editYayasanListEl = $('editYayasanList');
+  if (editYayasanListEl) editYayasanListEl.classList.add('hidden');
+  if (!YAYASAN_MASTER.length) loadYayasanMaster();
   openModal('modalEditProfil');
 }
 function saveEditProfil() {
@@ -2574,6 +2577,7 @@ function openEditUserModal(rowNum) {
   } else {
     if (roleWrap) roleWrap.classList.add('hidden');
   }
+  if (!YAYASAN_MASTER.length) loadYayasanMaster();
   openModal('modalEditUser');
 }
 function saveEditUser() {
@@ -5802,6 +5806,7 @@ function openEditAdminAssignmentModal(id, adminEmail, sppg, yayasan) {
   sppgSel.innerHTML = opts;
   sppgSel.value = sppg;
   $('editAaYayasanInput').value = yayasan;
+  if (!YAYASAN_MASTER.length) loadYayasanMaster();
   openModal('modalEditAdminAssignment');
 }
 
@@ -5837,6 +5842,7 @@ function openAddAdminAssignmentModal() {
   var opts = '<option value="">-- Pilih SPPG --</option>';
   sppgList.forEach(function(s) { opts += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
   sppgSel.innerHTML = opts;
+  if (!YAYASAN_MASTER.length) loadYayasanMaster();
   openModal('modalAddAdminAssignment');
 }
 

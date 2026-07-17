@@ -5410,7 +5410,13 @@
         </div>
         <div class="form-group">
           <label class="form-label">Yayasan</label>
-          <input type="text" id="aaYayasanInput" class="form-input" placeholder="Nama Yayasan">
+          <div class="sppg-autocomplete-wrap" style="position:relative">
+            <input type="text" id="aaYayasanInput" class="form-input" placeholder="Ketik atau pilih nama yayasan" autocomplete="off"
+              oninput="showYayasanSuggestions('aaYayasanInput','aaYayasanList')"
+              onblur="hideSppgSuggestions('aaYayasanList')"
+              onfocus="showYayasanSuggestions('aaYayasanInput','aaYayasanList')">
+            <ul id="aaYayasanList" class="sppg-suggestions hidden"></ul>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -5443,7 +5449,13 @@
         </div>
         <div class="form-group">
           <label class="form-label">Yayasan</label>
-          <input type="text" id="editAaYayasanInput" class="form-input" placeholder="Nama Yayasan">
+          <div class="sppg-autocomplete-wrap" style="position:relative">
+            <input type="text" id="editAaYayasanInput" class="form-input" placeholder="Ketik atau pilih nama yayasan" autocomplete="off"
+              oninput="showYayasanSuggestions('editAaYayasanInput','editAaYayasanList')"
+              onblur="hideSppgSuggestions('editAaYayasanList')"
+              onfocus="showYayasanSuggestions('editAaYayasanInput','editAaYayasanList')">
+            <ul id="editAaYayasanList" class="sppg-suggestions hidden"></ul>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -5516,7 +5528,13 @@
         </div>
         <div class="form-group">
           <label class="form-label">Nama Yayasan</label>
-          <input type="text" id="editYayasan" class="form-input" placeholder="Nama yayasan (opsional)">
+          <div class="sppg-autocomplete-wrap" style="position:relative">
+            <input type="text" id="editYayasan" class="form-input" placeholder="Ketik atau pilih nama yayasan (opsional)" autocomplete="off"
+              oninput="showYayasanSuggestions('editYayasan','editYayasanList')"
+              onblur="hideSppgSuggestions('editYayasanList')"
+              onfocus="showYayasanSuggestions('editYayasan','editYayasanList')">
+            <ul id="editYayasanList" class="sppg-suggestions hidden"></ul>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Foto Profil</label>
@@ -5586,7 +5604,13 @@
         </div>
         <div class="form-group">
           <label class="form-label">Nama Yayasan</label>
-          <input type="text" id="editUserYayasan" class="form-input" placeholder="Nama yayasan">
+          <div class="sppg-autocomplete-wrap" style="position:relative">
+            <input type="text" id="editUserYayasan" class="form-input" placeholder="Ketik atau pilih nama yayasan" autocomplete="off"
+              oninput="showYayasanSuggestions('editUserYayasan','editUserYayasanList')"
+              onblur="hideSppgSuggestions('editUserYayasanList')"
+              onfocus="showYayasanSuggestions('editUserYayasan','editUserYayasanList')">
+            <ul id="editUserYayasanList" class="sppg-suggestions hidden"></ul>
+          </div>
         </div>
         <div class="form-group" id="editUserRoleWrap">
           <label class="form-label">Role</label>
