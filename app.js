@@ -2771,7 +2771,9 @@ function openEditTransaksi(id) {
       var previewBox = $('editTxFilePreview');
       if (previewBox) {
         previewBox.innerHTML =
-          renderFilePreview(tx.fileBukti, 'Bukti Transaksi Saat Ini', 'fa-camera') +
+          renderFilePreview(tx.fileBuktiFoto || tx.fileBukti, 'Foto Bukti Transaksi Saat Ini', 'fa-camera') +
+          renderFilePreview(tx.fileBuktiFile, 'File Bukti Transaksi Saat Ini', 'fa-file') +
+          renderFilePreview(tx.fileBuktiApproval, 'Bukti Pembayaran Admin Saat Ini', 'fa-money-check-alt') +
           renderFilePreview(tx.fileNota, 'Nota Pembelian Saat Ini', 'fa-receipt') +
           renderFilePreview(tx.fileTtdUser, 'TTD User Saat Ini', 'fa-signature');
       }
@@ -2808,6 +2810,30 @@ function saveEditTransaksi() {
   var notaFile = $('editTxNota') ? $('editTxNota').files[0] : null;
   var ttdCanvas = $('editTxTtdCanvas');
   var uploadsPending = 0;
+  var uploadErrors = [];
+
+  function finishEditUpload(label, up, applyResult) {
+    if (up && up.success && up.fileName) applyResult(up);
+    else uploadErrors.push(label + ' gagal diunggah');
+    uploadsPending--;
+    if (!uploadsPending) {
+      if (uploadErrors.length) {
+        showLoading(false);
+        showToast('error', 'Upload Gagal', uploadErrors.join(', ') + '. Perubahan tidak disimpan.');
+        return;
+      }
+      doSubmit();
+    }
+  }
+
+  function failEditUpload(label, err) {
+    uploadErrors.push(label + ' gagal diunggah' + (err && err.message ? ': ' + err.message : ''));
+    uploadsPending--;
+    if (!uploadsPending) {
+      showLoading(false);
+      showToast('error', 'Upload Gagal', uploadErrors.join(', ') + '. Perubahan tidak disimpan.');
+    }
+  }
 
   function doSubmit() {
     callApi('editTransaction', [id, fields], function(result) {
@@ -2827,9 +2853,8 @@ function saveEditTransaksi() {
     r.onload = function(e) {
       var b64 = e.target.result.split(',')[1];
       callApi('uploadTxFile', [b64, fotoFile.type, fotoFile.name, 'foto'], function(up) {
-        if (up.success) fields['Upload Foto'] = up.fileName;
-        uploadsPending--; if (!uploadsPending) doSubmit();
-      }, null);
+        finishEditUpload('Foto bukti transaksi', up, function(result) { fields['Upload Foto'] = result.fileName; });
+      }, function(err) { failEditUpload('Foto bukti transaksi', err); });
     };
     r.readAsDataURL(fotoFile);
   }
@@ -2840,9 +2865,8 @@ function saveEditTransaksi() {
     r2.onload = function(e) {
       var b64 = e.target.result.split(',')[1];
       callApi('uploadTxFile', [b64, notaFile.type, notaFile.name, 'nota'], function(up) {
-        if (up.success) fields['Nota Pembelian'] = up.fileName;
-        uploadsPending--; if (!uploadsPending) doSubmit();
-      }, null);
+        finishEditUpload('Nota pembelian', up, function(result) { fields['Nota Pembelian'] = result.fileName; });
+      }, function(err) { failEditUpload('Nota pembelian', err); });
     };
     r2.readAsDataURL(notaFile);
   }
@@ -2851,9 +2875,8 @@ function saveEditTransaksi() {
     var ttdBase64 = ttdCanvas.toDataURL('image/png').split(',')[1];
     uploadsPending++;
     callApi('uploadTxFile', [ttdBase64, 'image/png', 'TTD_USER_' + Date.now() + '.png', 'ttdUser'], function(up) {
-      if (up.success) fields['TTD User'] = up.fileName;
-      uploadsPending--; if (!uploadsPending) doSubmit();
-    }, null);
+      finishEditUpload('TTD user', up, function(result) { fields['TTD User'] = result.fileName; });
+    }, function(err) { failEditUpload('TTD user', err); });
   }
 
   if (!uploadsPending) doSubmit();
@@ -2957,6 +2980,30 @@ function saveAddTransaksi() {
   var notaFile = $('addTxNota') ? $('addTxNota').files[0] : null;
   var ttdCanvas = $('addTxTtdCanvas');
   var uploadsPending = 0;
+  var uploadErrors = [];
+
+  function finishRequiredUpload(label, up, applyResult) {
+    if (up && up.success && up.fileName) applyResult(up);
+    else uploadErrors.push(label + ' gagal diunggah');
+    uploadsPending--;
+    if (!uploadsPending) {
+      if (uploadErrors.length) {
+        showLoading(false);
+        showToast('error', 'Upload Gagal', uploadErrors.join(', ') + '. Transaksi tidak disimpan.');
+        return;
+      }
+      doSubmit();
+    }
+  }
+
+  function failRequiredUpload(label, err) {
+    uploadErrors.push(label + ' gagal diunggah' + (err && err.message ? ': ' + err.message : ''));
+    uploadsPending--;
+    if (!uploadsPending) {
+      showLoading(false);
+      showToast('error', 'Upload Gagal', uploadErrors.join(', ') + '. Transaksi tidak disimpan.');
+    }
+  }
 
   var _submitAttempt = 0;
   function doSubmit() {
@@ -3032,8 +3079,8 @@ function saveAddTransaksi() {
       fotoFile.name,
       'foto'
     ], function(up) {
-        if (up.success) data.uploadFoto = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit();
-      }, null);
+        finishRequiredUpload('Foto bukti transaksi', up, function(result) { data.uploadFoto = result.fileName; });
+      }, function(err) { failRequiredUpload('Foto bukti transaksi', err); });
     };
     r.readAsDataURL(fotoFile);
   }
@@ -3049,8 +3096,8 @@ function saveAddTransaksi() {
       notaFile.name,
       'nota'
     ], function(up) {
-        if (up.success) data.notaPembelian = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit();
-      }, null);
+        finishRequiredUpload('Nota pembelian', up, function(result) { data.notaPembelian = result.fileName; });
+      }, function(err) { failRequiredUpload('Nota pembelian', err); });
     };
     r3.readAsDataURL(notaFile);
   }
@@ -3064,8 +3111,8 @@ function saveAddTransaksi() {
       'TTD_USER_' + Date.now() + '.png',
       'ttdUser'
     ], function(up) {
-        if (up.success) data.ttdUser = up.fileName; uploadsPending--; if (!uploadsPending) doSubmit();
-      }, null);
+        finishRequiredUpload('TTD user', up, function(result) { data.ttdUser = result.fileName; });
+      }, function(err) { failRequiredUpload('TTD user', err); });
   }
   if (!uploadsPending) doSubmit();
 }
@@ -3114,7 +3161,9 @@ function renderDetailTransaksi(tx) {
   resetDetailModalFooter();
   var isLengkap = tx.statusDokumen && tx.statusDokumen.indexOf('Lengkap') > -1 && tx.statusDokumen.indexOf('Tidak') === -1;
   var docsHtml = '';
-  docsHtml += renderFilePreview(tx.fileBukti, 'Bukti Transaksi', 'fa-camera');
+  docsHtml += renderFilePreview(tx.fileBuktiFoto || tx.fileBukti, 'Foto Bukti Transaksi', 'fa-camera');
+  docsHtml += renderFilePreview(tx.fileBuktiFile, 'File Bukti Transaksi', 'fa-file');
+  docsHtml += renderFilePreview(tx.fileBuktiApproval, 'Bukti Pembayaran Admin', 'fa-money-check-alt');
   docsHtml += renderFilePreview(tx.fileNota, 'Nota Pembelian', 'fa-receipt');
   docsHtml += renderFilePreview(tx.fileTtdUser, 'TTD User', 'fa-signature');
   docsHtml += renderFilePreview(tx.fileTtdVerif, 'TTD Verifikator', 'fa-shield-alt');
@@ -3867,7 +3916,7 @@ function exportApprovalPDF(data, metodeSummary, grandTotal, grandCount, pageLabe
     '<tbody>' + summaryRows + '</tbody>' +
     '</table>' +
     '<p class="section-title">Ringkasan 2 — Status Kelengkapan Dokumen</p>' +
-    '<p style="font-size:10px;color:#64748b;margin:0 0 6px 0;">&#9432; TTD User diasumsikan selalu ada dan tidak dihitung sebagai kekurangan</p>' +
+    '<p style="font-size:10px;color:#64748b;margin:0 0 6px 0;">&#9432; Dokumen lengkap wajib memiliki bukti transaksi, nota pembelian, dan TTD User</p>' +
     '<table style="max-width:640px;">' +
     '<thead><tr>' +
     '<th>Status Kelengkapan</th>' +
