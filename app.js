@@ -40,6 +40,7 @@
 var SUPABASE_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dynamic-action';
 var TRANSACTION_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/transaction-action';
 var OPERATIONS_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/operations-action';
+var REPORTING_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/reporting-action';
 var SECURE_USER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/secure-user-action';
 var TRANSACTION_FN = {
   getTransactions:1, getTransactionDetail:1, addTransaction:1, editTransaction:1,
@@ -55,6 +56,10 @@ var OPERATIONS_FN = {
   getSurveiBahanBaku:1, updateSurvei:1, deleteSurvei:1,
   getSerahTerima:1, updateSerahTerima:1, deleteSerahTerima:1,
   getMenuHarian:1, updateMenuMBG:1, deleteMenuMBG:1
+};
+var REPORTING_FN = {
+  getDashboardKPI:1, getChartData:1, getSPPGData:1, getRekapHarian:1,
+  getFilterOptions:1, getAuditLog:1, getNotifications:1
 };
 var PUBLIC_FN = {
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
@@ -76,7 +81,7 @@ function getJwtToken() {
 function callApi(fnName, params, onSuccess, onFailure) {
   var headers = { 'Content-Type': 'application/json' };
   var isSecureUserAction = fnName === 'updateUserProfile' || fnName === 'uploadFotoProfil';
-  var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : SUPABASE_FN_URL));
+  var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : (REPORTING_FN[fnName] ? REPORTING_FN_URL : SUPABASE_FN_URL)));
   if (!PUBLIC_FN[fnName]) {
     var token = getJwtToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
