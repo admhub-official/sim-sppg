@@ -683,6 +683,7 @@ function showLogin() {
 function showRegister() {
   setAuthMode('register');
   $('regError').classList.remove('show');
+  loadYayasanMaster();
 
   window.requestAnimationFrame(function() {
     var nameInput = $('regNama');
@@ -837,6 +838,54 @@ if (document.readyState === 'loading') {
 var SPPG_MASTER = [
   'DARMARAJA','CIAMIS','TANJUNG MEDAR','PAKUALAM','KIRISIK','CIBUNAR','CINTA JAYA'
 ];
+
+// ============================================================
+// YAYASAN AUTOCOMPLETE — dipakai di form Daftar Akun
+// Data diambil dari getDropdownOptions() (daftar Nama Yayasan yang sudah pernah diinput).
+// ============================================================
+var YAYASAN_MASTER = [];
+
+function loadYayasanMaster() {
+  callApi('getDropdownOptions', [], function(result) {
+      if (result && result.success && Array.isArray(result.yayasanList)) {
+        YAYASAN_MASTER = result.yayasanList;
+      }
+    },
+    function(err) { /* diamkan — form tetap bisa diisi manual meski gagal load */ }
+  );
+}
+
+function showYayasanSuggestions(inputId, listId) {
+  var input = $(inputId);
+  var list  = $(listId);
+  if (!input || !list) return;
+
+  var val = input.value.trim().toLowerCase();
+  var matches = YAYASAN_MASTER.filter(function(s) {
+    return s.toLowerCase().includes(val);
+  });
+
+  if (val === '') matches = YAYASAN_MASTER.slice();
+
+  if (matches.length === 0) {
+    list.classList.add('hidden');
+    return;
+  }
+
+  list.innerHTML = matches.map(function(s) {
+    var highlighted = esc(s);
+    if (val) {
+      var idx = s.toLowerCase().indexOf(val);
+      if (idx > -1) {
+        highlighted = esc(s.substring(0, idx)) + '<span class="sppg-match">' + esc(s.substring(idx, idx + val.length)) + '</span>' + esc(s.substring(idx + val.length));
+      }
+    }
+    return '<li onmousedown="selectSppg(\'' + inputId + '\',\'' + listId + '\',' + JSON.stringify(s) + ')">'
+         + '<i class="fas fa-building"></i>' + highlighted + '</li>';
+  }).join('');
+
+  list.classList.remove('hidden');
+}
 
 function showSppgSuggestions(inputId, listId) {
   var input = $(inputId);
