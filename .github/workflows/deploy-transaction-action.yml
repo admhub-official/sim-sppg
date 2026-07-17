@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -33,39 +33,17 @@ jobs:
           set -euo pipefail
           test -s supabase/functions/transaction-action/index.ts
           grep -q "Deno.serve" supabase/functions/transaction-action/index.ts
-          echo "Source validation passed."
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Validate Supabase token and project access
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
-            echo "SUPABASE_ACCESS_TOKEN is empty or unavailable to this workflow."
-            exit 1
-          fi
-          supabase --version
-          supabase projects list --output json > /tmp/supabase-projects.json
-          python - <<'PY'
-          import json, os, sys
-          ref = os.environ['SUPABASE_PROJECT_REF']
-          with open('/tmp/supabase-projects.json', encoding='utf-8') as f:
-              projects = json.load(f)
-          refs = {str(p.get('id') or p.get('ref') or '') for p in projects}
-          if ref not in refs:
-              print(f'Token valid, but project {ref} is not accessible with this token.')
-              sys.exit(1)
-          print(f'Token valid and project {ref} is accessible.')
-          PY
-
       - name: Deploy transaction-action
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
           supabase functions deploy transaction-action \
             --project-ref "$SUPABASE_PROJECT_REF" \
             --use-api \
