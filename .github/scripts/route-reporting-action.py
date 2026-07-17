@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Idempotent patch: route reporting and notification calls only.
 path = Path('app.js')
 text = path.read_text(encoding='utf-8')
 
