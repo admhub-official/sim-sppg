@@ -41,6 +41,8 @@ var SUPABASE_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dyn
 var TRANSACTION_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/transaction-action';
 var OPERATIONS_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/operations-action';
 var REPORTING_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/reporting-action';
+var MASTER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/master-action';
+var REGISTER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/register-user-v2';
 var SECURE_USER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/secure-user-action';
 var TRANSACTION_FN = {
   getTransactions:1, getTransactionDetail:1, addTransaction:1, editTransaction:1,
@@ -60,6 +62,11 @@ var OPERATIONS_FN = {
 var REPORTING_FN = {
   getDashboardKPI:1, getChartData:1, getSPPGData:1, getRekapHarian:1,
   getFilterOptions:1, getAuditLog:1, getNotifications:1
+};
+var MASTER_FN = {
+  getMasterBahanBaku:1, addMasterBahanBaku:1, updateMasterBahanBaku:1, deleteMasterBahanBaku:1,
+  getMasterSupplier:1, addMasterSupplier:1, updateMasterSupplier:1, deleteSupplier:1,
+  uploadSupplierFile:1, uploadFotoSurvei:1, uploadSerahTerimaFile:1
 };
 var PUBLIC_FN = {
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
@@ -81,7 +88,7 @@ function getJwtToken() {
 function callApi(fnName, params, onSuccess, onFailure) {
   var headers = { 'Content-Type': 'application/json' };
   var isSecureUserAction = fnName === 'updateUserProfile' || fnName === 'uploadFotoProfil';
-  var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : (REPORTING_FN[fnName] ? REPORTING_FN_URL : SUPABASE_FN_URL)));
+  var requestUrl = fnName === 'registerUser' ? REGISTER_FN_URL : (isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : (REPORTING_FN[fnName] ? REPORTING_FN_URL : (MASTER_FN[fnName] ? MASTER_FN_URL : SUPABASE_FN_URL)))));
   if (!PUBLIC_FN[fnName]) {
     var token = getJwtToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
