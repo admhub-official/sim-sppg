@@ -3538,7 +3538,13 @@ function exportApproval(format) {
 }
 
 function _approvalDocStatus(tx) {
-  var ada = function(v) { return v && String(v).trim() !== '' && String(v).trim() !== '-'; };
+  var ada = function(v) {
+    var s = v ? String(v).trim() : '';
+    if (s === '' || s === '-') return false;
+    // Data lama migrasi kadang berisi placeholder "FOTO"/"FILE" tanpa file asli.
+    if (/^(FOTO|FILE)$/i.test(s)) return false;
+    return true;
+  };
   var bukti = ada(tx.uploadFoto) || ada(tx.uploadFile);
   var nota  = ada(tx.notaPembelian);
   var ttd   = ada(tx.ttdUser);
