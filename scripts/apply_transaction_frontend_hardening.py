@@ -36,7 +36,6 @@ for old, new in replacements:
         raise SystemExit(f'Pattern tidak ditemukan:\n{old[:160]}')
     text = text.replace(old, new, 1)
 
-# Edit modal: stop submission when any selected replacement upload fails.
 text = text.replace(
     "var uploadsPending = 0;\n\n  function doSubmit() {\n    callApi('editTransaction'",
     "var uploadsPending = 0;\n  var uploadErrors = [];\n\n  function finishEditUpload(label, up, applyResult) {\n    if (up && up.success && up.fileName) applyResult(up);\n    else uploadErrors.push(label + ' gagal diunggah');\n    uploadsPending--;\n    if (!uploadsPending) {\n      if (uploadErrors.length) {\n        showLoading(false);\n        showToast('error', 'Upload Gagal', uploadErrors.join(', ') + '. Perubahan tidak disimpan.');\n        return;\n      }\n      doSubmit();\n    }\n  }\n\n  function failEditUpload(label, err) {\n    uploadErrors.push(label + ' gagal diunggah' + (err && err.message ? ': ' + err.message : ''));\n    uploadsPending--;\n    if (!uploadsPending) {\n      showLoading(false);\n      showToast('error', 'Upload Gagal', uploadErrors.join(', ') + '. Perubahan tidak disimpan.');\n    }\n  }\n\n  function doSubmit() {\n    callApi('editTransaction'",
@@ -58,7 +57,6 @@ text = text.replace(
     1,
 )
 
-# Report wording must follow the same completeness definition used by backend/database.
 text = text.replace(
     'TTD User diasumsikan selalu ada dan tidak dihitung sebagai kekurangan',
     'Dokumen lengkap wajib memiliki bukti transaksi, nota pembelian, dan TTD User',
@@ -69,3 +67,4 @@ if text == original:
 
 path.write_text(text, encoding='utf-8')
 print('app.js berhasil diperbarui')
+# trigger workflow after workflow file exists
