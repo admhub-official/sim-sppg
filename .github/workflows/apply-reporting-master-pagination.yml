@@ -23,6 +23,7 @@ jobs:
       - name: Validate source
         run: |
           grep -q 'function pageSpec' supabase/functions/reporting-action/activity.ts
+          grep -q 'allData' supabase/functions/reporting-action/activity.ts
           grep -q 'hasMore' supabase/functions/master-action/master-bb.ts
           grep -q 'hasMore' supabase/functions/master-action/supplier.ts
       - name: Commit source
