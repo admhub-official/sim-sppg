@@ -1,0 +1,60 @@
+name: Deploy transaction-action
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/transaction-action/**'
+      - '.github/workflows/deploy-transaction-action.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-transaction-action-production
+  cancel-in-progress: false
+
+jobs:
+  validate-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate required source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s supabase/functions/transaction-action/index.ts
+          grep -q "Deno.serve" supabase/functions/transaction-action/index.ts
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy transaction-action
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          supabase functions deploy transaction-action \
+            --project-ref "$SUPABASE_PROJECT_REF" \
+            --use-api \
+            --verify-jwt
+
+      - name: Verify deployed function
+        env:
+          SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            "https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/transaction-action" \
+            -o /tmp/response.txt || true
+          cat /tmp/response.txt || true
