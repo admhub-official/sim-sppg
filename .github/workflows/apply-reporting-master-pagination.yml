@@ -1,0 +1,35 @@
+name: Apply reporting and master pagination
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-reporting-master-pagination.py'
+      - '.github/workflows/apply-reporting-master-pagination.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply compatible pagination
+        run: python scripts/apply-reporting-master-pagination.py
+      - name: Validate source
+        run: |
+          grep -q 'function pageSpec' supabase/functions/reporting-action/activity.ts
+          grep -q 'hasMore' supabase/functions/master-action/master-bb.ts
+          grep -q 'hasMore' supabase/functions/master-action/supplier.ts
+      - name: Commit source
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add supabase/functions/reporting-action/activity.ts supabase/functions/master-action/master-bb.ts supabase/functions/master-action/supplier.ts supabase/functions/master-action/index.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add compatible reporting and master pagination"
+          git push
