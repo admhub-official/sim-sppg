@@ -1,74 +1,36 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
-  });
-}
-
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-
-  if (req.method === 'GET') {
-    return json({
-      status: 'ok',
-      service: 'SIM-SPPG transaction-action',
-      mode: 'bootstrap-proxy',
-      target: 'dynamic-action',
-    });
-  }
-
-  if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
-
-  const authorization = req.headers.get('Authorization') || '';
-  if (!authorization.startsWith('Bearer ')) {
-    return json({ error: 'Authorization bearer token wajib tersedia.' }, 401);
-  }
-
-  const token = authorization.slice(7);
-  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: authorization } },
-  });
-
-  const { data, error } = await authClient.auth.getUser(token);
-  if (error || !data.user) return json({ error: 'Token tidak valid atau kedaluwarsa.' }, 401);
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: 'Body JSON tidak valid.' }, 400);
-  }
-
-  const upstream = await fetch(`${SUPABASE_URL}/functions/v1/dynamic-action`, {
-    method: 'POST',
-    headers: {
-      Authorization: authorization,
-      apikey: req.headers.get('apikey') || SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json',
-      'x-client-info': req.headers.get('x-client-info') || 'sim-sppg-transaction-action',
-    },
-    body: JSON.stringify(body),
-  });
-
-  const text = await upstream.text();
-  return new Response(text, {
-    status: upstream.status,
-    headers: {
-      ...CORS,
-      'Content-Type': upstream.headers.get('Content-Type') || 'application/json',
-      'X-Transaction-Action-Mode': 'bootstrap-proxy',
-    },
-  });
-});
+const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth:{persistSession:false,autoRefreshToken:false} });
+const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET, POST, OPTIONS'};
+const T={U:'USERS',X:'TRANSAKSI',A:'ADMIN_ASSIGNMENT',P:'TRANSAKSI_PAYMENT_PROOFS',L:'AUDIT LOG'};
+const B={foto:'transaksi-images',file:'transaksi-files',ttdUser:'paraf-user',nota:'nota-pembelian',ttdVerif:'paraf-verifikator',payment:'bukti-payment'};
+type Caller={id:string,email:string,role:string,sppg:string,yayasan:string,nama:string};
+const j=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...CORS,'Content-Type':'application/json'}});
+const s=(v:unknown)=>String(v??'').trim();
+const lo=(v:unknown)=>s(v).toLowerCase();
+const status=(v:unknown)=>{const x=s(v).toUpperCase().replace(/\s+/g,'_');return x==='LUNAS'?'SUDAH_DIBAYAR':(x||'BELUM_BAYAR')};
+const valid=(v:unknown)=>{const x=s(v);return !!x&&x!=='-'&&!/^(FOTO|FILE)$/i.test(x)};
+const date=(v:unknown)=>{const x=s(v);if(!x)return new Date().toISOString().slice(0,10);if(/^\d{4}-\d{2}-\d{2}/.test(x))return x.slice(0,10);const m=x.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/);return m?`${m[3]}-${m[2]}-${m[1]}`:x};
+const doc=(r:any)=>{const miss=[] as string[];if(!valid(r['UPLOUD FOTO'])&&!valid(r['UPLOUD FILE']))miss.push('Bukti Transaksi');if(!valid(r['TTD USER']))miss.push('TTD User');if(!valid(r['NOTA PEMBELIAN']))miss.push('Nota Pembelian');return miss.length?`Dokumen Tidak Lengkap: ${miss.join(', ')}`:'Dokumen Lengkap'};
+function bytes(v:string){const raw=v.includes(',')?v.split(',').pop()!:v;const bin=atob(raw);const out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
+function map(r:any){return{id:r.ID||'',kode:r['Kode Pemasukan']||'',tanggal:r.Tanggal||'',kategori:r.Kategori||'',jenisKategori:r['Jenis Kategori']||'',sppg:r.SPPG||'',yayasan:r.YAYASAN||'',nominal:Number(r.Nominal)||0,uploadFoto:r['UPLOUD FOTO']||'',uploadFile:r['UPLOUD FILE']||'',catatan:r.Catatan||'',user:r.User||'',item:r['Nama Item/ Bahan Baku']||'',namaItem:r['Nama Item/ Bahan Baku']||'',metodeTransaksi:status(r['Metode Transaksi']),ttdVerifikator:r['TTD VERIFIKATOR']||'',ttdUser:r['TTD USER']||'',notaPembelian:r['NOTA PEMBELIAN']||'',approvedBy:r['APPROVED BY']||'',waktuApprove:r['WAKTU APPROVE']||'',statusDokumen:r['STATUS DOKUMEN']||doc(r),catatanApproval:r.Catatan_1||''}}
+async function caller(req:Request):Promise<Caller>{const h=req.headers.get('Authorization')||'';const token=h.startsWith('Bearer ')?h.slice(7):'';if(!token)throw new Error('Token tidak ditemukan.');const {data,error}=await sb.auth.getUser(token);if(error||!data.user)throw new Error('Token tidak valid atau kedaluwarsa.');const q=await sb.from(T.U).select('ID,EMAIL,ROLE,SPPG,"NAMA YAYASAN","NAMA LENGKAP"').eq('ID',data.user.id).maybeSingle();if(q.error||!q.data)throw new Error('Profil user tidak ditemukan.');return{id:data.user.id,email:lo(data.user.email||q.data.EMAIL),role:s(q.data.ROLE).toUpperCase(),sppg:s(q.data.SPPG),yayasan:s(q.data['NAMA YAYASAN']),nama:s(q.data['NAMA LENGKAP'])}}
+async function pairs(c:Caller){if(c.role!=='ADMIN')return[];const q=await sb.from(T.A).select('sppg,yayasan').eq('admin_email',c.email);if(q.error)throw q.error;return(q.data||[]).map((r:any)=>[s(r.sppg),s(r.yayasan)])}
+async function pairOK(c:Caller,sp:unknown,ya:unknown){if(c.role==='SUPER_ADMIN')return true;if(c.role!=='ADMIN')return false;const x=s(sp),y=s(ya);return(await pairs(c)).some(([a,b])=>a===x&&b===y)}
+async function access(c:Caller,r:any){if(c.role==='SUPER_ADMIN')return true;if(c.role==='ADMIN')return pairOK(c,r.SPPG,r.YAYASAN);return lo(r.User)===c.email}
+async function tx(c:Caller,id:string){const q=await sb.from(T.X).select('*').eq('ID',id).maybeSingle();if(q.error)throw q.error;if(!q.data)throw new Error('Transaksi tidak ditemukan.');if(!(await access(c,q.data)))throw new Error('Akses transaksi ditolak.');return q.data}
+async function upload(kind:keyof typeof B,b64:string,mime:string,name:string,prefix:string){const rules:any={foto:/^image\/(jpeg|jpg|png|webp|heic|heif)$/i,file:/^(application\/pdf|image\/(jpeg|jpg|png|webp|heic|heif))$/i,ttdUser:/^image\/(png|jpeg|jpg|webp)$/i,nota:/^(application\/pdf|image\/(jpeg|jpg|png|webp|heic|heif))$/i,ttdVerif:/^image\/(png|jpeg|jpg|webp)$/i,payment:/^(application\/pdf|image\/(jpeg|jpg|png|webp|heic|heif))$/i};if(!rules[kind].test(s(mime)))throw new Error('Tipe MIME file tidak diizinkan.');if(!b64||!name)throw new Error('Data file tidak lengkap.');const path=`${prefix}_${Date.now()}_${crypto.randomUUID()}_${s(name).replace(/[^a-zA-Z0-9._-]/g,'_')}`;const q=await sb.storage.from(B[kind]).upload(path,bytes(b64),{contentType:mime,upsert:false});if(q.error)throw new Error(`Upload gagal: ${q.error.message}`);return path}
+async function sign(kind:keyof typeof B,path:unknown,mime?:string){if(!valid(path))return null;const q=await sb.storage.from(B[kind]).createSignedUrl(s(path),3600);if(q.error||!q.data?.signedUrl)return null;return{path:s(path),bucket:B[kind],name:s(path).split('/').pop(),signedUrl:q.data.signedUrl,signedThumbnailUrl:q.data.signedUrl,mimeType:mime||null}}
+async function audit(id:string,action:string,c:Caller,detail:any){try{await sb.from(T.L).insert({TIMESTAMP:new Date().toISOString(),USER_EMAIL:c.email,USER_NAME:c.nama,ROLE:c.role,SPPG:c.sppg,ACTION_TYPE:action,TABLE_NAME:T.X,RECORD_ID:id,FIELD_CHANGED:'TRANSACTION_SECURITY',OLD_VALUE:'',NEW_VALUE:JSON.stringify(detail).slice(0,500),DESCRIPTION:`${action} ${T.X}`,IP_USER:'',STATUS:'SUCCESS'})}catch(e){console.error('audit',e)}}
+async function list(filters:any,c:Caller){let q=sb.from(T.X).select('*').order('Tanggal',{ascending:false});if(filters?.sppg&&filters.sppg!=='ALL')q=q.eq('SPPG',filters.sppg);if(filters?.yayasan&&filters.yayasan!=='ALL')q=q.eq('YAYASAN',filters.yayasan);if(filters?.kategori&&filters.kategori!=='ALL')q=q.eq('Kategori',filters.kategori);if(filters?.dateStart)q=q.gte('Tanggal',date(filters.dateStart));if(filters?.dateEnd)q=q.lte('Tanggal',date(filters.dateEnd));const r=await q;if(r.error)throw r.error;const out=[];for(const row of r.data||[])if(await access(c,row))out.push(map(row));return out}
+async function detail(id:string,c:Caller){const r=await tx(c,id);const p=await sb.from(T.P).select('*').eq('transaksi_id',id).order('payment_sequence',{ascending:true});if(p.error)throw p.error;const proofs=[];for(const x of p.data||[])proofs.push({...x,nominal:Number(x.nominal)||0,file:await sign('payment',x.storage_path,x.mime_type),verifierSignature:await sign('ttdVerif',x.verifier_signature_path,'image/png')});return{...map(r),fileBuktiFoto:await sign('foto',r['UPLOUD FOTO']),fileBuktiFile:await sign('file',r['UPLOUD FILE']),fileBuktiApproval:await sign('payment',r['LINK FOTO/ FILE  BUKTI TRANSAKSI']),fileNota:await sign('nota',r['NOTA PEMBELIAN']),fileTtdUser:await sign('ttdUser',r['TTD USER']),fileTtdVerif:await sign('ttdVerif',r['TTD VERIFIKATOR']),paymentProofs:proofs}}
+async function add(d:any,c:Caller){const sp=(c.role==='ADMIN'||c.role==='SUPER_ADMIN')?s(d.sppg||c.sppg):c.sppg;const ya=(c.role==='ADMIN'||c.role==='SUPER_ADMIN')?s(d.yayasan||c.yayasan):c.yayasan;if(!sp||!ya)throw new Error('SPPG dan YAYASAN wajib tersedia.');if(c.role==='ADMIN'&&!(await pairOK(c,sp,ya)))throw new Error('Pasangan SPPG + YAYASAN tidak di-assign.');if(!(Number(d.nominal)>0))throw new Error('Nominal transaksi harus lebih dari 0.');const id=crypto.randomUUID().replaceAll('-','').slice(0,8).toUpperCase();const row:any={ID:id,'Kode Pemasukan':`TRX - ${crypto.randomUUID().slice(0,8)}`,Tanggal:date(d.tanggal),Kategori:s(d.kategori),'Jenis Kategori':s(d.jenisKategori),SPPG:sp,YAYASAN:ya,Nominal:Number(d.nominal),'UPLOUD FOTO':s(d.uploadFoto),'UPLOUD FILE':s(d.uploadFile),Catatan:s(d.catatan),Timestamp:new Date().toISOString(),User:c.email,'Nama Item/ Bahan Baku':s(d.namaItem||d.item),'Metode Transaksi':status(d.metodeTransaksi),'TTD VERIFIKATOR':'','TTD USER':s(d.ttdUser),'NOTA PEMBELIAN':s(d.notaPembelian),'APPROVED BY':'','WAKTU APPROVE':null,'LINK FOTO/ FILE  BUKTI TRANSAKSI':'','LINK  TTD USER':'','LINK FOTO NOTA':'',Catatan_1:'',Deskripsi:''};row['STATUS DOKUMEN']=doc(row);const q=await sb.from(T.X).insert(row).select().single();if(q.error)throw q.error;await audit(id,'ADD',c,{sp,ya});return{success:true,message:'Transaksi berhasil ditambahkan.',id,data:map(q.data)}}
+async function edit(id:string,f:any,c:Caller){const old=await tx(c,id);if(!['ADMIN','SUPER_ADMIN'].includes(c.role)&&status(old['Metode Transaksi'])==='SUDAH_DIBAYAR')throw new Error('Transaksi yang sudah dibayar tidak dapat diedit.');const m:any={'Tanggal':'Tanggal','Kategori':'Kategori','Jenis Kategori':'Jenis Kategori','SPPG':'SPPG','YAYASAN':'YAYASAN','Nama Item/Bahan Baku':'Nama Item/ Bahan Baku','Nominal':'Nominal','Catatan':'Catatan','Metode Transaksi':'Metode Transaksi','Upload Foto':'UPLOUD FOTO','Upload File':'UPLOUD FILE','Nota Pembelian':'NOTA PEMBELIAN','TTD User':'TTD USER'};const patch:any={};for(const [k,v]of Object.entries(f||{}))if(m[k])patch[m[k]]=m[k]==='Tanggal'?date(v):v;const sp=s(patch.SPPG??old.SPPG),ya=s(patch.YAYASAN??old.YAYASAN);if(c.role==='ADMIN'&&!(await pairOK(c,sp,ya)))throw new Error('Pasangan SPPG + YAYASAN tujuan tidak di-assign.');if(!['ADMIN','SUPER_ADMIN'].includes(c.role)){delete patch.SPPG;delete patch.YAYASAN;delete patch['Metode Transaksi']}patch['STATUS DOKUMEN']=doc({...old,...patch});const q=await sb.from(T.X).update(patch).eq('ID',id).select().single();if(q.error)throw q.error;await audit(id,'EDIT',c,{fields:Object.keys(patch)});return{success:true,message:'Transaksi berhasil diubah.',data:map(q.data)}}
+async function approve(d:any,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat melakukan approval.');const r=await tx(c,s(d.id||d.txId));let bp='',tt='';if(d.buktiBase64)bp=await upload('payment',d.buktiBase64,d.buktiMimeType||'image/png',d.buktiFileName||'bukti.png',`BUKTI_APPROVAL_${r.ID}`);if(d.ttdBase64)tt=await upload('ttdVerif',d.ttdBase64,'image/png',`TTD_${r.ID}.png`,`TTD_VERIF_${r.ID}`);const p:any={'Metode Transaksi':'SUDAH_DIBAYAR','APPROVED BY':s(d.approvedBy||c.nama||c.email),'WAKTU APPROVE':new Date().toISOString(),Catatan_1:s(d.catatanApproval)};if(bp)p['LINK FOTO/ FILE  BUKTI TRANSAKSI']=bp;if(tt)p['TTD VERIFIKATOR']=tt;const q=await sb.from(T.X).update(p).eq('ID',r.ID);if(q.error)throw q.error;await audit(r.ID,'APPROVE',c,{bp,tt});return{success:true,message:'Transaksi berhasil di-approve.'}}
+async function submitPayment(d:any,c:Caller){const r=await tx(c,s(d.txId));const nominal=Number(d.nominalDibayar);if(!(nominal>0))throw new Error('Nominal pembayaran harus lebih dari 0.');const ex=await sb.from(T.P).select('nominal,status').eq('transaksi_id',r.ID).neq('status','DITOLAK');if(ex.error)throw ex.error;const used=(ex.data||[]).reduce((n:number,x:any)=>n+Number(x.nominal||0),0);if(used+nominal>Number(r.Nominal||0))throw new Error('Nominal pembayaran melebihi sisa tagihan.');const path=await upload('payment',d.buktiBase64,d.buktiMimeType||'image/png',d.buktiFileName||'bukti.png',`BUKTI_USER_${r.ID}`);const last=await sb.from(T.P).select('payment_sequence').eq('transaksi_id',r.ID).order('payment_sequence',{ascending:false}).limit(1).maybeSingle();if(last.error)throw last.error;const seq=Number(last.data?.payment_sequence||0)+1;const ins=await sb.from(T.P).insert({transaksi_id:r.ID,payment_sequence:seq,nominal,storage_bucket:B.payment,storage_path:path,mime_type:d.buktiMimeType||'image/png',original_file_name:d.buktiFileName||'bukti.png',submitted_by:c.email,submitted_at:new Date().toISOString(),status:'MENUNGGU_VERIFIKASI'});if(ins.error)throw ins.error;const total=used+nominal,st=total>=Number(r.Nominal||0)?'MENUNGGU_VERIFIKASI':'BELUM_LUNAS';const up=await sb.from(T.X).update({'Metode Transaksi':st,Deskripsi:JSON.stringify({nominalDibayar:total,buktiPembayaranUser:path,submittedBy:c.email})}).eq('ID',r.ID);if(up.error)throw up.error;await audit(r.ID,'USER_SUBMIT_BUKTI',c,{seq,nominal,total,st});return{success:true,message:'Bukti pembayaran tersimpan dalam riwayat.',paymentSequence:seq,totalDibayar:total,status:st}}
+async function verify(d:any,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat memverifikasi.');const r=await tx(c,s(d.txId));let q=sb.from(T.P).select('*').eq('transaksi_id',r.ID);if(d.proofId)q=q.eq('id',d.proofId);else if(d.paymentSequence)q=q.eq('payment_sequence',Number(d.paymentSequence));else q=q.eq('status','MENUNGGU_VERIFIKASI').order('payment_sequence',{ascending:false}).limit(1);const p=await q.maybeSingle();if(p.error)throw p.error;if(!p.data)throw new Error('Bukti pembayaran tidak ditemukan.');const ok=d.accepted!==false&&s(d.status).toUpperCase()!=='DITOLAK';let tt='';if(d.ttdBase64)tt=await upload('ttdVerif',d.ttdBase64,'image/png',`TTD_${r.ID}.png`,`TTD_VERIF_${r.ID}`);const pu=await sb.from(T.P).update({status:ok?'TERVERIFIKASI':'DITOLAK',verified_by:c.email,verified_at:new Date().toISOString(),verifier_signature_path:tt||null,verification_notes:s(d.catatanApproval||d.verificationNotes)}).eq('id',p.data.id);if(pu.error)throw pu.error;const vv=await sb.from(T.P).select('nominal').eq('transaksi_id',r.ID).eq('status','TERVERIFIKASI');if(vv.error)throw vv.error;const total=(vv.data||[]).reduce((n:number,x:any)=>n+Number(x.nominal||0),0),st=total>=Number(r.Nominal||0)?'SUDAH_DIBAYAR':'BELUM_LUNAS';const patch:any={'Metode Transaksi':st,'APPROVED BY':c.nama||c.email,'WAKTU APPROVE':new Date().toISOString(),Catatan_1:s(d.catatanApproval)};if(tt)patch['TTD VERIFIKATOR']=tt;const xu=await sb.from(T.X).update(patch).eq('ID',r.ID);if(xu.error)throw xu.error;await audit(r.ID,'VERIFY_USER_PAYMENT',c,{proofId:p.data.id,ok,total,st});return{success:true,message:ok?'Bukti pembayaran berhasil diverifikasi.':'Bukti pembayaran ditolak.',totalVerified:total,status:st}}
+async function note(p:any[],c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Akses ditolak.');const a=p[0],id=typeof a==='object'?s(a.txId||a.id):s(a),n=typeof a==='object'?s(a.note||a.catatanApproval||a.catatan):s(p[1]);await tx(c,id);const q=await sb.from(T.X).update({Catatan_1:n}).eq('ID',id);if(q.error)throw q.error;return{success:true,message:'Catatan berhasil disimpan.'}}
+async function uploadFile(p:any[],c:Caller){const kind=s(p[3]) as keyof typeof B;if(!['foto','file','ttdUser','nota'].includes(kind))throw new Error('Tipe file transaksi tidak diizinkan.');const path=await upload(kind,p[0],p[1],p[2],`${kind}_${c.id}`);return{success:true,fileName:path,bucket:B[kind],viewUrl:(await sign(kind,path,p[1]))?.signedUrl||''}}
+async function del(id:string,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat menghapus transaksi.');await tx(c,id);const q=await sb.from(T.X).delete().eq('ID',id);if(q.error)throw q.error;await audit(id,'DELETE',c,{});return{success:true,message:'Transaksi berhasil dihapus.'}}
+const H:any={getTransactions:(p:any[],c:Caller)=>list(p[0]||{},c),getTransactionDetail:(p:any[],c:Caller)=>detail(s(p[0]),c),addTransaction:(p:any[],c:Caller)=>add(p[0]||{},c),editTransaction:(p:any[],c:Caller)=>edit(s(p[0]),p[1]||{},c),approveTransaction:(p:any[],c:Caller)=>approve(p[0]||{},c),submitUserBuktiPembayaran:(p:any[],c:Caller)=>submitPayment(p[0]||{},c),verifyUserPayment:(p:any[],c:Caller)=>verify(p[0]||{},c),sendCatatanApproval:note,uploadTxFile:uploadFile,deleteTransaction:(p:any[],c:Caller)=>del(s(p[0]),c)};
+Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method==='GET')return j({status:'ok',service:'transaction-action',version:2});if(req.method!=='POST')return j({error:'Method tidak didukung.'},405);try{const c=await caller(req),body=await req.json(),fn=H[body?.function];if(!fn)return j({error:`Fungsi tidak diizinkan: ${body?.function||''}`},404);const result=await fn(Array.isArray(body.parameters)?body.parameters:[],c);return j({result})}catch(e){const message=e instanceof Error?e.message:String(e);const denied=/akses|token|hanya admin|di-assign/i.test(message);console.error(message);return j({error:message,result:{success:false,message}},denied?403:400)}});
