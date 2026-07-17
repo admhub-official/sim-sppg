@@ -1,0 +1,26 @@
+name: Deploy file-access-action
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/file-access-action/**'
+      - '.github/workflows/deploy-file-access-action.yml'
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: |
+          set -euo pipefail
+          grep -q "getFileUrl" supabase/functions/file-access-action/index.ts
+          grep -q "showCredentials" supabase/functions/file-access-action/index.ts
+          supabase functions deploy file-access-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
