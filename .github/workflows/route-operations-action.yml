@@ -1,0 +1,61 @@
+name: Route operations-action frontend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/route-operations-action.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch app.js routing
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('app.js')
+          s=p.read_text(encoding='utf-8')
+          url="var OPERATIONS_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/operations-action';"
+          anchor="var TRANSACTION_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/transaction-action';"
+          if url not in s:
+              if anchor not in s: raise SystemExit('TRANSACTION_FN_URL anchor not found')
+              s=s.replace(anchor,anchor+'\n'+url,1)
+          map_code="""var OPERATIONS_FN = {
+            getAllUsers:1, deleteUser:1,
+            getPendingPayments:1, updatePendingPayment:1, deletePendingPayment:1,
+            getSurveiBahanBaku:1, updateSurvei:1, deleteSurvei:1,
+            getSerahTerima:1, updateSerahTerima:1, deleteSerahTerima:1,
+            getMenuHarian:1, updateMenuMBG:1, deleteMenuMBG:1
+          };"""
+          if 'var OPERATIONS_FN = {' not in s:
+              marker='var PUBLIC_FN = {'
+              if marker not in s: raise SystemExit('PUBLIC_FN marker not found')
+              s=s.replace(marker,map_code+'\n'+marker,1)
+          old="var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : SUPABASE_FN_URL);"
+          new="var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : SUPABASE_FN_URL));"
+          if new not in s:
+              if old not in s: raise SystemExit('requestUrl pattern not found')
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+      - name: Validate routing
+        run: |
+          grep -q 'OPERATIONS_FN_URL' app.js
+          grep -q 'OPERATIONS_FN\[fnName\]' app.js
+          grep -q 'deleteSerahTerima:1' app.js
+      - name: Commit frontend routing
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app.js
+          if git diff --cached --quiet; then
+            echo 'Routing already applied.'
+          else
+            git commit -m 'feat: route critical operations to hardened backend'
+            git push
+          fi
