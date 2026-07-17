@@ -8,17 +8,11 @@ async function canAccessSupplier(c:Caller,row:any){
   return !!pairs?.some(([sp,ya])=>sp===s(row?.SPPG)&&ya===s(row?.YAYASAN));
 }
 
-export async function getSupplier(c:Caller){
+export async function getSupplier(c:Caller,opt:any={}){
   const q=await sb.from('MASTER_SUPPLIER').select('*').order('ID',{ascending:false});
   if(q.error)throw q.error;
   const rows=q.data||[];
-  if(c.role==='SUPER_ADMIN')return{success:true,data:rows};
-  if(c.role==='USER')return{success:true,data:rows.filter((r:any)=>low(r.USER)===c.email||low(r.USER)===low(c.username))};
-  if(c.role==='ADMIN'){
-    const pairs=await exactPairs(c);
-    return{success:true,data:rows.filter((r:any)=>pairs?.some(([sp,ya])=>sp===s(r.SPPG)&&ya===s(r.YAYASAN)))};
-  }
-  return{success:true,data:[]};
+  let data:any[]=[];if(c.role==='SUPER_ADMIN')data=rows;else if(c.role==='USER')data=rows.filter((r:any)=>low(r.USER)===c.email||low(r.USER)===low(c.username));else if(c.role==='ADMIN'){const pairs=await exactPairs(c);data=rows.filter((r:any)=>pairs?.some(([sp,ya])=>sp===s(r.SPPG)&&ya===s(r.YAYASAN)))}const requested=Number(opt?.page)>0||Number(opt?.pageSize)>0;if(!requested)return{success:true,data};const page=Math.max(1,Math.floor(Number(opt.page)||1)),pageSize=Math.min(100,Math.max(1,Math.floor(Number(opt.pageSize)||25))),from=(page-1)*pageSize,total=data.length;return{success:true,data:data.slice(from,from+pageSize),page,pageSize,total,hasMore:from+pageSize<total};
 }
 
 export async function addSupplier(d:any,c:Caller){
