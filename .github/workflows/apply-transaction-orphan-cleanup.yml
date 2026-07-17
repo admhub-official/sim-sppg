@@ -20,6 +20,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Apply transaction cleanup patch
         run: python scripts/apply-transaction-orphan-cleanup.py
+      - name: Validate patched source
+        run: |
+          grep -q "function ownedUpload" supabase/functions/transaction-action/index.ts
+          grep -q "cleanup add orphan" supabase/functions/transaction-action/index.ts
+          grep -q "cleanup edit orphan" supabase/functions/transaction-action/index.ts
       - name: Commit source change
         run: |
           git config user.name github-actions[bot]
