@@ -1,0 +1,79 @@
+name: Apply transaction frontend routing
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-transaction-routing.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Patch app.js transaction routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app.js')
+          text = path.read_text(encoding='utf-8')
+
+          old_url = "var SUPABASE_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dynamic-action';\nvar SECURE_USER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/secure-user-action';"
+          new_url = "var SUPABASE_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/dynamic-action';\nvar TRANSACTION_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/transaction-action';\nvar SECURE_USER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/secure-user-action';\nvar TRANSACTION_FN = {\n  getTransactions:1, getTransactionDetail:1, addTransaction:1, editTransaction:1,\n  approveTransaction:1, submitUserBuktiPembayaran:1, verifyUserPayment:1,\n  sendCatatanApproval:1, uploadTxFile:1, deleteTransaction:1\n};"
+
+          old_route = "var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : SUPABASE_FN_URL;"
+          new_route = "var requestUrl = isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : SUPABASE_FN_URL);"
+
+          changed = False
+          if 'var TRANSACTION_FN_URL =' not in text:
+              if old_url not in text:
+                  raise SystemExit('Anchor URL block tidak ditemukan; app.js tidak diubah.')
+              text = text.replace(old_url, new_url, 1)
+              changed = True
+
+          if new_route not in text:
+              if old_route not in text:
+                  raise SystemExit('Anchor requestUrl tidak ditemukan; app.js tidak diubah.')
+              text = text.replace(old_route, new_route, 1)
+              changed = True
+
+          if not changed:
+              print('Routing transaksi sudah terpasang; tidak ada perubahan.')
+          else:
+              path.write_text(text, encoding='utf-8')
+              print('Routing transaksi berhasil dipasang.')
+          PY
+
+      - name: Validate patched routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "TRANSACTION_FN_URL.*transaction-action" app.js
+          grep -q "TRANSACTION_FN\[fnName\].*TRANSACTION_FN_URL" app.js
+          grep -q "getTransactions:1" app.js
+          grep -q "deleteTransaction:1" app.js
+
+      - name: Commit frontend routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- app.js; then
+            echo "No app.js changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js
+          git commit -m "feat: route transaction actions to hardened backend"
+          git push origin HEAD:main
