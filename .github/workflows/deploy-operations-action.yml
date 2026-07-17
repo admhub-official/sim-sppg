@@ -1,0 +1,43 @@
+name: Deploy operations-action
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/operations-action/**'
+      - '.github/workflows/deploy-operations-action.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-operations-action-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate hardened source
+        run: |
+          set -euo pipefail
+          test -s supabase/functions/operations-action/index.ts
+          grep -q 'pairOK' supabase/functions/operations-action/index.ts
+          grep -q 'requireRecord' supabase/functions/operations-action/index.ts
+          grep -q 'ownerOK' supabase/functions/operations-action/index.ts
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy operations-action
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          supabase functions deploy operations-action --project-ref "$SUPABASE_PROJECT_REF" --use-api --debug
+      - name: Verify metadata
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
