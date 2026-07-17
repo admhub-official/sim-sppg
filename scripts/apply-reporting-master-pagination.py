@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 # reporting/activity.ts
 p=Path('supabase/functions/reporting-action/activity.ts')
@@ -24,14 +25,21 @@ s=s.replace("export async function getSupplier(c:Caller){", "export async functi
 s=s.replace("  if(c.role==='SUPER_ADMIN')return{success:true,data:rows};\n  if(c.role==='USER')return{success:true,data:rows.filter((r:any)=>low(r.USER)===c.email||low(r.USER)===low(c.username))};\n  if(c.role==='ADMIN'){\n    const pairs=await exactPairs(c);\n    return{success:true,data:rows.filter((r:any)=>pairs?.some(([sp,ya])=>sp===s(r.SPPG)&&ya===s(r.YAYASAN)))};\n  }\n  return{success:true,data:[]};", "  let data:any[]=[];if(c.role==='SUPER_ADMIN')data=rows;else if(c.role==='USER')data=rows.filter((r:any)=>low(r.USER)===c.email||low(r.USER)===low(c.username));else if(c.role==='ADMIN'){const pairs=await exactPairs(c);data=rows.filter((r:any)=>pairs?.some(([sp,ya])=>sp===s(r.SPPG)&&ya===s(r.YAYASAN)))}const requested=Number(opt?.page)>0||Number(opt?.pageSize)>0;if(!requested)return{success:true,data};const page=Math.max(1,Math.floor(Number(opt.page)||1)),pageSize=Math.min(100,Math.max(1,Math.floor(Number(opt.pageSize)||25))),from=(page-1)*pageSize,total=data.length;return{success:true,data:data.slice(from,from+pageSize),page,pageSize,total,hasMore:from+pageSize<total};")
 p.write_text(s)
 
-# master index routing
+# master index routing: regex tolerates whitespace/minification changes
 p=Path('supabase/functions/master-action/index.ts')
 s=p.read_text()
-s=s.replace("getMasterBahanBaku:(p:any[],c:Caller)=>getBB()", "getMasterBahanBaku:(p:any[],c:Caller)=>getBB(p[0]||{})")
-s=s.replace("getMasterSupplier:(p:any[],c:Caller)=>getSupplier(c)", "getMasterSupplier:(p:any[],c:Caller)=>getSupplier(c,p[0]||{})")
+s=re.sub(r"getMasterBahanBaku:\(p:any\[\],c:Caller\)=>getBB\(\)", "getMasterBahanBaku:(p:any[],c:Caller)=>getBB(p[0]||{})", s)
+s=re.sub(r"getMasterSupplier:\(p:any\[\],c:Caller\)=>getSupplier\(c\)", "getMasterSupplier:(p:any[],c:Caller)=>getSupplier(c,p[0]||{})", s)
 p.write_text(s)
 
-for f in ['supabase/functions/reporting-action/activity.ts','supabase/functions/master-action/master-bb.ts','supabase/functions/master-action/supplier.ts','supabase/functions/master-action/index.ts']:
+checks={
+ 'supabase/functions/reporting-action/activity.ts':['function pageSpec','hasMore'],
+ 'supabase/functions/master-action/master-bb.ts':['pageSize','hasMore'],
+ 'supabase/functions/master-action/supplier.ts':['pageSize','hasMore'],
+ 'supabase/functions/master-action/index.ts':['getBB(p[0]||{})','getSupplier(c,p[0]||{})'],
+}
+for f,needles in checks.items():
     text=Path(f).read_text()
-    if 'pageSize' not in text:
-        raise SystemExit(f'pagination validation failed: {f}')
+    for needle in needles:
+        if needle not in text:
+            raise SystemExit(f'pagination validation failed: {f} missing {needle}')
