@@ -1,0 +1,30 @@
+name: Apply operations pagination
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-operations-pagination.py'
+      - '.github/workflows/apply-operations-pagination.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply compatible pagination
+        run: python scripts/apply-operations-pagination.py
+      - name: Commit source
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add supabase/functions/operations-action/index.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add compatible pagination to operations endpoints"
+          git push
