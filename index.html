@@ -6192,6 +6192,38 @@
             <input type="text" id="editTxCatatan" class="form-input" placeholder="Catatan transaksi">
           </div>
         </div>
+
+        <!-- Preview dokumen saat ini -->
+        <div id="editTxFilePreview"></div>
+
+        <!-- Ganti Bukti Transaksi -->
+        <div class="form-group">
+          <label class="form-label">Ganti Bukti Transaksi (opsional)</label>
+          <div class="file-input-wrap">
+            <input type="file" id="editTxFoto" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" onchange="updateFileLabel(this,'editTxLabelFoto')">
+            <div class="file-input-label" id="editTxLabelFoto"><i class="fas fa-camera"></i><span>Kamera / Galeri / File</span></div>
+          </div>
+          <p class="form-hint"><i class="fas fa-info-circle"></i> Biarkan kosong jika tidak ingin mengganti file yang sudah ada.</p>
+        </div>
+
+        <!-- Ganti Nota Pembelian -->
+        <div class="form-group">
+          <label class="form-label">Ganti Nota Pembelian (opsional)</label>
+          <div class="file-input-wrap">
+            <input type="file" id="editTxNota" accept="image/*,.pdf" onchange="updateFileLabel(this,'editTxLabelNota')">
+            <div class="file-input-label" id="editTxLabelNota"><i class="fas fa-receipt"></i><span>Pilih nota pembelian</span></div>
+          </div>
+        </div>
+
+        <!-- Ganti TTD Digital -->
+        <div class="form-group" id="editTxTtdSection">
+          <label class="form-label">Ganti Tanda Tangan Digital (opsional)</label>
+          <div class="canvas-container" id="editTxTtdWrap"><canvas id="editTxTtdCanvas"></canvas></div>
+          <div class="canvas-actions">
+            <button type="button" onclick="clearTtdCanvas('editTxTtdCanvas')"><i class="fas fa-eraser"></i> Hapus TTD</button>
+          </div>
+        </div>
+
       </div>
       <div class="modal-footer">
         <button onclick="closeModal('modalEditTransaksi')" class="btn btn-outline">Batal</button>

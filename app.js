@@ -2655,7 +2655,7 @@ function renderTransaksiTable() {
         '<div class="action-group" style="opacity:1;">' +
           '<button class="action-btn view" onclick="openDetailTransaksi(\'' + esc(tx.id) + '\')" title="Detail Transaksi"><i class="fas fa-eye"></i><span class="tooltip">Detail</span></button>' +
           (isAdmin && !isPaid ? '<button class="action-btn approve" onclick="openApprovalModal(\'' + esc(tx.id) + '\')" title="Approve"><i class="fas fa-check"></i><span class="tooltip">Approve</span></button>' : '') +
-          (isAdmin ? '<button class="action-btn edit" onclick="openEditTransaksi(\'' + esc(tx.id) + '\')" title="Edit Transaksi"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
+          ((isAdmin || !isPaid) ? '<button class="action-btn edit" onclick="openEditTransaksi(\'' + esc(tx.id) + '\')" title="Edit Transaksi"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
           (isAdmin ? '<button class="action-btn delete" onclick="confirmHapus(\'transaksi\',0,\'' + esc(tx.id) + '\',\'transaksi ' + esc((tx.kode||'').substring(0,15)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
         '</div></td></tr>';
   });
@@ -2688,20 +2688,55 @@ function filterTransaksi() {
   renderTransaksiTable();
 }
 
+var editTxExistingFiles = { uploadFoto: '', notaPembelian: '', ttdUser: '' };
+
 function openEditTransaksi(id) {
-  var tx = allTransactions.find(function(t) { return t.id === id; });
-  if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
-  $('editTxId').value = tx.id;
-  $('editTxTanggal').value = tx.tanggal ? tx.tanggal.split('/').reverse().join('-') : '';
-  $('editTxKategori').value = tx.kategori || 'PENGELUARAN';
-  $('editTxJenisKat').value = tx.jenisKategori || '';
-  $('editTxSPPG').value = tx.sppg || '';
-  $('editTxItem').value = tx.item || '';
-  $('editTxNominal').value = tx.nominal || '';
-  $('editTxCatatan').value = tx.catatan || '';
-  $('editTxMetode').value = tx.metodeTransaksi || 'BELUM_BAYAR';
-  openModal('modalEditTransaksi');
+  var isAdminUser = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
+  showLoading(true);
+  callApi('getTransactionDetail', [id], function(tx) {
+      showLoading(false);
+      if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
+      $('editTxId').value = tx.id;
+      $('editTxTanggal').value = tx.tanggal ? tx.tanggal.split('/').reverse().join('-') : '';
+      $('editTxKategori').value = tx.kategori || 'PENGELUARAN';
+      $('editTxJenisKat').value = tx.jenisKategori || '';
+      $('editTxSPPG').value = tx.sppg || '';
+      $('editTxItem').value = tx.item || '';
+      $('editTxNominal').value = tx.nominal || '';
+      $('editTxCatatan').value = tx.catatan || '';
+      $('editTxMetode').value = tx.metodeTransaksi || 'BELUM_BAYAR';
+
+      editTxExistingFiles = {
+        uploadFoto: tx.uploadFoto || '',
+        notaPembelian: tx.notaPembelian || '',
+        ttdUser: tx.ttdUser || ''
+      };
+      if ($('editTxFoto')) $('editTxFoto').value = '';
+      if ($('editTxNota')) $('editTxNota').value = '';
+      var lblFoto = $('editTxLabelFoto'); if (lblFoto) lblFoto.innerHTML = '<i class="fas fa-camera"></i><span>Kamera / Galeri / File</span>';
+      var lblNota = $('editTxLabelNota'); if (lblNota) lblNota.innerHTML = '<i class="fas fa-receipt"></i><span>Pilih nota pembelian</span>';
+      var previewBox = $('editTxFilePreview');
+      if (previewBox) {
+        previewBox.innerHTML =
+          renderFilePreview(tx.fileBukti, 'Bukti Transaksi Saat Ini', 'fa-camera') +
+          renderFilePreview(tx.fileNota, 'Nota Pembelian Saat Ini', 'fa-receipt') +
+          renderFilePreview(tx.fileTtdUser, 'TTD User Saat Ini', 'fa-signature');
+      }
+
+      var metodeSel = $('editTxMetode');
+      if (metodeSel) metodeSel.disabled = !isAdminUser;
+      var ttdSection = $('editTxTtdSection');
+      if (ttdSection) ttdSection.style.display = '';
+
+      openModal('modalEditTransaksi');
+      setTimeout(function() { initTtdCanvas('editTxTtdCanvas'); }, 100);
+    },
+    function(err) {
+      showLoading(false); showToast('error', 'Error', 'Gagal memuat data');
+    }
+  );
 }
+
 function saveEditTransaksi() {
   var id = $('editTxId').value;
   var fields = {
@@ -2715,18 +2750,60 @@ function saveEditTransaksi() {
     'Metode Transaksi': $('editTxMetode').value
   };
   showLoading(true);
-    callApi('editTransaction', [
-      id,
-      fields
-    ], function(result) {
+
+  var fotoFile = $('editTxFoto') ? $('editTxFoto').files[0] : null;
+  var notaFile = $('editTxNota') ? $('editTxNota').files[0] : null;
+  var ttdCanvas = $('editTxTtdCanvas');
+  var uploadsPending = 0;
+
+  function doSubmit() {
+    callApi('editTransaction', [id, fields], function(result) {
         showLoading(false);
-              if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditTransaksi'); loadTransactions(); loadDashboardData(); }
-              else { showToast('error', 'Gagal', result.message); }
+        if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditTransaksi'); loadTransactions(); loadDashboardData(); }
+        else { showToast('error', 'Gagal', result.message); }
       },
       function(err) {
         showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
       }
     );
+  }
+
+  if (fotoFile) {
+    uploadsPending++;
+    var r = new FileReader();
+    r.onload = function(e) {
+      var b64 = e.target.result.split(',')[1];
+      callApi('uploadTxFile', [b64, fotoFile.type, fotoFile.name, 'foto'], function(up) {
+        if (up.success) fields['Upload Foto'] = up.fileName;
+        uploadsPending--; if (!uploadsPending) doSubmit();
+      }, null);
+    };
+    r.readAsDataURL(fotoFile);
+  }
+
+  if (notaFile) {
+    uploadsPending++;
+    var r2 = new FileReader();
+    r2.onload = function(e) {
+      var b64 = e.target.result.split(',')[1];
+      callApi('uploadTxFile', [b64, notaFile.type, notaFile.name, 'nota'], function(up) {
+        if (up.success) fields['Nota Pembelian'] = up.fileName;
+        uploadsPending--; if (!uploadsPending) doSubmit();
+      }, null);
+    };
+    r2.readAsDataURL(notaFile);
+  }
+
+  if (ttdCanvas && !isCanvasBlank('editTxTtdCanvas')) {
+    var ttdBase64 = ttdCanvas.toDataURL('image/png').split(',')[1];
+    uploadsPending++;
+    callApi('uploadTxFile', [ttdBase64, 'image/png', 'TTD_USER_' + Date.now() + '.png', 'ttdUser'], function(up) {
+      if (up.success) fields['TTD User'] = up.fileName;
+      uploadsPending--; if (!uploadsPending) doSubmit();
+    }, null);
+  }
+
+  if (!uploadsPending) doSubmit();
 }
 
 function getMetodeBadge(m) {
