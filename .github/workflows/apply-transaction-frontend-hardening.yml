@@ -1,0 +1,39 @@
+name: Apply transaction frontend hardening
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/apply_transaction_frontend_hardening.py
+      - .github/workflows/apply-transaction-frontend-hardening.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-app-js:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply frontend patch
+        run: python3 scripts/apply_transaction_frontend_hardening.py
+
+      - name: Validate JavaScript syntax
+        run: node --check app.js
+
+      - name: Commit generated update
+        run: |
+          if git diff --quiet -- app.js; then
+            echo "No app.js changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app.js
+          git commit -m "Harden transaction document frontend"
+          git push
