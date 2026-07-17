@@ -29,9 +29,14 @@ jobs:
           test -s supabase/functions/master-action/index.ts
           grep -q "ADMIN_ASSIGNMENT" supabase/functions/master-action/core.ts
           grep -q "10 MB" supabase/functions/master-action/core.ts
+          grep -q 'getBB(p\[0\]||{})' supabase/functions/master-action/index.ts
+          grep -q 'getSupplier(c,p\[0\]||{})' supabase/functions/master-action/index.ts
+          grep -q 'hasMore' supabase/functions/master-action/master-bb.ts
+          grep -q 'hasMore' supabase/functions/master-action/supplier.ts
       - name: Deploy
         run: |
           set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
           supabase functions deploy master-action --project-ref "$SUPABASE_PROJECT_REF" --use-api --debug
       - name: Verify
         run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
