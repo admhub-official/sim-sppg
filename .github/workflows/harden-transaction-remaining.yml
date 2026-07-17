@@ -1,0 +1,88 @@
+name: Harden remaining transaction safeguards
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/harden-transaction-remaining.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch transaction backend
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('supabase/functions/transaction-action/index.ts')
+          text = path.read_text(encoding='utf-8')
+
+          old_doc = "const doc=(r:any)=>{const miss=[] as string[];if(!valid(r['UPLOUD FOTO'])&&!valid(r['UPLOUD FILE']))miss.push('Bukti Transaksi');if(!valid(r['TTD USER']))miss.push('TTD User');if(!valid(r['NOTA PEMBELIAN']))miss.push('Nota Pembelian');return miss.length?`Dokumen Tidak Lengkap: ${miss.join(', ')}`:'Dokumen Lengkap'};"
+          new_doc = "const missingDocs=(r:any)=>{const miss=[] as string[];if(!valid(r['UPLOUD FOTO'])&&!valid(r['UPLOUD FILE']))miss.push('Bukti Transaksi');if(!valid(r['TTD USER']))miss.push('TTD User');if(!valid(r['NOTA PEMBELIAN']))miss.push('Nota Pembelian');return miss};\nconst doc=(r:any)=>{const miss=missingDocs(r);return miss.length?`Dokumen Tidak Lengkap: ${miss.join(', ')}`:'Dokumen Lengkap'};\nconst requireCompleteDocs=(r:any)=>{const miss=missingDocs(r);if(miss.length)throw new Error(`Upload wajib belum lengkap atau gagal: ${miss.join(', ')}.`)};"
+          if old_doc in text:
+              text = text.replace(old_doc, new_doc, 1)
+          elif 'const missingDocs=' not in text:
+              raise SystemExit('Pola fungsi doc tidak ditemukan')
+
+          old_map = "statusDokumen:r['STATUS DOKUMEN']||doc(r)"
+          new_map = "statusDokumen:doc(r)"
+          if old_map in text:
+              text = text.replace(old_map, new_map, 1)
+          elif new_map not in text:
+              raise SystemExit('Pola statusDokumen map tidak ditemukan')
+
+          old_add = "row['STATUS DOKUMEN']=doc(row);const q=await sb.from(T.X).insert(row)"
+          new_add = "requireCompleteDocs(row);row['STATUS DOKUMEN']=doc(row);const q=await sb.from(T.X).insert(row)"
+          if old_add in text:
+              text = text.replace(old_add, new_add, 1)
+          elif new_add not in text:
+              raise SystemExit('Pola validasi addTransaction tidak ditemukan')
+
+          old_edit = "patch['STATUS DOKUMEN']=doc({...old,...patch});const q=await sb.from(T.X).update(patch)"
+          new_edit = "const merged={...old,...patch};requireCompleteDocs(merged);patch['STATUS DOKUMEN']=doc(merged);const q=await sb.from(T.X).update(patch)"
+          if old_edit in text:
+              text = text.replace(old_edit, new_edit, 1)
+          elif new_edit not in text:
+              raise SystemExit('Pola validasi editTransaction tidak ditemukan')
+
+          old_del = "async function del(id:string,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat menghapus transaksi.');await tx(c,id);const q=await sb.from(T.X).delete().eq('ID',id);if(q.error)throw q.error;await audit(id,'DELETE',c,{});return{success:true,message:'Transaksi berhasil dihapus.'}}"
+          new_del = "async function removeFiles(items:{bucket:string,path:string}[]){const grouped=new Map<string,string[]>();for(const x of items){if(!valid(x.path)||!x.bucket)continue;const a=grouped.get(x.bucket)||[];if(!a.includes(s(x.path)))a.push(s(x.path));grouped.set(x.bucket,a)}for(const [bucket,paths] of grouped){if(!paths.length)continue;const q=await sb.storage.from(bucket).remove(paths);if(q.error)throw new Error(`Gagal membersihkan Storage ${bucket}: ${q.error.message}`)}}\nasync function del(id:string,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat menghapus transaksi.');const r=await tx(c,id);const pq=await sb.from(T.P).select('storage_bucket,storage_path,verifier_signature_path').eq('transaksi_id',id);if(pq.error)throw pq.error;const files:{bucket:string,path:string}[]=[{bucket:B.foto,path:r['UPLOUD FOTO']},{bucket:B.file,path:r['UPLOUD FILE']},{bucket:B.ttdUser,path:r['TTD USER']},{bucket:B.nota,path:r['NOTA PEMBELIAN']},{bucket:B.ttdVerif,path:r['TTD VERIFIKATOR']},{bucket:B.payment,path:r['LINK FOTO/ FILE  BUKTI TRANSAKSI']}];for(const p of pq.data||[]){files.push({bucket:s(p.storage_bucket)||B.payment,path:p.storage_path},{bucket:B.ttdVerif,path:p.verifier_signature_path})}await removeFiles(files);const q=await sb.from(T.X).delete().eq('ID',id);if(q.error)throw q.error;await audit(id,'DELETE',c,{storageFilesDeleted:files.filter(x=>valid(x.path)).length});return{success:true,message:'Transaksi dan file Storage terkait berhasil dihapus.'}}"
+          if old_del in text:
+              text = text.replace(old_del, new_del, 1)
+          elif 'async function removeFiles(' not in text:
+              raise SystemExit('Pola deleteTransaction tidak ditemukan')
+
+          text = text.replace("service:'transaction-action',version:2", "service:'transaction-action',version:3")
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'const missingDocs=' supabase/functions/transaction-action/index.ts
+          grep -q 'requireCompleteDocs(row)' supabase/functions/transaction-action/index.ts
+          grep -q 'async function removeFiles' supabase/functions/transaction-action/index.ts
+          grep -q "version:3" supabase/functions/transaction-action/index.ts
+
+      - name: Commit patched backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Patch already applied.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/transaction-action/index.ts
+          git commit -m 'feat: enforce complete uploads and storage cleanup'
+          git push
