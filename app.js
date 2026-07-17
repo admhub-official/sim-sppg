@@ -2885,8 +2885,6 @@ function updateAddTxMetodeStyle() {
 }
 
 function saveAddTransaksi() {
-
-function saveAddTransaksi() {
   var data = {
     tanggal: $('addTxTanggal').value,
     kategori: $('addTxKategori').value,
