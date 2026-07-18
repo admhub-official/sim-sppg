@@ -1,0 +1,39 @@
+name: Apply notification frontend pagination
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-notification-pagination.py'
+      - '.github/workflows/apply-notification-pagination.yml'
+
+concurrency:
+  group: frontend-pagination-patches
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply notification pagination
+        run: python -u scripts/apply-notification-pagination.py
+      - name: Validate source
+        run: |
+          node --check app.js
+          grep -Fq 'notifServerPaged' app.js
+          grep -Fq 'function loadMoreNotifications()' app.js
+          grep -Fq "getNotifications', [{ page: page, pageSize: notifPageSize }]" app.js
+      - name: Commit source
+        run: |
+          if git diff --quiet -- app.js; then echo 'No changes'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js
+          git commit -m 'feat: paginate notification panel'
+          git push
