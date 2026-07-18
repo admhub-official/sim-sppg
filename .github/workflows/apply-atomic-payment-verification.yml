@@ -1,0 +1,42 @@
+name: Apply atomic payment verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-atomic-payment-verification.py'
+      - '.github/workflows/apply-atomic-payment-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atomic-payment-verification
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply atomic verification patch
+        run: python scripts/apply-atomic-payment-verification.py
+      - name: Validate source
+        run: |
+          grep -Fq 'verify_transaction_payment_atomic' supabase/functions/transaction-action/index.ts
+          grep -Fq 'p_verifier_signature_path:tt||null' supabase/functions/transaction-action/index.ts
+          grep -Fq 'atomic:true' supabase/functions/transaction-action/index.ts
+          grep -Fq 'remove([tt])' supabase/functions/transaction-action/index.ts
+      - name: Commit source
+        run: |
+          if git diff --quiet -- supabase/functions/transaction-action/index.ts; then
+            echo 'No source change required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/transaction-action/index.ts
+          git commit -m 'feat: verify payments atomically'
+          git push
