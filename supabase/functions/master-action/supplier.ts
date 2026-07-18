@@ -29,8 +29,9 @@ export async function addSupplier(d:any,c:Caller){
     'TTD SUPPLIER':s(d.TTD_SUPPLIER),'FILE MOU':s(d.FILE_MOU),'LINK FILE MOU':'',STATUS:s(d.STATUS||'Aktif'),
     USER:c.email,SPPG:c.sppg,YAYASAN:c.yayasan
   };
+  const fresh=[{bucket:B.supplierFoto,path:row['FOTO SUPPLIER']},{bucket:B.supplierTtd,path:row['TTD SUPPLIER']},{bucket:B.supplierMou,path:row['FILE MOU']}];
   const q=await sb.from('MASTER_SUPPLIER').insert(row);
-  if(q.error)throw q.error;
+  if(q.error){await removeFiles(fresh).catch(e=>console.error('cleanup supplier add orphan',e));throw q.error;}
   await audit(c,id,'ADD','MASTER_SUPPLIER',{nama:row['NAMA SUPPLIER'],sppg:row.SPPG,yayasan:row.YAYASAN});
   return{success:true,message:'Supplier berhasil ditambahkan.',id};
 }
@@ -42,8 +43,12 @@ export async function updateSupplier(id:string,f:any,c:Caller){
   if(!await canAccessSupplier(c,old.data))throw new Error('Akses supplier ditolak.');
   const allow=['NAMA SUPPLIER','NO WHATSAPP','EMAIL','ALAMAT TOKO','FOTO SUPPLIER','TTD SUPPLIER','FILE MOU','STATUS'];
   const patch:any={};for(const k of allow)if(f[k]!==undefined)patch[k]=f[k];
+  const fresh:any[]=[];
+  if(patch['FOTO SUPPLIER']!==undefined&&s(patch['FOTO SUPPLIER'])!==s(old.data['FOTO SUPPLIER']))fresh.push({bucket:B.supplierFoto,path:patch['FOTO SUPPLIER']});
+  if(patch['TTD SUPPLIER']!==undefined&&s(patch['TTD SUPPLIER'])!==s(old.data['TTD SUPPLIER']))fresh.push({bucket:B.supplierTtd,path:patch['TTD SUPPLIER']});
+  if(patch['FILE MOU']!==undefined&&s(patch['FILE MOU'])!==s(old.data['FILE MOU']))fresh.push({bucket:B.supplierMou,path:patch['FILE MOU']});
   const q=await sb.from('MASTER_SUPPLIER').update(patch).eq('ID',id);
-  if(q.error)throw q.error;
+  if(q.error){await removeFiles(fresh).catch(e=>console.error('cleanup supplier update orphan',e));throw q.error;}
   const cleanup:any[]=[];
   if(patch['FOTO SUPPLIER']!==undefined&&s(patch['FOTO SUPPLIER'])!==s(old.data['FOTO SUPPLIER']))cleanup.push({bucket:B.supplierFoto,path:old.data['FOTO SUPPLIER']});
   if(patch['TTD SUPPLIER']!==undefined&&s(patch['TTD SUPPLIER'])!==s(old.data['TTD SUPPLIER']))cleanup.push({bucket:B.supplierTtd,path:old.data['TTD SUPPLIER']});
@@ -58,8 +63,9 @@ export async function deleteSupplier(id:string,c:Caller){
   const old=await sb.from('MASTER_SUPPLIER').select('*').eq('ID',id).maybeSingle();
   if(old.error||!old.data)throw new Error('Supplier tidak ditemukan.');
   if(!await canAccessSupplier(c,old.data))throw new Error('Akses supplier ditolak.');
-  await removeFiles([{bucket:B.supplierFoto,path:old.data['FOTO SUPPLIER']},{bucket:B.supplierTtd,path:old.data['TTD SUPPLIER']},{bucket:B.supplierMou,path:old.data['FILE MOU']}]);
+  const files=[{bucket:B.supplierFoto,path:old.data['FOTO SUPPLIER']},{bucket:B.supplierTtd,path:old.data['TTD SUPPLIER']},{bucket:B.supplierMou,path:old.data['FILE MOU']}];
   const q=await sb.from('MASTER_SUPPLIER').delete().eq('ID',id);if(q.error)throw q.error;
+  await removeFiles(files).catch(e=>console.error('cleanup deleted supplier files',e));
   await audit(c,id,'DELETE','MASTER_SUPPLIER',{});
   return{success:true,message:'Supplier dan file terkait berhasil dihapus.'};
 }
