@@ -1,0 +1,88 @@
+name: Frontend quality gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app.js'
+      - 'uiux-fixes.js'
+      - 'sw.js'
+      - 'index.html'
+      - '.github/workflows/frontend-quality-gate.yml'
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'uiux-fixes.js'
+      - 'sw.js'
+      - 'index.html'
+
+concurrency:
+  group: frontend-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check app.js
+          node --check uiux-fixes.js
+          node --check sw.js
+
+      - name: Reject unresolved merge markers
+        run: |
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js uiux-fixes.js sw.js index.html; then
+            echo 'Unresolved merge marker detected.' >&2
+            exit 1
+          fi
+
+      - name: Validate backend routing constants
+        run: |
+          grep -Fq 'TRANSACTION_FN_URL' app.js
+          grep -Fq 'OPERATIONS_FN_URL' app.js
+          grep -Fq 'REPORTING_FN_URL' app.js
+          grep -Fq 'MASTER_FN_URL' app.js
+          grep -Fq 'FILE_ACCESS_FN_URL' app.js
+          grep -Fq 'REGISTER_FN_URL' app.js
+
+      - name: Validate pagination integrations
+        run: |
+          for token in \
+            txServerPaged \
+            usersServerPaged \
+            bbServerPaged \
+            supplierServerPaged \
+            surveiServerPaged \
+            stServerPaged \
+            menuServerPaged \
+            pendingServerPaged \
+            auditServerPaged; do
+            grep -Fq "$token" app.js || { echo "Missing pagination token: $token" >&2; exit 1; }
+          done
+          grep -Fq "getTransactions" app.js
+          grep -Fq "getAllUsers" app.js
+          grep -Fq "getMasterBahanBaku" app.js
+          grep -Fq "getMasterSupplier" app.js
+          grep -Fq "getSurveiBahanBaku" app.js
+          grep -Fq "getSerahTerima" app.js
+          grep -Fq "getMenuHarian" app.js
+          grep -Fq "getPendingPayments" app.js
+          grep -Fq "getAuditLog" app.js
+
+      - name: Check accidental credential literals
+        run: |
+          if grep -RInE '(service_role|SUPABASE_SERVICE_ROLE_KEY)[[:space:]]*[:=][[:space:]]*["'"'][A-Za-z0-9._-]{20,}' -- app.js uiux-fixes.js sw.js index.html; then
+            echo 'Possible privileged credential literal detected in frontend.' >&2
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo 'Frontend syntax, routing, pagination, merge markers, and credential checks passed.'
