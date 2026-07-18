@@ -76,3 +76,4 @@ s=s.replace(old_pop,new_pop)
 for t in ['pendingServerPaged','auditServerPaged','getPendingPayments','getAuditLog']:
     if t not in s:raise SystemExit('validation '+t)
 p.write_text(s)
+# trigger after menu pagination commit
