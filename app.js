@@ -2695,11 +2695,16 @@ function loadTransactions(page, forceAll) {
 function populateSPPGFilter() {
   var sel = $('txFilterSPPG');
   if (!sel) return;
+  var selected = sel.value || 'ALL';
   var sppgSet = {};
   allTransactions.forEach(function(t) { if (t.sppg) sppgSet[t.sppg] = true; });
   var html = '<option value="ALL">Semua SPPG</option>';
   Object.keys(sppgSet).sort().forEach(function(s) { html += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
   sel.innerHTML = html;
+  if (selected !== 'ALL' && !sppgSet[selected]) {
+    sel.insertAdjacentHTML('beforeend', '<option value="' + esc(selected) + '">' + esc(selected) + '</option>');
+  }
+  sel.value = selected;
 }
 
 function renderTransaksiTable() {
