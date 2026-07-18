@@ -1,0 +1,33 @@
+name: Public gateway smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/public-gateway-smoke.mjs'
+      - 'uiux-fixes.js'
+      - 'supabase/functions/auth-public-action/**'
+      - 'supabase/functions/account-recovery-action/**'
+      - 'supabase/functions/app-config-action/**'
+      - '.github/workflows/public-gateway-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate router has no direct legacy mapping
+        run: |
+          set -euo pipefail
+          node --check uiux-fixes.js
+          ! grep -Fq "routeMap[fn]='dynamic-action'" uiux-fixes.js
+          grep -Fq "'auth-public-action'" uiux-fixes.js
+          grep -Fq "'account-recovery-action'" uiux-fixes.js
+          grep -Fq "'app-config-action'" uiux-fixes.js
+      - name: Run HTTP smoke
+        run: node scripts/public-gateway-smoke.mjs
