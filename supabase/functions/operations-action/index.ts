@@ -92,16 +92,24 @@ async function addMenu(d:any,c:Caller){
   const id=crypto.randomUUID().replaceAll('-','').slice(0,8).toUpperCase();
   const tanggal=s(d.tanggal),jumlahKpm=Number(d.jumlahKpm||0),menu=s(d.menu),items=Array.isArray(d.items)?d.items:[];
   if(!tanggal||!(jumlahKpm>0)||!menu)throw new Error('Tanggal, Jumlah KPM, dan Menu wajib diisi.');
-  const parent:any={ID:id,TANGGAL:tanggal,'JUMLAH KPM':jumlahKpm,MENU:menu,USER:c.email,TIMESTAMP:new Date().toISOString(),YAYASAN:c.yayasan||null};
-  const q=await sb.from('MENU_HARIAN').insert(parent);if(q.error)throw q.error;
-  try{
-    const detail=items.filter((x:any)=>s(x?.namaItem)).map((x:any)=>({MENU_ID:id,TANGGAL:tanggal,'Nama Item':s(x.namaItem),Jumlah:Number(x.jumlah||0),Satuan:s(x.satuan),'Harga Satuan':Number(x.hargaSatuan||0),'Total Harga':Number(x.jumlah||0)*Number(x.hargaSatuan||0)}));
-    if(detail.length){const dq=await sb.from('DETAIL_MENU_HARIAN').insert(detail);if(dq.error)throw dq.error;}
-    await audit(c,'MENU_HARIAN',id,'ADD',{jumlahKpm,detailCount:detail.length});
-    return{success:true,message:'Menu MBG berhasil ditambahkan.',id};
-  }catch(e){await sb.from('MENU_HARIAN').delete().eq('ID',id);throw e;}
+  const q=await sb.rpc('create_menu_harian_atomic',{p_id:id,p_tanggal:tanggal,p_jumlah_kpm:jumlahKpm,p_menu:menu,p_user:c.email,p_yayasan:c.yayasan||'',p_items:items});
+  if(q.error)throw q.error;
+  await audit(c,'MENU_HARIAN',id,'ADD',{jumlahKpm,detailCount:Number((q.data as any)?.detailCount||0),atomic:true});
+  return{success:true,message:'Menu MBG berhasil ditambahkan.',id};
 }
 
+async function updateMenuAtomic(id:string,d:any,c:Caller){
+  if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat mengubah.');
+  const old=await requireRecord(c,'MENU_HARIAN',id,'USER');
+  const tanggal=s(d.TANGGAL??d.tanggal??old.TANGGAL);
+  const jumlahKpm=Number((d['JUMLAH KPM']??d.jumlahKpm??old['JUMLAH KPM'])||0);
+  const menu=s(d.MENU??d.menu??old.MENU),items=Array.isArray(d.items)?d.items:[];
+  if(!tanggal||!(jumlahKpm>0)||!menu)throw new Error('Tanggal, Jumlah KPM, dan Menu wajib diisi.');
+  const q=await sb.rpc('update_menu_harian_atomic',{p_id:id,p_expected_owner:old.USER,p_tanggal:tanggal,p_jumlah_kpm:jumlahKpm,p_menu:menu,p_items:items});
+  if(q.error)throw q.error;
+  await audit(c,'MENU_HARIAN',id,'EDIT',{detailCount:Number((q.data as any)?.detailCount||0),atomic:true});
+  return{success:true,message:'Menu MBG berhasil diperbarui.'};
+}
 
 async function getUploadBuktiMode(c:Caller){
   const q=await sb.from('APP_SETTINGS').select('VALUE').eq('KEY','ALLOW_USER_UPLOAD_BUKTI').maybeSingle();
@@ -139,6 +147,6 @@ const H:any={
  getPendingPayments:(p:any[],c:Caller)=>getPending(c,p[0]||{}),updatePendingPayment:(p:any[],c:Caller)=>updatePending(s(p[0]),p[1]||{},c),deletePendingPayment:(p:any[],c:Caller)=>delRecord('Pending Payment',s(p[0]),c,'User'),
  getSurveiBahanBaku:async(p:any[],c:Caller)=>ownedResult(await listOwned('SURVEI_BB',c),p[0]||{}),updateSurvei:(p:any[],c:Caller)=>updateRecord('SURVEI_BB',s(p[0]),p[1]||{},c,SURVEI_FIELDS),deleteSurvei:(p:any[],c:Caller)=>delRecord('SURVEI_BB',s(p[0]),c),
  getSerahTerima:async(p:any[],c:Caller)=>ownedResult(await listOwned('SERAH_TERIMA',c),p[0]||{}),updateSerahTerima:(p:any[],c:Caller)=>updateRecord('SERAH_TERIMA',s(p[0]),p[1]||{},c,SERAH_FIELDS),deleteSerahTerima:(p:any[],c:Caller)=>delRecord('SERAH_TERIMA',s(p[0]),c),
- getMenuHarian:(p:any[],c:Caller)=>getMenu(c,p[0]||{}),updateMenuMBG:(p:any[],c:Caller)=>updateRecord('MENU_HARIAN',s(p[0]),p[1]||{},c,MENU_FIELDS),deleteMenuMBG:(p:any[],c:Caller)=>delRecord('MENU_HARIAN',s(p[0]),c)
+ getMenuHarian:(p:any[],c:Caller)=>getMenu(c,p[0]||{}),updateMenuMBG:(p:any[],c:Caller)=>updateMenuAtomic(s(p[0]),p[1]||{},c),deleteMenuMBG:(p:any[],c:Caller)=>delRecord('MENU_HARIAN',s(p[0]),c)
 };
 Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method==='GET')return j({status:'ok',service:'operations-action',version:5});if(req.method!=='POST')return j({error:'Method tidak didukung.'},405);try{const c=await caller(req),b=await req.json(),fn=H[b?.function];if(!fn)return j({error:`Fungsi tidak diizinkan: ${b?.function||''}`},404);return j({result:await fn(Array.isArray(b.parameters)?b.parameters:[],c)})}catch(e){const message=e instanceof Error?e.message:String(e);const denied=/akses|token|hanya admin|super_admin|assignment|ditolak/i.test(message);console.error(message);return j({error:message,result:{success:false,message}},denied?403:400)}});
