@@ -11,20 +11,28 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: frontend-pagination-patches
+  cancel-in-progress: false
+
 jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Apply pagination patch
+        env:
+          PYTHONUNBUFFERED: '1'
         run: python scripts/apply-pending-audit-frontend-pagination.py
       - name: Validate JavaScript
         run: |
           node --check app.js
-          grep -q 'pendingServerPaged' app.js
-          grep -q 'auditServerPaged' app.js
-          grep -q "getPendingPayments.*pageSize" app.js
-          grep -q "getAuditLog.*pageSize" app.js
+          grep -Fq 'var pendingServerTotal = 0, pendingServerPaged = false;' app.js
+          grep -Fq 'var auditServerTotal = 0, auditServerPaged = false, auditFilterTimer = null;' app.js
+          grep -Fq "getPendingPayments',[{page:page,pageSize:ITEMS_PER_PAGE}]" app.js
+          grep -Fq 'var f={page:page,pageSize:ITEMS_PER_PAGE}' app.js
+          grep -Fq 'function goPendingPage(p){if(pendingServerPaged)' app.js
+          grep -Fq 'function goAuditLogPage(p){if(auditServerPaged)' app.js
       - name: Commit source
         run: |
           if git diff --quiet -- app.js; then echo 'No changes'; exit 0; fi
@@ -33,5 +41,3 @@ jobs:
           git add app.js
           git commit -m 'feat: use server pagination for pending and audit log'
           git push
-
-# trigger: 2026-07-18T04:45:00Z
