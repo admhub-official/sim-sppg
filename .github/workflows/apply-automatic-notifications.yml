@@ -1,0 +1,53 @@
+name: Apply automatic notifications
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-automatic-notifications.py'
+      - '.github/workflows/apply-automatic-notifications.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Apply idempotent patch
+        run: python scripts/apply-automatic-notifications.py
+      - name: Validate hooks
+        run: |
+          grep -Fq "dispatchSystemNotification" supabase/functions/notification-dispatch-action/index.ts
+          grep -Fq "async function systemNotify" supabase/functions/transaction-action/index.ts
+          grep -Fq "Transaksi baru" supabase/functions/transaction-action/index.ts
+          grep -Fq "Bukti pembayaran baru" supabase/functions/transaction-action/index.ts
+          grep -Fq "Pembayaran diverifikasi" supabase/functions/transaction-action/index.ts
+      - name: Commit patched sources
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add supabase/functions/notification-dispatch-action/index.ts supabase/functions/transaction-action/index.ts
+          if git diff --cached --quiet; then
+            echo "Sources already patched."
+          else
+            git commit -m "Wire automatic transaction notifications"
+            git push
+          fi
+      - name: Deploy dispatcher
+        run: supabase functions deploy notification-dispatch-action --project-ref "$SUPABASE_PROJECT_REF"
+      - name: Deploy transaction action
+        run: supabase functions deploy transaction-action --project-ref "$SUPABASE_PROJECT_REF"
+      - name: List functions
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
