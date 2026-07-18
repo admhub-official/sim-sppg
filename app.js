@@ -5472,31 +5472,15 @@ function renderMenuMBGTable() {
   renderPagination('menuMBGPagination', menuMBGPage, totalPages, 'goMenuMBGPage');
 }
 function goMenuMBGPage(p){if(menuServerPaged)loadMenuMBG(p);else{menuMBGPage=p;renderMenuMBGTable();}}
+function exportMenuRows(rows) {
+  var flat=[];
+  (rows||[]).forEach(function(m){if(m.detail&&m.detail.length){m.detail.forEach(function(d){flat.push({tanggal:m.tanggal,jumlahKpm:m.jumlahKpm,menu:m.menu,namaItem:d.namaItem,jumlah:d.jumlah,satuan:d.satuan,hargaSatuan:d.hargaSatuan,totalHarga:d.totalHarga});});}else{flat.push({tanggal:m.tanggal,jumlahKpm:m.jumlahKpm,menu:m.menu,namaItem:'',jumlah:'',satuan:'',hargaSatuan:'',totalHarga:''});}});
+  downloadCSV(flat,[{key:'tanggal',label:'Tanggal'},{key:'jumlahKpm',label:'Jumlah KPM'},{key:'menu',label:'Menu'},{key:'namaItem',label:'Nama Item'},{key:'jumlah',label:'Jumlah'},{key:'satuan',label:'Satuan'},{key:'hargaSatuan',label:'Harga Satuan'},{key:'totalHarga',label:'Total Harga'}],'Menu_MBG');
+}
 function exportMenuMBG(format) {
-  if (format === 'csv') {
-    var flat = [];
-    (allMenuMBG || []).forEach(function(m){
-      if (m.detail && m.detail.length) {
-        m.detail.forEach(function(d){
-          flat.push({ tanggal:m.tanggal, jumlahKpm:m.jumlahKpm, menu:m.menu, namaItem:d.namaItem, jumlah:d.jumlah, satuan:d.satuan, hargaSatuan:d.hargaSatuan, totalHarga:d.totalHarga });
-        });
-      } else {
-        flat.push({ tanggal:m.tanggal, jumlahKpm:m.jumlahKpm, menu:m.menu, namaItem:'', jumlah:'', satuan:'', hargaSatuan:'', totalHarga:'' });
-      }
-    });
-    downloadCSV(flat, [
-      {key:'tanggal', label:'Tanggal'},
-      {key:'jumlahKpm', label:'Jumlah KPM'},
-      {key:'menu', label:'Menu'},
-      {key:'namaItem', label:'Nama Item'},
-      {key:'jumlah', label:'Jumlah'},
-      {key:'satuan', label:'Satuan'},
-      {key:'hargaSatuan', label:'Harga Satuan'},
-      {key:'totalHarga', label:'Total Harga'}
-    ], 'Menu_MBG');
-  } else {
-    printCurrentPage();
-  }
+  if(format!=='csv'){printCurrentPage();return;}
+  showLoading(true);
+  callApi('getMenuHarian',[{}],function(result){showLoading(false);exportMenuRows(normalizeApiRows(result));},function(){showLoading(false);showToast('error','Gagal','Tidak dapat mengambil seluruh data menu');});
 }
 function showMenuDetail(idx) {
   var m = allMenuMBG[idx];
@@ -6150,7 +6134,73 @@ function downloadCSV(rows, headers, filename) {
   showToast('success', 'Export CSV', 'File berhasil diunduh');
 }
 
+var _printDatasetOverride = null;
+
+function normalizeApiRows(result) {
+  if (Array.isArray(result)) return result;
+  if (result && Array.isArray(result.data)) return result.data;
+  return [];
+}
+
+function filterPrintRows(page, rows) {
+  rows = Array.isArray(rows) ? rows.slice() : [];
+  function val(id) { var el=$(id); return el ? String(el.value||'').trim() : ''; }
+  function low(v) { return String(v==null?'':v).toLowerCase(); }
+  if (page === 'transaksi') {
+    var status=val('txFilterStatus'), search=low(val('txSearchInput'));
+    return rows.filter(function(x){
+      if (status && status !== 'ALL' && String(x.statusPembayaran||x.status||'') !== status) return false;
+      if (search && low((x.kode||'')+' '+(x.item||'')+' '+(x.user||'')+' '+(x.sppg||'')).indexOf(search)<0) return false;
+      return true;
+    });
+  }
+  if (page === 'master-bahan') {
+    var kat=val('bbFilterKategori'), q=low(val('bbSearchInput'));
+    return rows.filter(function(x){var k=x['KATEGORI BAHAN BAKU']||x.Kategori||'',t=(x['KODE BAHAN']||'')+' '+(x['NAMA  BAHAN BAKU']||x['NAMA BAHAN BAKU']||'');return(!kat||kat==='ALL'||String(k)===kat)&&(!q||low(t).indexOf(q)>=0);});
+  }
+  if (page === 'master-supplier') {
+    var st=val('supplierFilterStatus'), qs=low(val('supplierSearchInput'));
+    return rows.filter(function(x){var status=x.STATUS||x.Status||'',t=(x['NAMA SUPPLIER']||'')+' '+(x['NO WHATSAPP']||'')+' '+(x.EMAIL||'');return(!st||st==='ALL'||String(status)===st)&&(!qs||low(t).indexOf(qs)>=0);});
+  }
+  if (page === 'survei') {
+    var sk=val('surveiFilterKategori'), sq=low(val('surveiSearchInput'));
+    return rows.filter(function(x){var k=x['KATEGORI BAHAN BAKU']||x.Kategori||'',t=(x['KODE BAHAN BAKU']||'')+' '+(x['NAMA BAHAN BAKU']||'');return(!sk||sk==='ALL'||String(k)===sk)&&(!sq||low(t).indexOf(sq)>=0);});
+  }
+  if (page === 'serah-terima') {
+    var cond=val('stFilterKondisi'), ss=low(val('stSearchInput'));
+    return rows.filter(function(x){var c=x['KONDISI BAHAN BAKU']||x.Kondisi||'',t=(x['NAMA BAHAN BAKU']||'')+' '+(x.PENERIMA||'')+' '+(x.SUPPLIER||'');return(!cond||cond==='ALL'||String(c)===cond)&&(!ss||low(t).indexOf(ss)>=0);});
+  }
+  if (page === 'users') {
+    var ur=val('usersFilterRole'), us=val('usersFilterSPPG'), uq=low(val('usersSearchInput'));
+    return rows.filter(function(x){var t=(x.namaLengkap||'')+' '+(x.username||'')+' '+(x.email||'');return(!ur||ur==='ALL'||String(x.role||'')===ur)&&(!us||us==='ALL'||String(x.sppg||'')===us)&&(!uq||low(t).indexOf(uq)>=0);});
+  }
+  return rows;
+}
+
+function preparePrintDataset(done) {
+  var map={
+    'transaksi':['getTransactions',[{sppgFilter:($('txFilterSPPG')&&$('txFilterSPPG').value!=='ALL')?$('txFilterSPPG').value:'',kategoriFilter:($('txFilterKategori')&&$('txFilterKategori').value!=='ALL')?$('txFilterKategori').value:'',dateStart:$('txFilterTglStart')?$('txFilterTglStart').value:'',dateEnd:$('txFilterTglEnd')?$('txFilterTglEnd').value:''}]],
+    'master-bahan':['getMasterBahanBaku',[]],
+    'master-supplier':['getMasterSupplier',[]],
+    'survei':['getSurveiBahanBaku',[]],
+    'serah-terima':['getSerahTerima',[]],
+    'menu-mbg':['getMenuHarian',[{}]],
+    'pending-payment':['getPendingPayments',[]],
+    'users':['getAllUsers',[]]
+  };
+  var spec=map[currentPage];
+  if(!spec){done(null);return;}
+  showLoading(true);
+  callApi(spec[0],spec[1],function(result){showLoading(false);done(filterPrintRows(currentPage,normalizeApiRows(result)));},function(){showLoading(false);showToast('error','Gagal','Tidak dapat mengambil seluruh data untuk dicetak');done(null);});
+}
+
+function printData(defaultRows) {
+  return Array.isArray(_printDatasetOverride) ? _printDatasetOverride : (defaultRows || []);
+}
+
 function printCurrentPage() {
+  if (!currentPage) return;
+  var runPrint = function() {
   if (!currentPage) return;
   var originalTitle = document.title;
   var pageTitleText = $('pageTitle').textContent || 'SPPG';
@@ -6191,6 +6241,15 @@ function printCurrentPage() {
     document.body.classList.remove('printing-all');
     document.title = originalTitle;
   }, 300);
+  };
+  var normalPrintPages = ['dashboard','profil'];
+  if (normalPrintPages.indexOf(currentPage) > -1 || currentPage === 'approval') { runPrint(); return; }
+  preparePrintDataset(function(rows) {
+    if (rows === null) return;
+    _printDatasetOverride = rows;
+    try { runPrint(); }
+    finally { setTimeout(function(){ _printDatasetOverride = null; }, 1200); }
+  });
 }
 
 function getActiveFilterInfo() {
@@ -6219,7 +6278,7 @@ function getActiveFilterInfo() {
 function buildPrintAllTable() {
   var html = '';
   if (currentPage === 'transaksi') {
-    var data = filteredTransactions || [];
+    var data = printData(filteredTransactions);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' transaksi</strong></div>';
     html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>Kategori</th><th>SPPG</th><th>Item</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
     data.forEach(function(tx, i) {
@@ -6228,7 +6287,7 @@ function buildPrintAllTable() {
     html += '</tbody></table>';
   }
   else if (currentPage === 'master-bahan') {
-    var data = filteredMasterBB || [];
+    var data = printData(filteredMasterBB);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' bahan baku</strong></div>';
     html += '<table><thead><tr><th>No</th><th>Kode</th><th>Kategori</th><th>Nama</th><th>Harga</th><th>Satuan</th><th>Supplier</th></tr></thead><tbody>';
     data.forEach(function(b, i) {
@@ -6237,7 +6296,7 @@ function buildPrintAllTable() {
     html += '</tbody></table>';
   }
   else if (currentPage === 'master-supplier') {
-    var data = allSuppliers || [];
+    var data = printData(allSuppliers);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' supplier</strong></div>';
     html += '<table><thead><tr><th>No</th><th>Nama</th><th>WA</th><th>Email</th><th>Alamat</th><th>Status</th></tr></thead><tbody>';
     data.forEach(function(s, i) {
@@ -6246,7 +6305,7 @@ function buildPrintAllTable() {
     html += '</tbody></table>';
   }
   else if (currentPage === 'survei') {
-    var data = allSurvei || [];
+    var data = printData(allSurvei);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' survei</strong></div>';
     html += '<table><thead><tr><th>No</th><th>Kode</th><th>Waktu</th><th>Kategori</th><th>Nama</th><th>Harga RAB</th><th>Harga Pasar</th><th>Lokasi</th><th>User</th></tr></thead><tbody>';
     data.forEach(function(s, i) {
@@ -6255,7 +6314,7 @@ function buildPrintAllTable() {
     html += '</tbody></table>';
   }
   else if (currentPage === 'serah-terima') {
-    var data = allSerahTerima || [];
+    var data = printData(allSerahTerima);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' serah terima</strong></div>';
     html += '<table><thead><tr><th>No</th><th>Kode</th><th>Nama Bahan</th><th>Penerima</th><th>Supplier</th><th>Kondisi</th><th>Lokasi</th><th>User</th></tr></thead><tbody>';
     data.forEach(function(s, i) {
@@ -6264,7 +6323,7 @@ function buildPrintAllTable() {
     html += '</tbody></table>';
   }
   else if (currentPage === 'menu-mbg') {
-    var data = allMenuMBG || [];
+    var data = printData(allMenuMBG);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' menu</strong></div>';
     html += '<table><thead><tr><th>No</th><th>Tanggal</th><th>Jumlah KPM</th><th>Menu</th><th>Detail Item</th></tr></thead><tbody>';
     data.forEach(function(m, i) {
@@ -6274,7 +6333,7 @@ function buildPrintAllTable() {
     html += '</tbody></table>';
   }
   else if (currentPage === 'pending-payment') {
-    var data = allPending || [];
+    var data = printData(allPending);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' pending</strong></div>';
     html += '<table><thead><tr><th>No</th><th>ID</th><th>Transaksi</th><th>Deskripsi</th><th>Tgl Pending</th><th>Status</th><th>Tgl Lunas</th></tr></thead><tbody>';
     data.forEach(function(p, i) {
@@ -6283,7 +6342,7 @@ function buildPrintAllTable() {
     html += '</tbody></table>';
   }
   else if (currentPage === 'users') {
-    var data = allUsers || [];
+    var data = printData(allUsers);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' users</strong></div>';
     html += '<table><thead><tr><th>No</th><th>Nama</th><th>Email</th><th>Jabatan</th><th>SPPG</th><th>Username</th></tr></thead><tbody>';
     data.forEach(function(u, i) {
