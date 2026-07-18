@@ -98,7 +98,38 @@ async function submitPayment(d:any,c:Caller){
     throw e;
   }
 }
-async function verify(d:any,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat memverifikasi.');const r=await tx(c,s(d.txId));let q=sb.from(T.P).select('*').eq('transaksi_id',r.ID);if(d.proofId)q=q.eq('id',d.proofId);else if(d.paymentSequence)q=q.eq('payment_sequence',Number(d.paymentSequence));else q=q.eq('status','MENUNGGU_VERIFIKASI').order('payment_sequence',{ascending:false}).limit(1);const p=await q.maybeSingle();if(p.error)throw p.error;if(!p.data)throw new Error('Bukti pembayaran tidak ditemukan.');const ok=d.accepted!==false&&s(d.status).toUpperCase()!=='DITOLAK';let tt='';if(d.ttdBase64)tt=await upload('ttdVerif',d.ttdBase64,'image/png',`TTD_${r.ID}.png`,`TTD_VERIF_${r.ID}`);const pu=await sb.from(T.P).update({status:ok?'TERVERIFIKASI':'DITOLAK',verified_by:c.email,verified_at:new Date().toISOString(),verifier_signature_path:tt||null,verification_notes:s(d.catatanApproval||d.verificationNotes)}).eq('id',p.data.id);if(pu.error)throw pu.error;const vv=await sb.from(T.P).select('nominal').eq('transaksi_id',r.ID).eq('status','TERVERIFIKASI');if(vv.error)throw vv.error;const total=(vv.data||[]).reduce((n:number,x:any)=>n+Number(x.nominal||0),0),st=total>=Number(r.Nominal||0)?'SUDAH_DIBAYAR':'BELUM_LUNAS';const patch:any={'Metode Transaksi':st,'APPROVED BY':c.nama||c.email,'WAKTU APPROVE':new Date().toISOString(),Catatan_1:s(d.catatanApproval)};if(tt)patch['TTD VERIFIKATOR']=tt;const xu=await sb.from(T.X).update(patch).eq('ID',r.ID);if(xu.error)throw xu.error;await audit(r.ID,'VERIFY_USER_PAYMENT',c,{proofId:p.data.id,ok,total,st});return{success:true,message:ok?'Bukti pembayaran berhasil diverifikasi.':'Bukti pembayaran ditolak.',totalVerified:total,status:st}}
+async function verify(d:any,c:Caller){
+  if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat memverifikasi.');
+  const r=await tx(c,s(d.txId));
+  let q=sb.from(T.P).select('*').eq('transaksi_id',r.ID);
+  if(d.proofId)q=q.eq('id',d.proofId);
+  else if(d.paymentSequence)q=q.eq('payment_sequence',Number(d.paymentSequence));
+  else q=q.eq('status','MENUNGGU_VERIFIKASI').order('payment_sequence',{ascending:false}).limit(1);
+  const p=await q.maybeSingle();
+  if(p.error)throw p.error;
+  if(!p.data)throw new Error('Bukti pembayaran tidak ditemukan.');
+  const ok=d.accepted!==false&&s(d.status).toUpperCase()!=='DITOLAK';
+  let tt='';
+  if(d.ttdBase64)tt=await upload('ttdVerif',d.ttdBase64,'image/png',`TTD_${r.ID}.png`,`TTD_VERIF_${r.ID}`);
+  try{
+    const rpc=await sb.rpc('verify_transaction_payment_atomic',{
+      p_transaksi_id:r.ID,
+      p_proof_id:p.data.id,
+      p_accepted:ok,
+      p_verified_by:c.email,
+      p_verified_name:c.nama||c.email,
+      p_verification_notes:s(d.catatanApproval||d.verificationNotes),
+      p_verifier_signature_path:tt||null
+    });
+    if(rpc.error)throw rpc.error;
+    const x=rpc.data||{};
+    await audit(r.ID,'VERIFY_USER_PAYMENT',c,{proofId:p.data.id,ok,total:x.totalVerified,status:x.status,atomic:true});
+    return{success:true,message:ok?'Bukti pembayaran berhasil diverifikasi.':'Bukti pembayaran ditolak.',totalVerified:Number(x.totalVerified)||0,status:s(x.status)};
+  }catch(e){
+    if(tt)await sb.storage.from(B.ttdVerif).remove([tt]).catch(()=>undefined);
+    throw e;
+  }
+}
 async function note(p:any[],c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Akses ditolak.');const a=p[0],id=typeof a==='object'?s(a.txId||a.id):s(a),n=typeof a==='object'?s(a.note||a.catatanApproval||a.catatan):s(p[1]);await tx(c,id);const q=await sb.from(T.X).update({Catatan_1:n}).eq('ID',id);if(q.error)throw q.error;return{success:true,message:'Catatan berhasil disimpan.'}}
 async function uploadFile(p:any[],c:Caller){const kind=s(p[3]) as keyof typeof B;if(!['foto','file','ttdUser','nota'].includes(kind))throw new Error('Tipe file transaksi tidak diizinkan.');const path=await upload(kind,p[0],p[1],p[2],`${kind}_${c.id}`);return{success:true,fileName:path,bucket:B[kind],viewUrl:(await sign(kind,path,p[1]))?.signedUrl||''}}
 async function removeFiles(items:{bucket:string,path:string}[]){const grouped=new Map<string,string[]>();for(const x of items){if(!valid(x.path)||!x.bucket)continue;const a=grouped.get(x.bucket)||[];if(!a.includes(s(x.path)))a.push(s(x.path));grouped.set(x.bucket,a)}for(const [bucket,paths] of grouped){if(!paths.length)continue;const q=await sb.storage.from(bucket).remove(paths);if(q.error)throw new Error(`Gagal membersihkan Storage ${bucket}: ${q.error.message}`)}}
