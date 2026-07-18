@@ -5,14 +5,6 @@ TX = Path('supabase/functions/transaction-action/index.ts')
 DISPATCH = Path('supabase/functions/notification-dispatch-action/index.ts')
 
 
-def replace_once(text: str, old: str, new: str, label: str) -> str:
-    if old in text:
-        return text.replace(old, new, 1)
-    if new in text:
-        return text
-    raise SystemExit(f'Missing anchor: {label}')
-
-
 def insert_after(text: str, pattern: str, addition: str, marker: str, label: str) -> str:
     if marker in text:
         return text
@@ -21,17 +13,36 @@ def insert_after(text: str, pattern: str, addition: str, marker: str, label: str
         raise SystemExit(f'Missing anchor: {label}')
     return text[:match.end()] + addition + text[match.end():]
 
+
 # Read both files first. Nothing is written until every patch validates.
 d = DISPATCH.read_text(encoding='utf-8')
 t = TX.read_text(encoding='utf-8')
 
-# Ensure dispatcher internal route is present.
-d = replace_once(
-    d,
-    "const c=await caller(req),b=await req.json();\n    if(b?.function!=='dispatchNotification')return out({error:'Fungsi tidak diizinkan.'},404);\n    return out({result:await dispatch(c,Array.isArray(b.parameters)?b.parameters[0]||{}:{})});",
-    "const b=await req.json();\n    const auth=req.headers.get('Authorization')||'';\n    const service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';\n    if(b?.function==='dispatchSystemNotification'){\n      if(auth!==`Bearer ${service}`)return out({error:'Akses internal ditolak.'},403);\n      const c={id:'system',email:'system@sim-sppg.local',role:'SUPER_ADMIN',sppg:'',yayasan:''};\n      return out({result:await dispatch(c,Array.isArray(b.parameters)?b.parameters[0]||{}:{})});\n    }\n    const c=await caller(req);\n    if(b?.function!=='dispatchNotification')return out({error:'Fungsi tidak diizinkan.'},404);\n    return out({result:await dispatch(c,Array.isArray(b.parameters)?b.parameters[0]||{}:{})});",
-    'dispatcher internal route',
-)
+# Dispatcher route is already modular. Only patch older source that does not
+# contain the stable route marker. This supports both inline and helper-based
+# internal authentication implementations.
+if 'dispatchSystemNotification' not in d:
+    old = (
+        "const c=await caller(req),b=await req.json();\n"
+        "    if(b?.function!=='dispatchNotification')return out({error:'Fungsi tidak diizinkan.'},404);\n"
+        "    return out({result:await dispatch(c,Array.isArray(b.parameters)?b.parameters[0]||{}:{})});"
+    )
+    new = (
+        "const b=await req.json();\n"
+        "    const auth=req.headers.get('Authorization')||'';\n"
+        "    const service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';\n"
+        "    if(b?.function==='dispatchSystemNotification'){\n"
+        "      if(auth!==`Bearer ${service}`)return out({error:'Akses internal ditolak.'},403);\n"
+        "      const c={id:'system',email:'system@sim-sppg.local',role:'SUPER_ADMIN',sppg:'',yayasan:''};\n"
+        "      return out({result:await dispatch(c,Array.isArray(b.parameters)?b.parameters[0]||{}:{})});\n"
+        "    }\n"
+        "    const c=await caller(req);\n"
+        "    if(b?.function!=='dispatchNotification')return out({error:'Fungsi tidak diizinkan.'},404);\n"
+        "    return out({result:await dispatch(c,Array.isArray(b.parameters)?b.parameters[0]||{}:{})});"
+    )
+    if old not in d:
+        raise SystemExit('Missing anchor: dispatcher internal route')
+    d = d.replace(old, new, 1)
 
 helper = """
 async function systemNotify(payload:any){
@@ -55,37 +66,38 @@ if 'async function systemNotify(payload:any)' not in t:
         raise SystemExit('Missing anchor: transaction notification helper')
     t = t.replace(anchor, helper + anchor, 1)
 
-# Insert hooks immediately after successful audit calls. Regex tolerates formatting changes.
+# Insert hooks immediately after successful audit calls. Regex tolerates
+# whitespace and line-format changes while markers keep the patch idempotent.
 t = insert_after(
     t,
-    r"await audit\(id,'ADD',c,\{sp,ya,orphanCleanup:true\}\);",
+    r"await\s+audit\(id\s*,\s*'ADD'\s*,\s*c\s*,\s*\{sp,ya,orphanCleanup:true\}\s*\);",
     "\n    await systemNotify({mode:'pair',sppg:sp,yayasan:ya,title:'Transaksi baru',body:`Transaksi ${id} sebesar Rp ${Number(d.nominal).toLocaleString('id-ID')} telah dibuat.`,url:'/?page=transaksi'});",
     "title:'Transaksi baru'",
     'add transaction hook',
 )
 t = insert_after(
     t,
-    r"await audit\(r\.ID,'APPROVE',c,\{bp,tt\}\);",
+    r"await\s+audit\(r\.ID\s*,\s*'APPROVE'\s*,\s*c\s*,\s*\{bp,tt\}\s*\);",
     "await systemNotify({mode:'email',email:s(r.User),title:'Transaksi disetujui',body:`Transaksi ${r.ID} telah disetujui.`,url:'/?page=transaksi'});",
     "title:'Transaksi disetujui'",
     'approve transaction hook',
 )
 t = insert_after(
     t,
-    r"await audit\(r\.ID,'USER_SUBMIT_BUKTI',c,\{seq:x\.paymentSequence,nominal,total:x\.totalDibayar,status:x\.status,atomic:true\}\);",
+    r"await\s+audit\(r\.ID\s*,\s*'USER_SUBMIT_BUKTI'\s*,\s*c\s*,\s*\{seq:x\.paymentSequence,nominal,total:x\.totalDibayar,status:x\.status,atomic:true\}\s*\);",
     "\n    await systemNotify({mode:'pair',sppg:s(r.SPPG),yayasan:s(r.YAYASAN),title:'Bukti pembayaran baru',body:`Bukti pembayaran transaksi ${r.ID} menunggu verifikasi.`,url:'/?page=transaksi'});",
     "title:'Bukti pembayaran baru'",
     'payment submission hook',
 )
 t = insert_after(
     t,
-    r"await audit\(r\.ID,'VERIFY_USER_PAYMENT',c,\{proofId:p\.data\.id,ok,total:x\.totalVerified,status:x\.status,atomic:true\}\);",
+    r"await\s+audit\(r\.ID\s*,\s*'VERIFY_USER_PAYMENT'\s*,\s*c\s*,\s*\{proofId:p\.data\.id,ok,total:x\.totalVerified,status:x\.status,atomic:true\}\s*\);",
     "\n    await systemNotify({mode:'email',email:s(r.User),title:ok?'Pembayaran diverifikasi':'Pembayaran ditolak',body:`Bukti pembayaran transaksi ${r.ID} ${ok?'telah diverifikasi':'ditolak'}.`,url:'/?page=transaksi'});",
     "'Pembayaran diverifikasi':'Pembayaran ditolak'",
     'payment verification hook',
 )
 
-# Write atomically only after all anchors have passed.
+# Write only after all anchors and hooks validate.
 DISPATCH.write_text(d, encoding='utf-8')
 TX.write_text(t, encoding='utf-8')
 print('Automatic notification hooks applied atomically.')
