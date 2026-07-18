@@ -1,3 +1,4 @@
+// Non-mutating production checks for modular public gateways.
 const base='https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1';
 
 async function request(slug,body){
