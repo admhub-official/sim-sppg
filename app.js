@@ -178,6 +178,7 @@ var dropdownOptions = {};
 // Pagination state
 var txPage = 1, usersPage = 1, bbPage = 1, supplierPage = 1;
 var txServerTotal = 0, txServerPaged = false, txFilterTimer = null;
+var usersServerTotal = 0, usersServerPaged = false, usersFilterTimer = null;
 var surveiPage = 1, stPage = 1, menuMBGPage = 1, pendingPage = 1;
 var approvalPage = 1;
 var filteredApprovalData = [];
@@ -2497,35 +2498,41 @@ function doUpdateProfil(updateData) {
 // ============================================================
 // 9. USERS (ADMIN)
 // ============================================================
-function loadUsers(silent) {
+function loadUsers(silent, page, forceAll) {
   return new Promise(function(resolve) {
     if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) { resolve(); return; }
+    page = Math.max(1, Number(page) || usersPage || 1);
+    forceAll = !!forceAll;
     if (!silent) showLoading(true);
-    callApi('getAllUsers', [], function(result) {
-        if (!silent) showLoading(false);
-                if (result.success) {
-                  allUsers = result.data || [];
-                  filteredUsers = allUsers.slice();
-                  populateUsersFilterOptions();
-                  usersPage = 1;
-                  renderUsersTable();
-                }
-                resolve();
-      },
-      function(err) {
-        if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data users'); }
-                resolve();
+    var params = forceAll ? [] : [{ page: page, pageSize: ITEMS_PER_PAGE }];
+    callApi('getAllUsers', params, function(result) {
+      if (!silent) showLoading(false);
+      if (result && result.success) {
+        var rows = Array.isArray(result.data) ? result.data : [];
+        usersServerPaged = !forceAll && Number(result.page) > 0;
+        usersServerTotal = usersServerPaged ? Number(result.total || 0) : rows.length;
+        usersPage = usersServerPaged ? Number(result.page || page) : 1;
+        allUsers = rows;
+        applyUsersFiltersLocal();
+        populateUsersFilterOptions();
+        renderUsersTable();
       }
-    );
+      resolve();
+    }, function(err) {
+      if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data users'); }
+      allUsers=[]; filteredUsers=[]; usersServerTotal=0; usersServerPaged=false;
+      renderUsersTable();
+      resolve();
+    });
   });
 }
 function renderUsersTable() {
   var tbody = $('usersTableBody');
   if (!filteredUsers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>'; renderPagination('usersPagination', 1, 0, 'goUsersPage'); return; }
-  var totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  var totalPages = Math.ceil((usersServerPaged ? usersServerTotal : filteredUsers.length) / ITEMS_PER_PAGE);
   if (usersPage > totalPages) usersPage = totalPages;
   var start = (usersPage - 1) * ITEMS_PER_PAGE;
-  var pageData = filteredUsers.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = usersServerPaged ? filteredUsers : filteredUsers.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(u, i) {
     var avatarFallback = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.namaLengkap || u.username) + '&background=1e6f9c&color=fff&size=60&rounded=true';
@@ -2566,10 +2573,10 @@ function renderUsersTable() {
   });
 }
 
-function filterUsers() {
-  var search = $('usersSearchInput').value.toLowerCase().trim();
-  var sppg = $('usersFilterSppg').value;
-  var role = $('usersFilterRole').value;
+function applyUsersFiltersLocal() {
+  var search = $('usersSearchInput') ? $('usersSearchInput').value.toLowerCase().trim() : '';
+  var sppg = $('usersFilterSppg') ? $('usersFilterSppg').value : 'ALL';
+  var role = $('usersFilterRole') ? $('usersFilterRole').value : 'ALL';
   filteredUsers = allUsers.filter(function(u) {
     var teks = (u.namaLengkap || '') + ' ' + (u.username || '') + ' ' + (u.email || '');
     if (search && teks.toLowerCase().indexOf(search) === -1) return false;
@@ -2577,18 +2584,29 @@ function filterUsers() {
     if (role !== 'ALL' && u.role !== role) return false;
     return true;
   });
-  usersPage = 1;
-  renderUsersTable();
+}
+function filterUsers() {
+  var search = $('usersSearchInput') ? $('usersSearchInput').value.trim() : '';
+  var sppg = $('usersFilterSppg') ? $('usersFilterSppg').value : 'ALL';
+  var role = $('usersFilterRole') ? $('usersFilterRole').value : 'ALL';
+  var needsFullDataset = !!search || sppg !== 'ALL' || role !== 'ALL';
+  clearTimeout(usersFilterTimer);
+  usersFilterTimer=setTimeout(function(){ usersPage=1; loadUsers(false,1,needsFullDataset); },300);
 }
 function populateUsersFilterOptions() {
   var sppgSel = $('usersFilterSppg'), roleSel = $('usersFilterRole');
+  if (!sppgSel || !roleSel) return;
+  var selectedSppg=sppgSel.value||'ALL', selectedRole=roleSel.value||'ALL';
   var sppgSet = {}, roleSet = {};
   allUsers.forEach(function(u) { if (u.sppg) sppgSet[u.sppg] = true; if (u.role) roleSet[u.role] = true; });
   sppgSel.innerHTML = '<option value="ALL">Semua SPPG</option>' + Object.keys(sppgSet).sort().map(function(s){ return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('');
   roleSel.innerHTML = '<option value="ALL">Semua Role</option>' + Object.keys(roleSet).sort().map(function(r){ return '<option value="' + esc(r) + '">' + esc(r) + '</option>'; }).join('');
+  if(selectedSppg!=='ALL'&&!sppgSet[selectedSppg])sppgSel.insertAdjacentHTML('beforeend','<option value="'+esc(selectedSppg)+'">'+esc(selectedSppg)+'</option>');
+  if(selectedRole!=='ALL'&&!roleSet[selectedRole])roleSel.insertAdjacentHTML('beforeend','<option value="'+esc(selectedRole)+'">'+esc(selectedRole)+'</option>');
+  sppgSel.value=selectedSppg; roleSel.value=selectedRole;
 }
 
-function goUsersPage(p) { usersPage = p; renderUsersTable(); }
+function goUsersPage(p) { if(usersServerPaged) loadUsers(false,p,false); else { usersPage=p; renderUsersTable(); } }
 function openEditUserModal(rowNum) {
   var user = allUsers.find(function(u) { return u._row === rowNum; });
   if (!user) return;
