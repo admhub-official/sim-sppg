@@ -50,8 +50,29 @@ s=s.replace("var pageData = filteredAuditLog.slice(start, start + ITEMS_PER_PAGE
 s=s.replace("function goAuditLogPage(p) { auditLogPage = p; renderAuditLogTable(); }","function goAuditLogPage(p){if(auditServerPaged)loadAuditLog(p);else{auditLogPage=p;renderAuditLogTable();}}")
 start=s.index('function filterAuditLog() {');end=s.index('\n}\n\nfunction resetAuditFilter()',start)+2
 s=s[:start]+"function filterAuditLog(){clearTimeout(auditFilterTimer);auditFilterTimer=setTimeout(function(){auditLogPage=1;loadAuditLog(1);},300);}"+s[end:]
-s=s.replace("  var actions = {};","  var selectedAction=sel.value||'ALL';\n  var actions = {};",1)
-s=s.replace("  sel.innerHTML = html;\n}\n\nfunction renderAuditLogTable()", "  sel.innerHTML = html;\n  if(selectedAction!=='ALL'&&!actions[selectedAction])sel.insertAdjacentHTML('beforeend','<option value=\"'+esc(selectedAction)+'\">'+esc(selectedAction)+'</option>');\n  sel.value=selectedAction;\n}\n\nfunction renderAuditLogTable()",1)
-for t in ['pendingServerPaged','auditServerPaged','getPendingPayments',[ ][0] if False else 'getAuditLog']:
-    if t not in s:raise SystemExit('validation '+str(t))
+old_pop="""function populateAuditActionFilter() {
+  var sel = $('auditFilterAction');
+  if (!sel) return;
+  var actions = {};
+  allAuditLog.forEach(function(a) { if (a.actionType) actions[a.actionType] = true; });
+  var html = '<option value="ALL">Semua Aksi</option>';
+  Object.keys(actions).sort().forEach(function(a) { html += '<option value="' + esc(a) + '">' + esc(a) + '</option>'; });
+  sel.innerHTML = html;
+}"""
+new_pop="""function populateAuditActionFilter() {
+  var sel = $('auditFilterAction');
+  if (!sel) return;
+  var selectedAction=sel.value||'ALL';
+  var actions = {};
+  allAuditLog.forEach(function(a) { if (a.actionType) actions[a.actionType] = true; });
+  var html = '<option value="ALL">Semua Aksi</option>';
+  Object.keys(actions).sort().forEach(function(a) { html += '<option value="' + esc(a) + '">' + esc(a) + '</option>'; });
+  sel.innerHTML = html;
+  if(selectedAction!=='ALL'&&!actions[selectedAction])sel.insertAdjacentHTML('beforeend','<option value="'+esc(selectedAction)+'">'+esc(selectedAction)+'</option>');
+  sel.value=selectedAction;
+}"""
+if old_pop not in s:raise SystemExit('populateAuditActionFilter not found')
+s=s.replace(old_pop,new_pop)
+for t in ['pendingServerPaged','auditServerPaged','getPendingPayments','getAuditLog']:
+    if t not in s:raise SystemExit('validation '+t)
 p.write_text(s)
