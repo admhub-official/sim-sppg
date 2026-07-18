@@ -26,3 +26,4 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy register-user-v2 --project-ref dmjsgtichrfxhyywstrt --use-api --no-verify-jwt --yes
+# trigger: 2026-07-18-register-notification-1
