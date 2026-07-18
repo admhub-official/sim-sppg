@@ -1,0 +1,35 @@
+name: Apply pending and audit frontend pagination
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-pending-audit-frontend-pagination.py'
+      - '.github/workflows/apply-pending-audit-frontend-pagination.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply pagination patch
+        run: python scripts/apply-pending-audit-frontend-pagination.py
+      - name: Validate JavaScript
+        run: |
+          node --check app.js
+          grep -q 'pendingServerPaged' app.js
+          grep -q 'auditServerPaged' app.js
+          grep -q "getPendingPayments.*pageSize" app.js
+          grep -q "getAuditLog.*pageSize" app.js
+      - name: Commit source
+        run: |
+          if git diff --quiet -- app.js; then echo 'No changes'; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js
+          git commit -m 'feat: use server pagination for pending and audit log'
+          git push
