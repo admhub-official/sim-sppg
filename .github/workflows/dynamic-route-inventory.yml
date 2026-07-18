@@ -1,0 +1,51 @@
+name: Dynamic route inventory
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app.js'
+      - 'scripts/generate-dynamic-route-inventory.mjs'
+      - '.github/workflows/dynamic-route-inventory.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dynamic-route-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate route inventory
+        run: node scripts/generate-dynamic-route-inventory.mjs
+
+      - name: Validate report
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s docs/dynamic-route-inventory.md
+          grep -Fq 'Remaining Dynamic Routes' docs/dynamic-route-inventory.md
+          grep -Fq 'Routed Functions' docs/dynamic-route-inventory.md
+
+      - name: Commit inventory report
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/dynamic-route-inventory.md; then
+            echo 'Route inventory is already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/dynamic-route-inventory.md
+          git commit -m 'docs: refresh dynamic route inventory'
+          git push
