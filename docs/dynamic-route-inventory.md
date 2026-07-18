@@ -1,42 +1,38 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-18T06:08:15.567Z.
+Generated automatically from `app.js` at 2026-07-18T06:33:17.295Z.
 
 ## Summary
 
 - Literal API calls found: **60**
-- Routed to modular/public functions: **44**
-- Still falling back to `dynamic-action`: **16**
+- Routed to modular/public functions: **54**
+- Still falling back to `dynamic-action`: **6**
 
 ## Remaining Dynamic Routes
 
 | Function | Current destination |
 |---|---|
-| `addAdminAssignment` | `dynamic-action` fallback |
-| `addMenuHarian` | `dynamic-action` fallback |
-| `addPendingPayment` | `dynamic-action` fallback |
-| `addSerahTerima` | `dynamic-action` fallback |
-| `addSurveiBahanBaku` | `dynamic-action` fallback |
-| `deleteAdminAssignment` | `dynamic-action` fallback |
 | `geocodeAlamat` | `dynamic-action` fallback |
-| `getAdminAssignments` | `dynamic-action` fallback |
 | `getFileUrl` | `dynamic-action` fallback |
 | `getPushPublicKey` | `dynamic-action` fallback |
 | `getUploadBuktiMode` | `dynamic-action` fallback |
-| `markAllNotificationsRead` | `dynamic-action` fallback |
-| `markNotificationRead` | `dynamic-action` fallback |
 | `savePushSubscription` | `dynamic-action` fallback |
 | `setUploadBuktiMode` | `dynamic-action` fallback |
-| `updateAdminAssignment` | `dynamic-action` fallback |
 
 ## Routed Functions
 
 | Function | Route group |
 |---|---|
+| `addAdminAssignment` | `operations` |
 | `addMasterBahanBaku` | `master` |
 | `addMasterSupplier` | `master` |
+| `addMenuHarian` | `operations` |
+| `addPendingPayment` | `operations` |
+| `addSerahTerima` | `operations` |
+| `addSurveiBahanBaku` | `operations` |
 | `addTransaction` | `transaction` |
 | `approveTransaction` | `transaction` |
+| `deleteAdminAssignment` | `operations` |
 | `deleteMasterBahanBaku` | `master` |
 | `deleteMenuMBG` | `operations` |
 | `deletePendingPayment` | `operations` |
@@ -46,6 +42,7 @@ Generated automatically from `app.js` at 2026-07-18T06:08:15.567Z.
 | `deleteTransaction` | `transaction` |
 | `deleteUser` | `operations` |
 | `editTransaction` | `transaction` |
+| `getAdminAssignments` | `operations` |
 | `getAllUsers` | `operations` |
 | `getAuditLog` | `reporting` |
 | `getChartData` | `reporting` |
@@ -62,9 +59,12 @@ Generated automatically from `app.js` at 2026-07-18T06:08:15.567Z.
 | `getTransactionDetail` | `transaction` |
 | `getTransactions` | `transaction` |
 | `loginUser` | `public` |
+| `markAllNotificationsRead` | `reporting` |
+| `markNotificationRead` | `reporting` |
 | `registerUser` | `public` |
 | `resendRegistrationOtp` | `public` |
 | `submitUserBuktiPembayaran` | `transaction` |
+| `updateAdminAssignment` | `operations` |
 | `updateMasterBahanBaku` | `master` |
 | `updateMasterSupplier` | `master` |
 | `updateMenuMBG` | `operations` |
