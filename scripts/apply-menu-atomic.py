@@ -16,7 +16,9 @@ if 'create_menu_harian_atomic' not in s:
 async function updateMenuAtomic(id:string,d:any,c:Caller){
   if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat mengubah.');
   const old=await requireRecord(c,'MENU_HARIAN',id,'USER');
-  const tanggal=s(d.TANGGAL??d.tanggal??old.TANGGAL),jumlahKpm=Number(d['JUMLAH KPM']??d.jumlahKpm??old['JUMLAH KPM']||0),menu=s(d.MENU??d.menu??old.MENU),items=Array.isArray(d.items)?d.items:[];
+  const tanggal=s(d.TANGGAL??d.tanggal??old.TANGGAL);
+  const jumlahKpm=Number((d['JUMLAH KPM']??d.jumlahKpm??old['JUMLAH KPM'])||0);
+  const menu=s(d.MENU??d.menu??old.MENU),items=Array.isArray(d.items)?d.items:[];
   if(!tanggal||!(jumlahKpm>0)||!menu)throw new Error('Tanggal, Jumlah KPM, dan Menu wajib diisi.');
   const q=await sb.rpc('update_menu_harian_atomic',{p_id:id,p_expected_owner:old.USER,p_tanggal:tanggal,p_jumlah_kpm:jumlahKpm,p_menu:menu,p_items:items});
   if(q.error)throw q.error;
