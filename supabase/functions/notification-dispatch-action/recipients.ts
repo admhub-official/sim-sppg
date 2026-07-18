@@ -21,6 +21,12 @@ export async function recipientEmails(c:Caller,d:any){
     const q=await sb.from('USERS').select('EMAIL').eq('SPPG',sppg).eq('NAMA YAYASAN',yayasan);if(q.error)throw q.error;
     return(q.data||[]).map((r:any)=>low(r.EMAIL)).filter(Boolean);
   }
+  if(mode==='role'){
+    if(c.role!=='SUPER_ADMIN')throw new Error('Hanya SUPER_ADMIN yang dapat menargetkan ROLE.');
+    const role=text(d.role).toUpperCase();if(!['SUPER_ADMIN','ADMIN','USER'].includes(role))throw new Error('ROLE target tidak valid.');
+    const q=await sb.from('USERS').select('EMAIL').eq('ROLE',role);if(q.error)throw q.error;
+    return(q.data||[]).map((r:any)=>low(r.EMAIL)).filter(Boolean);
+  }
   if(mode==='all'){
     if(c.role!=='SUPER_ADMIN')throw new Error('Hanya SUPER_ADMIN yang dapat mengirim ke semua user.');
     const q=await sb.from('USERS').select('EMAIL');if(q.error)throw q.error;
