@@ -1,0 +1,36 @@
+name: Apply frontend transaction pagination
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-frontend-transaction-pagination.py'
+      - '.github/workflows/apply-frontend-transaction-pagination.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply adaptive frontend pagination
+        run: python scripts/apply-frontend-transaction-pagination.py
+      - name: Validate source
+        run: |
+          grep -q 'txServerTotal' app.js
+          grep -q 'applyTransactionFiltersLocal' app.js
+          grep -q 'filters.page=page' app.js
+          grep -q 'if (txServerPaged) loadTransactions' app.js
+      - name: Commit frontend
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app.js
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: use adaptive server pagination on transactions"
+          git push
