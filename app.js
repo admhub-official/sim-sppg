@@ -209,6 +209,8 @@ var menuItems = [];
 // Notifikasi lonceng
 var notifList = [];
 var notifPollTimer = null;
+var notifPage = 1, notifPageSize = 15, notifServerTotal = 0, notifServerPaged = false, notifHasMore = false;
+var notifLoadingMore = false;
 
 // ============================================================
 // 2. UTILITY FUNCTIONS
@@ -2176,29 +2178,47 @@ function initNotifBell() {
   if (!wrap) return;
   if (!currentUser) { wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
-  loadNotifications();
+  loadNotifications(1, false);
   if (notifPollTimer) clearInterval(notifPollTimer);
-  notifPollTimer = setInterval(loadNotifications, 60000); // refresh tiap 60 detik
+  notifPollTimer = setInterval(function(){ loadNotifications(1, false); }, 60000); // refresh tiap 60 detik
 }
 
 var _lastUnreadCount = null; // null = belum pernah load (hindari bunyi saat pertama buka app)
 
-function loadNotifications() {
+function loadNotifications(page, append) {
   if (!currentUser) return;
-  callApi('getNotifications', [], function(result) {
-      if (result && result.success) {
-        notifList = result.data || [];
-        var unreadCount = result.unreadCount || 0;
-        renderNotifBadge(unreadCount);
-        renderNotifPanel();
-        // Bunyikan suara jika unread bertambah dibanding polling sebelumnya
-        // (mis. ada aksi ADD/EDIT/DELETE baru masuk saat app sedang dibuka)
-        if (_lastUnreadCount !== null && unreadCount > _lastUnreadCount) {
-          playNotifSound();
-        }
-        _lastUnreadCount = unreadCount;
+  page = Math.max(1, Number(page) || 1);
+  append = !!append;
+  if (append && notifLoadingMore) return;
+  if (append) notifLoadingMore = true;
+  callApi('getNotifications', [{ page: page, pageSize: notifPageSize }], function(result) {
+    notifLoadingMore = false;
+    if (result && result.success) {
+      var incoming = Array.isArray(result.data) ? result.data : [];
+      notifServerPaged = Number(result.page) > 0;
+      notifPage = notifServerPaged ? Number(result.page || page) : 1;
+      notifServerTotal = notifServerPaged ? Number(result.total || incoming.length) : incoming.length;
+      notifHasMore = notifServerPaged ? !!result.hasMore : false;
+      if (append) {
+        var existing = {};
+        notifList.forEach(function(n) { existing[String(n.logId || '')] = true; });
+        incoming.forEach(function(n) {
+          var key = String(n.logId || '');
+          if (!existing[key]) { notifList.push(n); existing[key] = true; }
+        });
+      } else {
+        notifList = incoming;
       }
-    }, null);
+      var unreadCount = Number(result.unreadCount || 0);
+      renderNotifBadge(unreadCount);
+      renderNotifPanel();
+      if (!append && _lastUnreadCount !== null && unreadCount > _lastUnreadCount) playNotifSound();
+      if (!append) _lastUnreadCount = unreadCount;
+    }
+  }, function() {
+    notifLoadingMore = false;
+    renderNotifPanel();
+  });
 }
 
 function renderNotifBadge(count) {
@@ -2231,7 +2251,17 @@ function renderNotifPanel() {
       '</div>' +
     '</div>';
   });
+  if (notifServerPaged && notifHasMore) {
+    html += '<button type="button" class="notif-load-more" onclick="event.stopPropagation();loadMoreNotifications()" ' + (notifLoadingMore ? 'disabled' : '') + '>' +
+      (notifLoadingMore ? '<i class="fas fa-circle-notch fa-spin"></i> Memuat...' : '<i class="fas fa-chevron-down"></i> Muat lebih banyak') +
+      '</button>';
+  }
   listEl.innerHTML = html;
+}
+
+function loadMoreNotifications() {
+  if (!notifHasMore || notifLoadingMore) return;
+  loadNotifications(notifPage + 1, true);
 }
 
 function toggleNotifPanel() {
@@ -2239,7 +2269,7 @@ function toggleNotifPanel() {
   if (!panel) return;
   var willOpen = panel.classList.contains('hidden');
   panel.classList.toggle('hidden');
-  if (willOpen) loadNotifications();
+  if (willOpen) loadNotifications(1, false);
 }
 
 function closeNotifPanel() {
@@ -2333,9 +2363,9 @@ function markAllNotifRead() {
   renderNotifPanel();
   renderNotifBadge(0);
   callApi('markAllNotificationsRead', [], function(result) {
-      if (!result || !result.success) loadNotifications(); // fallback: reload jika gagal
+      if (!result || !result.success) loadNotifications(1, false); // fallback: reload jika gagal
     }, function(err) {
-      loadNotifications();
+      loadNotifications(1, false);
     });
 }
 
