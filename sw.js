@@ -2,7 +2,7 @@
  * Network-first for application shell so deployments are not trapped by stale HTML/JS.
  * Cache-first only for stable static assets. API and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260717-uiux-3';
+const CACHE_VERSION = 'sim-sppg-v20260718-explicit-router-1';
 const APP_SHELL = ['./', './index.html', './app.js', './uiux-fixes.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -46,8 +46,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Inject isolated UI/UX runtime after the existing app bundle without
-  // replacing the large app.js file. This keeps the patch reversible.
   if (url.origin === self.location.origin && /\/app\.js$/.test(url.pathname)) {
     event.respondWith(
       Promise.all([
