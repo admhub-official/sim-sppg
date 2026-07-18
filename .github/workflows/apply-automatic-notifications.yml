@@ -51,4 +51,4 @@ jobs:
         run: supabase functions deploy transaction-action --project-ref "$SUPABASE_PROJECT_REF"
       - name: List functions
         run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
-      # Trigger marker: automatic notifications v1
+      # Trigger marker: automatic notifications v2
