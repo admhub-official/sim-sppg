@@ -27,14 +27,26 @@ async function dispatch(c:any,d:any){
   return{success:failed===0,sent,failed,expired,recipients:emails.length,subscriptions:(q.data||[]).length};
 }
 
+function internalCaller(req:Request){
+  const auth=req.headers.get('Authorization')||'';
+  const expected=`Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||''}`;
+  if(!expected.endsWith(' ')&&auth===expected)return{id:'system',email:'system@sim-sppg.local',role:'SUPER_ADMIN',sppg:'',yayasan:''};
+  return null;
+}
+
 Deno.serve(async req=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});
-  if(req.method==='GET')return out({status:'ok',service:'notification-dispatch-action',version:1});
+  if(req.method==='GET')return out({status:'ok',service:'notification-dispatch-action',version:2,internalDispatch:true});
   if(req.method!=='POST')return out({error:'Method tidak didukung.'},405);
   if(Number(req.headers.get('content-length')||0)>32000)return out({error:'Payload terlalu besar.'},413);
   try{
-    const c=await caller(req),b=await req.json();
+    const b=await req.json();
+    if(b?.function==='dispatchSystemNotification'){
+      const c=internalCaller(req);if(!c)throw new Error('Akses internal ditolak.');
+      return out({result:await dispatch(c,Array.isArray(b.parameters)?b.parameters[0]||{}:{})});
+    }
     if(b?.function!=='dispatchNotification')return out({error:'Fungsi tidak diizinkan.'},404);
+    const c=await caller(req);
     return out({result:await dispatch(c,Array.isArray(b.parameters)?b.parameters[0]||{}:{})});
   }catch(e){
     const message=e instanceof Error?e.message:String(e);
