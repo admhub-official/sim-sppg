@@ -14,13 +14,14 @@
     'push-action':['savePushSubscription','deletePushSubscription'],
     'push-public-action':['getPushPublicKey'],
     'geocode-action':['geocodeAlamat'],
-    'register-user-v2':['registerUser']
+    'register-user-v2':['registerUser'],
+    'auth-public-action':['verifyRegistrationOtp','resendRegistrationOtp','loginUser','checkSession'],
+    'account-recovery-action':['recoverPassword','recoverUsername','recoverToken'],
+    'app-config-action':['getAppConfig','getDropdownOptions']
   };
-  var LEGACY_PUBLIC=['verifyRegistrationOtp','resendRegistrationOtp','loginUser','checkSession','recoverPassword','recoverUsername','recoverToken','getAppConfig','getDropdownOptions'];
-  var PUBLIC=new Set(['registerUser','getPushPublicKey'].concat(LEGACY_PUBLIC));
+  var PUBLIC=new Set(['registerUser','getPushPublicKey','verifyRegistrationOtp','resendRegistrationOtp','loginUser','checkSession','recoverPassword','recoverUsername','recoverToken','getAppConfig','getDropdownOptions']);
   var routeMap={};
   Object.keys(ROUTES).forEach(function(slug){ROUTES[slug].forEach(function(fn){routeMap[fn]=slug;});});
-  LEGACY_PUBLIC.forEach(function(fn){routeMap[fn]='dynamic-action';});
 
   window.callApi=function(fnName,params,onSuccess,onFailure){
     var slug=routeMap[fnName];
