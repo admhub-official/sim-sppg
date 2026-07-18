@@ -1,0 +1,46 @@
+name: E2E security smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/security-smoke-test.mjs'
+      - '.github/workflows/e2e-security-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  security-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: https://dmjsgtichrfxhyywstrt.supabase.co
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SECURITY_TEST_USER_EMAIL: ${{ secrets.SECURITY_TEST_USER_EMAIL }}
+      SECURITY_TEST_USER_PASSWORD: ${{ secrets.SECURITY_TEST_USER_PASSWORD }}
+      SECURITY_TEST_ADMIN_EMAIL: ${{ secrets.SECURITY_TEST_ADMIN_EMAIL }}
+      SECURITY_TEST_ADMIN_PASSWORD: ${{ secrets.SECURITY_TEST_ADMIN_PASSWORD }}
+      SECURITY_TEST_ADMIN_SPPG: ${{ secrets.SECURITY_TEST_ADMIN_SPPG }}
+      SECURITY_TEST_ADMIN_YAYASAN: ${{ secrets.SECURITY_TEST_ADMIN_YAYASAN }}
+      SECURITY_TEST_SUPER_ADMIN_EMAIL: ${{ secrets.SECURITY_TEST_SUPER_ADMIN_EMAIL }}
+      SECURITY_TEST_SUPER_ADMIN_PASSWORD: ${{ secrets.SECURITY_TEST_SUPER_ADMIN_PASSWORD }}
+      SECURITY_TEST_OTHER_USER_EMAIL: ${{ secrets.SECURITY_TEST_OTHER_USER_EMAIL }}
+      SECURITY_TEST_OTHER_USER_PASSWORD: ${{ secrets.SECURITY_TEST_OTHER_USER_PASSWORD }}
+      SECURITY_TEST_OTHER_SPPG: ${{ secrets.SECURITY_TEST_OTHER_SPPG }}
+      SECURITY_TEST_OTHER_YAYASAN: ${{ secrets.SECURITY_TEST_OTHER_YAYASAN }}
+      SECURITY_TEST_PAYMENT_TRANSACTION_ID: ${{ secrets.SECURITY_TEST_PAYMENT_TRANSACTION_ID }}
+      SECURITY_TEST_PAYMENT_PROOF_ID: ${{ secrets.SECURITY_TEST_PAYMENT_PROOF_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate smoke script
+        run: node --check scripts/security-smoke-test.mjs
+      - name: Require publishable test configuration
+        run: |
+          test -n "$SUPABASE_ANON_KEY" || { echo 'Missing GitHub secret: SUPABASE_ANON_KEY'; exit 1; }
+      - name: Run E2E security smoke
+        run: node scripts/security-smoke-test.mjs
