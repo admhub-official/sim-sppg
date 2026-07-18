@@ -25,6 +25,7 @@ jobs:
           version: latest
       - name: Validate source
         run: |
+          # Validate the allowlisted route, exact-pair resolver, and expired-subscription cleanup.
           grep -Fq "dispatchNotification" supabase/functions/notification-dispatch-action/index.ts
           grep -Fq "ADMIN_ASSIGNMENT" supabase/functions/notification-dispatch-action/recipients.ts
           grep -Fq "404||status===410" supabase/functions/notification-dispatch-action/index.ts
