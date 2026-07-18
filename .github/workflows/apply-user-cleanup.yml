@@ -52,3 +52,4 @@ jobs:
           fi
       - name: List functions
         run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
+      # Trigger marker: user cleanup v1
