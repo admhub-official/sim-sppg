@@ -62,7 +62,8 @@ var OPERATIONS_FN = {
 };
 var REPORTING_FN = {
   getDashboardKPI:1, getChartData:1, getSPPGData:1, getRekapHarian:1,
-  getFilterOptions:1, getAuditLog:1, getNotifications:1
+  getFilterOptions:1, getAuditLog:1, getNotifications:1,
+  markNotificationRead:1, markAllNotificationsRead:1
 };
 var MASTER_FN = {
   getMasterBahanBaku:1, addMasterBahanBaku:1, updateMasterBahanBaku:1, deleteMasterBahanBaku:1,
