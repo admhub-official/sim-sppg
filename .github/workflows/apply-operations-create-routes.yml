@@ -23,6 +23,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Inspect patch targets
+        run: |
+          set -euo pipefail
+          python --version
+          grep -Fq "async function listOwned(" supabase/functions/operations-action/index.ts
+          grep -Fq "var OPERATIONS_FN = {" app.js
       - name: Apply route patch
         run: python -u scripts/apply-operations-create-routes.py
       - name: Validate source
@@ -38,6 +44,7 @@ jobs:
       - name: Commit source
         run: |
           set -euo pipefail
+          git status --short
           if git diff --quiet -- app.js supabase/functions/operations-action/index.ts; then
             echo 'Operations create routes already current.'
             exit 0
