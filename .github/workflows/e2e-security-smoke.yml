@@ -17,7 +17,8 @@ jobs:
     timeout-minutes: 10
     env:
       SUPABASE_URL: https://dmjsgtichrfxhyywstrt.supabase.co
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      # Publishable key memang ditujukan untuk aplikasi publik; bukan service-role secret.
+      SUPABASE_ANON_KEY: sb_publishable_PqO81PlEN24os7R9OBEeaw_IOi_Dmws
       SECURITY_TEST_USER_EMAIL: ${{ secrets.SECURITY_TEST_USER_EMAIL }}
       SECURITY_TEST_USER_PASSWORD: ${{ secrets.SECURITY_TEST_USER_PASSWORD }}
       SECURITY_TEST_ADMIN_EMAIL: ${{ secrets.SECURITY_TEST_ADMIN_EMAIL }}
@@ -39,8 +40,12 @@ jobs:
           node-version: '22'
       - name: Validate smoke script
         run: node --check scripts/security-smoke-test.mjs
-      - name: Require publishable test configuration
+      - name: Validate publishable test configuration
         run: |
-          test -n "$SUPABASE_ANON_KEY" || { echo 'Missing GitHub secret: SUPABASE_ANON_KEY'; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo 'Supabase publishable key is missing.'; exit 1; }
+          case "$SUPABASE_ANON_KEY" in
+            sb_publishable_*|eyJ*) ;;
+            *) echo 'Invalid Supabase publishable key format.'; exit 1 ;;
+          esac
       - name: Run E2E security smoke
         run: node scripts/security-smoke-test.mjs
