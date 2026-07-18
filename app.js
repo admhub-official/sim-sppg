@@ -179,6 +179,8 @@ var dropdownOptions = {};
 var txPage = 1, usersPage = 1, bbPage = 1, supplierPage = 1;
 var txServerTotal = 0, txServerPaged = false, txFilterTimer = null;
 var usersServerTotal = 0, usersServerPaged = false, usersFilterTimer = null;
+var bbServerTotal = 0, bbServerPaged = false, bbFilterTimer = null;
+var supplierServerTotal = 0, supplierServerPaged = false, supplierFilterTimer = null;
 var surveiPage = 1, stPage = 1, menuMBGPage = 1, pendingPage = 1;
 var approvalPage = 1;
 var filteredApprovalData = [];
@@ -4387,21 +4389,19 @@ function doSubmitVerifikasiPembayaran() {
 /* ============================================================
      MASTER DATA - BAHAN BAKU
      ============================================================ */
-function loadMasterBB() {
+function loadMasterBB(page, forceAll) {
+  page=Math.max(1,Number(page)||bbPage||1); forceAll=!!forceAll;
   showLoading(true);
-    callApi('getMasterBahanBaku', [], function(result) {
-        showLoading(false);
-              if (result.success) {
-                allMasterBB = result.data || [];
-                filteredMasterBB = allMasterBB.slice();
-                bbPage = 1;
-                renderMasterBBTable();
-              }
-      },
-      function(err) {
-        showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data');
-      }
-    );
+  callApi('getMasterBahanBaku', forceAll?[]:[{page:page,pageSize:ITEMS_PER_PAGE}], function(result) {
+    showLoading(false);
+    if(result&&result.success){
+      var rows=Array.isArray(result.data)?result.data:[];
+      bbServerPaged=!forceAll&&Number(result.page)>0;
+      bbServerTotal=bbServerPaged?Number(result.total||0):rows.length;
+      bbPage=bbServerPaged?Number(result.page||page):1;
+      allMasterBB=rows; applyMasterBBFiltersLocal(); renderMasterBBTable();
+    }
+  }, function(err){showLoading(false);showToast('error','Gagal','Tidak dapat memuat data');allMasterBB=[];filteredMasterBB=[];bbServerTotal=0;bbServerPaged=false;renderMasterBBTable();});
 }
 function renderMasterBBTable() {
   var tbody = $('masterBBTableBody');
@@ -4412,10 +4412,10 @@ function renderMasterBBTable() {
       '</div></td></tr>';
     $('bbPagination').innerHTML = ''; return;
   }
-  var totalPages = Math.ceil(filteredMasterBB.length / ITEMS_PER_PAGE);
+  var totalPages = Math.ceil((bbServerPaged ? bbServerTotal : filteredMasterBB.length) / ITEMS_PER_PAGE);
   if (bbPage > totalPages) bbPage = totalPages;
   var start = (bbPage - 1) * ITEMS_PER_PAGE;
-  var pageData = filteredMasterBB.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = bbServerPaged ? filteredMasterBB : filteredMasterBB.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   var canEdit = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'AKUNTAN');
   pageData.forEach(function(b, idx) {
@@ -4435,19 +4435,23 @@ function renderMasterBBTable() {
   tbody.innerHTML = html;
   renderPagination('bbPagination', bbPage, totalPages, 'goBBPage');
 }
-function goBBPage(p) { bbPage = p; renderMasterBBTable(); }
-function filterMasterBB() {
-  var search = $('bbSearchInput').value.toLowerCase().trim();
-  var kat = $('bbFilterKategori').value;
-  filteredMasterBB = allMasterBB.filter(function(b) {
-    var nama = b['NAMA  BAHAN BAKU'] || b['NAMA BAHAN BAKU'] || b['Nama Bahan Baku'] || '';
-    var kode = b['KODE BAHAN'] || b['Kode Bahan'] || '';
-    if (search && (nama + ' ' + kode).toLowerCase().indexOf(search) === -1) return false;
-    if (kat !== 'ALL' && (b['KATEGORI BAHAN BAKU'] || b['Kategori']) !== kat) return false;
+function goBBPage(p) { if(bbServerPaged)loadMasterBB(p,false);else{bbPage=p;renderMasterBBTable();} }
+function applyMasterBBFiltersLocal() {
+  var search=$('bbSearchInput')?$('bbSearchInput').value.toLowerCase().trim():'';
+  var kat=$('bbFilterKategori')?$('bbFilterKategori').value:'ALL';
+  filteredMasterBB=allMasterBB.filter(function(b){
+    var nama=b['NAMA  BAHAN BAKU']||b['NAMA BAHAN BAKU']||b['Nama Bahan Baku']||'';
+    var kode=b['KODE BAHAN']||b['Kode Bahan']||'';
+    if(search&&(nama+' '+kode).toLowerCase().indexOf(search)===-1)return false;
+    if(kat!=='ALL'&&(b['KATEGORI BAHAN BAKU']||b['Kategori'])!==kat)return false;
     return true;
   });
-  bbPage = 1;
-  renderMasterBBTable();
+}
+function filterMasterBB(){
+  var search=$('bbSearchInput')?$('bbSearchInput').value.trim():'';
+  var kat=$('bbFilterKategori')?$('bbFilterKategori').value:'ALL';
+  var full=!!search||kat!=='ALL';clearTimeout(bbFilterTimer);
+  bbFilterTimer=setTimeout(function(){bbPage=1;loadMasterBB(1,full);},300);
 }
 function openAddMasterBBModal() { $('addBBKode').value = ''; $('addBBKategori').value = ''; $('addBBNama').value = ''; $('addBBHarga').value = ''; $('addBBSatuan').value = 'Kg'; openModal('modalAddMasterBB'); }
 function saveAddMasterBB() {
@@ -4775,34 +4779,24 @@ function exportMasterBB(format) {
 /* ============================================================
      MASTER DATA - SUPPLIER
      ============================================================ */
-function loadSuppliers(silent) {
-  return new Promise(function(resolve) {
-    if (!currentUser) { resolve(); return; }
-    if (!silent) showLoading(true);
-    callApi('getMasterSupplier', [], function(result) {
-        if (!silent) showLoading(false);
-                if (result.success) {
-                  allSuppliers = result.data || [];
-                  filteredSuppliers = allSuppliers.slice();
-                  supplierPage = 1;
-                  renderSupplierTable();
-                }
-                resolve();
-      },
-      function(err) {
-        if (!silent) { showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data supplier'); }
-                resolve();
-      }
-    );
+function loadSuppliers(silent,page,forceAll) {
+  return new Promise(function(resolve){
+    if(!currentUser){resolve();return;} page=Math.max(1,Number(page)||supplierPage||1);forceAll=!!forceAll;
+    if(!silent)showLoading(true);
+    callApi('getMasterSupplier',forceAll?[]:[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){
+      if(!silent)showLoading(false);
+      if(result&&result.success){var rows=Array.isArray(result.data)?result.data:[];supplierServerPaged=!forceAll&&Number(result.page)>0;supplierServerTotal=supplierServerPaged?Number(result.total||0):rows.length;supplierPage=supplierServerPaged?Number(result.page||page):1;allSuppliers=rows;applySupplierFiltersLocal();renderSupplierTable();}
+      resolve();
+    },function(err){if(!silent){showLoading(false);showToast('error','Gagal','Tidak dapat memuat data supplier');}allSuppliers=[];filteredSuppliers=[];supplierServerTotal=0;supplierServerPaged=false;renderSupplierTable();resolve();});
   });
 }
 function renderSupplierTable() {
   var tbody = $('supplierTableBody');
   if (!filteredSuppliers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-truck"></i></div><h4>Tidak Ada Supplier</h4></div></td></tr>'; $('supplierPagination').innerHTML = ''; return; }
-  var totalPages = Math.ceil(filteredSuppliers.length / ITEMS_PER_PAGE);
+  var totalPages = Math.ceil((supplierServerPaged ? supplierServerTotal : filteredSuppliers.length) / ITEMS_PER_PAGE);
   if (supplierPage > totalPages) supplierPage = totalPages;
   var start = (supplierPage - 1) * ITEMS_PER_PAGE;
-  var pageData = filteredSuppliers.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = supplierServerPaged ? filteredSuppliers : filteredSuppliers.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(s, idx) {
     var statusBadge = s.STATUS === 'Aktif' ? 'badge-green' : s.STATUS === 'Suspend' ? 'badge-red' : 'badge-amber';
@@ -4824,20 +4818,14 @@ function renderSupplierTable() {
   renderPagination('supplierPagination', supplierPage, totalPages, 'goSupplierPage');
 }
 
-function filterSupplier() {
-  var search = $('supplierSearchInput').value.toLowerCase().trim();
-  var status = $('supplierFilterStatus').value;
-  filteredSuppliers = allSuppliers.filter(function(s) {
-    var teks = (s['NAMA SUPPLIER'] || s['Nama Supplier'] || '') + ' ' + (s['NO WHATSAPP'] || s['No WhatsApp'] || '') + ' ' + (s['EMAIL'] || s['Email'] || '');
-    if (search && teks.toLowerCase().indexOf(search) === -1) return false;
-    if (status !== 'ALL' && (s['STATUS'] || s['Status']) !== status) return false;
-    return true;
-  });
-  supplierPage = 1;
-  renderSupplierTable();
+function applySupplierFiltersLocal(){
+  var search=$('supplierSearchInput')?$('supplierSearchInput').value.toLowerCase().trim():'';
+  var status=$('supplierFilterStatus')?$('supplierFilterStatus').value:'ALL';
+  filteredSuppliers=allSuppliers.filter(function(x){var teks=(x['NAMA SUPPLIER']||x['Nama Supplier']||'')+' '+(x['NO WHATSAPP']||x['No WhatsApp']||'')+' '+(x['EMAIL']||x['Email']||'');if(search&&teks.toLowerCase().indexOf(search)===-1)return false;if(status!=='ALL'&&(x['STATUS']||x['Status'])!==status)return false;return true;});
 }
+function filterSupplier(){var search=$('supplierSearchInput')?$('supplierSearchInput').value.trim():'';var status=$('supplierFilterStatus')?$('supplierFilterStatus').value:'ALL';var full=!!search||status!=='ALL';clearTimeout(supplierFilterTimer);supplierFilterTimer=setTimeout(function(){supplierPage=1;loadSuppliers(false,1,full);},300);}
 
-function goSupplierPage(p) { supplierPage = p; renderSupplierTable(); }
+function goSupplierPage(p){if(supplierServerPaged)loadSuppliers(false,p,false);else{supplierPage=p;renderSupplierTable();}}
 function openDetailSurvei(rowNum) {
   var s = allSurvei.find(function(x){ return x._row === rowNum; });
   if (!s) return;
