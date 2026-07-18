@@ -1,0 +1,35 @@
+name: Apply users frontend pagination
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-users-frontend-pagination.py'
+      - '.github/workflows/apply-users-frontend-pagination.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply pagination patch
+        run: python scripts/apply-users-frontend-pagination.py
+      - name: Validate source
+        run: |
+          grep -q 'usersServerTotal' app.js
+          grep -q 'function applyUsersFiltersLocal' app.js
+          grep -q 'loadUsers(false,p,false)' app.js
+      - name: Commit source
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app.js
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: use server pagination for user management"
+          git push
