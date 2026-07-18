@@ -43,14 +43,45 @@ jobs:
             exit 1
           fi
 
-      - name: Validate backend routing constants
+      - name: Validate explicit modular routing
+        shell: bash
         run: |
-          grep -Fq 'TRANSACTION_FN_URL' app.js
-          grep -Fq 'OPERATIONS_FN_URL' app.js
-          grep -Fq 'REPORTING_FN_URL' app.js
-          grep -Fq 'MASTER_FN_URL' app.js
-          grep -Fq 'FILE_ACCESS_FN_URL' app.js
-          grep -Fq 'REGISTER_FN_URL' app.js
+          grep -Fq "var API_BASE_URL" app.js
+          grep -Fq "var API_ROUTES" app.js
+          grep -Fq "var API_ROUTE_BY_FUNCTION" app.js
+          grep -Fq "Fungsi API tidak terdaftar" app.js
+
+          for slug in \
+            transaction-action \
+            operations-action \
+            reporting-action \
+            master-action \
+            file-access-action \
+            secure-user-action \
+            push-action \
+            push-public-action \
+            geocode-action \
+            register-user-v2 \
+            auth-public-action \
+            account-recovery-action \
+            app-config-action; do
+            grep -Fq "'$slug'" app.js || { echo "Missing API route: $slug" >&2; exit 1; }
+          done
+
+          if grep -Fq 'dynamic-action' app.js uiux-fixes.js sw.js; then
+            echo 'Legacy dynamic-action reference detected in frontend.' >&2
+            exit 1
+          fi
+
+          if grep -Fq 'window.callApi=function' uiux-fixes.js; then
+            echo 'Obsolete runtime callApi override detected in uiux-fixes.js.' >&2
+            exit 1
+          fi
+
+          if grep -Fq 'injected by sw.js' sw.js; then
+            echo 'Obsolete Service Worker JavaScript injection detected.' >&2
+            exit 1
+          fi
 
       - name: Validate pagination integrations
         run: |
@@ -109,4 +140,4 @@ jobs:
 
       - name: Summary
         run: |
-          echo 'Frontend syntax, routing, pagination, merge markers, and credential checks passed.'
+          echo 'Frontend syntax, explicit routing, pagination, merge markers, and credential checks passed.'
