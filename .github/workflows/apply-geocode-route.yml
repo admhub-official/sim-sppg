@@ -1,0 +1,59 @@
+name: Apply and deploy geocode route
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-geocode-route.py'
+      - 'supabase/functions/geocode-action/**'
+      - '.github/workflows/apply-geocode-route.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: geocode-route-production
+  cancel-in-progress: false
+
+jobs:
+  patch-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply frontend routing
+        run: python -u scripts/apply-geocode-route.py
+      - name: Validate source
+        run: |
+          set -euo pipefail
+          node --check app.js
+          grep -Fq "var GEOCODE_FN_URL" app.js
+          grep -Fq "var GEOCODE_FN = { geocodeAlamat:1 };" app.js
+          grep -Fq "GEOCODE_FN[fnName] ? GEOCODE_FN_URL" app.js
+          grep -Fq "service:'geocode-action',version:1" supabase/functions/geocode-action/index.ts
+      - name: Commit routing
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain -- app.js)" ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add app.js
+            git commit -m 'feat: move geocoding out of dynamic action'
+            git push
+          fi
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy geocode-action
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          supabase functions deploy geocode-action --project-ref "$SUPABASE_PROJECT_REF" --use-api --debug
+      - name: Verify metadata
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
