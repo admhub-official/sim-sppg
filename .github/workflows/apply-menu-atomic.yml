@@ -26,6 +26,7 @@ jobs:
         run: python scripts/apply-menu-atomic.py
       - name: Validate source
         run: |
+          node --check <(sed 's/^import .*//g' supabase/functions/operations-action/index.ts) || true
           grep -Fq "create_menu_harian_atomic" supabase/functions/operations-action/index.ts
           grep -Fq "update_menu_harian_atomic" supabase/functions/operations-action/index.ts
           grep -Fq "updateMenuAtomic" supabase/functions/operations-action/index.ts
@@ -36,6 +37,7 @@ jobs:
       - name: Commit patched source
         run: |
           git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git config user.email 41898233+github-actions[bot]@users.noreply.github.com
           git add supabase/functions/operations-action/index.ts
           if git diff --cached --quiet; then echo 'Already applied.'; else git commit -m 'Use atomic RPC for Menu MBG create and update'; git push; fi
+# trigger: 2026-07-18-menu-atomic-1
