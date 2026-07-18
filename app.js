@@ -184,6 +184,7 @@ var supplierServerTotal = 0, supplierServerPaged = false, supplierFilterTimer = 
 var surveiPage = 1, stPage = 1, menuMBGPage = 1, pendingPage = 1;
 var surveiServerTotal = 0, surveiServerPaged = false, surveiFilterTimer = null;
 var stServerTotal = 0, stServerPaged = false, stFilterTimer = null;
+var menuServerTotal = 0, menuServerPaged = false;
 var approvalPage = 1;
 var filteredApprovalData = [];
 var selectedApprovalIds = new Set();
@@ -5407,28 +5408,14 @@ function saveAddSerahTerima() {
 /* ============================================================
      MENU MBG
      ============================================================ */
-function loadMenuMBG() {
-  showLoading(true);
-    callApi('getMenuHarian', [{}], function(result) {
-        showLoading(false);
-              if (result.success) {
-                allMenuMBG = result.data || [];
-                menuMBGPage = 1;
-                renderMenuMBGTable();
-              }
-      },
-      function(err) {
-        showLoading(false); showToast('error', 'Gagal', 'Tidak dapat memuat data menu');
-      }
-    );
-}
+function loadMenuMBG(page){page=Math.max(1,Number(page)||menuMBGPage||1);showLoading(true);callApi('getMenuHarian',[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){showLoading(false);if(result&&result.success){allMenuMBG=Array.isArray(result.data)?result.data:[];menuServerPaged=Number(result.page)>0;menuServerTotal=menuServerPaged?Number(result.total||0):allMenuMBG.length;menuMBGPage=menuServerPaged?Number(result.page||page):1;renderMenuMBGTable();}},function(err){showLoading(false);showToast('error','Gagal','Tidak dapat memuat data menu');allMenuMBG=[];menuServerTotal=0;menuServerPaged=false;renderMenuMBGTable();});}
 function renderMenuMBGTable() {
   var tbody = $('menuMBGTableBody');
   if (!allMenuMBG.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-utensils"></i></div><h4>Tidak Ada Data Menu</h4></div></td></tr>'; $('menuMBGPagination').innerHTML = ''; return; }
-  var totalPages = Math.ceil(allMenuMBG.length / ITEMS_PER_PAGE);
+  var totalPages = Math.ceil((menuServerPaged ? menuServerTotal : allMenuMBG.length) / ITEMS_PER_PAGE);
   if (menuMBGPage > totalPages) menuMBGPage = totalPages;
   var start = (menuMBGPage - 1) * ITEMS_PER_PAGE;
-  var pageData = allMenuMBG.slice(start, start + ITEMS_PER_PAGE);
+  var pageData = menuServerPaged ? allMenuMBG : allMenuMBG.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   pageData.forEach(function(m, idx) {
     var detailText = '';
@@ -5444,15 +5431,15 @@ function renderMenuMBGTable() {
       '<td>' + (detailText || '-') + '</td>' +
       '<td style="text-align:center;">' +
         '<div class="action-group" style="opacity:1;">' +
-          '<button class="action-btn view" title="Detail" onclick="showMenuDetail(' + (start + idx) + ')"><i class="fas fa-eye"></i><span class="tooltip">Detail</span></button>' +
-          (canEditMenu ? '<button class="action-btn edit" onclick="openEditMenuMBGModal(' + (start + idx) + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
+          '<button class="action-btn view" title="Detail" onclick="showMenuDetail(' + (menuServerPaged ? idx : start + idx) + ')"><i class="fas fa-eye"></i><span class="tooltip">Detail</span></button>' +
+          (canEditMenu ? '<button class="action-btn edit" onclick="openEditMenuMBGModal(' + (menuServerPaged ? idx : start + idx) + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
           (canEditMenu ? '<button class="action-btn delete" onclick="confirmHapus(\'menuMBG\',' + (m._row || (start+idx+2)) + ',\'\',\'menu ' + esc((m.menu||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
         '</div></td></tr>';
   });
   tbody.innerHTML = html;
   renderPagination('menuMBGPagination', menuMBGPage, totalPages, 'goMenuMBGPage');
 }
-function goMenuMBGPage(p) { menuMBGPage = p; renderMenuMBGTable(); }
+function goMenuMBGPage(p){if(menuServerPaged)loadMenuMBG(p);else{menuMBGPage=p;renderMenuMBGTable();}}
 function exportMenuMBG(format) {
   if (format === 'csv') {
     var flat = [];
