@@ -55,6 +55,7 @@ window._supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 var OPERATIONS_FN = {
   getAllUsers:1, deleteUser:1,
+  addPendingPayment:1, addSurveiBahanBaku:1, addSerahTerima:1, addMenuHarian:1,
   getAdminAssignments:1, addAdminAssignment:1, updateAdminAssignment:1, deleteAdminAssignment:1,
   getPendingPayments:1, updatePendingPayment:1, deletePendingPayment:1,
   getSurveiBahanBaku:1, updateSurvei:1, deleteSurvei:1,
