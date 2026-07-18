@@ -45,6 +45,8 @@ var MASTER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/maste
 var FILE_ACCESS_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/file-access-action';
 var REGISTER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/register-user-v2';
 var SECURE_USER_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/secure-user-action';
+var PUSH_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/push-action';
+var PUSH_PUBLIC_FN_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/push-public-action';
 var TRANSACTION_FN = {
   getTransactions:1, getTransactionDetail:1, addTransaction:1, editTransaction:1,
   approveTransaction:1, submitUserBuktiPembayaran:1, verifyUserPayment:1,
@@ -73,10 +75,12 @@ var MASTER_FN = {
   uploadSupplierFile:1, uploadFotoSurvei:1, uploadSerahTerimaFile:1
 };
 var FILE_ACCESS_FN = { getFileUrl:1, showCredentials:1 };
+var PUSH_FN = { savePushSubscription:1, deletePushSubscription:1 };
+var PUSH_PUBLIC_FN = { getPushPublicKey:1 };
 var PUBLIC_FN = {
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
   loginUser:1, checkSession:1, recoverPassword:1, recoverUsername:1,
-  recoverToken:1, getAppConfig:1, getDropdownOptions:1
+  recoverToken:1, getAppConfig:1, getDropdownOptions:1, getPushPublicKey:1
 };
 
 function getJwtToken() {
@@ -93,7 +97,7 @@ function getJwtToken() {
 function callApi(fnName, params, onSuccess, onFailure) {
   var headers = { 'Content-Type': 'application/json' };
   var isSecureUserAction = fnName === 'updateUserProfile' || fnName === 'uploadFotoProfil';
-  var requestUrl = fnName === 'registerUser' ? REGISTER_FN_URL : (isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : (REPORTING_FN[fnName] ? REPORTING_FN_URL : (MASTER_FN[fnName] ? MASTER_FN_URL : (FILE_ACCESS_FN[fnName] ? FILE_ACCESS_FN_URL : SUPABASE_FN_URL))))));
+  var requestUrl = fnName === 'registerUser' ? REGISTER_FN_URL : (PUSH_PUBLIC_FN[fnName] ? PUSH_PUBLIC_FN_URL : (isSecureUserAction ? SECURE_USER_FN_URL : (TRANSACTION_FN[fnName] ? TRANSACTION_FN_URL : (OPERATIONS_FN[fnName] ? OPERATIONS_FN_URL : (REPORTING_FN[fnName] ? REPORTING_FN_URL : (MASTER_FN[fnName] ? MASTER_FN_URL : (FILE_ACCESS_FN[fnName] ? FILE_ACCESS_FN_URL : (PUSH_FN[fnName] ? PUSH_FN_URL : SUPABASE_FN_URL))))))));
   if (!PUBLIC_FN[fnName]) {
     var token = getJwtToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
