@@ -30,12 +30,20 @@ async function enqueueRetry(base:any,sub:any,payload:any,e:any){
   if(q.error)console.error('retry enqueue',q.error.message);
 }
 
+function scheduleDueRetries(){
+  try{
+    const task=processRetries(10).catch(e=>console.error('opportunistic retry',e));
+    const runtime=(globalThis as any).EdgeRuntime;
+    if(runtime?.waitUntil)runtime.waitUntil(task);
+  }catch(e){console.error('retry schedule',e)}
+}
+
 async function dispatch(c:any,d:any){
   const title=text(d.title).slice(0,120),body=text(d.body).slice(0,500),url=text(d.url).slice(0,500);
   if(!title||!body)throw new Error('Judul dan isi notifikasi wajib diisi.');
   configureWebPush();
   const emails=[...new Set(await recipientEmails(c,d))];
-  if(!emails.length)return{success:true,sent:0,failed:0,expired:0,queued:0,recipients:0,subscriptions:0};
+  if(!emails.length){scheduleDueRetries();return{success:true,sent:0,failed:0,expired:0,queued:0,recipients:0,subscriptions:0};}
   const q=await sb.from('PUSH_SUBSCRIPTIONS').select('id,user_email,endpoint,p256dh,auth').in('user_email',emails);if(q.error)throw q.error;
   let sent=0,failed=0,expired=0,queued=0;
   for(const sub of q.data||[]){
@@ -51,6 +59,7 @@ async function dispatch(c:any,d:any){
       else{failed++;queued++;await enqueueRetry(base,sub,{title,body,url},e);await logDelivery({...base,status:'FAILED',http_status:status,error_message:`Queued retry 1/3: ${errorText(e)}`.slice(0,500)});}
     }
   }
+  scheduleDueRetries();
   return{success:failed===0,sent,failed,expired,queued,recipients:emails.length,subscriptions:(q.data||[]).length};
 }
 
@@ -100,7 +109,7 @@ function internalCaller(req:Request){
 
 Deno.serve(async req=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});
-  if(req.method==='GET')return out({status:'ok',service:'notification-dispatch-action',version:5,internalDispatch:true,retryQueue:true,maxAttempts:3});
+  if(req.method==='GET')return out({status:'ok',service:'notification-dispatch-action',version:5,internalDispatch:true,retryQueue:true,maxAttempts:3,opportunisticRetry:true});
   if(req.method!=='POST')return out({error:'Method tidak didukung.'},405);
   if(Number(req.headers.get('content-length')||0)>32000)return out({error:'Payload terlalu besar.'},413);
   try{
