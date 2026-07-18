@@ -77,11 +77,32 @@ jobs:
           grep -Fq "getAuditLog" app.js
 
       - name: Check accidental credential literals
+        shell: bash
         run: |
-          if grep -RInE '(service_role|SUPABASE_SERVICE_ROLE_KEY)[[:space:]]*[:=][[:space:]]*["'"'][A-Za-z0-9._-]{20,}' -- app.js uiux-fixes.js sw.js index.html; then
-            echo 'Possible privileged credential literal detected in frontend.' >&2
-            exit 1
-          fi
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          files = [Path('app.js'), Path('uiux-fixes.js'), Path('sw.js'), Path('index.html')]
+          pattern = re.compile(
+              r"(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*['\"]([A-Za-z0-9._-]{20,})['\"]",
+              re.IGNORECASE,
+          )
+
+          findings = []
+          for path in files:
+              text = path.read_text(encoding='utf-8', errors='replace')
+              for match in pattern.finditer(text):
+                  line = text.count('\n', 0, match.start()) + 1
+                  findings.append(f'{path}:{line}')
+
+          if findings:
+              print('Possible privileged credential literal detected in frontend:', file=sys.stderr)
+              for finding in findings:
+                  print(f'  {finding}', file=sys.stderr)
+              sys.exit(1)
+          PY
 
       - name: Summary
         run: |
