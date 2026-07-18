@@ -36,6 +36,9 @@ jobs:
           grep -q "requireCompleteDocs" supabase/functions/transaction-action/index.ts
           grep -q "async function removeFiles" supabase/functions/transaction-action/index.ts
           grep -q "submit_transaction_payment_atomic" supabase/functions/transaction-action/index.ts
+          grep -q "verify_transaction_payment_atomic" supabase/functions/transaction-action/index.ts
+          grep -q "p_verifier_signature_path:tt||null" supabase/functions/transaction-action/index.ts
+          grep -q "atomic:true" supabase/functions/transaction-action/index.ts
           grep -q "function ownedUpload" supabase/functions/transaction-action/index.ts
           grep -q "cleanup add orphan" supabase/functions/transaction-action/index.ts
           grep -q "cleanup edit orphan" supabase/functions/transaction-action/index.ts
@@ -62,4 +65,4 @@ jobs:
         run: |
           set -euo pipefail
           supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
-          echo "Deployment contains atomic payment, orphan cleanup, and pagination."
+          echo "Deployment contains atomic submit, atomic verification, orphan cleanup, and pagination."
