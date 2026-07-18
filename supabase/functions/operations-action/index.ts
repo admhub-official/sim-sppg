@@ -34,8 +34,25 @@ function pageSpec(v:any){const requested=Number(v?.page)>0||Number(v?.pageSize)>
 function paged(data:any[],v:any){const x=pageSpec(v);if(!x)return null;const total=data.length;return{data:data.slice(x.from,x.to+1),page:x.page,pageSize:x.pageSize,total,hasMore:x.to+1<total}}
 
 async function getAllUsers(c:Caller,opt:any={}){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Akses ditolak.');const q=await sb.from('USERS').select('ID,"NAMA LENGKAP",EMAIL,JABATAN,SPPG,ROLE,"FOTO PROFIL",TIMESTAMP,USERNAME,"NAMA YAYASAN"').order('TIMESTAMP',{ascending:false});if(q.error)throw q.error;const out=[];for(const r of q.data||[]){if(c.role==='SUPER_ADMIN'||await pairOK(c,r.SPPG,r['NAMA YAYASAN']))out.push({id:r.ID,namaLengkap:r['NAMA LENGKAP'],email:r.EMAIL,jabatan:r.JABATAN,sppg:r.SPPG,role:r.ROLE,fotoProfil:r['FOTO PROFIL'],timestamp:r.TIMESTAMP,username:r.USERNAME,namaYayasan:r['NAMA YAYASAN']||''});}const pg=paged(out,opt);return pg?{success:true,...pg}:{success:true,data:out};}
-async function deleteUser(username:string,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Akses ditolak.');const q=await sb.from('USERS').select('*').eq('USERNAME',lo(username)).maybeSingle();if(q.error)throw q.error;if(!q.data)throw new Error('User tidak ditemukan.');if(q.data.ID===c.id)throw new Error('Tidak bisa menghapus akun sendiri.');if(q.data.ROLE==='SUPER_ADMIN')throw new Error('Akun SUPER_ADMIN tidak dapat dihapus dari endpoint ini.');if(c.role==='ADMIN'){if(q.data.ROLE!=='USER')throw new Error('ADMIN hanya dapat menghapus USER.');if(!(await pairOK(c,q.data.SPPG,q.data['NAMA YAYASAN'])))throw new Error('Target di luar assignment ADMIN.');}
-  const a=await sb.auth.admin.deleteUser(q.data.ID);if(a.error)throw a.error;const d=await sb.from('USERS').delete().eq('ID',q.data.ID);if(d.error)throw d.error;await audit(c,'USERS',q.data.ID,'DELETE',{username});return{success:true,message:'User berhasil dihapus.'};}
+async function deleteUser(username:string,c:Caller){
+  if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Akses ditolak.');
+  const q=await sb.from('USERS').select('*').eq('USERNAME',lo(username)).maybeSingle();
+  if(q.error)throw q.error;if(!q.data)throw new Error('User tidak ditemukan.');
+  if(q.data.ID===c.id)throw new Error('Tidak bisa menghapus akun sendiri.');
+  if(q.data.ROLE==='SUPER_ADMIN')throw new Error('Akun SUPER_ADMIN tidak dapat dihapus dari endpoint ini.');
+  if(c.role==='ADMIN'){
+    if(q.data.ROLE!=='USER')throw new Error('ADMIN hanya dapat menghapus USER.');
+    if(!(await pairOK(c,q.data.SPPG,q.data['NAMA YAYASAN'])))throw new Error('Target di luar assignment ADMIN.');
+  }
+  const email=lo(q.data.EMAIL),photo=s(q.data['FOTO PROFIL']);
+  const assignment=await sb.from('ADMIN_ASSIGNMENT').delete().eq('admin_email',email);if(assignment.error)throw assignment.error;
+  const push=await sb.from('PUSH_SUBSCRIPTIONS').delete().eq('user_email',email);if(push.error)throw push.error;
+  const a=await sb.auth.admin.deleteUser(q.data.ID);if(a.error)throw a.error;
+  const d=await sb.from('USERS').delete().eq('ID',q.data.ID);if(d.error)throw d.error;
+  if(photo){const cleanup=await sb.storage.from('foto-profil').remove([photo]);if(cleanup.error)console.error('profile cleanup',cleanup.error.message);}
+  await audit(c,'USERS',q.data.ID,'DELETE',{username,email,profilePhotoDeleted:!!photo,pushSubscriptionsDeleted:true,assignmentsDeleted:true});
+  return{success:true,message:'User dan file profil terkait berhasil dihapus.'};
+}
 
 function requireSuperAdmin(c:Caller){if(c.role!=='SUPER_ADMIN')throw new Error('Hanya SUPER_ADMIN yang dapat mengelola assignment.');}
 async function requireAdminAccount(email:unknown){const e=lo(email);if(!e)throw new Error('Email ADMIN wajib diisi.');const q=await sb.from('USERS').select('ID,EMAIL,ROLE').eq('EMAIL',e).maybeSingle();if(q.error)throw q.error;if(!q.data)throw new Error('Akun ADMIN tidak ditemukan.');if(s(q.data.ROLE).toUpperCase()!=='ADMIN')throw new Error('Assignment hanya dapat diberikan kepada akun dengan ROLE ADMIN.');return e;}
