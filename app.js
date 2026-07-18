@@ -54,7 +54,7 @@ var TRANSACTION_FN = {
 window._supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtanNndGljaHJmeGh5eXdzdHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MTU2MTUsImV4cCI6MjA5ODM5MTYxNX0.D_ZJ286uSpLeZEsg_vSf3iEoG-SnokHV62X6hPXreHM';
 
 var OPERATIONS_FN = {
-  getAllUsers:1, deleteUser:1,
+  getAllUsers:1, deleteUser:1, getUploadBuktiMode:1, setUploadBuktiMode:1,
   addPendingPayment:1, addSurveiBahanBaku:1, addSerahTerima:1, addMenuHarian:1,
   getAdminAssignments:1, addAdminAssignment:1, updateAdminAssignment:1, deleteAdminAssignment:1,
   getPendingPayments:1, updatePendingPayment:1, deletePendingPayment:1,

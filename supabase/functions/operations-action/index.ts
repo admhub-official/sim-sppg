@@ -75,6 +75,24 @@ async function addMenu(d:any,c:Caller){
   }catch(e){await sb.from('MENU_HARIAN').delete().eq('ID',id);throw e;}
 }
 
+
+async function getUploadBuktiMode(c:Caller){
+  const q=await sb.from('APP_SETTINGS').select('VALUE').eq('KEY','ALLOW_USER_UPLOAD_BUKTI').maybeSingle();
+  if(q.error)throw q.error;
+  return{success:true,enabled:String(q.data?.VALUE||'false').toLowerCase()==='true'};
+}
+async function setUploadBuktiMode(enabled:boolean,c:Caller){
+  requireSuperAdmin(c);
+  const value=enabled?'true':'false';
+  const existing=await sb.from('APP_SETTINGS').select('KEY').eq('KEY','ALLOW_USER_UPLOAD_BUKTI').maybeSingle();
+  if(existing.error)throw existing.error;
+  const q=existing.data
+    ? await sb.from('APP_SETTINGS').update({VALUE:value}).eq('KEY','ALLOW_USER_UPLOAD_BUKTI')
+    : await sb.from('APP_SETTINGS').insert({KEY:'ALLOW_USER_UPLOAD_BUKTI',VALUE:value});
+  if(q.error)throw q.error;
+  await audit(c,'APP_SETTINGS','ALLOW_USER_UPLOAD_BUKTI','TOGGLE_MODE',{enabled});
+  return{success:true,enabled,message:'Mode upload bukti berhasil diperbarui.'};
+}
 async function listOwned(table:string,c:Caller,orderCol='TIMESTAMP'){const q=await sb.from(table).select('*').order(orderCol,{ascending:false});if(q.error)throw q.error;const out=[];for(const r of q.data||[])if(await ownerOK(c,r.USER))out.push(r);return out;}
 function ownedResult(data:any[],opt:any={}){const pg=paged(data,opt);return pg?{success:true,...pg}:{success:true,data}}
 async function getPending(c:Caller,opt:any={}){return ownedResult(await listOwned('Pending Payment',c,'Timestamp'),opt);}
@@ -88,6 +106,7 @@ const SERAH_FIELDS=['KODE BAHAN BAKU','KATEGORI BAHAN BAKU','NAMA BAHAN BAKU','F
 const MENU_FIELDS=['TANGGAL','JUMLAH KPM','MENU'];
 const H:any={
  getAllUsers:(p:any[],c:Caller)=>getAllUsers(c,p[0]||{}),deleteUser:(p:any[],c:Caller)=>deleteUser(s(p[0]),c),
+ getUploadBuktiMode:(_p:any[],c:Caller)=>getUploadBuktiMode(c),setUploadBuktiMode:(p:any[],c:Caller)=>setUploadBuktiMode(Boolean(p[0]),c),
  addPendingPayment:(p:any[],c:Caller)=>addPending(p[0]||{},c),addSurveiBahanBaku:(p:any[],c:Caller)=>addSurvei(p[0]||{},c),addSerahTerima:(p:any[],c:Caller)=>addSerahTerima(p[0]||{},c),addMenuHarian:(p:any[],c:Caller)=>addMenu(p[0]||{},c),
  getAdminAssignments:(p:any[],c:Caller)=>getAdminAssignments(s(p[0]),c),addAdminAssignment:(p:any[],c:Caller)=>addAdminAssignment(s(p[0]),s(p[1]),s(p[2]),c),updateAdminAssignment:(p:any[],c:Caller)=>updateAdminAssignment(s(p[0]),s(p[1]),s(p[2]),c),deleteAdminAssignment:(p:any[],c:Caller)=>deleteAdminAssignment(s(p[0]),c),
  getPendingPayments:(p:any[],c:Caller)=>getPending(c,p[0]||{}),updatePendingPayment:(p:any[],c:Caller)=>updatePending(s(p[0]),p[1]||{},c),deletePendingPayment:(p:any[],c:Caller)=>delRecord('Pending Payment',s(p[0]),c,'User'),
@@ -95,4 +114,4 @@ const H:any={
  getSerahTerima:async(p:any[],c:Caller)=>ownedResult(await listOwned('SERAH_TERIMA',c),p[0]||{}),updateSerahTerima:(p:any[],c:Caller)=>updateRecord('SERAH_TERIMA',s(p[0]),p[1]||{},c,SERAH_FIELDS),deleteSerahTerima:(p:any[],c:Caller)=>delRecord('SERAH_TERIMA',s(p[0]),c),
  getMenuHarian:(p:any[],c:Caller)=>getMenu(c,p[0]||{}),updateMenuMBG:(p:any[],c:Caller)=>updateRecord('MENU_HARIAN',s(p[0]),p[1]||{},c,MENU_FIELDS),deleteMenuMBG:(p:any[],c:Caller)=>delRecord('MENU_HARIAN',s(p[0]),c)
 };
-Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method==='GET')return j({status:'ok',service:'operations-action',version:4});if(req.method!=='POST')return j({error:'Method tidak didukung.'},405);try{const c=await caller(req),b=await req.json(),fn=H[b?.function];if(!fn)return j({error:`Fungsi tidak diizinkan: ${b?.function||''}`},404);return j({result:await fn(Array.isArray(b.parameters)?b.parameters:[],c)})}catch(e){const message=e instanceof Error?e.message:String(e);const denied=/akses|token|hanya admin|super_admin|assignment|ditolak/i.test(message);console.error(message);return j({error:message,result:{success:false,message}},denied?403:400)}});
+Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method==='GET')return j({status:'ok',service:'operations-action',version:5});if(req.method!=='POST')return j({error:'Method tidak didukung.'},405);try{const c=await caller(req),b=await req.json(),fn=H[b?.function];if(!fn)return j({error:`Fungsi tidak diizinkan: ${b?.function||''}`},404);return j({result:await fn(Array.isArray(b.parameters)?b.parameters:[],c)})}catch(e){const message=e instanceof Error?e.message:String(e);const denied=/akses|token|hanya admin|super_admin|assignment|ditolak/i.test(message);console.error(message);return j({error:message,result:{success:false,message}},denied?403:400)}});
