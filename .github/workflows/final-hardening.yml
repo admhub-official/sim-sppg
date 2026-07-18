@@ -1,0 +1,51 @@
+name: Final application hardening
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-final-routing-hardening.py'
+      - 'scripts/final-hardening-audit.mjs'
+      - '.github/workflows/final-hardening.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: final-hardening-production
+  cancel-in-progress: false
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply native routing and deny unknown routes
+        run: python -u scripts/apply-final-routing-hardening.py
+      - name: Validate JavaScript
+        run: node --check app.js
+      - name: Refresh route inventory
+        run: node scripts/generate-dynamic-route-inventory.mjs
+      - name: Contract smoke tests
+        run: |
+          set -euo pipefail
+          grep -Fq "var GEOCODE_FN_URL" app.js
+          grep -Fq "Fungsi API tidak terdaftar" app.js
+          ! grep -E "requestUrl[^;]*SUPABASE_FN_URL" app.js
+          ! grep -Fq 'dynamic-action` fallback' docs/dynamic-route-inventory.md
+      - name: Final security audit
+        run: node scripts/final-hardening-audit.mjs
+      - name: Commit hardened source
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain -- app.js uiux-fixes.js docs/dynamic-route-inventory.md)" ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add app.js uiux-fixes.js docs/dynamic-route-inventory.md
+            git commit -m 'security: remove dynamic action frontend fallback'
+            git push
+          fi
