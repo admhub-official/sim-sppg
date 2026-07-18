@@ -1,17 +1,13 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+
+const sb=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json'};
-const allowed=new Set(['recoverPassword','recoverUsername','recoverToken']);
 const out=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:C});
-Deno.serve(async req=>{
-  if(req.method==='OPTIONS')return new Response('ok',{headers:C});
-  if(req.method==='GET')return out({status:'ok',service:'account-recovery-action',version:1});
-  if(req.method!=='POST')return out({error:'Method tidak didukung.'},405);
-  const len=Number(req.headers.get('content-length')||0);if(len>16000)return out({error:'Payload terlalu besar.'},413);
-  try{
-    const body=await req.json();
-    if(!allowed.has(String(body?.function||'')))return out({error:'Fungsi tidak diizinkan.'},404);
-    const base=Deno.env.get('SUPABASE_URL')||'';
-    const key=Deno.env.get('SUPABASE_ANON_KEY')||'';
-    const r=await fetch(base+'/functions/v1/dynamic-action',{method:'POST',headers:{'Content-Type':'application/json',apikey:key},body:JSON.stringify({function:body.function,parameters:Array.isArray(body.parameters)?body.parameters:[]})});
-    return new Response(await r.text(),{status:r.status,headers:C});
-  }catch(e){return out({error:e instanceof Error?e.message:String(e)},400);}
-});
+const GENERIC='Jika data akun cocok, instruksi pemulihan akan dikirim ke email terdaftar.';
+const attempts=new Map<string,{count:number,reset:number}>();
+const text=(v:unknown)=>String(v??'').trim();
+const low=(v:unknown)=>text(v).toLowerCase();
+function allow(key:string){const now=Date.now(),x=attempts.get(key);if(!x||x.reset<=now){attempts.set(key,{count:1,reset:now+30*60*1000});return true}if(x.count>=3)return false;x.count++;return true}
+async function resolveEmail(fn:string,data:any){if(fn==='recoverPassword'){const username=low(data?.username);if(!username||username.length>80)return '';const q=await sb.from('USERS').select('EMAIL').eq('USERNAME',username).maybeSingle();if(q.error)throw q.error;return low(q.data?.EMAIL)}if(fn==='recoverUsername'){const email=low(data?.email);return email.length<=254?email:''}return ''}
+async function recover(fn:string,data:any,ip:string){if(fn==='recoverToken')return{success:false,message:'Fitur token login sudah tidak digunakan. Gunakan menu Lupa Password.'};const identity=low(data?.username||data?.email);if(!identity||!allow(`${fn}:${ip}:${identity}`))return{success:true,message:GENERIC};const email=await resolveEmail(fn,data);if(email){const q=await sb.auth.resetPasswordForEmail(email);if(q.error)console.error('recovery email error',q.error.message)}return{success:true,message:GENERIC}}
+Deno.serve(async req=>{if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method==='GET')return out({status:'ok',service:'account-recovery-action',version:2,native:true});if(req.method!=='POST')return out({error:'Method tidak didukung.'},405);if(Number(req.headers.get('content-length')||0)>16000)return out({error:'Payload terlalu besar.'},413);try{const body=await req.json();const fn=String(body?.function||'');if(!['recoverPassword','recoverUsername','recoverToken'].includes(fn))return out({error:'Fungsi tidak diizinkan.'},404);const data=Array.isArray(body.parameters)?body.parameters[0]||{}:{};const ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'unknown';return out({result:await recover(fn,data,ip)})}catch(e){console.error(e);return out({result:{success:true,message:GENERIC}})}});
