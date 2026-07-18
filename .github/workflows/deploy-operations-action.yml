@@ -42,7 +42,9 @@ jobs:
           grep -q 'async function addSurvei' supabase/functions/operations-action/index.ts
           grep -q 'async function addSerahTerima' supabase/functions/operations-action/index.ts
           grep -q 'async function addMenu' supabase/functions/operations-action/index.ts
-          grep -q 'version:4' supabase/functions/operations-action/index.ts
+          grep -q 'async function getUploadBuktiMode' supabase/functions/operations-action/index.ts
+          grep -q 'async function setUploadBuktiMode' supabase/functions/operations-action/index.ts
+          grep -q 'version:5' supabase/functions/operations-action/index.ts
       - uses: supabase/setup-cli@v1
         with:
           version: latest
