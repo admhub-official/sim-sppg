@@ -33,6 +33,11 @@ jobs:
           grep -q 'ownerOK' supabase/functions/operations-action/index.ts
           grep -q 'function pageSpec' supabase/functions/operations-action/index.ts
           grep -q 'function ownedResult' supabase/functions/operations-action/index.ts
+          grep -q 'requireSuperAdmin' supabase/functions/operations-action/index.ts
+          grep -q 'getAdminAssignments' supabase/functions/operations-action/index.ts
+          grep -q 'addAdminAssignment' supabase/functions/operations-action/index.ts
+          grep -q 'updateAdminAssignment' supabase/functions/operations-action/index.ts
+          grep -q 'deleteAdminAssignment' supabase/functions/operations-action/index.ts
       - uses: supabase/setup-cli@v1
         with:
           version: latest
