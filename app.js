@@ -71,7 +71,8 @@ var API_ROUTES = {
   'register-user-v2': { registerUser:1 },
   'auth-public-action': { verifyRegistrationOtp:1, resendRegistrationOtp:1, loginUser:1, checkSession:1 },
   'account-recovery-action': { recoverPassword:1, recoverUsername:1, recoverToken:1 },
-  'app-config-action': { getAppConfig:1, getDropdownOptions:1 }
+  'app-config-action': { getAppConfig:1, getDropdownOptions:1 },
+  'notification-dispatch-action': { dispatchNotification:1 }
 };
 var PUBLIC_FN = {
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
