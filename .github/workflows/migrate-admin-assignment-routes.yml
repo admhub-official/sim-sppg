@@ -1,0 +1,57 @@
+name: Migrate admin assignment routes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/migrate-admin-assignment-routes.py'
+      - '.github/workflows/migrate-admin-assignment-routes.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: migrate-admin-assignment-routes
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply route migration
+        run: python scripts/migrate-admin-assignment-routes.py
+
+      - name: Validate frontend syntax
+        run: node --check app.js
+
+      - name: Validate backend route source
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'requireSuperAdmin' supabase/functions/operations-action/index.ts
+          grep -Fq 'getAdminAssignments:(p:any[]' supabase/functions/operations-action/index.ts
+          grep -Fq 'addAdminAssignment:(p:any[]' supabase/functions/operations-action/index.ts
+          grep -Fq 'updateAdminAssignment:(p:any[]' supabase/functions/operations-action/index.ts
+          grep -Fq 'deleteAdminAssignment:(p:any[]' supabase/functions/operations-action/index.ts
+          grep -Fq 'getAdminAssignments:1' app.js
+          grep -Fq 'deleteAdminAssignment:1' app.js
+
+      - name: Commit migrated routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- app.js supabase/functions/operations-action/index.ts; then
+            echo 'Admin assignment routes already migrated.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js supabase/functions/operations-action/index.ts
+          git commit -m 'feat: route admin assignments through operations action'
+          git push
