@@ -1,0 +1,28 @@
+name: Apply final native routing
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/apply-final-routing-hardening.py
+      - .github/workflows/apply-final-routing.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python scripts/apply-final-routing-hardening.py
+      - run: node --check app.js
+      - run: grep -Fq "var GEOCODE_FN_URL" app.js
+      - run: grep -Fq "Fungsi API tidak terdaftar" app.js
+      - run: |
+          git config user.name github-actions-bot
+          git config user.email actions@github.com
+          git add app.js uiux-fixes.js
+          git diff --cached --quiet && exit 0
+          git commit -m "security: use native routes and deny unknown API calls"
+          git push
