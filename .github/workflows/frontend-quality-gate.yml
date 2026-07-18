@@ -63,7 +63,8 @@ jobs:
             stServerPaged \
             menuServerPaged \
             pendingServerPaged \
-            auditServerPaged; do
+            auditServerPaged \
+            notifServerPaged; do
             grep -Fq "$token" app.js || { echo "Missing pagination token: $token" >&2; exit 1; }
           done
           grep -Fq "getTransactions" app.js
@@ -75,6 +76,8 @@ jobs:
           grep -Fq "getMenuHarian" app.js
           grep -Fq "getPendingPayments" app.js
           grep -Fq "getAuditLog" app.js
+          grep -Fq "getNotifications" app.js
+          grep -Fq "function loadMoreNotifications()" app.js
 
       - name: Check accidental credential literals
         shell: bash
