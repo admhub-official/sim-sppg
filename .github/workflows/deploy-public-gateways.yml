@@ -1,0 +1,45 @@
+name: Deploy public gateways
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/auth-public-action/**'
+      - 'supabase/functions/account-recovery-action/**'
+      - 'supabase/functions/app-config-action/**'
+      - '.github/workflows/deploy-public-gateways.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Validate sources
+        run: |
+          set -euo pipefail
+          test -s supabase/functions/auth-public-action/index.ts
+          test -s supabase/functions/account-recovery-action/index.ts
+          test -s supabase/functions/app-config-action/index.ts
+          grep -Fq "Fungsi tidak diizinkan" supabase/functions/auth-public-action/index.ts
+          grep -Fq "Fungsi tidak diizinkan" supabase/functions/account-recovery-action/index.ts
+          grep -Fq "Fungsi tidak diizinkan" supabase/functions/app-config-action/index.ts
+      - name: Deploy gateways
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          supabase functions deploy auth-public-action --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy account-recovery-action --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy app-config-action --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+      - name: Verify metadata
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
