@@ -43,3 +43,4 @@ jobs:
             git commit -m "Standardize pagination refresh after mutations"
             git push
           fi
+      # Trigger marker: pagination refresh v1
