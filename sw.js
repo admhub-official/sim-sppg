@@ -1,8 +1,8 @@
 /* SIM-SPPG service worker
- * Network-first for application shell so deployments are not trapped by stale HTML/JS.
- * Cache-first only for stable static assets. API and Supabase requests are never cached.
+ * Network-first for navigation and JavaScript bundles.
+ * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260718-public-gateways-1';
+const CACHE_VERSION = 'sim-sppg-v20260718-native-router-1';
 const APP_SHELL = ['./', './index.html', './app.js', './uiux-fixes.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -25,6 +25,18 @@ function isBackendRequest(url) {
   return url.hostname.endsWith('supabase.co') || url.pathname.includes('/functions/v1/');
 }
 
+function networkFirst(request, cacheKey) {
+  return fetch(request)
+    .then((response) => {
+      if (response && response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_VERSION).then((cache) => cache.put(cacheKey || request, copy));
+      }
+      return response;
+    })
+    .catch(() => caches.match(cacheKey || request));
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -32,30 +44,13 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (isBackendRequest(url)) return;
 
-  const isNavigation = request.mode === 'navigate';
-  if (isNavigation) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put('./index.html', copy));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request, './index.html'));
     return;
   }
 
-  if (url.origin === self.location.origin && /\/app\.js$/.test(url.pathname)) {
-    event.respondWith(
-      Promise.all([
-        fetch(request).then((r) => r.text()),
-        fetch('./uiux-fixes.js').then((r) => r.text())
-      ]).then(([appSource, fixesSource]) => new Response(
-        appSource + '\n\n/* injected by sw.js */\n' + fixesSource,
-        { headers: { 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'no-cache' } }
-      )).catch(() => caches.match(request))
-    );
+  if (url.origin === self.location.origin && /\.(?:js|html)$/.test(url.pathname)) {
+    event.respondWith(networkFirst(request));
     return;
   }
 
