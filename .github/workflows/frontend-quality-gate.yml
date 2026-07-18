@@ -64,9 +64,11 @@ jobs:
             register-user-v2 \
             auth-public-action \
             account-recovery-action \
-            app-config-action; do
+            app-config-action \
+            notification-dispatch-action; do
             grep -Fq "'$slug'" app.js || { echo "Missing API route: $slug" >&2; exit 1; }
           done
+          grep -Fq "dispatchNotification" app.js
 
           if grep -Fq 'dynamic-action' app.js uiux-fixes.js sw.js; then
             echo 'Legacy dynamic-action reference detected in frontend.' >&2
