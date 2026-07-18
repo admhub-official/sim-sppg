@@ -1,18 +1,16 @@
-// Public auth gateway: explicit allowlist, bounded payload, no free-form dispatch.
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+
+const url=Deno.env.get('SUPABASE_URL')!;
+const anon=Deno.env.get('SUPABASE_ANON_KEY')!;
+const auth=createClient(url,anon,{auth:{persistSession:false,autoRefreshToken:false}});
+const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json'};
-const allowed=new Set(['loginUser','verifyRegistrationOtp','resendRegistrationOtp','checkSession']);
 const out=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:C});
-Deno.serve(async req=>{
-  if(req.method==='OPTIONS')return new Response('ok',{headers:C});
-  if(req.method==='GET')return out({status:'ok',service:'auth-public-action',version:1});
-  if(req.method!=='POST')return out({error:'Method tidak didukung.'},405);
-  const len=Number(req.headers.get('content-length')||0);if(len>32000)return out({error:'Payload terlalu besar.'},413);
-  try{
-    const body=await req.json();
-    if(!allowed.has(String(body?.function||'')))return out({error:'Fungsi tidak diizinkan.'},404);
-    const base=Deno.env.get('SUPABASE_URL')||'';
-    const key=Deno.env.get('SUPABASE_ANON_KEY')||'';
-    const r=await fetch(base+'/functions/v1/dynamic-action',{method:'POST',headers:{'Content-Type':'application/json',apikey:key},body:JSON.stringify({function:body.function,parameters:Array.isArray(body.parameters)?body.parameters:[]})});
-    return new Response(await r.text(),{status:r.status,headers:C});
-  }catch(e){return out({error:e instanceof Error?e.message:String(e)},400);}
-});
+const low=(v:unknown)=>String(v??'').trim().toLowerCase();
+const text=(v:unknown)=>String(v??'').trim();
+const attempts=new Map<string,{count:number,reset:number}>();
+function allow(key:string,limit=5,windowMs=10*60*1000){const now=Date.now(),x=attempts.get(key);if(!x||x.reset<=now){attempts.set(key,{count:1,reset:now+windowMs});return true}if(x.count>=limit)return false;x.count++;return true}
+async function login(emailRaw:unknown,passwordRaw:unknown,ip:string){const email=low(emailRaw),password=String(passwordRaw??'');if(!email||email.length>254||!password||password.length>256)return{success:false,message:'Email atau password salah.'};if(!allow(`login:${ip}:${email}`))return{success:false,message:'Terlalu banyak percobaan login. Coba lagi nanti.'};const a=await auth.auth.signInWithPassword({email,password});if(a.error||!a.data.session||!a.data.user)return{success:false,message:a.error?.message?.toLowerCase().includes('email not confirmed')?'Email belum diverifikasi.':'Email atau password salah.'};const q=await admin.from('USERS').select('ID,"NAMA LENGKAP",EMAIL,JABATAN,SPPG,ROLE,"FOTO PROFIL",USERNAME,"NAMA YAYASAN",TIMESTAMP').eq('ID',a.data.user.id).maybeSingle();if(q.error||!q.data)return{success:false,message:'Profil akun tidak ditemukan.'};const r:any=q.data;return{success:true,token:a.data.session.access_token,sessionExpiry:Date.now()+8*60*60*1000,user:{id:r.ID,namaLengkap:r['NAMA LENGKAP'],email:r.EMAIL,jabatan:r.JABATAN,sppg:r.SPPG,role:r.ROLE,fotoProfil:r['FOTO PROFIL']||'',username:r.USERNAME,namaYayasan:r['NAMA YAYASAN']||'',timestamp:r.TIMESTAMP||''}}}
+async function verifyOtp(emailRaw:unknown,otpRaw:unknown){const email=low(emailRaw),otp=text(otpRaw);if(!email||!/^[0-9]{6}$/.test(otp))return{success:false,message:'Kode OTP tidak valid.'};const q=await auth.auth.verifyOtp({email,token:otp,type:'email'});if(q.error||!q.data.session)return{success:false,message:'Kode OTP salah atau sudah kedaluwarsa.'};return{success:true,message:'Verifikasi berhasil! Akun Anda sudah aktif, silakan login.'}}
+async function resend(emailRaw:unknown,ip:string){const email=low(emailRaw);if(!email||email.length>254)return{success:true,message:'Jika akun tersedia, kode OTP baru akan dikirim.'};if(!allow(`otp:${ip}:${email}`,3,15*60*1000))return{success:true,message:'Jika akun tersedia, kode OTP baru akan dikirim.'};const q=await auth.auth.signInWithOtp({email,options:{shouldCreateUser:false}});if(q.error)console.error('resend OTP',q.error.message);return{success:true,message:'Jika akun tersedia, kode OTP baru akan dikirim.'}}
+Deno.serve(async req=>{if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method==='GET')return out({status:'ok',service:'auth-public-action',version:3,native:true});if(req.method!=='POST')return out({error:'Method tidak didukung.'},405);if(Number(req.headers.get('content-length')||0)>32000)return out({error:'Payload terlalu besar.'},413);try{const body=await req.json();const fn=String(body?.function||''),p=Array.isArray(body.parameters)?body.parameters:[],ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'unknown';if(fn==='loginUser')return out({result:await login(p[0],p[1],ip)});if(fn==='verifyRegistrationOtp')return out({result:await verifyOtp(p[0],p[1])});if(fn==='resendRegistrationOtp')return out({result:await resend(p[0],ip)});if(fn==='checkSession'){const n=Number(p[0]);return out({result:Number.isFinite(n)&&Date.now()<n})}return out({error:'Fungsi tidak diizinkan.'},404)}catch(e){console.error(e);return out({error:'Permintaan autentikasi tidak dapat diproses.'},400)}});
