@@ -1,0 +1,31 @@
+name: Fix transaction filter preservation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fix-transaction-filter-preserve.py'
+      - '.github/workflows/fix-transaction-filter-preserve.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - run: python scripts/fix-transaction-filter-preserve.py
+      - run: |
+          grep -q "var selected = sel.value || 'ALL'" app.js
+          grep -q "sel.value = selected" app.js
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: preserve transaction SPPG filter during server pagination"
+          git push
