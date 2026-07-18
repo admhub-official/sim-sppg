@@ -1,3 +1,4 @@
+// Public auth gateway: explicit allowlist, bounded payload, no free-form dispatch.
 const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json'};
 const allowed=new Set(['loginUser','verifyRegistrationOtp','resendRegistrationOtp','checkSession']);
 const out=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:C});
