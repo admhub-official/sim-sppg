@@ -34,6 +34,21 @@ function txFileItems(r:any){return[
   {kind:'ttdUser',bucket:B.ttdUser,path:s(r['TTD USER'])},
   {kind:'nota',bucket:B.nota,path:s(r['NOTA PEMBELIAN'])}
 ]}
+
+async function systemNotify(payload:any){
+  try{
+    const base=Deno.env.get('SUPABASE_URL')||'';
+    const service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
+    if(!base||!service)return;
+    const r=await fetch(base+'/functions/v1/notification-dispatch-action',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+service},
+      body:JSON.stringify({function:'dispatchSystemNotification',parameters:[payload]})
+    });
+    if(!r.ok)console.error('notification dispatch failed',r.status,await r.text());
+  }catch(e){console.error('notification dispatch error',e)}
+}
+
 async function add(d:any,c:Caller){
   const sp=(c.role==='ADMIN'||c.role==='SUPER_ADMIN')?s(d.sppg||c.sppg):c.sppg;
   const ya=(c.role==='ADMIN'||c.role==='SUPER_ADMIN')?s(d.yayasan||c.yayasan):c.yayasan;
@@ -48,6 +63,7 @@ async function add(d:any,c:Caller){
     const q=await sb.from(T.X).insert(row).select().single();
     if(q.error)throw q.error;
     await audit(id,'ADD',c,{sp,ya,orphanCleanup:true});
+    await systemNotify({mode:'pair',sppg:sp,yayasan:ya,title:'Transaksi baru',body:`Transaksi ${id} sebesar Rp ${Number(d.nominal).toLocaleString('id-ID')} telah dibuat.`,url:'/?page=transaksi'});
     return{success:true,message:'Transaksi berhasil ditambahkan.',id,data:map(q.data)};
   }catch(e){
     await removeFiles(uploaded).catch(err=>console.error('cleanup add orphan',err));
@@ -77,7 +93,7 @@ async function edit(id:string,f:any,c:Caller){
     throw e;
   }
 }
-async function approve(d:any,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat melakukan approval.');const r=await tx(c,s(d.id||d.txId));let bp='',tt='';if(d.buktiBase64)bp=await upload('payment',d.buktiBase64,d.buktiMimeType||'image/png',d.buktiFileName||'bukti.png',`BUKTI_APPROVAL_${r.ID}`);if(d.ttdBase64)tt=await upload('ttdVerif',d.ttdBase64,'image/png',`TTD_${r.ID}.png`,`TTD_VERIF_${r.ID}`);const p:any={'Metode Transaksi':'SUDAH_DIBAYAR','APPROVED BY':s(d.approvedBy||c.nama||c.email),'WAKTU APPROVE':new Date().toISOString(),Catatan_1:s(d.catatanApproval)};if(bp)p['LINK FOTO/ FILE  BUKTI TRANSAKSI']=bp;if(tt)p['TTD VERIFIKATOR']=tt;const q=await sb.from(T.X).update(p).eq('ID',r.ID);if(q.error){const files=[] as string[];if(bp)files.push(bp);if(files.length)await sb.storage.from(B.payment).remove(files).catch(()=>undefined);if(tt)await sb.storage.from(B.ttdVerif).remove([tt]).catch(()=>undefined);throw q.error}await audit(r.ID,'APPROVE',c,{bp,tt});return{success:true,message:'Transaksi berhasil di-approve.'}}
+async function approve(d:any,c:Caller){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat melakukan approval.');const r=await tx(c,s(d.id||d.txId));let bp='',tt='';if(d.buktiBase64)bp=await upload('payment',d.buktiBase64,d.buktiMimeType||'image/png',d.buktiFileName||'bukti.png',`BUKTI_APPROVAL_${r.ID}`);if(d.ttdBase64)tt=await upload('ttdVerif',d.ttdBase64,'image/png',`TTD_${r.ID}.png`,`TTD_VERIF_${r.ID}`);const p:any={'Metode Transaksi':'SUDAH_DIBAYAR','APPROVED BY':s(d.approvedBy||c.nama||c.email),'WAKTU APPROVE':new Date().toISOString(),Catatan_1:s(d.catatanApproval)};if(bp)p['LINK FOTO/ FILE  BUKTI TRANSAKSI']=bp;if(tt)p['TTD VERIFIKATOR']=tt;const q=await sb.from(T.X).update(p).eq('ID',r.ID);if(q.error){const files=[] as string[];if(bp)files.push(bp);if(files.length)await sb.storage.from(B.payment).remove(files).catch(()=>undefined);if(tt)await sb.storage.from(B.ttdVerif).remove([tt]).catch(()=>undefined);throw q.error}await audit(r.ID,'APPROVE',c,{bp,tt});await systemNotify({mode:'email',email:s(r.User),title:'Transaksi disetujui',body:`Transaksi ${r.ID} telah disetujui.`,url:'/?page=transaksi'});return{success:true,message:'Transaksi berhasil di-approve.'}}
 async function submitPayment(d:any,c:Caller){
   const r=await tx(c,s(d.txId));
   const nominal=Number(d.nominalDibayar);
@@ -92,6 +108,7 @@ async function submitPayment(d:any,c:Caller){
     if(q.error)throw q.error;
     const x=q.data||{};
     await audit(r.ID,'USER_SUBMIT_BUKTI',c,{seq:x.paymentSequence,nominal,total:x.totalDibayar,status:x.status,atomic:true});
+    await systemNotify({mode:'pair',sppg:s(r.SPPG),yayasan:s(r.YAYASAN),title:'Bukti pembayaran baru',body:`Bukti pembayaran transaksi ${r.ID} menunggu verifikasi.`,url:'/?page=transaksi'});
     return{success:true,message:'Bukti pembayaran tersimpan dalam riwayat.',paymentSequence:x.paymentSequence,totalDibayar:x.totalDibayar,status:x.status};
   }catch(e){
     await sb.storage.from(B.payment).remove([path]).catch(()=>undefined);
@@ -124,6 +141,7 @@ async function verify(d:any,c:Caller){
     if(rpc.error)throw rpc.error;
     const x=rpc.data||{};
     await audit(r.ID,'VERIFY_USER_PAYMENT',c,{proofId:p.data.id,ok,total:x.totalVerified,status:x.status,atomic:true});
+    await systemNotify({mode:'email',email:s(r.User),title:ok?'Pembayaran diverifikasi':'Pembayaran ditolak',body:`Bukti pembayaran transaksi ${r.ID} ${ok?'telah diverifikasi':'ditolak'}.`,url:'/?page=transaksi'});
     return{success:true,message:ok?'Bukti pembayaran berhasil diverifikasi.':'Bukti pembayaran ditolak.',totalVerified:Number(x.totalVerified)||0,status:s(x.status)};
   }catch(e){
     if(tt)await sb.storage.from(B.ttdVerif).remove([tt]).catch(()=>undefined);
