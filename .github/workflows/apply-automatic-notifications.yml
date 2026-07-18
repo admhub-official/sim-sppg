@@ -34,7 +34,12 @@ jobs:
           grep -Fq "Transaksi baru" supabase/functions/transaction-action/index.ts
           grep -Fq "Bukti pembayaran baru" supabase/functions/transaction-action/index.ts
           grep -Fq "Pembayaran diverifikasi" supabase/functions/transaction-action/index.ts
+      - name: Deploy dispatcher
+        run: supabase functions deploy notification-dispatch-action --project-ref "$SUPABASE_PROJECT_REF"
+      - name: Deploy transaction action
+        run: supabase functions deploy transaction-action --project-ref "$SUPABASE_PROJECT_REF"
       - name: Commit patched sources
+        continue-on-error: true
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -45,10 +50,6 @@ jobs:
             git commit -m "Wire automatic transaction notifications"
             git push
           fi
-      - name: Deploy dispatcher
-        run: supabase functions deploy notification-dispatch-action --project-ref "$SUPABASE_PROJECT_REF"
-      - name: Deploy transaction action
-        run: supabase functions deploy transaction-action --project-ref "$SUPABASE_PROJECT_REF"
       - name: List functions
         run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
-      # Trigger marker: automatic notifications v2
+      # Trigger marker: automatic notifications v3
