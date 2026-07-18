@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- docs/dynamic-route-inventory.md; then
+          if [ -z "$(git status --porcelain -- docs/dynamic-route-inventory.md)" ]; then
             echo 'Route inventory is already current.'
             exit 0
           fi
