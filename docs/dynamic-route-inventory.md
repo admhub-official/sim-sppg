@@ -1,23 +1,18 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-18T06:33:17.295Z.
+Generated automatically from `app.js` at 2026-07-18T06:59:33.404Z.
 
 ## Summary
 
 - Literal API calls found: **60**
-- Routed to modular/public functions: **54**
-- Still falling back to `dynamic-action`: **6**
+- Routed to modular/public functions: **60**
+- Still falling back to `dynamic-action`: **0**
 
 ## Remaining Dynamic Routes
 
 | Function | Current destination |
 |---|---|
-| `geocodeAlamat` | `dynamic-action` fallback |
-| `getFileUrl` | `dynamic-action` fallback |
-| `getPushPublicKey` | `dynamic-action` fallback |
-| `getUploadBuktiMode` | `dynamic-action` fallback |
-| `savePushSubscription` | `dynamic-action` fallback |
-| `setUploadBuktiMode` | `dynamic-action` fallback |
+| — | — |
 
 ## Routed Functions
 
@@ -42,27 +37,33 @@ Generated automatically from `app.js` at 2026-07-18T06:33:17.295Z.
 | `deleteTransaction` | `transaction` |
 | `deleteUser` | `operations` |
 | `editTransaction` | `transaction` |
+| `geocodeAlamat` | `geocodeRuntime` |
 | `getAdminAssignments` | `operations` |
 | `getAllUsers` | `operations` |
 | `getAuditLog` | `reporting` |
 | `getChartData` | `reporting` |
 | `getDashboardKPI` | `reporting` |
 | `getDropdownOptions` | `public` |
+| `getFileUrl` | `fileAccess` |
 | `getMasterBahanBaku` | `master` |
 | `getMasterSupplier` | `master` |
 | `getMenuHarian` | `operations` |
 | `getNotifications` | `reporting` |
 | `getPendingPayments` | `operations` |
+| `getPushPublicKey` | `public` |
 | `getSPPGData` | `reporting` |
 | `getSerahTerima` | `operations` |
 | `getSurveiBahanBaku` | `operations` |
 | `getTransactionDetail` | `transaction` |
 | `getTransactions` | `transaction` |
+| `getUploadBuktiMode` | `operations` |
 | `loginUser` | `public` |
 | `markAllNotificationsRead` | `reporting` |
 | `markNotificationRead` | `reporting` |
 | `registerUser` | `public` |
 | `resendRegistrationOtp` | `public` |
+| `savePushSubscription` | `push` |
+| `setUploadBuktiMode` | `operations` |
 | `submitUserBuktiPembayaran` | `transaction` |
 | `updateAdminAssignment` | `operations` |
 | `updateMasterBahanBaku` | `master` |
