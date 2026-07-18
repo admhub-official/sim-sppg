@@ -1,0 +1,49 @@
+name: Deploy push functions
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/push-action/**'
+      - 'supabase/functions/push-public-action/**'
+      - '.github/workflows/deploy-push-functions.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-push-functions-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: dmjsgtichrfxhyywstrt
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate sources
+        run: |
+          set -euo pipefail
+          test -s supabase/functions/push-action/index.ts
+          test -s supabase/functions/push-public-action/index.ts
+          grep -Fq "savePushSubscription" supabase/functions/push-action/index.ts
+          grep -Fq "deletePushSubscription" supabase/functions/push-action/index.ts
+          grep -Fq "getPushPublicKey" supabase/functions/push-public-action/index.ts
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy authenticated push function
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}"
+          supabase functions deploy push-action --project-ref "$SUPABASE_PROJECT_REF" --use-api --debug
+      - name: Deploy public push key function
+        run: |
+          set -euo pipefail
+          supabase functions deploy push-public-action --project-ref "$SUPABASE_PROJECT_REF" --use-api --no-verify-jwt --debug
+      - name: Verify metadata
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
