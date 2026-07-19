@@ -40,9 +40,12 @@
 var API_BASE_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/';
 var API_ROUTES = {
   'transaction-action': {
-    getTransactions:1, getTransactionDetail:1, addTransaction:1, editTransaction:1,
-    approveTransaction:1, submitUserBuktiPembayaran:1, verifyUserPayment:1,
-    sendCatatanApproval:1, uploadTxFile:1, deleteTransaction:1
+    addTransaction:1, editTransaction:1, sendCatatanApproval:1,
+    uploadTxFile:1, deleteTransaction:1
+  },
+  'approval-payment-action': {
+    getTransactions:1, getTransactionDetail:1, approveTransaction:1,
+    submitUserBuktiPembayaran:1, verifyUserPayment:1
   },
   'operations-action': {
     getAllUsers:1, deleteUser:1, getUploadBuktiMode:1, setUploadBuktiMode:1,

@@ -1,6 +1,6 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-19T17:43:30.207Z.
+Generated automatically from `app.js` at 2026-07-19T18:00:22.678Z.
 
 ## Summary
 
@@ -28,7 +28,7 @@ Generated automatically from `app.js` at 2026-07-19T17:43:30.207Z.
 | `addSerahTerima` | `operations-action` |
 | `addSurveiBahanBaku` | `operations-action` |
 | `addTransaction` | `transaction-action` |
-| `approveTransaction` | `transaction-action` |
+| `approveTransaction` | `approval-payment-action` |
 | `deleteAdminAssignment` | `operations-action` |
 | `deleteMasterBahanBaku` | `master-action` |
 | `deleteMenuMBG` | `operations-action` |
@@ -56,8 +56,8 @@ Generated automatically from `app.js` at 2026-07-19T17:43:30.207Z.
 | `getSPPGData` | `reporting-action` |
 | `getSerahTerima` | `operations-action` |
 | `getSurveiBahanBaku` | `operations-action` |
-| `getTransactionDetail` | `transaction-action` |
-| `getTransactions` | `transaction-action` |
+| `getTransactionDetail` | `approval-payment-action` |
+| `getTransactions` | `approval-payment-action` |
 | `getUploadBuktiMode` | `operations-action` |
 | `loginUser` | `auth-public-action` |
 | `markAllNotificationsRead` | `reporting-action` |
@@ -66,7 +66,7 @@ Generated automatically from `app.js` at 2026-07-19T17:43:30.207Z.
 | `resendRegistrationOtp` | `auth-public-action` |
 | `savePushSubscription` | `push-action` |
 | `setUploadBuktiMode` | `operations-action` |
-| `submitUserBuktiPembayaran` | `transaction-action` |
+| `submitUserBuktiPembayaran` | `approval-payment-action` |
 | `updateAdminAssignment` | `operations-action` |
 | `updateMasterBahanBaku` | `master-action` |
 | `updateMasterSupplier` | `master-action` |
@@ -79,7 +79,7 @@ Generated automatically from `app.js` at 2026-07-19T17:43:30.207Z.
 | `uploadFotoSurvei` | `master-action` |
 | `uploadTxFile` | `transaction-action` |
 | `verifyRegistrationOtp` | `auth-public-action` |
-| `verifyUserPayment` | `transaction-action` |
+| `verifyUserPayment` | `approval-payment-action` |
 
 ## Declared but Not Called Literally
 
