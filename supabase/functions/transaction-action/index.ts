@@ -72,12 +72,19 @@ async function add(d:any,c:Caller){
 }
 async function edit(id:string,f:any,c:Caller){
   const old=await tx(c,id);
-  if(!['ADMIN','SUPER_ADMIN'].includes(c.role)&&status(old['Metode Transaksi'])==='SUDAH_DIBAYAR')throw new Error('Transaksi yang sudah dibayar tidak dapat diedit.');
   const m:any={'Tanggal':'Tanggal','Kategori':'Kategori','Jenis Kategori':'Jenis Kategori','SPPG':'SPPG','YAYASAN':'YAYASAN','Nama Item/Bahan Baku':'Nama Item/ Bahan Baku','Nominal':'Nominal','Catatan':'Catatan','Metode Transaksi':'Metode Transaksi','Upload Foto':'UPLOUD FOTO','Upload File':'UPLOUD FILE','Nota Pembelian':'NOTA PEMBELIAN','TTD User':'TTD USER'};
   const patch:any={};for(const [k,v]of Object.entries(f||{}))if(m[k])patch[m[k]]=m[k]==='Tanggal'?date(v):v;
   const sp=s(patch.SPPG??old.SPPG),ya=s(patch.YAYASAN??old.YAYASAN);
   if(c.role==='ADMIN'&&!(await pairOK(c,sp,ya)))throw new Error('Pasangan SPPG + YAYASAN tujuan tidak di-assign.');
   if(!['ADMIN','SUPER_ADMIN'].includes(c.role)){delete patch.SPPG;delete patch.YAYASAN;delete patch['Metode Transaksi']}
+  const proofState=await sb.from(T.P).select('nominal,status').eq('transaksi_id',id);
+  if(proofState.error)throw proofState.error;
+  let submitted=0,verified=0,pendingCount=0;
+  for(const proof of proofState.data||[]){const amount=Number(proof.nominal)||0,proofStatus=status(proof.status);if(proofStatus!=='DITOLAK')submitted+=amount;if(proofStatus==='TERVERIFIKASI')verified+=amount;if(proofStatus==='MENUNGGU_VERIFIKASI')pendingCount++;}
+  const targetNominal=Object.prototype.hasOwnProperty.call(patch,'Nominal')?Number(patch.Nominal):Number(old.Nominal);
+  if(!(targetNominal>0))throw new Error('Nominal transaksi harus lebih dari 0.');
+  if(targetNominal<submitted)throw new Error('Nominal transaksi tidak boleh lebih kecil dari pembayaran yang sudah diajukan.');
+  if((proofState.data||[]).length){if(verified>=targetNominal)patch['Metode Transaksi']='SUDAH_DIBAYAR';else if(submitted>=targetNominal&&pendingCount>0)patch['Metode Transaksi']='MENUNGGU_VERIFIKASI';else patch['Metode Transaksi']='BELUM_LUNAS';}
   const merged={...old,...patch};requireCompleteDocs(merged);patch['STATUS DOKUMEN']=doc(merged);
   const before=txFileItems(old),after=txFileItems(merged);
   const fresh=after.filter((x,i)=>x.path!==before[i].path&&ownedUpload(c,x.kind,x.path)).map(x=>({bucket:x.bucket,path:x.path}));
