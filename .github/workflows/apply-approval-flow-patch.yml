@@ -1,0 +1,58 @@
+name: Apply approval payment flow patch
+
+on:
+  push:
+    branches: [fix/approval-payment-flow-20260720]
+    paths: ['scripts/run-approval-flow-patch.txt']
+  pull_request:
+    branches: [main]
+    paths: ['scripts/run-approval-flow-patch.txt']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approval-payment-flow-patch
+  cancel-in-progress: false
+
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+      - name: Apply guarded patch
+        run: node scripts/apply-approval-flow-patch.mjs
+      - name: Validate JavaScript syntax
+        run: |
+          node --check app.js
+          node --check scripts/approval-flow-overrides.js
+      - name: Validate approval contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'APPROVAL PAYMENT FLOW V2' app.js
+          grep -Fq 'verify_transaction_payment_batch_atomic' supabase/functions/transaction-action/index.ts
+          grep -Fq 'approve_transaction_direct_atomic' supabase/functions/transaction-action/index.ts
+          grep -Fq "c.role !== 'USER'" supabase/functions/transaction-action/index.ts
+          grep -Fq 'Upload bukti mandiri sedang dinonaktifkan' supabase/functions/transaction-action/index.ts
+          grep -Fq 'Menunggu TTD Verifikator' app.js
+          grep -Fq 'Bulk approval dinonaktifkan' app.js
+          grep -Fq '20260720-approval-v2' index.html
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js index.html sw.js supabase/functions/transaction-action/index.ts; then exit 1; fi
+      - name: Commit patched targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js index.html sw.js supabase/functions/transaction-action/index.ts supabase/functions/reporting-action/reports.ts
+          if git diff --cached --quiet; then
+            echo 'Targets already patched.'
+          else
+            git commit -m 'fix: implement approval and partial payment workflow'
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi
