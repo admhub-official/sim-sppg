@@ -2784,10 +2784,7 @@ function loadTransactions(page, forceAll) {
 
   var isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
   var isAdmin = currentUser.role === 'ADMIN';
-  var filters = {
-    callerRole: currentUser.role,
-    callerUser: (isSuperAdmin || isAdmin) ? '' : currentUser.email
-  };
+  var filters = {};
   var sppgEl=$('txFilterSPPG'), kategoriEl=$('txFilterKategori');
   if (sppgEl && sppgEl.value && sppgEl.value !== 'ALL') filters.sppg=sppgEl.value;
   if (kategoriEl && kategoriEl.value && kategoriEl.value !== 'ALL') filters.kategori=kategoriEl.value;
@@ -3440,10 +3437,7 @@ function loadApprovalData() {
   }
   selectedApprovalIds.clear();
   loadUploadBuktiMode();
-  var filters = {
-    callerRole: currentUser.role,
-    callerUser: currentUser.role === 'ADMIN' ? '' : currentUser.email
-  };
+  var filters = {};
   if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
   if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
     callApi('getTransactions', [filters], function(data) {
@@ -6047,8 +6041,7 @@ function refreshData() {
     );
 
   } else if (currentPage === 'transaksi') {
-    var isAdminRefresh = currentUser.role === 'ADMIN';
-    var filters = { callerRole: currentUser.role, callerUser: isAdminRefresh ? '' : currentUser.email };
+    var filters = {};
     callApi('getTransactions', [filters], function(data) {
         allTransactions = data || [];
                 filteredTransactions = allTransactions.slice();
@@ -6063,8 +6056,7 @@ function refreshData() {
     );
 
   } else if (currentPage === 'approval') {
-    var isAdminApproval = currentUser.role === 'ADMIN';
-    var filters = { callerRole: currentUser.role, callerUser: isAdminApproval ? '' : currentUser.email };
+    var filters = {};
     selectedApprovalIds.clear();
     callApi('getTransactions', [filters], function(data) {
         allTransactions = data || [];
