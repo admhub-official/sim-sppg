@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260718-native-router-1';
+const CACHE_VERSION = 'sim-sppg-v20260720-approval-v2';
 const APP_SHELL = ['./', './index.html', './app.js', './uiux-fixes.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
