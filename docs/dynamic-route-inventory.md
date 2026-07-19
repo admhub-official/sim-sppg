@@ -1,83 +1,82 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-18T06:59:33.404Z.
+Generated automatically from `app.js` at 2026-07-19T15:15:36.119Z.
 
 ## Summary
 
 - Literal API calls found: **60**
-- Routed to modular/public functions: **60**
-- Still falling back to `dynamic-action`: **0**
+- Routed to modular/public functions: **9**
+- Still falling back to `dynamic-action`: **51**
 
 ## Remaining Dynamic Routes
 
 | Function | Current destination |
 |---|---|
-| — | — |
+| `addAdminAssignment` | `dynamic-action` fallback |
+| `addMasterBahanBaku` | `dynamic-action` fallback |
+| `addMasterSupplier` | `dynamic-action` fallback |
+| `addMenuHarian` | `dynamic-action` fallback |
+| `addPendingPayment` | `dynamic-action` fallback |
+| `addSerahTerima` | `dynamic-action` fallback |
+| `addSurveiBahanBaku` | `dynamic-action` fallback |
+| `addTransaction` | `dynamic-action` fallback |
+| `approveTransaction` | `dynamic-action` fallback |
+| `deleteAdminAssignment` | `dynamic-action` fallback |
+| `deleteMasterBahanBaku` | `dynamic-action` fallback |
+| `deleteMenuMBG` | `dynamic-action` fallback |
+| `deletePendingPayment` | `dynamic-action` fallback |
+| `deleteSerahTerima` | `dynamic-action` fallback |
+| `deleteSupplier` | `dynamic-action` fallback |
+| `deleteSurvei` | `dynamic-action` fallback |
+| `deleteTransaction` | `dynamic-action` fallback |
+| `deleteUser` | `dynamic-action` fallback |
+| `editTransaction` | `dynamic-action` fallback |
+| `getAdminAssignments` | `dynamic-action` fallback |
+| `getAllUsers` | `dynamic-action` fallback |
+| `getAuditLog` | `dynamic-action` fallback |
+| `getChartData` | `dynamic-action` fallback |
+| `getDashboardKPI` | `dynamic-action` fallback |
+| `getFileUrl` | `dynamic-action` fallback |
+| `getMasterBahanBaku` | `dynamic-action` fallback |
+| `getMasterSupplier` | `dynamic-action` fallback |
+| `getMenuHarian` | `dynamic-action` fallback |
+| `getNotifications` | `dynamic-action` fallback |
+| `getPendingPayments` | `dynamic-action` fallback |
+| `getSPPGData` | `dynamic-action` fallback |
+| `getSerahTerima` | `dynamic-action` fallback |
+| `getSurveiBahanBaku` | `dynamic-action` fallback |
+| `getTransactionDetail` | `dynamic-action` fallback |
+| `getTransactions` | `dynamic-action` fallback |
+| `getUploadBuktiMode` | `dynamic-action` fallback |
+| `markAllNotificationsRead` | `dynamic-action` fallback |
+| `markNotificationRead` | `dynamic-action` fallback |
+| `savePushSubscription` | `dynamic-action` fallback |
+| `setUploadBuktiMode` | `dynamic-action` fallback |
+| `submitUserBuktiPembayaran` | `dynamic-action` fallback |
+| `updateAdminAssignment` | `dynamic-action` fallback |
+| `updateMasterBahanBaku` | `dynamic-action` fallback |
+| `updateMasterSupplier` | `dynamic-action` fallback |
+| `updateMenuMBG` | `dynamic-action` fallback |
+| `updatePendingPayment` | `dynamic-action` fallback |
+| `updateSerahTerima` | `dynamic-action` fallback |
+| `updateSurvei` | `dynamic-action` fallback |
+| `uploadFotoSurvei` | `dynamic-action` fallback |
+| `uploadTxFile` | `dynamic-action` fallback |
+| `verifyUserPayment` | `dynamic-action` fallback |
 
 ## Routed Functions
 
 | Function | Route group |
 |---|---|
-| `addAdminAssignment` | `operations` |
-| `addMasterBahanBaku` | `master` |
-| `addMasterSupplier` | `master` |
-| `addMenuHarian` | `operations` |
-| `addPendingPayment` | `operations` |
-| `addSerahTerima` | `operations` |
-| `addSurveiBahanBaku` | `operations` |
-| `addTransaction` | `transaction` |
-| `approveTransaction` | `transaction` |
-| `deleteAdminAssignment` | `operations` |
-| `deleteMasterBahanBaku` | `master` |
-| `deleteMenuMBG` | `operations` |
-| `deletePendingPayment` | `operations` |
-| `deleteSerahTerima` | `operations` |
-| `deleteSupplier` | `master` |
-| `deleteSurvei` | `operations` |
-| `deleteTransaction` | `transaction` |
-| `deleteUser` | `operations` |
-| `editTransaction` | `transaction` |
 | `geocodeAlamat` | `geocodeRuntime` |
-| `getAdminAssignments` | `operations` |
-| `getAllUsers` | `operations` |
-| `getAuditLog` | `reporting` |
-| `getChartData` | `reporting` |
-| `getDashboardKPI` | `reporting` |
 | `getDropdownOptions` | `public` |
-| `getFileUrl` | `fileAccess` |
-| `getMasterBahanBaku` | `master` |
-| `getMasterSupplier` | `master` |
-| `getMenuHarian` | `operations` |
-| `getNotifications` | `reporting` |
-| `getPendingPayments` | `operations` |
 | `getPushPublicKey` | `public` |
-| `getSPPGData` | `reporting` |
-| `getSerahTerima` | `operations` |
-| `getSurveiBahanBaku` | `operations` |
-| `getTransactionDetail` | `transaction` |
-| `getTransactions` | `transaction` |
-| `getUploadBuktiMode` | `operations` |
 | `loginUser` | `public` |
-| `markAllNotificationsRead` | `reporting` |
-| `markNotificationRead` | `reporting` |
 | `registerUser` | `public` |
 | `resendRegistrationOtp` | `public` |
-| `savePushSubscription` | `push` |
-| `setUploadBuktiMode` | `operations` |
-| `submitUserBuktiPembayaran` | `transaction` |
-| `updateAdminAssignment` | `operations` |
-| `updateMasterBahanBaku` | `master` |
-| `updateMasterSupplier` | `master` |
-| `updateMenuMBG` | `operations` |
-| `updatePendingPayment` | `operations` |
-| `updateSerahTerima` | `operations` |
-| `updateSurvei` | `operations` |
 | `updateUserProfile` | `secureUser` |
 | `uploadFotoProfil` | `secureUser` |
-| `uploadFotoSurvei` | `master` |
-| `uploadTxFile` | `transaction` |
 | `verifyRegistrationOtp` | `public` |
-| `verifyUserPayment` | `transaction` |
 
 ## Guardrail
 
