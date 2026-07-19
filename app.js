@@ -4522,7 +4522,7 @@ function loadMasterBB(page, forceAll) {
 function renderMasterBBTable() {
   var tbody = $('masterBBTableBody');
   if (!filteredMasterBB.length) {
-    var canAddBB = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'AKUNTAN');
+    var canAddBB = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'AKUNTAN');
     tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-boxes"></i></div><h4>Tidak Ada Data</h4><p>Belum ada bahan baku yang terdaftar.</p>' +
       (canAddBB ? '<button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openAddMasterBBModal()"><i class="fas fa-plus"></i> Tambah Bahan Baku Pertama</button>' : '') +
       '</div></td></tr>';
@@ -4533,7 +4533,7 @@ function renderMasterBBTable() {
   var start = (bbPage - 1) * ITEMS_PER_PAGE;
   var pageData = bbServerPaged ? filteredMasterBB : filteredMasterBB.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
-  var canEdit = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'AKUNTAN');
+  var canEdit = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'AKUNTAN');
   pageData.forEach(function(b, idx) {
     html += '<tr>' +
       '<td>' + (start + idx + 1) + '</td>' +
@@ -4545,7 +4545,7 @@ function renderMasterBBTable() {
       '<td style="text-align:center;">' +
         '<div class="action-group" style="opacity:1;">' +
           (canEdit ? '<button class="action-btn edit" onclick="openEditMasterBB(' + b._row + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
-          (currentUser && currentUser.role === 'ADMIN' ? '<button class="action-btn delete" onclick="confirmHapus(\'masterBB\',' + b._row + ',\'\',\'bahan baku ' + esc((b['NAMA  BAHAN BAKU']||b['NAMA BAHAN BAKU']||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
+          ((currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '<button class="action-btn delete" onclick="confirmHapus(\'masterBB\',' + b._row + ',\'\',\'bahan baku ' + esc((b['NAMA  BAHAN BAKU']||b['NAMA BAHAN BAKU']||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
         '</div></td></tr>';
   });
   tbody.innerHTML = html;
@@ -4908,6 +4908,36 @@ function loadSuppliers(silent,page,forceAll) {
 }
 function renderSupplierTable() {
   var tbody = $('supplierTableBody');
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
+  var btnAddSupplier = $('btnAddSupplier');
+  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
   if (!filteredSuppliers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-truck"></i></div><h4>Tidak Ada Supplier</h4></div></td></tr>'; $('supplierPagination').innerHTML = ''; return; }
   var totalPages = Math.ceil((supplierServerPaged ? supplierServerTotal : filteredSuppliers.length) / ITEMS_PER_PAGE);
   if (supplierPage > totalPages) supplierPage = totalPages;
@@ -4926,8 +4956,8 @@ function renderSupplierTable() {
       '<td style="text-align:center;">' +
         '<div class="action-group" style="opacity:1;">' +
           '<button class="action-btn view" onclick="openDetailSupplier(' + (s._row || idx) + ')" title="Detail"><i class="fas fa-eye"></i><span class="tooltip">Detail</span></button>' +
-          (currentUser && currentUser.role === 'ADMIN' ? '<button class="action-btn edit" onclick="openEditSupplierModal(' + (s._row || idx) + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
-          (currentUser && currentUser.role === 'ADMIN' ? '<button class="action-btn delete" onclick="confirmHapus(\'supplier\',' + (s._row || idx) + ',\'\',\'supplier ' + esc((s['NAMA SUPPLIER']||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
+          ((currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '<button class="action-btn edit" onclick="openEditSupplierModal(' + (s._row || idx) + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
+          ((currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '<button class="action-btn delete" onclick="confirmHapus(\'supplier\',' + (s._row || idx) + ',\'\',\'supplier ' + esc((s['NAMA SUPPLIER']||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
         '</div></td></tr>';
   });
   tbody.innerHTML = html;
@@ -5140,8 +5170,8 @@ function renderSurveiTable() {
       '<td style="text-align:center;">' +
         '<div class="action-group" style="opacity:1;">' +
           '<button class="action-btn view" onclick="openDetailSurvei(' + s._row + ')" title="Detail"><i class="fas fa-eye"></i><span class="tooltip">Detail</span></button>' +
-          (currentUser && currentUser.role === 'ADMIN' ? '<button class="action-btn edit" onclick="openEditSurveiModal(' + s._row + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
-          (currentUser && currentUser.role === 'ADMIN' ? '<button class="action-btn delete" onclick="confirmHapus(\'survei\',' + s._row + ',\'\',\'survei ' + esc((s['NAMA BAHAN BAKU']||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
+          ((currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '<button class="action-btn edit" onclick="openEditSurveiModal(' + s._row + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
+          ((currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '<button class="action-btn delete" onclick="confirmHapus(\'survei\',' + s._row + ',\'\',\'survei ' + esc((s['NAMA BAHAN BAKU']||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
         '</div></td></tr>';
   });
   tbody.innerHTML = html;
@@ -5360,8 +5390,8 @@ function renderSerahTerimaTable() {
       '<td style="text-align:center;">' +
         '<div class="action-group" style="opacity:1;">' +
           '<button class="action-btn view" onclick="openDetailSerahTerima(' + s._row + ')" title="Detail"><i class="fas fa-eye"></i><span class="tooltip">Detail</span></button>' +
-          (currentUser && currentUser.role === 'ADMIN' ? '<button class="action-btn edit" onclick="openEditSerahTerimaModal(' + s._row + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
-          (currentUser && currentUser.role === 'ADMIN' ? '<button class="action-btn delete" onclick="confirmHapus(\'serahTerima\',' + s._row + ',\'\',\'serah terima ' + esc((s['NAMA BAHAN BAKU']||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
+          ((currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '<button class="action-btn edit" onclick="openEditSerahTerimaModal(' + s._row + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
+          ((currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '<button class="action-btn delete" onclick="confirmHapus(\'serahTerima\',' + s._row + ',\'\',\'serah terima ' + esc((s['NAMA BAHAN BAKU']||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
         '</div></td></tr>';
   });
   tbody.innerHTML = html;
@@ -5535,7 +5565,7 @@ function renderMenuMBGTable() {
     if (m.detail && m.detail.length) {
       detailText = m.detail.map(function(d) { return esc(d.namaItem) + ' (' + d.jumlah + ' ' + esc(d.satuan) + ')'; }).join(', ');
     }
-    var canEditMenu = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'AHLI_GIZI');
+    var canEditMenu = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'AHLI_GIZI');
     html += '<tr>' +
       '<td>' + (start + idx + 1) + '</td>' +
       '<td><strong>' + esc(m.tanggal) + '</strong></td>' +
@@ -5672,7 +5702,7 @@ function loadPendingPayment(page){page=Math.max(1,Number(page)||pendingPage||1);
 function renderPendingTable() {
   var tbody = $('pendingTableBody');
   if (!allPending.length) { tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-hand-holding-usd"></i></div><h4>Tidak Ada Pending Payment</h4></div></td></tr>'; $('pendingPagination').innerHTML = ''; return; }
-  var isAdmin = currentUser && currentUser.role === 'ADMIN';
+  var isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
   var totalPages = Math.ceil((pendingServerPaged ? pendingServerTotal : allPending.length) / ITEMS_PER_PAGE);
   if (pendingPage > totalPages) pendingPage = totalPages;
   var start = (pendingPage - 1) * ITEMS_PER_PAGE;
