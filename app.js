@@ -1356,13 +1356,22 @@ PIC: [
     { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
     { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
+  ],
+  USER: [
+    { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { label: 'AKTIVITAS SAYA', isHeader: true },
+    { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt' },
+    { page: 'pending-payment', label: 'Pending Payment Saya', icon: 'fa-hand-holding-usd' },
+    { label: 'AKUN', isHeader: true },
+    { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ]
 };
 
 function buildSidebar() {
   var role = currentUser ? currentUser.role : '';
- var menus = MENU_CONFIG[role] || MENU_CONFIG['SUPER_ADMIN'] || MENU_CONFIG['LAPANGAN'];
-  var bottomNavPages = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['SUPER_ADMIN'] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+ var menus = MENU_CONFIG[role] || MENU_CONFIG['USER'];
+  var bottomNavPages = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['USER'];
 
   // Di desktop (>= 768px) tidak ada bottom nav, jadi semua menu tampil di sidebar.
   // Di mobile, item yang sudah ada di bottom nav disembunyikan dari sidebar
@@ -1417,7 +1426,8 @@ var BOTTOM_NAV_CONFIG = {
   AKUNTAN:        ['dashboard', 'transaksi', 'master-bahan', 'profil'],
   LAPANGAN:       ['dashboard', 'transaksi', 'approval', 'profil'],
   WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'serah-terima', 'profil'],
-  AHLI_GIZI:      ['dashboard', 'transaksi', 'menu-mbg', 'profil']
+  AHLI_GIZI:      ['dashboard', 'transaksi', 'menu-mbg', 'profil'],
+  USER:           ['dashboard', 'transaksi', 'profil']
 };
 
 var BNAV_ICON_LABEL = {
