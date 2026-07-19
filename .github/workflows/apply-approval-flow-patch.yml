@@ -25,16 +25,58 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
       - name: Apply guarded patch
-        run: node scripts/apply-approval-flow-patch.mjs
-      - name: Validate JavaScript syntax
-        run: |
-          node --check app.js
-          node --check scripts/approval-flow-overrides.js
-      - name: Validate approval contracts
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq 'APPROVAL PAYMENT FLOW V2' app.js
+          python - <<'PY'
+          from pathlib import Path
+          app = Path('app.js')
+          text = app.read_text(encoding='utf-8')
+          old = """  var headers = { 'Content-Type': 'application/json' };
+            if (!PUBLIC_FN[fnName]) {
+              var token = getJwtToken();
+              if (token) headers.Authorization = 'Bearer ' + token;
+            }
+            if (slug === 'secure-user-action' && window._supabaseKey) headers.apikey = window._supabaseKey;"""
+          new = """  var headers = { 'Content-Type': 'application/json' };
+            var token = getJwtToken();
+            var authorizationToken = token || window._supabaseKey || '';
+            if (authorizationToken) headers.Authorization = 'Bearer ' + authorizationToken;
+            if (window._supabaseKey) headers.apikey = window._supabaseKey;"""
+          if new not in text:
+              if old not in text:
+                  raise SystemExit('Baseline header callApi berubah; patch dihentikan.')
+              text = text.replace(old, new, 1)
+          marker = '/* APPROVAL V2 DETAIL MODULE */'
+          if marker not in text:
+              for name in ['approval-detail-overrides.js','approval-status-overrides.js','approval-action-overrides.js']:
+                  text += '\n' + Path('scripts', name).read_text(encoding='utf-8')
+          app.write_text(text, encoding='utf-8')
+
+          index = Path('index.html')
+          h = index.read_text(encoding='utf-8')
+          import re
+          h, count = re.subn(r'<script src="\./app\.js\?v=[^"]+"></script>', '<script src="./app.js?v=20260720-approval-v2"></script>', h, count=1)
+          if count != 1: raise SystemExit('Tag app.js tidak ditemukan.')
+          index.write_text(h, encoding='utf-8')
+
+          sw = Path('sw.js')
+          s = sw.read_text(encoding='utf-8')
+          s, count = re.subn(r"const CACHE_VERSION = '[^']+';", "const CACHE_VERSION = 'sim-sppg-v20260720-approval-v2';", s, count=1)
+          if count != 1: raise SystemExit('CACHE_VERSION tidak ditemukan.')
+          sw.write_text(s, encoding='utf-8')
+          PY
+          cp scripts/transaction-action-v4.ts supabase/functions/transaction-action/index.ts
+          cp scripts/reporting-reports-v5.ts supabase/functions/reporting-action/reports.ts
+      - name: Validate syntax and contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check scripts/approval-detail-overrides.js
+          node --check scripts/approval-status-overrides.js
+          node --check scripts/approval-action-overrides.js
+          grep -Fq 'APPROVAL V2 DETAIL MODULE' app.js
           grep -Fq 'verify_transaction_payment_batch_atomic' supabase/functions/transaction-action/index.ts
           grep -Fq 'approve_transaction_direct_atomic' supabase/functions/transaction-action/index.ts
           grep -Fq "c.role !== 'USER'" supabase/functions/transaction-action/index.ts
