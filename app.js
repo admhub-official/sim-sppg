@@ -1362,7 +1362,12 @@ PIC: [
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
     { label: 'AKTIVITAS SAYA', isHeader: true },
     { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt' },
+    { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'pending-payment', label: 'Pending Payment Saya', icon: 'fa-hand-holding-usd' },
+    { page: 'survei', label: 'Survei Harga', icon: 'fa-search-dollar' },
+    { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
+    { label: 'DATA MASTER', isHeader: true },
+    { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
     { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
   ]
@@ -1427,7 +1432,7 @@ var BOTTOM_NAV_CONFIG = {
   LAPANGAN:       ['dashboard', 'transaksi', 'approval', 'profil'],
   WAKIL_LAPANGAN: ['dashboard', 'transaksi', 'serah-terima', 'profil'],
   AHLI_GIZI:      ['dashboard', 'transaksi', 'menu-mbg', 'profil'],
-  USER:           ['dashboard', 'transaksi', 'profil']
+  USER:           ['dashboard', 'transaksi', 'approval', 'profil']
 };
 
 var BNAV_ICON_LABEL = {
