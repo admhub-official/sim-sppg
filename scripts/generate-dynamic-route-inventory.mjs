@@ -5,55 +5,53 @@ const sourcePath = path.resolve('app.js');
 const outputPath = path.resolve('docs/dynamic-route-inventory.md');
 const source = fs.readFileSync(sourcePath, 'utf8');
 
-function objectBody(name) {
-  const match = source.match(new RegExp(`var\\s+${name}\\s*=\\s*\\{([\\s\\S]*?)\\};`));
-  return match ? match[1] : '';
+function extractApiRoutes() {
+  const match = source.match(/var\s+API_ROUTES\s*=\s*\{([\s\S]*?)\n\};\s*var\s+PUBLIC_FN/);
+  if (!match) throw new Error('API_ROUTES tidak ditemukan atau formatnya berubah.');
+
+  const routes = new Map();
+  const duplicates = new Map();
+  const routeRegex = /['"]([^'"]+)['"]\s*:\s*\{([\s\S]*?)\}(?:\s*,|\s*$)/g;
+  let routeMatch;
+
+  while ((routeMatch = routeRegex.exec(match[1]))) {
+    const slug = routeMatch[1];
+    const body = routeMatch[2];
+    const keyRegex = /(?:^|[,\n])\s*([A-Za-z_$][\w$]*)\s*:/g;
+    let keyMatch;
+    while ((keyMatch = keyRegex.exec(body))) {
+      const functionName = keyMatch[1];
+      if (routes.has(functionName)) {
+        const values = duplicates.get(functionName) || [routes.get(functionName)];
+        values.push(slug);
+        duplicates.set(functionName, values);
+      } else {
+        routes.set(functionName, slug);
+      }
+    }
+  }
+
+  if (!routes.size) throw new Error('Tidak ada function route yang berhasil dibaca dari API_ROUTES.');
+  if (duplicates.size) {
+    const details = [...duplicates].map(([name, slugs]) => `${name}: ${slugs.join(', ')}`).join('; ');
+    throw new Error(`Function API terdaftar di lebih dari satu route: ${details}`);
+  }
+  return routes;
 }
 
-function objectKeys(name) {
-  const body = objectBody(name);
-  const keys = new Set();
-  const regex = /(?:^|[,\n])\s*([A-Za-z_$][\w$]*)\s*:/g;
-  let match;
-  while ((match = regex.exec(body))) keys.add(match[1]);
-  return keys;
-}
-
-const routeGroups = {
-  transaction: objectKeys('TRANSACTION_FN'),
-  operations: objectKeys('OPERATIONS_FN'),
-  reporting: objectKeys('REPORTING_FN'),
-  master: objectKeys('MASTER_FN'),
-  fileAccess: objectKeys('FILE_ACCESS_FN'),
-  push: objectKeys('PUSH_FN'),
-  pushPublic: objectKeys('PUSH_PUBLIC_FN'),
-  public: objectKeys('PUBLIC_FN'),
-};
-
-// Routes handled outside the main maps.
-const explicitRoutes = new Map([
-  ['updateUserProfile', 'secureUser'],
-  ['uploadFotoProfil', 'secureUser'],
-  ['geocodeAlamat', 'geocodeRuntime'],
-]);
-
+const routed = extractApiRoutes();
 const calls = new Set();
 for (const regex of [
-  /\bcallApi\s*\(\s*['"]([^'"]+)['"]/g,
+  /\b(?:window\.)?callApi\s*\(\s*['"]([^'"]+)['"]/g,
   /\bapi\s*\(\s*['"]([^'"]+)['"]/g,
 ]) {
   let match;
   while ((match = regex.exec(source))) calls.add(match[1]);
 }
 
-const routed = new Map();
-for (const [group, names] of Object.entries(routeGroups)) {
-  for (const name of names) routed.set(name, group);
-}
-for (const [name, group] of explicitRoutes) routed.set(name, group);
-
-const dynamic = [...calls].filter((name) => !routed.has(name)).sort();
+const unmapped = [...calls].filter((name) => !routed.has(name)).sort();
 const known = [...calls].filter((name) => routed.has(name)).sort();
+const unused = [...routed.keys()].filter((name) => !calls.has(name)).sort();
 
 function rows(names, resolver) {
   if (!names.length) return '| — | — |\n';
@@ -68,26 +66,35 @@ Generated automatically from \`app.js\` at ${now}.
 ## Summary
 
 - Literal API calls found: **${calls.size}**
-- Routed to modular/public functions: **${known.length}**
-- Still falling back to \`dynamic-action\`: **${dynamic.length}**
+- Functions declared in \`API_ROUTES\`: **${routed.size}**
+- Routed literal API calls: **${known.length}**
+- Unmapped literal API calls: **${unmapped.length}**
+- Legacy \`dynamic-action\` fallback: **0**
 
 ## Remaining Dynamic Routes
 
 | Function | Current destination |
 |---|---|
-${rows(dynamic, () => '`dynamic-action` fallback')}
+${rows(unmapped, () => '`not registered — callApi rejects the request`')}
 ## Routed Functions
 
 | Function | Route group |
 |---|---|
 ${rows(known, (name) => `\`${routed.get(name)}\``)}
+## Declared but Not Called Literally
+
+| Function | Route group |
+|---|---|
+${rows(unused, (name) => `\`${routed.get(name)}\``)}
 ## Guardrail
 
-Any new literal \`callApi('...')\` invocation that is not included in a modular route map will appear in the remaining dynamic routes table on the next run.
+Any new literal \`callApi('...')\` invocation that is not included in \`API_ROUTES\` will appear in the remaining routes table and must fail CI.
 `;
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, report, 'utf8');
 console.log(`Wrote ${outputPath}`);
-console.log(`Dynamic fallback routes: ${dynamic.length}`);
-for (const name of dynamic) console.log(`- ${name}`);
+console.log(`Declared routes: ${routed.size}`);
+console.log(`Unmapped literal calls: ${unmapped.length}`);
+for (const name of unmapped) console.log(`- ${name}`);
+if (unmapped.length) process.exitCode = 1;
