@@ -1,0 +1,38 @@
+name: Disable legacy approval handlers v2
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/disable-legacy-approval-handlers-v2-20260720
+          fetch-depth: 0
+      - name: Patch and validate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/transaction-action/index.ts')
+          s=p.read_text(encoding='utf-8')
+          old="const H:any={getTransactions:(p:any[],c:Caller)=>list(p[0]||{},c),getTransactionDetail:(p:any[],c:Caller)=>detail(s(p[0]),c),addTransaction:(p:any[],c:Caller)=>add(p[0]||{},c),editTransaction:(p:any[],c:Caller)=>edit(s(p[0]),p[1]||{},c),approveTransaction:(p:any[],c:Caller)=>approve(p[0]||{},c),submitUserBuktiPembayaran:(p:any[],c:Caller)=>submitPayment(p[0]||{},c),verifyUserPayment:(p:any[],c:Caller)=>verify(p[0]||{},c),sendCatatanApproval:note,uploadTxFile:uploadFile,deleteTransaction:(p:any[],c:Caller)=>del(s(p[0]),c)};"
+          new="const H:any={getTransactions:(p:any[],c:Caller)=>list(p[0]||{},c),getTransactionDetail:(p:any[],c:Caller)=>detail(s(p[0]),c),addTransaction:(p:any[],c:Caller)=>add(p[0]||{},c),editTransaction:(p:any[],c:Caller)=>edit(s(p[0]),p[1]||{},c),sendCatatanApproval:note,uploadTxFile:uploadFile,deleteTransaction:(p:any[],c:Caller)=>del(s(p[0]),c)};"
+          if new not in s:
+              if old not in s: raise SystemExit('Handler baseline berubah')
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          ! grep -Fq 'approveTransaction:(p:any[],c:Caller)' supabase/functions/transaction-action/index.ts
+          ! grep -Fq 'submitUserBuktiPembayaran:(p:any[],c:Caller)' supabase/functions/transaction-action/index.ts
+          ! grep -Fq 'verifyUserPayment:(p:any[],c:Caller)' supabase/functions/transaction-action/index.ts
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/transaction-action/index.ts
+          git commit -m 'fix: disable legacy approval handlers'
+          git push origin HEAD:fix/disable-legacy-approval-handlers-v2-20260720
