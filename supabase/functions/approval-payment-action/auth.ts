@@ -33,7 +33,10 @@ async function assignments(current: Caller) {
 }
 
 export async function transaction(current: Caller, id: string) {
-  const q = await sb.from(TABLE.tx).select('*').eq('ID', id).maybeSingle();
+  const q = await sb.from(TABLE.tx)
+    .select('ID,User,SPPG,YAYASAN,"Metode Transaksi",Nominal')
+    .eq('ID', id)
+    .maybeSingle();
   if (q.error) throw q.error;
   if (!q.data) throw new Error('Transaksi tidak ditemukan.');
   let allowed = current.role === 'SUPER_ADMIN' || (current.role === 'USER' && lower(q.data.User) === current.email);
