@@ -10,6 +10,8 @@ secrets.json
 # Logs
 *.log
 logs/
+.sync-logs/
+.sync-running.lock
 
 # Temporary and backup files
 *.tmp
@@ -25,7 +27,9 @@ tmp/
 temp/
 
 # Editor and OS files
-.vscode/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/extensions.json
 .idea/
 *.code-workspace
 .DS_Store
@@ -38,6 +42,7 @@ node_modules/
 .npm/
 .pnpm-store/
 .yarn/cache/
+.supabase/
 
 # Build output not used by this static GitHub Pages app
 dist/
@@ -52,3 +57,6 @@ out/
 *.tar.gz
 *.sql
 *.dump
+
+# Keep versioned Supabase migrations even though generic SQL dumps are ignored
+!supabase/migrations/*.sql
