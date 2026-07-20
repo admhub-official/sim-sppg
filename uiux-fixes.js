@@ -1,9 +1,41 @@
 /* SIM-SPPG UI/UX compatibility and transport hardening hooks.
- * API routing remains native in app.js. This file only normalizes request
- * headers for the project's Supabase Edge Functions.
+ * API routing remains native in app.js. This file normalizes request
+ * headers and restores required approval UI components defensively.
  */
 (function(){
   'use strict';
+
+  function ensureVerificationModal() {
+    if (document.getElementById('modalVerifikasiPembayaran')) return;
+
+    var wrapper = document.createElement('div');
+    wrapper.id = 'modalVerifikasiPembayaran';
+    wrapper.className = 'hidden';
+    wrapper.setAttribute('role', 'dialog');
+    wrapper.setAttribute('aria-modal', 'true');
+    wrapper.setAttribute('aria-labelledby', 'verifikasiPembayaranTitle');
+    wrapper.innerHTML =
+      '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modalVerifikasiPembayaran\')">' +
+        '<div class="modal-box modal-wide">' +
+          '<div class="modal-header">' +
+            '<h3 id="verifikasiPembayaranTitle"><i class="fas fa-stamp" style="color:var(--emerald);margin-right:8px"></i>Verifikasi Pelunasan &amp; TTD</h3>' +
+            '<button type="button" onclick="closeModal(\'modalVerifikasiPembayaran\')" class="modal-close" aria-label="Tutup"><i class="fas fa-times"></i></button>' +
+          '</div>' +
+          '<div class="modal-body" id="verifikasiBody"></div>' +
+          '<div class="modal-footer">' +
+            '<button type="button" onclick="closeModal(\'modalVerifikasiPembayaran\')" class="btn btn-outline">Batal</button>' +
+            '<button type="button" onclick="submitVerifikasiPembayaran()" class="btn btn-primary" id="btnSubmitVerifikasiPembayaran"><i class="fas fa-signature"></i> Simpan TTD &amp; Verifikasi</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(wrapper);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureVerificationModal, { once: true });
+  } else {
+    ensureVerificationModal();
+  }
 
   if (window.__simSppgFetchHardened || typeof window.fetch !== 'function') return;
 
