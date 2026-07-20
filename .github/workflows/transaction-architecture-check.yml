@@ -46,10 +46,13 @@ jobs:
           set -euo pipefail
           DIR='supabase/functions/approval-payment-action'
           test -s "$DIR/index.ts"
-          grep -Rqs 'submit_transaction_payment_atomic' "$DIR"
-          grep -Rqs 'verify_transaction_payment_batch_atomic\|verify_transaction_payment_atomic' "$DIR"
-          grep -Rqs 'p_verifier_signature_path' "$DIR"
-          grep -Rqs 'atomic:true\|atomic: true' "$DIR"
+          test -s "$DIR/submit.ts"
+          test -s "$DIR/verify.ts"
+          grep -q 'submit_transaction_payment_atomic' "$DIR/submit.ts"
+          grep -q 'verify_transaction_payment_batch_atomic' "$DIR/verify.ts"
+          grep -q 'p_verifier_signature_path' "$DIR/verify.ts"
+          grep -q 'cleanup(path)' "$DIR/submit.ts"
+          grep -q 'cleanup(signature, true)' "$DIR/verify.ts"
       - name: Reject legacy approval mutations in transaction router
         shell: bash
         run: |
