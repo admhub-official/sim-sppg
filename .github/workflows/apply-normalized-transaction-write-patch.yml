@@ -1,0 +1,45 @@
+name: Apply normalized transaction write patch
+
+on:
+  push:
+    branches:
+      - refactor/normalized-transaction-writes
+    paths:
+      - scripts/apply-normalized-transaction-write-patch.mjs
+      - .github/workflows/apply-normalized-transaction-write-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/normalized-transaction-writes
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply deterministic patch
+        run: node scripts/apply-normalized-transaction-write-patch.mjs
+      - name: Validate generated source
+        run: |
+          set -euo pipefail
+          FILE=supabase/functions/transaction-action/index.ts
+          grep -q 'create_transaction_with_documents_atomic' "$FILE"
+          grep -q 'update_transaction_with_documents_atomic' "$FILE"
+          grep -q "writeMode:'normalized-atomic'" "$FILE"
+          grep -q 'version:5' "$FILE"
+      - name: Commit generated source
+        run: |
+          if git diff --quiet; then
+            echo 'No generated changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/transaction-action/index.ts
+          git commit -m 'refactor: write transaction documents atomically'
+          git push origin HEAD:refactor/normalized-transaction-writes
