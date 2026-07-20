@@ -1,3 +1,4 @@
+# Deterministic patch for verifier TTD state preservation.
 from pathlib import Path
 
 path = Path('app.js')
