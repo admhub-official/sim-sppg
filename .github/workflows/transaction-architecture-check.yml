@@ -6,12 +6,14 @@ on:
     paths:
       - 'supabase/functions/transaction-action/**'
       - 'supabase/functions/approval-payment-action/**'
+      - 'supabase/migrations/**transaction**document**'
       - '.github/workflows/transaction-architecture-check.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/functions/transaction-action/**'
       - 'supabase/functions/approval-payment-action/**'
+      - 'supabase/migrations/**transaction**document**'
       - '.github/workflows/transaction-architecture-check.yml'
 
 permissions:
@@ -39,7 +41,11 @@ jobs:
           grep -q 'function txPageSpec' "$TX"
           grep -q 'hasMore' "$TX"
           grep -q 'documentReadSource' "$TX"
-          grep -q 'legacy-compatible' "$TX"
+          grep -q "writeMode:'normalized-atomic'" "$TX"
+          grep -q 'version:5' "$TX"
+          grep -q 'create_transaction_with_documents_atomic' "$TX"
+          grep -q 'update_transaction_with_documents_atomic' "$TX"
+          ! grep -q 'compatibilityWrite:true' "$TX"
       - name: Validate focused approval and payment gateway
         shell: bash
         run: |
