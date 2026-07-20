@@ -1,0 +1,63 @@
+name: Transaction Architecture Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/transaction-action/**'
+      - 'supabase/functions/approval-payment-action/**'
+      - '.github/workflows/transaction-architecture-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/transaction-action/**'
+      - 'supabase/functions/approval-payment-action/**'
+      - '.github/workflows/transaction-architecture-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-architecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate transaction CRUD contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          TX='supabase/functions/transaction-action/index.ts'
+          test -s "$TX"
+          grep -q 'Deno.serve' "$TX"
+          grep -q 'TRANSAKSI_DOCUMENTS' "$TX"
+          grep -q 'missingDocs' "$TX"
+          grep -q 'async function removeFiles' "$TX"
+          grep -q 'function ownedUpload' "$TX"
+          grep -q 'cleanup add orphan' "$TX"
+          grep -q 'cleanup edit orphan' "$TX"
+          grep -q 'function txPageSpec' "$TX"
+          grep -q 'hasMore' "$TX"
+          grep -q 'documentReadSource' "$TX"
+          grep -q 'legacy-compatible' "$TX"
+      - name: Validate focused approval and payment gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIR='supabase/functions/approval-payment-action'
+          test -s "$DIR/index.ts"
+          test -s "$DIR/submit.ts"
+          test -s "$DIR/verify.ts"
+          grep -q 'submit_transaction_payment_atomic' "$DIR/submit.ts"
+          grep -q 'verify_transaction_payment_batch_atomic' "$DIR/verify.ts"
+          grep -q 'p_verifier_signature_path' "$DIR/verify.ts"
+          grep -q 'cleanup(path)' "$DIR/submit.ts"
+          grep -q 'cleanup(signature, true)' "$DIR/verify.ts"
+      - name: Reject legacy approval mutations in transaction router
+        shell: bash
+        run: |
+          set -euo pipefail
+          TX='supabase/functions/transaction-action/index.ts'
+          ! grep -q 'approveTransaction:' "$TX"
+          ! grep -q 'submitUserBuktiPembayaran:' "$TX"
+          ! grep -q 'verifyUserPayment:' "$TX"
