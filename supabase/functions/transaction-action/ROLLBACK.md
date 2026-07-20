@@ -1,0 +1,1 @@
+Rollback: redeploy transaction-action from main commit 980cd34df787919030923a8afefcc4e000b42ff6. Keep TRANSAKSI_DOCUMENTS and compatibility triggers in place; they are backward compatible with the previous function version.
