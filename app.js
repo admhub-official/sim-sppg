@@ -201,6 +201,7 @@ var userBuktiFileData = null;
 var currentVerifikasiTxId = null;
 var currentVerifikasiNominal = 0;
 var verifCatatanTemp = '';
+var verifTtdBase64Temp = '';
 
 // Modal / form state
 var currentApprovalNominal = 0;
@@ -4461,7 +4462,9 @@ function submitVerifikasiPembayaran() {
   if (!ttdCanvas || isCanvasBlank('verifTtdCanvas')) {
     showToast('error', 'Validasi', 'Tanda tangan verifikator wajib diisi'); return;
   }
-  // Simpan catatan sementara karena modal verifikasi akan ditutup, lalu modal konfirmasi nominal dibuka
+  // Snapshot TTD sebelum membuka modal konfirmasi. Canvas dapat kehilangan state
+  // ketika modal bertumpuk/berpindah, terutama pada browser mobile.
+  verifTtdBase64Temp = ttdCanvas.toDataURL('image/png').split(',')[1];
   verifCatatanTemp = $('verifCatatan') ? $('verifCatatan').value : '';
   verifikasiPembayaranMode = true;
   pendingConfirmNominal = currentVerifikasiNominal || 0;
@@ -4474,11 +4477,10 @@ function submitVerifikasiPembayaran() {
 }
 
 function doSubmitVerifikasiPembayaran() {
-  var ttdCanvas = $('verifTtdCanvas');
-  if (!ttdCanvas || isCanvasBlank('verifTtdCanvas')) {
-    showToast('error', 'Validasi', 'Tanda tangan verifikator wajib diisi'); return;
+  var ttdBase64 = verifTtdBase64Temp || '';
+  if (!ttdBase64) {
+    showToast('error', 'Validasi', 'Snapshot tanda tangan verifikator tidak tersedia. Silakan tanda tangan ulang.'); return;
   }
-  var ttdBase64 = ttdCanvas.toDataURL('image/png').split(',')[1];
   closeModal('modalVerifikasiPembayaran');
   showLoading(true);
     callApi('verifyUserPayment', [
@@ -4486,6 +4488,7 @@ function doSubmitVerifikasiPembayaran() {
     ], function(result) {
         showLoading(false);
               if (result.success) {
+                verifTtdBase64Temp = '';
                 showToast('success', 'Sukses', result.message);
                 loadApprovalData();
                 loadTransactions();
@@ -4495,7 +4498,8 @@ function doSubmitVerifikasiPembayaran() {
               }
       },
       function(err) {
-        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
+        showLoading(false);
+        showToast('error', 'Gagal', (err && err.message) ? err.message : 'Terjadi kesalahan');
       }
     );
 }
