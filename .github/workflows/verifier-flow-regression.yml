@@ -1,0 +1,30 @@
+name: Verifier flow regression
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'scripts/check-verifier-flow-regression.mjs'
+      - '.github/workflows/verifier-flow-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'scripts/check-verifier-flow-regression.mjs'
+      - '.github/workflows/verifier-flow-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verifier-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check verifier payment flow
+        run: node scripts/check-verifier-flow-regression.mjs
