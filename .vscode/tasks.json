@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "SIM-SPPG: Setup Auto Sync",
+      "type": "shell",
+      "command": "powershell",
+      "args": ["-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\tools\\sync\\Setup-SimSppgSync.ps1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "SIM-SPPG: Start Auto Sync",
+      "type": "shell",
+      "command": "powershell",
+      "args": ["-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\tools\\sync\\Watch-SimSppgSync.ps1"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "SIM-SPPG: Pull GitHub + Supabase",
+      "type": "shell",
+      "command": "powershell",
+      "args": ["-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\tools\\sync\\Sync-FromRemote.ps1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "SIM-SPPG: Push Perubahan Lokal",
+      "type": "shell",
+      "command": "powershell",
+      "args": ["-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\tools\\sync\\Sync-ToGitHub.ps1"],
+      "problemMatcher": []
+    },
+    {
+      "label": "SIM-SPPG: Pull Database Supabase",
+      "type": "shell",
+      "command": "powershell",
+      "args": ["-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\tools\\sync\\Sync-FromRemote.ps1", "-PullDatabase"],
+      "problemMatcher": []
+    }
+  ]
+}
