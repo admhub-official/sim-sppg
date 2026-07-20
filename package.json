@@ -1,0 +1,21 @@
+{
+  "name": "sim-sppg",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local development and synchronization tooling for SIM-SPPG",
+  "scripts": {
+    "sync:setup": "powershell -ExecutionPolicy Bypass -File tools/sync/Setup-SimSppgSync.ps1",
+    "sync:watch": "powershell -ExecutionPolicy Bypass -File tools/sync/Watch-SimSppgSync.ps1",
+    "sync:pull": "powershell -ExecutionPolicy Bypass -File tools/sync/Sync-FromRemote.ps1",
+    "sync:push": "powershell -ExecutionPolicy Bypass -File tools/sync/Sync-ToGitHub.ps1",
+    "supabase:status": "supabase status",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop"
+  },
+  "devDependencies": {
+    "supabase": "^2.39.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
