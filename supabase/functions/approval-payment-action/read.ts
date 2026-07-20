@@ -37,5 +37,20 @@ export async function getTransactionDetail(req: Request, parameters: any[]) {
   const proofs = await proofRows(id ? [id] : []);
   const normalized = [];
   for (const proof of proofs) normalized.push(await normalizeProof(proof));
-  return { ...enrich(original || {}, summarize(proofs)), paymentProofs: normalized };
+
+  const pending = normalized.filter((proof: any) => proof.status === 'MENUNGGU_VERIFIKASI');
+  const latestPending = pending[pending.length - 1] || normalized[normalized.length - 1] || null;
+
+  // Compatibility aliases for the existing approval UI. The canonical source remains
+  // paymentProofs[], but these fields let the verifier modal display the user proof
+  // and submitter metadata without requiring a duplicate upload.
+  return {
+    ...enrich(original || {}, summarize(proofs)),
+    paymentProofs: normalized,
+    fileBuktiUser: latestPending?.file || null,
+    submittedByUser: latestPending?.submittedBy || '',
+    submittedAt: latestPending?.submittedAt || '',
+    pendingPaymentProofCount: pending.length,
+    hasPendingPaymentProof: pending.some((proof: any) => !!proof.file?.path),
+  };
 }
