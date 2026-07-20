@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260720-approval-v2';
+const CACHE_VERSION = 'sim-sppg-v20260720-approval-ttd-fix1';
 const APP_SHELL = ['./', './index.html', './app.js', './uiux-fixes.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -37,6 +37,30 @@ function networkFirst(request, cacheKey) {
     .catch(() => caches.match(cacheKey || request));
 }
 
+/*
+ * app.js historically referenced modalVerifikasiPembayaran while the HTML
+ * component was missing. Load the small compatibility bundle after app.js so
+ * existing clients receive the repaired modal without rewriting the main
+ * application bundle.
+ */
+function networkFirstAppWithCompatibility(request) {
+  return fetch(request)
+    .then(async (response) => {
+      if (!response || !response.ok) return response;
+      const source = await response.text();
+      const bootstrap = `\n;(() => {\n  if (window.__simSppgApprovalUiLoader) return;\n  window.__simSppgApprovalUiLoader = true;\n  const load = () => {\n    if (document.getElementById('modalVerifikasiPembayaran')) return;\n    const script = document.createElement('script');\n    script.src = './uiux-fixes.js?v=20260720-approval-ttd-fix1';\n    script.defer = true;\n    document.head.appendChild(script);\n  };\n  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });\n  else load();\n})();\n`;
+      const patched = new Response(source + bootstrap, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers
+      });
+      const copy = patched.clone();
+      caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+      return patched;
+    })
+    .catch(() => caches.match(request));
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -46,6 +70,11 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request, './index.html'));
+    return;
+  }
+
+  if (url.origin === self.location.origin && url.pathname.endsWith('/app.js')) {
+    event.respondWith(networkFirstAppWithCompatibility(request));
     return;
   }
 
