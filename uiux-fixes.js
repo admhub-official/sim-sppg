@@ -5,6 +5,10 @@
 (function(){
   'use strict';
 
+  // app.js uses this identifier from the Approval V2 module but older bundles
+  // did not declare it in the centralized state section.
+  if (typeof window.currentTrxId === 'undefined') window.currentTrxId = null;
+
   function ensureVerificationModal() {
     if (document.getElementById('modalVerifikasiPembayaran')) return;
 
