@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
+const serviceWorker = fs.readFileSync('sw.js', 'utf8');
 
 function requireMatch(condition, message) {
   if (!condition) {
@@ -53,6 +54,27 @@ requireMatch(
 requireMatch(
   /<script src="\.\/app\.js\?v=20260721-verifier-ttd-v3"><\/script>/.test(index),
   'index must use the verifier-flow cache-bust key'
+);
+
+requireMatch(
+  serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260721-verifier-flow-v4';"),
+  'service worker cache version must invalidate stale approval bundles'
+);
+requireMatch(
+  serviceWorker.includes("fetch(request, { cache: 'no-store' })"),
+  'navigation and JavaScript must bypass the browser HTTP cache'
+);
+requireMatch(
+  !serviceWorker.includes('networkFirstAppWithCompatibility'),
+  'service worker must not patch app.js with a compatibility bundle'
+);
+requireMatch(
+  !serviceWorker.includes('uiux-fixes.js'),
+  'service worker must not inject the retired approval compatibility script'
+);
+requireMatch(
+  !serviceWorker.includes('Bukti dan TTD wajib tersedia'),
+  'retired combined proof/signature validation must not exist in the service worker path'
 );
 
 if (!process.exitCode) console.log('Verifier payment flow regression check passed.');
