@@ -1,23 +1,16 @@
-/* SIM-SPPG Cloudflare Pages edge compatibility layer.
- * Ensures legacy cached HTML/app bundles receive critical approval fixes.
- */
+/* SIM-SPPG Cloudflare Pages runtime compatibility layer. */
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const response = await env.ASSETS.fetch(request);
 
-    if (!response || !response.ok || request.method !== 'GET') {
-      return response;
-    }
+    if (!response || !response.ok || request.method !== 'GET') return response;
 
-    // Patch the generated application bundle at delivery time. Declaring with
-    // `var` is safe for classic scripts and prevents ReferenceError before the
-    // Approval V2 handlers execute.
     if (url.pathname.endsWith('/app.js')) {
       const source = await response.text();
       const runtimeState = [
-        'var currentTrxId = null;',
-        'var pendingConfirmNominal = 0;',
+        "if (typeof currentTrxId === 'undefined') var currentTrxId = null;",
+        "if (typeof pendingConfirmNominal === 'undefined') var pendingConfirmNominal = 0;",
         ''
       ].join('\n');
       const headers = new Headers(response.headers);
@@ -32,22 +25,35 @@ export default {
       });
     }
 
-    // Ensure the verification modal compatibility module is loaded even when
-    // an older index.html remains in the browser or CDN cache.
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      if (!html.includes('uiux-fixes.js')) {
-        html = html.replace(
-          /<script\s+src=["']\.\/app\.js[^>]*><\/script>/i,
-          '<script src="./uiux-fixes.js?v=20260720-approval-runtime-fix3"></script>\n<script src="./app.js?v=20260720-approval-runtime-fix3"></script>'
-        );
-      }
+      const scripts = [
+        '<script src="./uiux-fixes.js?v=20260721-approval-final-v5"></script>',
+        '<script src="./app.js?v=20260721-approval-final-v5"></script>',
+        '<script src="./approval-flow-hotfix.js?v=20260721-approval-final-v5"></script>'
+      ].join('\n');
+
+      html = html.replace(
+        /(?:<script\s+src=["']\.\/uiux-fixes\.js[^>]*><\/script>\s*)?<script\s+src=["']\.\/app\.js[^>]*><\/script>(?:\s*<script\s+src=["']\.\/approval-flow-hotfix\.js[^>]*><\/script>)?/i,
+        scripts
+      );
+
       const headers = new Headers(response.headers);
       headers.set('content-type', 'text/html; charset=UTF-8');
       headers.set('cache-control', 'no-cache, no-store, must-revalidate');
       headers.delete('content-length');
       headers.delete('content-encoding');
       return new Response(html, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+      });
+    }
+
+    if (url.pathname.endsWith('/approval-flow-hotfix.js') || url.pathname.endsWith('/uiux-fixes.js')) {
+      const headers = new Headers(response.headers);
+      headers.set('cache-control', 'no-cache, no-store, must-revalidate');
+      return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
         headers
