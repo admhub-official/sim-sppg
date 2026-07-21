@@ -32,7 +32,7 @@ const handlers: Record<string, Function> = {
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method === 'GET') return json({ status: 'ok', service: 'reporting-action', version: 5, scopeMode: 'normalized-admin-assignment' });
+  if (req.method === 'GET') return json({ status: 'ok', service: 'reporting-action', version: 6, scopeMode: 'assigned-sppg-with-yayasan-compatibility' });
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
 
   try {
