@@ -27,14 +27,16 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
+      const version = '20260721-yayasan-dropdown-v1';
       const scripts = [
-        '<script src="./uiux-fixes.js?v=20260721-verifier-user-proof-v6"></script>',
-        '<script src="./app.js?v=20260721-verifier-user-proof-v6"></script>',
-        '<script src="./approval-flow-hotfix.js?v=20260721-verifier-user-proof-v6"></script>'
+        `<script src="./uiux-fixes.js?v=${version}"></script>`,
+        `<script src="./app.js?v=${version}"></script>`,
+        `<script src="./approval-flow-hotfix.js?v=${version}"></script>`,
+        `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`
       ].join('\n');
 
       html = html.replace(
-        /(?:<script\s+src=["']\.\/uiux-fixes\.js[^>]*><\/script>\s*)?<script\s+src=["']\.\/app\.js[^>]*><\/script>(?:\s*<script\s+src=["']\.\/approval-flow-hotfix\.js[^>]*><\/script>)?/i,
+        /(?:<script\s+src=["']\.\/uiux-fixes\.js[^>]*><\/script>\s*)?<script\s+src=["']\.\/app\.js[^>]*><\/script>(?:\s*<script\s+src=["']\.\/approval-flow-hotfix\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/yayasan-dropdown-hotfix\.js[^>]*><\/script>)?/i,
         scripts
       );
 
@@ -50,7 +52,11 @@ export default {
       });
     }
 
-    if (url.pathname.endsWith('/approval-flow-hotfix.js') || url.pathname.endsWith('/uiux-fixes.js')) {
+    if (
+      url.pathname.endsWith('/approval-flow-hotfix.js') ||
+      url.pathname.endsWith('/uiux-fixes.js') ||
+      url.pathname.endsWith('/yayasan-dropdown-hotfix.js')
+    ) {
       const headers = new Headers(response.headers);
       headers.set('cache-control', 'no-cache, no-store, must-revalidate');
       return new Response(response.body, {
