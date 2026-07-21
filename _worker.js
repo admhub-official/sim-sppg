@@ -28,9 +28,9 @@ export default {
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
       const scripts = [
-        '<script src="./uiux-fixes.js?v=20260721-approval-final-v5"></script>',
-        '<script src="./app.js?v=20260721-approval-final-v5"></script>',
-        '<script src="./approval-flow-hotfix.js?v=20260721-approval-final-v5"></script>'
+        '<script src="./uiux-fixes.js?v=20260721-verifier-user-proof-v6"></script>',
+        '<script src="./app.js?v=20260721-verifier-user-proof-v6"></script>',
+        '<script src="./approval-flow-hotfix.js?v=20260721-verifier-user-proof-v6"></script>'
       ].join('\n');
 
       html = html.replace(
