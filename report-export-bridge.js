@@ -1,76 +1,102 @@
-/* Route legacy report buttons to the professional report generator. */
+/* Make the professional generator the only active report-generation path. */
 (function(){
   'use strict';
 
-  function textOf(el){
-    return String((el && (el.innerText || el.textContent || el.title || el.getAttribute('aria-label') || el.getAttribute('onclick'))) || '').toLowerCase();
+  function q(id){ return document.getElementById(id); }
+  function root(){ return q('professionalReportRoot'); }
+  function ready(){ return !!(root() && q('proBtnGenerate') && q('proReportFormat')); }
+  function toast(type,title,message){
+    if(typeof window.showToast==='function') window.showToast(type,title,message);
+    else if(type==='error') alert(message);
   }
 
-  function reportPage(){
-    return document.getElementById('page-laporan') || document.querySelector('[data-page="laporan"], .page-laporan');
-  }
-
-  function professionalRoot(){
-    return document.getElementById('professionalReportRoot');
-  }
-
-  function professionalReady(){
-    return !!(professionalRoot() && document.getElementById('proBtnGenerate') && document.getElementById('proReportFormat'));
-  }
-
-  function selectedFormat(signature){
-    if (/excel|xlsx/.test(signature)) return 'excel';
-    if (/print|cetak/.test(signature)) return 'print';
-    if (/pdf/.test(signature)) return 'pdf';
-    return document.getElementById('proReportFormat') ? document.getElementById('proReportFormat').value : 'pdf';
+  function syncLegacyPeriod(){
+    var oldStart=q('laporan-tgl-mulai'), oldEnd=q('laporan-tgl-selesai');
+    var newStart=q('proReportStart'), newEnd=q('proReportEnd');
+    if(oldStart&&newStart&&oldStart.value) newStart.value=oldStart.value;
+    if(oldEnd&&newEnd&&oldEnd.value) newEnd.value=oldEnd.value;
   }
 
   function runProfessional(format){
-    var select = document.getElementById('proReportFormat');
-    var button = document.getElementById('proBtnGenerate');
-    if (!select || !button) {
-      if (typeof window.showToast === 'function') {
-        window.showToast('error', 'Generator laporan belum siap', 'Muat ulang halaman lalu buka kembali menu Laporan.');
-      }
-      return;
+    if(!ready()){
+      toast('error','Generator laporan belum siap','Muat ulang halaman lalu buka kembali menu Laporan.');
+      return false;
     }
-    select.value = format;
-    professionalRoot().scrollIntoView({behavior:'smooth', block:'start'});
-    setTimeout(function(){ button.click(); }, 80);
+    syncLegacyPeriod();
+    q('proReportFormat').value=format||'pdf';
+    root().scrollIntoView({behavior:'smooth',block:'start'});
+    setTimeout(function(){ q('proBtnGenerate').click(); },80);
+    return false;
   }
 
-  document.addEventListener('click', function(event){
-    var page = reportPage();
-    var target = event.target && event.target.closest ? event.target.closest('button,a,[role="button"]') : null;
-    if (!page || !target || !page.contains(target)) return;
-    if (professionalRoot() && professionalRoot().contains(target)) return;
+  function replaceLegacyFunction(){
+    /* The old report page calls this exact global function. */
+    window.handleKirimLaporan=function(){ return runProfessional('pdf'); };
+    window.handleKirimLaporan.__professionalReport=true;
 
-    var signature = textOf(target);
-    var isLegacyExport = /(pdf|print|cetak|excel|xlsx|download|unduh|generate laporan|export laporan)/.test(signature);
-    if (!isLegacyExport) return;
-
-    if (!professionalReady()) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    runProfessional(selectedFormat(signature));
-  }, true);
-
-  function markLegacyButtons(){
-    var page = reportPage();
-    if (!page || !professionalReady()) return;
-    page.querySelectorAll('button,a,[role="button"]').forEach(function(el){
-      if (professionalRoot().contains(el)) return;
-      var signature = textOf(el);
-      if (!/(pdf|print|cetak|excel|xlsx|download|unduh|generate laporan|export laporan)/.test(signature)) return;
-      el.setAttribute('data-routed-to-professional-report','1');
-      el.title = 'Menggunakan generator laporan profesional';
+    /* Common legacy aliases, when present, must not reopen the raw-table report. */
+    ['generateLaporan','generateReport','downloadLaporan','downloadReportPdf','cetakLaporan','printLaporan'].forEach(function(name){
+      if(typeof window[name]==='function'){
+        window[name]=function(){ return runProfessional(/print|cetak/i.test(name)?'print':'pdf'); };
+        window[name].__professionalReport=true;
+      }
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', markLegacyButtons, {once:true});
-  else markLegacyButtons();
-  setTimeout(markLegacyButtons, 700);
-  setTimeout(markLegacyButtons, 1800);
-  new MutationObserver(function(){ setTimeout(markLegacyButtons, 60); }).observe(document.documentElement,{childList:true,subtree:true});
+  function redesignLegacyPanel(){
+    var page=q('page-laporan');
+    if(!page||!ready()) return;
+
+    var oldButton=q('btn-kirim-laporan');
+    if(oldButton){
+      oldButton.onclick=function(event){ if(event) event.preventDefault(); return runProfessional('pdf'); };
+      oldButton.setAttribute('data-routed-to-professional-report','1');
+      oldButton.title='Generate PDF dengan template laporan profesional';
+      var label=q('btn-laporan-text'); if(label) label.textContent='Generate PDF Profesional';
+      var icon=q('btn-laporan-icon'); if(icon) icon.textContent='📄';
+    }
+
+    /* The first legacy card contains the obsolete Telegram/raw-table generator. */
+    var oldStart=q('laporan-tgl-mulai');
+    var oldCard=oldStart&&oldStart.closest('.card');
+    if(oldCard){
+      oldCard.style.display='none';
+      oldCard.setAttribute('aria-hidden','true');
+      oldCard.setAttribute('data-legacy-report-generator','disabled');
+    }
+
+    /* Historical files remain accessible but clearly identify that they may use the old layout. */
+    var history=q('riwayat-laporan-tbody');
+    var historyCard=history&&history.closest('.card');
+    if(historyCard&&!historyCard.querySelector('.professional-history-note')){
+      var note=document.createElement('div');
+      note.className='professional-history-note';
+      note.style.cssText='margin:0 0 14px;padding:10px 12px;border:1px solid #facc15;background:#fffbeb;color:#854d0e;border-radius:9px;font-size:12px;line-height:1.5';
+      note.textContent='Catatan: file pada riwayat sebelum pembaruan masih menggunakan template laporan lama. Gunakan panel Laporan Profesional di atas untuk membuat dokumen baru.';
+      historyCard.insertBefore(note,historyCard.children[1]||null);
+    }
+  }
+
+  document.addEventListener('click',function(event){
+    var target=event.target&&event.target.closest?event.target.closest('button,a,[role="button"]'):null;
+    if(!target||!q('page-laporan')||!q('page-laporan').contains(target)) return;
+    if(root()&&root().contains(target)) return;
+    var sig=String(target.innerText||target.textContent||target.title||target.getAttribute('onclick')||'').toLowerCase();
+    if(!/(pdf|print|cetak|excel|xlsx|download|unduh|generate laporan|kirim laporan|export laporan)/.test(sig)) return;
+    if(!ready()) return;
+    event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+    runProfessional(/excel|xlsx/.test(sig)?'excel':/print|cetak/.test(sig)?'print':'pdf');
+  },true);
+
+  function install(){
+    replaceLegacyFunction();
+    redesignLegacyPanel();
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install,{once:true});
+  else install();
+  setTimeout(install,400);
+  setTimeout(install,1200);
+  setTimeout(install,2500);
+  new MutationObserver(function(){ setTimeout(install,40); }).observe(document.documentElement,{childList:true,subtree:true});
 })();
