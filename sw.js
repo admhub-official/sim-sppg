@@ -2,8 +2,8 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260721-verifier-flow-v4';
-const APP_SHELL = ['./index.html', './app.js', './manifest.json'];
+const CACHE_VERSION = 'sim-sppg-v20260721-report-center-v8';
+const APP_SHELL = ['./index.html', './app.js', './manifest.json', './professional-report-v1.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
