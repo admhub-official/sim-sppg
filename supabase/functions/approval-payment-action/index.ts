@@ -7,15 +7,15 @@ import { directApproval } from './direct.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method === 'GET') return json({ status: 'ok', service: 'approval-payment-action', version: 1, flow: 'partial-payment-ledger' });
+  if (req.method === 'GET') return json({ status: 'ok', service: 'approval-payment-action', version: 2, scopeMode: 'assigned-sppg' });
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
   try {
     const current = await caller(req);
     const body = await req.json();
     const parameters = Array.isArray(body?.parameters) ? body.parameters : [];
     let result: any;
-    if (body?.function === 'getTransactions') result = await getTransactions(req, parameters);
-    else if (body?.function === 'getTransactionDetail') result = await getTransactionDetail(req, parameters);
+    if (body?.function === 'getTransactions') result = await getTransactions(parameters, current);
+    else if (body?.function === 'getTransactionDetail') result = await getTransactionDetail(parameters, current);
     else if (body?.function === 'submitUserBuktiPembayaran') result = await submitPayment(parameters[0] || {}, current);
     else if (body?.function === 'verifyUserPayment') result = await verifyPayment(parameters[0] || {}, current);
     else if (body?.function === 'approveTransaction') result = await directApproval(parameters[0] || {}, current);
