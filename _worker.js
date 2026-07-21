@@ -27,15 +27,14 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260721-professional-report-direct-v7';
+      const version = '20260721-report-center-v8';
       const scripts = [
         `<script src="./uiux-fixes.js?v=${version}"></script>`,
         `<script src="./app.js?v=${version}"></script>`,
         `<script src="./approval-flow-hotfix.js?v=${version}"></script>`,
         `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`,
         `<script src="./sidebar-menu-structure.js?v=${version}"></script>`,
-        `<script src="./professional-report-v1.js?v=${version}"></script>`,
-        `<script src="./report-export-bridge.js?v=${version}"></script>`
+        `<script src="./professional-report-v1.js?v=${version}"></script>`
       ].join('\n');
 
       html = html.replace(
@@ -60,8 +59,7 @@ export default {
       url.pathname.endsWith('/uiux-fixes.js') ||
       url.pathname.endsWith('/yayasan-dropdown-hotfix.js') ||
       url.pathname.endsWith('/sidebar-menu-structure.js') ||
-      url.pathname.endsWith('/professional-report-v1.js') ||
-      url.pathname.endsWith('/report-export-bridge.js')
+      url.pathname.endsWith('/professional-report-v1.js')
     ) {
       const headers = new Headers(response.headers);
       headers.set('cache-control', 'no-cache, no-store, must-revalidate');
