@@ -1,4 +1,4 @@
-import { lower, sb, TABLE, text } from './client.ts';
+import { lower, norm, sb, TABLE, text } from './client.ts';
 
 export type Caller = { id: string; email: string; role: string; sppg: string; yayasan: string; nama: string };
 
@@ -13,7 +13,7 @@ export async function caller(req: Request): Promise<Caller> {
     .eq('ID', auth.data.user.id)
     .maybeSingle();
   if (q.error || !q.data) throw new Error('Profil user tidak ditemukan.');
-  const role = text(q.data.ROLE).toUpperCase();
+  const role = norm(q.data.ROLE);
   if (!['USER', 'ADMIN', 'SUPER_ADMIN'].includes(role)) throw new Error('Role akun tidak didukung.');
   return {
     id: auth.data.user.id,
@@ -25,11 +25,22 @@ export async function caller(req: Request): Promise<Caller> {
   };
 }
 
-async function assignments(current: Caller) {
-  if (current.role !== 'ADMIN') return [] as [string, string][];
-  const q = await sb.from(TABLE.assignment).select('sppg,yayasan').eq('admin_email', current.email);
+export async function assignedSppg(current: Caller) {
+  if (current.role !== 'ADMIN') return new Set<string>();
+  const q = await sb.from(TABLE.assignment).select('sppg,admin_email');
   if (q.error) throw q.error;
-  return (q.data || []).map((row: any) => [text(row.sppg), text(row.yayasan)] as [string, string]);
+  return new Set(
+    (q.data || [])
+      .filter((row: any) => lower(row.admin_email) === current.email)
+      .map((row: any) => norm(row.sppg))
+      .filter(Boolean),
+  );
+}
+
+export async function canAccess(current: Caller, row: any) {
+  if (current.role === 'SUPER_ADMIN') return true;
+  if (current.role === 'USER') return lower(row?.User) === current.email;
+  return (await assignedSppg(current)).has(norm(row?.SPPG));
 }
 
 export async function transaction(current: Caller, id: string) {
@@ -39,10 +50,6 @@ export async function transaction(current: Caller, id: string) {
     .maybeSingle();
   if (q.error) throw q.error;
   if (!q.data) throw new Error('Transaksi tidak ditemukan.');
-  let allowed = current.role === 'SUPER_ADMIN' || (current.role === 'USER' && lower(q.data.User) === current.email);
-  if (current.role === 'ADMIN') {
-    allowed = (await assignments(current)).some(([sppg, yayasan]) => sppg === text(q.data.SPPG) && yayasan === text(q.data.YAYASAN));
-  }
-  if (!allowed) throw new Error('Akses transaksi ditolak.');
+  if (!(await canAccess(current, q.data))) throw new Error('Akses transaksi ditolak.');
   return q.data;
 }
