@@ -7,7 +7,11 @@ export default {
     if (!response || !response.ok || request.method !== 'GET') return response;
 
     if (url.pathname.endsWith('/app.js')) {
-      const source = await response.text();
+      let source = await response.text();
+      source = source
+        .replace('function installReportCenter() {', 'function installLegacyReportCenterDisabled() {')
+        .replace('    installReportCenter();', '    /* Legacy raw-table report center disabled. professional-report-v1.js owns menu Laporan. */');
+
       const runtimeState = [
         "if (typeof currentTrxId === 'undefined') var currentTrxId = null;",
         "if (typeof pendingConfirmNominal === 'undefined') var pendingConfirmNominal = 0;",
