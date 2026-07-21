@@ -27,7 +27,7 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260721-professional-report-routing-v6';
+      const version = '20260721-professional-report-direct-v7';
       const scripts = [
         `<script src="./uiux-fixes.js?v=${version}"></script>`,
         `<script src="./app.js?v=${version}"></script>`,
