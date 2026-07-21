@@ -44,7 +44,7 @@
     if (!adminAllowed()) return;
     var file = window.approvalFileData;
     if (!file || !file.base64) {
-      window.showToast('error', 'Validasi', 'Bukti pelunasan wajib diupload.');
+      window.showToast('error', 'Validasi', 'Bukti pelunasan wajib diupload untuk pelunasan langsung oleh ADMIN.');
       return;
     }
     var signature = canvasBase64('approvalTtdCanvas');
@@ -53,6 +53,7 @@
       return;
     }
 
+    verifierSnapshot = null;
     directSnapshot = {
       id: window.currentTrxId,
       approvedBy: userDisplayName(),
@@ -65,7 +66,6 @@
     window.verifikasiPembayaranMode = false;
     openNominalConfirmation('Sisa Pelunasan', 'Ketik ulang sisa nominal untuk konfirmasi', window.currentApprovalNominal || 0);
   };
-  window.preSubmitApproval = window.preSubmitApproval;
 
   window.submitVerifikasiPembayaran = function () {
     if (!adminAllowed()) return;
@@ -75,6 +75,7 @@
       return;
     }
 
+    directSnapshot = null;
     verifierSnapshot = {
       txId: window.currentVerifikasiTxId,
       ttdBase64: signature,
@@ -127,7 +128,9 @@
 
     window.closeModal('modalPin');
 
-    if (window.verifikasiPembayaranMode) {
+    // Prioritaskan snapshot verifikator sebagai sumber kebenaran. Flag global dapat
+    // berubah karena handler legacy, tetapi bukti USER tetap berada di backend.
+    if (verifierSnapshot && verifierSnapshot.txId && verifierSnapshot.ttdBase64) {
       window.verifikasiPembayaranMode = false;
       window.doSubmitVerifikasiPembayaran();
       return;
@@ -140,8 +143,8 @@
     }
 
     var payload = directSnapshot;
-    if (!payload || !payload.id || !payload.buktiBase64 || !payload.ttdBase64) {
-      window.showToast('error', 'Validasi', 'Snapshot bukti pembayaran atau TTD tidak tersedia. Silakan isi ulang.');
+    if (!payload || !payload.id || !payload.ttdBase64) {
+      window.showToast('error', 'Validasi', 'Data approval atau TTD tidak tersimpan. Silakan isi ulang.');
       return;
     }
 
@@ -165,7 +168,7 @@
     });
   };
 
-  // Expose for inline onclick handlers.
+  window.preSubmitApproval = window.preSubmitApproval;
   window.submitVerifikasiPembayaran = window.submitVerifikasiPembayaran;
   window.doSubmitVerifikasiPembayaran = window.doSubmitVerifikasiPembayaran;
   window.submitApprovalWithPin = window.submitApprovalWithPin;
