@@ -1,0 +1,37 @@
+name: Apply clickable user detail UI
+
+on:
+  push:
+    branches:
+      - feat/clickable-user-detail-modal
+    paths:
+      - 'scripts/apply-clickable-user-detail.py'
+      - '.github/workflows/apply-clickable-user-detail.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/clickable-user-detail-modal
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply user management UI patch
+        run: python scripts/apply-clickable-user-detail.py
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "feat: make user rows open detail modal"
+            git push origin HEAD:feat/clickable-user-detail-modal
+          fi
