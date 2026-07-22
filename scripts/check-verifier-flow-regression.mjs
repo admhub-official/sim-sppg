@@ -32,7 +32,7 @@ requireMatch(!doSubmitBlock.includes("$('verifTtdCanvas')"), 'submit must not re
 requireMatch(doSubmitBlock.includes("callApi('verifyUserPayment'"), 'submit must call verifyUserPayment');
 requireMatch(doSubmitBlock.includes("verifTtdBase64Temp = '';"), 'signature snapshot must reset after success');
 requireMatch(index.includes('<script src="./app.js?v=20260722-approval-loader-v7"></script>'), 'base index must retain canonical app script');
-requireMatch(serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-direct-render-v15';"), 'service worker must invalidate stale bundles');
+requireMatch(serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-canonical-source-v16';"), 'service worker must invalidate stale bundles');
 requireMatch(serviceWorker.includes("fetch(request, { cache: 'no-store' })"), 'navigation and JavaScript must bypass browser cache');
 requireMatch(!serviceWorker.includes('networkFirstAppWithCompatibility'), 'service worker must not patch app.js');
 requireMatch(!serviceWorker.includes('uiux-fixes.js'), 'service worker must not inject retired compatibility script');

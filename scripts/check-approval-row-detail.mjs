@@ -25,17 +25,15 @@ requireMatch(renderBlock.includes('renderApprovalMobileCards(pageData, start, is
 requireMatch(pageBlock.includes('id="approvalDesktopView"'), 'desktop Approval view must exist');
 requireMatch(pageBlock.includes('id="approvalMobileView"'), 'mobile Approval view must exist');
 requireMatch(!pageBlock.includes('>Aksi</th>'), 'Approval table must not restore action column');
-requireMatch(worker.includes('Cloudflare canonical Approval loader v16'), 'served app bundle must include direct Approval loader');
-requireMatch(worker.includes('loadApprovalData = function ()'), 'direct runtime must override Approval loader');
-requireMatch(worker.includes("var filters = { kategori: 'PENGELUARAN' };"), 'Approval must reuse Transactions query contract');
-requireMatch(worker.includes('if (Array.isArray(result)) rows = result;'), 'direct array response must be accepted');
-requireMatch(worker.includes('result && Array.isArray(result.data)'), 'wrapped response must be accepted');
-requireMatch(worker.includes('filteredApprovalData = allTransactions.slice();'), 'received data must be assigned before render');
-requireMatch(worker.includes("throw new Error('Renderer Approval tidak mengganti tampilan loading.')"), 'stuck loading must become visible error');
-requireMatch(worker.includes('try {') && worker.includes('catch (renderError)'), 'render callback must be guarded');
-requireMatch(!worker.includes('`<script src="./approval-transaction-loader.js'), 'retired adapter must not be injected');
-requireMatch(worker.includes('20260722-approval-direct-render-v16'), 'Cloudflare runtime cache key must be current');
-requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-direct-render-v15';"), 'service worker must invalidate prior Approval runtime');
-requireMatch(!sw.includes('approval-transaction-loader.js'), 'service worker must not cache retired adapter');
+requireMatch(app.includes("var filters = { kategori: 'PENGELUARAN' };"), 'canonical Approval loader must use Transactions query contract');
+requireMatch(!app.includes("var filters = { kategori: 'PENGELUARAN', approvalOnly: true };"), 'legacy approvalOnly loader must be removed');
+requireMatch(!app.includes('function runQueuedApprovalReload()'), 'queued Approval reload helper must be removed');
+requireMatch(app.includes('if (!currentUser || approvalLoadState.inFlight) return;'), 'duplicate Approval loads must be ignored');
+requireMatch(app.includes('var normalizedResponse = normalizeApprovalApiResponse(result);'), 'canonical loader must normalize backend response');
+requireMatch(app.includes("console.error('Approval render failure:'"), 'canonical loader must expose render errors');
+requireMatch((app.match(/function loadApprovalData\(\)/g) || []).length === 1, 'Approval loader must exist exactly once in source');
+requireMatch(!worker.includes('approvalRuntime'), 'Cloudflare worker must not inject a second Approval loader');
+requireMatch(worker.includes('20260722-approval-canonical-source-v17'), 'Cloudflare runtime cache key must be current');
+requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-canonical-source-v16';"), 'service worker must invalidate previous Approval bundles');
 
 if (!process.exitCode) console.log('Approval direct runtime render check passed.');
