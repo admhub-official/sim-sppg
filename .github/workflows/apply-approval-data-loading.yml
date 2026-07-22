@@ -6,12 +6,14 @@ on:
       - fix/approval-data-loading
     paths:
       - 'scripts/apply-approval-data-loading.py'
+      - 'scripts/fix-approval-data-generated.py'
       - '.github/workflows/apply-approval-data-loading.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'scripts/apply-approval-data-loading.py'
+      - 'scripts/fix-approval-data-generated.py'
       - '.github/workflows/apply-approval-data-loading.yml'
 
 permissions:
@@ -29,7 +31,13 @@ jobs:
         with:
           python-version: '3.12'
       - name: Apply Approval data loading fix
-        run: python scripts/apply-approval-data-loading.py
+        run: |
+          if grep -q "function normalizeApprovalApiResponse(result)" app.js; then
+            python scripts/fix-approval-data-generated.py
+          else
+            python scripts/apply-approval-data-loading.py
+            python scripts/fix-approval-data-generated.py
+          fi
       - name: Commit generated changes
         run: |
           git config user.name "github-actions[bot]"
