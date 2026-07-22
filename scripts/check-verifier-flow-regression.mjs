@@ -52,7 +52,7 @@ requireMatch(
   'signature snapshot must reset after successful verification'
 );
 requireMatch(
-  /<script src="\.\/app\.js\?v=20260722-user-detail-key-v2"><\/script>/.test(index),
+  /<script src="\.\/app\.js\?v=20260722-approval-detail-v3"><\/script>/.test(index),
   'index must use the current frontend cache-bust key'
 );
 
