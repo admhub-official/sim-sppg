@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260722-approval-detail-v7';
+const CACHE_VERSION = 'sim-sppg-v20260722-approval-responsive-v8';
 const APP_SHELL = ['./index.html', './app.js', './manifest.json', './professional-report-v1.js'];
 
 self.addEventListener('install', (event) => {
