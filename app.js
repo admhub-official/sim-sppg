@@ -3570,8 +3570,6 @@ function normalizeApprovalTransaction(tx) {
     .trim().toUpperCase().replace(/\s+/g, '_');
   return normalized.id ? normalized : null;
 }
-}
-
 
 function isApprovalQueueTransaction(tx) {
   if (!tx) return false;
