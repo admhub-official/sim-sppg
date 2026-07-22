@@ -206,6 +206,7 @@ var verifTtdBase64Temp = '';
 // Modal / form state
 var currentApprovalNominal = 0;
 var currentEditRow = null;
+var currentDetailUserRow = null;
 var approvalFileData = null;
 var chartInstance = null;
 var menuItems = [];
@@ -2655,7 +2656,11 @@ function loadUsers(silent, page, forceAll) {
 }
 function renderUsersTable() {
   var tbody = $('usersTableBody');
-  if (!filteredUsers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>'; renderPagination('usersPagination', 1, 0, 'goUsersPage'); return; }
+  if (!filteredUsers.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>';
+    renderPagination('usersPagination', 1, 0, 'goUsersPage');
+    return;
+  }
   var totalPages = Math.ceil((usersServerPaged ? usersServerTotal : filteredUsers.length) / ITEMS_PER_PAGE);
   if (usersPage > totalPages) usersPage = totalPages;
   var start = (usersPage - 1) * ITEMS_PER_PAGE;
@@ -2664,21 +2669,19 @@ function renderUsersTable() {
   pageData.forEach(function(u, i) {
     var avatarFallback = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.namaLengkap || u.username) + '&background=1e6f9c&color=fff&size=60&rounded=true';
     var avatarImgId = 'userAvatar_' + esc(u.username);
-    html += '<tr>' +
-      '<td style="text-align:center;">' + (start + i + 1) + '</td>' +
+    var rowNum = Number(u._row) || 0;
+    var rowLabel = 'Lihat detail user ' + (u.namaLengkap || u.username || '');
+    html += '<tr class="user-row-clickable" tabindex="0" role="button" data-user-row="' + rowNum + '" aria-label="' + esc(rowLabel) + '" onclick="openUserDetailModal(' + rowNum + ')" onkeydown="handleUserRowKeydown(event,' + rowNum + ')">' +
+      '<td style="text-align:center;color:var(--slate-400);font-weight:600;">' + (start + i + 1) + '</td>' +
       '<td>' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
           '<img id="' + avatarImgId + '" src="' + esc(avatarFallback) + '" style="width:36px;height:36px;border-radius:10px;object-fit:cover;border:2px solid var(--slate-200);flex-shrink:0;" alt="' + esc(u.namaLengkap) + '" onerror="this.src=\'' + avatarFallback + '\'">' +
           '<div><div style="font-weight:600;color:var(--slate-800);">' + esc(u.namaLengkap) + '</div><div style="font-size:11px;color:var(--slate-400);">@' + esc(u.username) + '</div></div>' +
         '</div></td>' +
-      '<td>' + esc(u.email) + '</td>' +
-      '<td><span class="badge badge-blue">' + esc(u.jabatan) + '</span></td>' +
-      '<td><span class="badge badge-outline">' + esc(u.sppg) + '</span></td>' +
-      '<td style="text-align:center;">' +
-        '<div class="action-group" style="opacity:1;">' +
-          '<button class="action-btn edit" onclick="openEditUserModal(' + u._row + ')" title="Edit"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' +
-          '<button class="action-btn delete" onclick="confirmHapus(\'user\',0,\'' + esc(u.username) + '\',\'user ' + esc((u.namaLengkap||'').substring(0,20)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' +
-        '</div></td></tr>';
+      '<td>' + esc(u.email || '-') + '</td>' +
+      '<td><span class="badge badge-blue">' + esc(u.jabatan || '-') + '</span></td>' +
+      '<td><span class="badge badge-outline">' + esc(u.sppg || '-') + '</span></td>' +
+      '</tr>';
   });
 
   tbody.innerHTML = html;
@@ -2686,15 +2689,12 @@ function renderUsersTable() {
 
   pageData.forEach(function(u) {
     if (u.fotoProfil && String(u.fotoProfil).trim() !== '' && u.fotoProfil !== '-') {
-    callApi('getFileUrl', [
-      'FOTO_PROFIL',
-      u.fotoProfil
-    ], function(res) {
+      callApi('getFileUrl', ['FOTO_PROFIL', u.fotoProfil], function(res) {
         var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
         if (fotoUrl) {
-                    var img = document.getElementById('userAvatar_' + u.username);
-                    if (img) img.src = fotoUrl;
-                  }
+          var img = document.getElementById('userAvatar_' + u.username);
+          if (img) img.src = fotoUrl;
+        }
       }, null);
     }
   });
@@ -2734,8 +2734,79 @@ function populateUsersFilterOptions() {
 }
 
 function goUsersPage(p) { if(usersServerPaged) loadUsers(false,p,false); else { usersPage=p; renderUsersTable(); } }
+function findManagedUser(rowNum) {
+  return allUsers.find(function(u) { return String(u._row) === String(rowNum); });
+}
+
+function handleUserRowKeydown(event, rowNum) {
+  if (!event) return;
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    openUserDetailModal(rowNum);
+  }
+}
+
+function openUserDetailModal(rowNum) {
+  var user = findManagedUser(rowNum);
+  if (!user) {
+    showToast('error', 'Error', 'Data user tidak ditemukan');
+    return;
+  }
+  currentDetailUserRow = user._row;
+
+  var fullName = user.namaLengkap || user.username || '-';
+  var username = user.username || '-';
+  var fallbackAvatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(fullName) + '&background=1e6f9c&color=fff&size=240&rounded=true';
+  var avatar = $('userDetailAvatar');
+  if (avatar) {
+    avatar.src = fallbackAvatarUrl;
+    avatar.alt = 'Foto profil ' + fullName;
+    avatar.onerror = function() { this.src = fallbackAvatarUrl; };
+  }
+
+  $('userDetailName').textContent = fullName;
+  $('userDetailUsername').textContent = '@' + username;
+  $('userDetailEmail').textContent = user.email || '-';
+  $('userDetailJabatan').textContent = user.jabatan || '-';
+  $('userDetailSppg').textContent = user.sppg || '-';
+  $('userDetailYayasan').textContent = user.namaYayasan || '-';
+  $('userDetailRole').textContent = user.role || '-';
+  $('userDetailRegistered').textContent = user.timestamp ? formatDate(user.timestamp) : '-';
+
+  var roleBadge = $('userDetailRoleBadge');
+  if (roleBadge) {
+    roleBadge.textContent = user.role || '-';
+    roleBadge.className = 'badge ' + (user.role === 'SUPER_ADMIN' ? 'badge-purple' : (user.role === 'ADMIN' ? 'badge-blue' : 'badge-outline'));
+  }
+  var sppgBadge = $('userDetailSppgBadge');
+  if (sppgBadge) sppgBadge.textContent = user.sppg || '-';
+
+  openModal('modalUserDetail');
+
+  if (user.fotoProfil && String(user.fotoProfil).trim() !== '' && user.fotoProfil !== '-') {
+    callApi('getFileUrl', ['FOTO_PROFIL', user.fotoProfil], function(res) {
+      var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
+      if (fotoUrl && currentDetailUserRow === user._row && avatar) avatar.src = fotoUrl;
+    }, null);
+  }
+}
+
+function editUserFromDetail() {
+  var rowNum = currentDetailUserRow;
+  if (rowNum === null || rowNum === undefined) return;
+  closeModal('modalUserDetail');
+  openEditUserModal(rowNum);
+}
+
+function deleteUserFromDetail() {
+  var user = findManagedUser(currentDetailUserRow);
+  if (!user) return;
+  closeModal('modalUserDetail');
+  confirmHapus('user', 0, user.username, 'user ' + String(user.namaLengkap || '').substring(0, 20));
+}
+
 function openEditUserModal(rowNum) {
-  var user = allUsers.find(function(u) { return u._row === rowNum; });
+  var user = findManagedUser(rowNum);
   if (!user) return;
   currentEditRow = rowNum;
   $('editUserRow').value = rowNum;

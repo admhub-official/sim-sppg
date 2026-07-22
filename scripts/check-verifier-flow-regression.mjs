@@ -52,12 +52,12 @@ requireMatch(
   'signature snapshot must reset after successful verification'
 );
 requireMatch(
-  /<script src="\.\/app\.js\?v=20260721-verifier-ttd-v3"><\/script>/.test(index),
-  'index must use the verifier-flow cache-bust key'
+  /<script src="\.\/app\.js\?v=20260722-user-detail-v1"><\/script>/.test(index),
+  'index must use the current frontend cache-bust key'
 );
 
 requireMatch(
-  serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260721-verifier-flow-v4';"),
+  serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-user-detail-v5';"),
   'service worker cache version must invalidate stale approval bundles'
 );
 requireMatch(
