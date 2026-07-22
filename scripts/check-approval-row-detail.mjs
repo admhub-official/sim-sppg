@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
-const serviceWorker = fs.readFileSync('sw.js', 'utf8');
+const sw = fs.readFileSync('sw.js', 'utf8');
 
 function requireMatch(condition, message) {
   if (!condition) {
@@ -12,39 +12,40 @@ function requireMatch(condition, message) {
 }
 
 const renderStart = app.indexOf('function renderApprovalTable()');
-const renderEnd = app.indexOf('function goApprovalPage(p)', renderStart);
+const renderEnd = app.indexOf('// ===== CEKLIS / BULK ACTION APPROVAL =====', renderStart);
 const renderBlock = app.slice(renderStart, renderEnd);
-const approvalPageStart = index.indexOf('<!-- ==================== APPROVAL PAGE ==================== -->');
-const approvalPageEnd = index.indexOf('<!-- ==================== MASTER BAHAN BAKU PAGE ==================== -->', approvalPageStart);
-const approvalPage = index.slice(approvalPageStart, approvalPageEnd);
+const pageStart = index.indexOf('<!-- ==================== APPROVAL PAGE ==================== -->');
+const pageEnd = index.indexOf('<!-- ==================== MASTER BAHAN BAKU PAGE ==================== -->', pageStart);
+const pageBlock = index.slice(pageStart, pageEnd);
 
-requireMatch(renderStart >= 0 && renderEnd > renderStart, 'renderApprovalTable must exist');
-requireMatch(renderBlock.includes('class="approval-row-clickable '), 'approval rows must be clickable');
-requireMatch(renderBlock.includes('onclick="handleApprovalRowClick(event,this.dataset.id)"'), 'approval row click must open detail by transaction id');
-requireMatch(renderBlock.includes('onkeydown="handleApprovalRowKeydown(event,this.dataset.id)"'), 'approval rows must support Enter and Space');
-requireMatch(renderBlock.includes('onclick="event.stopPropagation()"'), 'bulk checkbox must not open the detail modal');
-requireMatch(renderBlock.includes('onkeydown="event.stopPropagation()"'), 'bulk checkbox keyboard events must not open detail');
-requireMatch(!renderBlock.includes('action-group'), 'approval rows must not contain an action group');
-requireMatch(!renderBlock.includes('action-btn'), 'approval rows must not contain action buttons');
-requireMatch(!approvalPage.includes('>Aksi</th>'), 'Approval table must not include an action column');
+requireMatch(renderStart >= 0 && renderEnd > renderStart, 'Approval render block must exist');
+requireMatch(renderBlock.includes('renderApprovalDesktopRows(pageData, start, isAdmin)'), 'desktop Approval renderer must be used');
+requireMatch(renderBlock.includes('renderApprovalMobileCards(pageData, start, isAdmin)'), 'mobile Approval card renderer must be used');
+requireMatch(renderBlock.includes('class="approval-mobile-card '), 'mobile cards must be clickable cards');
+requireMatch(renderBlock.includes('onclick="event.stopPropagation()"'), 'selection checkbox must not open detail');
+requireMatch(renderBlock.includes('syncApprovalSelectionControls'), 'desktop and mobile selections must stay synchronized');
+requireMatch(!renderBlock.includes('action-btn view'), 'legacy row detail icon must be removed');
+requireMatch(!renderBlock.includes('action-btn approve'), 'legacy row approval icon must be removed');
+requireMatch(!renderBlock.includes('<div class="action-group"'), 'legacy row action group must be removed');
+requireMatch(pageBlock.includes('id="approvalDesktopView"'), 'desktop Approval view must exist');
+requireMatch(pageBlock.includes('id="approvalMobileView"'), 'mobile Approval view must exist');
+requireMatch(pageBlock.includes('id="approvalMobileList"'), 'mobile Approval list must exist');
+requireMatch(pageBlock.includes('id="apprSelectAllMobile"'), 'mobile select-all control must exist');
+requireMatch(!pageBlock.includes('>Aksi</th>'), 'Approval table must not restore an action column');
+requireMatch(!pageBlock.includes('table-container approval-table'), 'legacy Approval table wrapper must be removed');
+requireMatch(index.includes('id="approval-responsive-ui-v2"'), 'responsive Approval styles must exist');
+requireMatch(!index.includes('id="approval-row-detail-styles"'), 'old Approval-only style patch must be removed');
+requireMatch(!index.includes('/* --- Approval Table --- */'), 'retired Approval mobile mapper comment must be removed');
+requireMatch(!index.includes('.approval-table tbody'), 'retired Approval table selectors must be removed');
+requireMatch(index.includes('.approval-mobile-view { display: none; }'), 'mobile cards must be hidden on desktop by default');
+requireMatch(index.includes('.approval-desktop-view { display: none !important; }'), 'desktop table must be hidden at the mobile breakpoint');
+requireMatch(index.includes('.approval-mobile-view { display: block; }'), 'mobile cards must be shown at the mobile breakpoint');
+requireMatch(index.includes('body.dark-mode .approval-mobile-card'), 'new mobile Approval cards must support dark mode');
+requireMatch(index.includes('@media (max-width: 768px)'), 'mobile breakpoint must exist');
+requireMatch(index.includes('#modalDetail.approval-detail-mode .modal-box'), 'mobile/desktop detail mode must be scoped');
+requireMatch(app.includes("modal.classList.add('approval-detail-mode')"), 'Approval detail must enable scoped modal mode');
+requireMatch(app.includes("modal.classList.remove('approval-detail-mode')"), 'generic detail reset must clean Approval modal mode');
+requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-responsive-v5"><\/script>/.test(index), 'new responsive bundle cache key must be active');
+requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-responsive-v9';"), 'service worker must invalidate the prior Approval UI');
 
-requireMatch(app.includes('var currentApprovalDetailId = null;'), 'approval detail state must exist');
-requireMatch(app.includes('function openApprovalDetail(id)'), 'approval detail controller must exist');
-requireMatch(app.includes("callApi('getTransactionDetail', [id]"), 'approval detail must load canonical transaction detail');
-requireMatch(app.includes('function configureApprovalDetailActions(tx)'), 'contextual approval actions must exist');
-requireMatch(app.includes("status === 'MENUNGGU_VERIFIKASI'"), 'pending user proof must route to verifier action');
-requireMatch(app.includes("runApprovalDetailAction('verify')") || app.includes("runApprovalDetailAction(\\'verify\\')"), 'verifier action button must exist');
-requireMatch(app.includes("runApprovalDetailAction('approve')") || app.includes("runApprovalDetailAction(\\'approve\\')"), 'approve action button must exist');
-requireMatch(app.includes("runApprovalDetailAction('upload')") || app.includes("runApprovalDetailAction(\\'upload\\')"), 'user proof action button must exist');
-requireMatch(app.includes("openVerifikasiModal(id)"), 'verifier action must open verification modal');
-requireMatch(app.includes("openApprovalModal(id)"), 'approve action must open approval modal');
-requireMatch(app.includes("openUserBuktiModal(id)"), 'user action must open proof upload modal');
-requireMatch(app.includes("actions.classList.add('hidden')"), 'generic detail modal must clear contextual actions');
-
-requireMatch(index.includes('id="detailHeaderActions"'), 'detail modal must expose a header action container');
-requireMatch(index.includes('id="approval-row-detail-styles"'), 'Approval row/detail responsive styles must exist');
-requireMatch(index.includes('approval-detail-hero'), 'Approval detail must include the summary hero layout');
-requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-detail-v3"><\/script>/.test(index), 'frontend bundle cache key must match Approval detail release');
-requireMatch(serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-detail-v7';"), 'service worker cache must match Approval detail release');
-
-if (!process.exitCode) console.log('Approval row detail check passed.');
+if (!process.exitCode) console.log('Approval responsive desktop/mobile UI check passed.');

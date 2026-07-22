@@ -3474,6 +3474,7 @@ function resetDetailModalFooter() {
   var modal = $('modalDetail');
   if (!modal) return;
   currentApprovalDetailId = null;
+  modal.classList.remove('approval-detail-mode');
   var footer = modal.querySelector('.modal-footer');
   if (footer) footer.innerHTML = '<button onclick="closeModal(\'modalDetail\')" class="btn btn-outline">Tutup</button>';
   var actions = $('detailHeaderActions');
@@ -3534,16 +3535,17 @@ function renderFilePreview(fileInfo, title, iconClass) {
      ============================================================ */
 function loadApprovalData() {
   showLoading(true);
-  // R3: Tampilkan skeleton placeholder
   var tbody = $('approvalTableBody');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="skeleton-screen" style="padding:20px;">' +
-      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
-      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
-      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
-      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
-      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div></div>' +
+    tbody.innerHTML = '<tr><td colspan="8"><div class="skeleton-screen approval-desktop-skeleton" style="padding:20px;">' +
+      '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div></div>'.repeat(5) +
       '</div></td></tr>';
+  }
+  var mobileList = $('approvalMobileList');
+  if (mobileList) {
+    mobileList.innerHTML = '<div class="approval-mobile-skeleton">' +
+      '<div class="approval-card-skeleton"><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-40"></div></div>'.repeat(4) +
+      '</div>';
   }
   selectedApprovalIds.clear();
   loadUploadBuktiMode();
@@ -3575,58 +3577,108 @@ function loadApprovalData() {
 function renderApprovalTable() {
   var approvalData = filteredApprovalData;
   var tbody = $('approvalTableBody');
+  var mobileList = $('approvalMobileList');
+  var pagination = $('approvalPagination');
+  var isAdmin = !!(currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN'));
+
   if (!approvalData.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-check-circle"></i></div><h4>Semua Lunas!</h4><p>Tidak ada transaksi yang menunggu approval.</p></div></td></tr>';
-    $('approvalPagination').innerHTML = '';
+    var emptyHtml = '<div class="empty-state"><div class="empty-illustration"><i class="fas fa-check-circle"></i></div><h4>Semua Lunas!</h4><p>Tidak ada transaksi yang menunggu approval.</p></div>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8">' + emptyHtml + '</td></tr>';
+    if (mobileList) mobileList.innerHTML = emptyHtml;
+    if (pagination) pagination.innerHTML = '';
+    syncApprovalSelectionControls(approvalData, isAdmin);
     updateApprovalBulkBar();
     return;
   }
+
   var totalPages = Math.ceil(approvalData.length / ITEMS_PER_PAGE);
   if (approvalPage > totalPages) approvalPage = totalPages;
   var start = (approvalPage - 1) * ITEMS_PER_PAGE;
   var pageData = approvalData.slice(start, start + ITEMS_PER_PAGE);
-  var html = '';
-  var isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
 
-  function getStatusRowClass(metode) {
-    var m = String(metode || '').trim().toUpperCase();
-    if (m === 'BELUM_BAYAR') return 'status-belum-bayar';
-    if (m === 'MENUNGGU_VERIFIKASI') return 'status-menunggu-verifikasi';
-    if (m === 'BELUM_LUNAS') return 'status-belum-lunas';
-    if (m === 'TRANSFER') return 'status-transfer';
-    if (m === 'CASH') return 'status-cash';
-    return '';
-  }
-
-  pageData.forEach(function(tx, idx) {
-    var no = start + idx + 1;
-    var isChecked = selectedApprovalIds.has(tx.id);
-    var statusClass = getStatusRowClass(tx.metodeTransaksi);
-    var rowLabel = 'Lihat detail approval ' + (tx.kode || tx.item || tx.id || '');
-    html += '<tr data-id="' + esc(tx.id) + '" class="approval-row-clickable ' + esc(statusClass) + '" tabindex="0" role="button" aria-label="' + esc(rowLabel) + '" onclick="handleApprovalRowClick(event,this.dataset.id)" onkeydown="handleApprovalRowKeydown(event,this.dataset.id)">' +
-      '<td style="text-align:center;">' +
-        (isAdmin ? '<input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()" onchange="toggleApprovalSelect(this)" ' + (isChecked ? 'checked' : '') + ' aria-label="Pilih transaksi ' + esc(tx.kode || tx.id) + '">' : '') +
-      '</td>' +
-      '<td style="text-align:center;color:var(--slate-400);font-weight:600;">' + no + '</td>' +
-      '<td><strong style="color:var(--slate-800);font-size:12px;">' + esc(tx.kode || '-') + '</strong></td>' +
-      '<td>' + esc(tx.tanggal || '-') + '</td>' +
-      '<td><span class="badge badge-outline">' + esc(tx.sppg || '-') + '</span></td>' +
-      '<td><strong style="color:var(--slate-700);">' + esc(tx.item || '-') + '</strong></td>' +
-      '<td><strong style="color:var(--slate-800);">' + formatRupiah(tx.nominal) + '</strong></td>' +
-      '<td>' + getMetodeBadge(tx.metodeTransaksi) + '</td>' +
-      '<td>' + esc(tx.user || '-') + '</td>' +
-      '<td style="max-width:160px;"><span style="color:var(--slate-500);font-size:12px;font-style:italic;">' + esc(tx.catatan && tx.catatan !== '-' ? tx.catatan : '-') + '</span></td>' +
-      '</tr>';
-  });
-  tbody.innerHTML = html;
+  if (tbody) tbody.innerHTML = renderApprovalDesktopRows(pageData, start, isAdmin);
+  if (mobileList) mobileList.innerHTML = renderApprovalMobileCards(pageData, start, isAdmin);
   renderPagination('approvalPagination', approvalPage, totalPages, 'goApprovalPage');
-
-  var selAll = $('apprSelectAll');
-  if (selAll) {
-    selAll.checked = approvalData.length > 0 && approvalData.every(function(tx) { return selectedApprovalIds.has(tx.id); });
-  }
+  syncApprovalSelectionControls(approvalData, isAdmin);
   updateApprovalBulkBar();
 }
+
+function getApprovalStatusRowClass(metode) {
+  var status = String(metode || '').trim().toUpperCase();
+  if (status === 'BELUM_BAYAR') return 'status-belum-bayar';
+  if (status === 'MENUNGGU_VERIFIKASI') return 'status-menunggu-verifikasi';
+  if (status === 'BELUM_LUNAS') return 'status-belum-lunas';
+  if (status === 'TRANSFER') return 'status-transfer';
+  if (status === 'CASH') return 'status-cash';
+  return 'status-default';
+}
+
+function getApprovalDocumentBadge(tx) {
+  var doc = _approvalDocStatus(tx);
+  var badgeClass = doc.status === 'Lengkap' ? 'badge-green' : (doc.status === 'Tidak Ada Keduanya' ? 'badge-red' : 'badge-amber');
+  return '<span class="badge ' + badgeClass + '"><i class="fas ' + (doc.status === 'Lengkap' ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i> ' + esc(doc.status) + '</span>';
+}
+
+function renderApprovalDesktopRows(pageData, start, isAdmin) {
+  return pageData.map(function(tx, idx) {
+    var checked = selectedApprovalIds.has(tx.id);
+    var statusClass = getApprovalStatusRowClass(tx.metodeTransaksi);
+    var rowLabel = 'Lihat detail approval ' + (tx.kode || tx.item || tx.id || '');
+    return '<tr data-id="' + esc(tx.id) + '" class="approval-row-clickable ' + esc(statusClass) + '" tabindex="0" role="button" aria-label="' + esc(rowLabel) + '" onclick="handleApprovalRowClick(event,this.dataset.id)" onkeydown="handleApprovalRowKeydown(event,this.dataset.id)">' +
+      '<td class="approval-select-col hidden" style="text-align:center;">' +
+        (isAdmin ? '<input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()" onchange="toggleApprovalSelect(this)" ' + (checked ? 'checked' : '') + ' aria-label="Pilih transaksi ' + esc(tx.kode || tx.id) + '">' : '') +
+      '</td>' +
+      '<td class="approval-number-cell">' + (start + idx + 1) + '</td>' +
+      '<td class="approval-transaction-cell"><strong>' + esc(tx.item || '-') + '</strong><span>' + esc(tx.kode || tx.id || '-') + ' &bull; ' + esc(tx.tanggal || '-') + '</span></td>' +
+      '<td><span class="approval-sppg-label"><i class="fas fa-building"></i>' + esc(tx.sppg || '-') + '</span></td>' +
+      '<td class="approval-nominal-cell">' + formatRupiah(tx.nominal) + '</td>' +
+      '<td>' + getMetodeBadge(tx.metodeTransaksi) + '</td>' +
+      '<td>' + getApprovalDocumentBadge(tx) + '</td>' +
+      '<td class="approval-user-cell"><i class="fas fa-user-circle"></i><span>' + esc(tx.user || '-') + '</span></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function renderApprovalMobileCards(pageData, start, isAdmin) {
+  return pageData.map(function(tx, idx) {
+    var checked = selectedApprovalIds.has(tx.id);
+    var statusClass = getApprovalStatusRowClass(tx.metodeTransaksi);
+    var rowLabel = 'Lihat detail approval ' + (tx.kode || tx.item || tx.id || '');
+    var selection = isAdmin
+      ? '<label class="approval-card-select" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()"><input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onchange="toggleApprovalSelect(this)" ' + (checked ? 'checked' : '') + ' aria-label="Pilih transaksi ' + esc(tx.kode || tx.id) + '"><span></span></label>'
+      : '';
+    var note = tx.catatan && tx.catatan !== '-' ? '<p class="approval-card-note"><i class="fas fa-comment-alt"></i>' + esc(tx.catatan) + '</p>' : '';
+    return '<article class="approval-mobile-card ' + esc(statusClass) + '" data-id="' + esc(tx.id) + '" tabindex="0" role="button" aria-label="' + esc(rowLabel) + '" onclick="handleApprovalRowClick(event,this.dataset.id)" onkeydown="handleApprovalRowKeydown(event,this.dataset.id)">' +
+      '<div class="approval-card-top">' + selection + '<span class="approval-card-number">#' + (start + idx + 1) + '</span><div class="approval-card-status">' + getMetodeBadge(tx.metodeTransaksi) + '</div><i class="fas fa-chevron-right approval-card-chevron"></i></div>' +
+      '<div class="approval-card-main"><div class="approval-card-title-wrap"><span class="approval-card-code">' + esc(tx.kode || tx.id || '-') + '</span><h3>' + esc(tx.item || '-') + '</h3><span class="approval-card-date"><i class="far fa-calendar-alt"></i>' + esc(tx.tanggal || '-') + '</span></div><div class="approval-card-amount"><span>Nominal</span><strong>' + formatRupiah(tx.nominal) + '</strong></div></div>' +
+      '<div class="approval-card-meta"><span><i class="fas fa-building"></i>' + esc(tx.sppg || '-') + '</span><span><i class="fas fa-user"></i>' + esc(tx.user || '-') + '</span></div>' +
+      '<div class="approval-card-docs">' + getApprovalDocumentBadge(tx) + '</div>' + note +
+      '<div class="approval-card-open"><span>Ketuk untuk melihat detail</span><i class="fas fa-arrow-right"></i></div>' +
+      '</article>';
+  }).join('');
+}
+
+function syncApprovalSelectionControls(approvalData, isAdmin) {
+  var allSelected = approvalData.length > 0 && approvalData.every(function(tx) { return selectedApprovalIds.has(tx.id); });
+  ['apprSelectAll', 'apprSelectAllMobile'].forEach(function(id) {
+    var checkbox = $(id);
+    if (checkbox) {
+      checkbox.checked = allSelected;
+      checkbox.disabled = !isAdmin || !approvalData.length;
+    }
+  });
+  var mobileToolbar = $('approvalMobileToolbar');
+  if (mobileToolbar) mobileToolbar.classList.toggle('hidden', !isAdmin);
+  var mobileCount = $('approvalMobileCount');
+  if (mobileCount) mobileCount.textContent = approvalData.length + ' transaksi';
+  document.querySelectorAll('#page-approval .approval-select-col').forEach(function(cell) {
+    cell.classList.toggle('hidden', !isAdmin);
+  });
+  document.querySelectorAll('#page-approval .appr-checkbox').forEach(function(checkbox) {
+    checkbox.checked = selectedApprovalIds.has(checkbox.getAttribute('data-id'));
+  });
+}
+
 function goApprovalPage(p) { approvalPage = p; renderApprovalTable(); }
 
 
@@ -3668,6 +3720,7 @@ function openApprovalDetail(id) {
       if (subtitle) subtitle.textContent = 'Tinjau transaksi dan dokumen sebelum menindaklanjuti';
     }
     configureApprovalDetailActions(tx);
+    if (modal) modal.classList.add('approval-detail-mode');
     openModal('modalDetail');
   }, function() {
     showLoading(false);
@@ -3725,10 +3778,8 @@ function toggleApprovalSelect(checkbox) {
   var id = checkbox.getAttribute('data-id');
   if (checkbox.checked) selectedApprovalIds.add(id);
   else selectedApprovalIds.delete(id);
-  var selAll = $('apprSelectAll');
-  if (selAll) {
-    selAll.checked = filteredApprovalData.length > 0 && filteredApprovalData.every(function(tx) { return selectedApprovalIds.has(tx.id); });
-  }
+  var isAdmin = !!(currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN'));
+  syncApprovalSelectionControls(filteredApprovalData, isAdmin);
   updateApprovalBulkBar();
 }
 
