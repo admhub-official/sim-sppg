@@ -31,16 +31,17 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260722-approval-loader-v12';
+      const version = '20260722-approval-transaction-v14';
       const scripts = [
         `<script src="./app.js?v=${version}"></script>`,
+        `<script src="./approval-transaction-loader.js?v=${version}"></script>`,
         `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`,
         `<script src="./sidebar-menu-structure.js?v=${version}"></script>`,
         `<script src="./professional-report-v1.js?v=${version}"></script>`
       ].join('\n');
 
       html = html.replace(
-        /(?:<script\s+src=["']\.\/uiux-fixes\.js[^>]*><\/script>\s*)?<script\s+src=["']\.\/app\.js[^>]*><\/script>(?:\s*<script\s+src=["']\.\/approval-flow-hotfix\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/yayasan-dropdown-hotfix\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/sidebar-menu-structure\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/professional-report-v1\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/report-export-bridge\.js[^>]*><\/script>)?/i,
+        /(?:<script\s+src=["']\.\/uiux-fixes\.js[^>]*><\/script>\s*)?<script\s+src=["']\.\/app\.js[^>]*><\/script>(?:\s*<script\s+src=["']\.\/approval-transaction-loader\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/approval-flow-hotfix\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/yayasan-dropdown-hotfix\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/sidebar-menu-structure\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/professional-report-v1\.js[^>]*><\/script>)?(?:\s*<script\s+src=["']\.\/report-export-bridge\.js[^>]*><\/script>)?/i,
         scripts
       );
 
@@ -57,6 +58,7 @@ export default {
     }
 
     if (
+      url.pathname.endsWith('/approval-transaction-loader.js') ||
       url.pathname.endsWith('/yayasan-dropdown-hotfix.js') ||
       url.pathname.endsWith('/sidebar-menu-structure.js') ||
       url.pathname.endsWith('/professional-report-v1.js')
