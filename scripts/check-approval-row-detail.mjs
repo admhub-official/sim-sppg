@@ -35,11 +35,15 @@ requireMatch(!pageBlock.includes('>Aksi</th>'), 'Approval table must not restore
 requireMatch(!pageBlock.includes('table-container approval-table'), 'legacy Approval table wrapper must be removed');
 requireMatch(index.includes('id="approval-responsive-ui-v2"'), 'responsive Approval styles must exist');
 requireMatch(!index.includes('id="approval-row-detail-styles"'), 'old Approval-only style patch must be removed');
+
+requireMatch(!index.includes('/* --- Approval Table --- */'), 'retired Approval mobile mapper comment must be removed');
+requireMatch(!index.includes('.approval-table tbody'), 'retired Approval table selectors must be removed');
+requireMatch(index.includes('body.dark-mode .approval-mobile-card'), 'new mobile Approval cards must support dark mode');
 requireMatch(index.includes('@media (max-width: 768px)'), 'mobile breakpoint must exist');
 requireMatch(index.includes('#modalDetail.approval-detail-mode .modal-box'), 'mobile/desktop detail mode must be scoped');
 requireMatch(app.includes("modal.classList.add('approval-detail-mode')"), 'Approval detail must enable scoped modal mode');
 requireMatch(app.includes("modal.classList.remove('approval-detail-mode')"), 'generic detail reset must clean Approval modal mode');
-requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-responsive-v4"><\/script>/.test(index), 'new responsive bundle cache key must be active');
-requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-responsive-v8';"), 'service worker must invalidate the prior Approval UI');
+requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-responsive-v5"><\/script>/.test(index), 'new responsive bundle cache key must be active');
+requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-responsive-v9';"), 'service worker must invalidate the prior Approval UI');
 
 if (!process.exitCode) console.log('Approval responsive desktop/mobile UI check passed.');

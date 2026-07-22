@@ -3630,63 +3630,6 @@
       }
       body.dark-mode #transaksiTableBody tr td:nth-child(9) { border-top-color: #334155 !important; }
 
-      /* --- Approval Table --- */
-      .approval-table tbody tr {
-        grid-template-areas:
-          "select kode tanggal"
-          "item item item"
-          "nominal nominal nominal"
-          "sppg sppg metode"
-          "penginput penginput penginput"
-          "aksi aksi aksi" !important;
-        grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,auto) !important;
-        padding: 10px 12px !important;
-        border-radius: 14px !important;
-        gap: 5px !important;
-      }
-      /* R2: Status left border indicator simulated via colored top-left badge or shadow in mobile */
-      .approval-table tbody tr.status-belum-bayar { box-shadow: -4px 4px 12px rgba(244,63,94,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--rose) !important; }
-      .approval-table tbody tr.status-menunggu-verifikasi { box-shadow: -4px 4px 12px rgba(249,115,22,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--orange) !important; }
-      .approval-table tbody tr.status-belum-lunas { box-shadow: -4px 4px 12px rgba(245,158,11,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--amber) !important; }
-      .approval-table tbody tr.status-transfer { box-shadow: -4px 4px 12px rgba(59,130,246,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--blue) !important; }
-      .approval-table tbody tr.status-cash { box-shadow: -4px 4px 12px rgba(16,185,129,0.08), 0 4px 12px rgba(0,0,0,0.03) !important; border-left: 4px solid var(--emerald) !important; }
-
-      .approval-table tbody tr td:nth-child(1) { grid-area: select; text-align: left; }
-      .approval-table tbody tr td:nth-child(2) { display: none !important; }
-      .approval-table tbody tr td:nth-child(3) { grid-area: kode; text-align: left; }
-      .approval-table tbody tr td:nth-child(4) { grid-area: tanggal; text-align: right; font-size: 12px !important; color: var(--slate-400) !important; }
-      .approval-table tbody tr td:nth-child(5) { grid-area: sppg; text-align: left; min-width: 0; overflow: hidden; }
-      .approval-table tbody tr td:nth-child(5) .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: middle; }
-      .approval-table tbody tr td:nth-child(6) { grid-area: item; text-align: left; font-size: 15px !important; font-weight: 700 !important; color: var(--slate-800) !important; word-break: break-word; }
-      body.dark-mode .approval-table tbody tr td:nth-child(6) { color: #f1f5f9 !important; }
-      .approval-table tbody tr td:nth-child(7) { grid-area: nominal; text-align: left; font-size: 18px !important; font-weight: 800 !important; color: var(--emerald) !important; margin: 4px 0; }
-      .approval-table tbody tr td:nth-child(8) { grid-area: metode; text-align: right; min-width: 0; overflow: hidden; flex-shrink: 0; }
-      .approval-table tbody tr td:nth-child(8) .badge { white-space: nowrap; }
-      .approval-table tbody tr td:nth-child(9) {
-        grid-area: penginput;
-        text-align: left;
-        font-size: 12px !important;
-        color: var(--slate-500) !important;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        border-top: 1px dashed var(--slate-100) !important;
-        padding-top: 8px !important;
-        margin-top: 2px;
-      }
-      body.dark-mode .approval-table tbody tr td:nth-child(9) { border-top-color: #334155 !important; }
-      .approval-table tbody tr td:nth-child(10) { display: none !important; } /* Hide Catatan on mobile — tampil di detail */
-      .approval-table tbody tr td:nth-child(11) { 
-        grid-area: aksi; 
-        border-top: 1px solid var(--slate-100) !important; 
-        padding-top: 12px !important; 
-        display: flex !important; 
-        justify-content: flex-end !important; 
-        gap: 8px !important; 
-      }
-      body.dark-mode .approval-table tbody tr td:nth-child(10) { display: none !important; } /* Hide Catatan on mobile — tampil di detail */
-      .approval-table tbody tr td:nth-child(11) { border-top-color: #334155 !important; }
-
       /* --- Master Bahan Table --- */
       #masterBBTableBody tr {
         grid-template-areas:
@@ -4379,6 +4322,29 @@
   .approval-user-cell span { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
   .approval-select-col input, .approval-card-select input, .approval-select-all-mobile input { accent-color: var(--primary); cursor: pointer; }
   .approval-pagination { margin-top: 14px; }
+  body.dark-mode .approval-desktop-view,
+  body.dark-mode .approval-mobile-toolbar,
+  body.dark-mode .approval-mobile-card,
+  body.dark-mode #modalDetail.approval-detail-mode .modal-box,
+  body.dark-mode #modalDetail.approval-detail-mode .modal-header { background: #1e293b; border-color: #334155; }
+  body.dark-mode .approval-data-table thead th { background: #172033; color: #94a3b8; border-color: #334155; }
+  body.dark-mode .approval-data-table tbody td { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+  body.dark-mode #page-approval .approval-row-clickable:hover td { background: #243048; }
+  body.dark-mode .approval-transaction-cell strong,
+  body.dark-mode .approval-nominal-cell,
+  body.dark-mode .approval-card-title-wrap h3,
+  body.dark-mode .approval-card-amount strong,
+  body.dark-mode .approval-detail-summary h4,
+  body.dark-mode .approval-detail-nominal strong { color: #f8fafc; }
+  body.dark-mode .approval-transaction-cell span,
+  body.dark-mode .approval-user-cell,
+  body.dark-mode .approval-card-date,
+  body.dark-mode .approval-card-note,
+  body.dark-mode .approval-detail-summary p { color: #94a3b8; }
+  body.dark-mode .approval-card-meta span { color: #cbd5e1; background: #172033; }
+  body.dark-mode .approval-card-open { border-color: #334155; color: #38bdf8; }
+  body.dark-mode .approval-detail-hero { background: linear-gradient(135deg,#172033,#1e293b 58%,#17332c); border-color: #334155; }
+  body.dark-mode .approval-detail-icon { background: #0f172a; color: #38bdf8; }
 
   /* Approval detail header and hero */
   .detail-modal-header { align-items: flex-start; gap: 14px; }
@@ -6797,6 +6763,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260722-approval-responsive-v4"></script>
+<script src="./app.js?v=20260722-approval-responsive-v5"></script>
 </body>
 </html>
