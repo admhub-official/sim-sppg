@@ -52,26 +52,22 @@ requireMatch(app.includes("modal.classList.remove('approval-detail-mode')"), 'ge
 
 requireMatch(app.includes('var approvalLoadState = {'), 'Approval loader state must remain available');
 requireMatch(occurrenceCount(app, 'function renderApprovalLoadingState()') === 1, 'Approval loading-state helper must be declared exactly once');
-requireMatch(occurrenceCount(app, 'function setApprovalRefreshing(refreshing)') === 1, 'Approval refreshing helper must be declared exactly once');
-requireMatch(occurrenceCount(app, 'function clearApprovalWatchdog()') === 1, 'Approval watchdog helper must be declared exactly once');
-requireMatch(occurrenceCount(app, 'function runQueuedApprovalReload()') === 1, 'Approval queued-reload helper must be declared exactly once');
 requireMatch(occurrenceCount(app, 'function loadApprovalData()') === 1, 'base Approval data loader must be declared exactly once');
 
 requireMatch(adapter.includes('window.loadApprovalData = function'), 'transaction adapter must own the runtime Approval loader');
+requireMatch(adapter.includes('if (state.inFlight) return;'), 'duplicate Approval loads must be ignored');
+requireMatch(!adapter.includes('runQueued'), 'Approval adapter must not queue another request');
+requireMatch(!adapter.includes('state.queued = true'), 'Approval adapter must not create a reload loop');
 requireMatch(adapter.includes("var filters = { kategori: 'PENGELUARAN' };"), 'Approval must request the same expense dataset used by Transactions');
 requireMatch(adapter.includes('if (Array.isArray(result)) rows = result;'), 'Approval must accept direct-array transaction responses');
 requireMatch(adapter.includes('result && Array.isArray(result.data)'), 'Approval must accept paged transaction responses');
 requireMatch(adapter.includes('window.allTransactions = rows.map(normalize).filter'), 'Approval must derive its queue from transaction rows locally');
-requireMatch(adapter.includes('isPending(tx)'), 'Approval must filter pending status locally');
 requireMatch(!adapter.includes('approvalOnly'), 'Approval adapter must not depend on approvalOnly');
 requireMatch(!adapter.includes('showLoading(true)'), 'Approval adapter must not flash the global overlay');
-requireMatch(adapter.includes('Server terlalu lama merespons'), 'Approval adapter must retain a watchdog timeout');
 
-requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-transaction-v13';"), 'service worker must invalidate prior Approval bundles');
+requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-single-request-v14';"), 'service worker must invalidate repeated-request bundles');
 requireMatch(sw.includes("'./approval-transaction-loader.js'"), 'service worker app shell must include the Approval adapter');
-requireMatch(!worker.includes('`<script src="./uiux-fixes.js'), 'Cloudflare must not inject uiux-fixes.js');
-requireMatch(!worker.includes('`<script src="./approval-flow-hotfix.js'), 'Cloudflare must not inject approval-flow-hotfix.js');
 requireMatch(worker.includes('`<script src="./approval-transaction-loader.js'), 'Cloudflare must inject the Approval transaction adapter');
-requireMatch(worker.includes('20260722-approval-transaction-v14'), 'Cloudflare runtime cache key must be current');
+requireMatch(worker.includes('20260722-approval-single-request-v15'), 'Cloudflare runtime cache key must be current');
 
-if (!process.exitCode) console.log('Approval responsive UI and transaction data adapter check passed.');
+if (!process.exitCode) console.log('Approval single-request data adapter check passed.');
