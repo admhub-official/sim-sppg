@@ -3653,7 +3653,10 @@ function loadApprovalData() {
   }, 20000);
 
   callApi('getTransactions', [filters], function(result) {
-    if (requestId !== approvalLoadState.requestId) return;
+    if (requestId !== approvalLoadState.requestId) {
+      approvalLoadState.inFlight = false;
+      return;
+    }
     clearApprovalWatchdog();
     approvalLoadState.inFlight = false;
     approvalLoadState.queued = false;
@@ -3677,7 +3680,10 @@ function loadApprovalData() {
       showToast('error', 'Gagal', 'Data diterima tetapi gagal ditampilkan.');
     }
   }, function(err) {
-    if (requestId !== approvalLoadState.requestId) return;
+    if (requestId !== approvalLoadState.requestId) {
+      approvalLoadState.inFlight = false;
+      return;
+    }
     clearApprovalWatchdog();
     approvalLoadState.inFlight = false;
     approvalLoadState.queued = false;
