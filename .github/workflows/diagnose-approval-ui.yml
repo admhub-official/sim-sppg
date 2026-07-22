@@ -1,0 +1,31 @@
+name: Diagnose Approval UI
+
+on:
+  push:
+    branches:
+      - fix/approval-responsive-ui-cleanup
+    paths:
+      - '.github/workflows/diagnose-approval-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/approval-responsive-ui-cleanup
+          fetch-depth: 0
+      - name: Capture concise diagnostics
+        run: |
+          grep -nE 'approval-table tbody|Approval Table|approval-row-detail-styles|approval-responsive-ui-v2' index.html > diag-approval-selectors.txt || true
+          node scripts/check-approval-row-detail.mjs > diag-approval-check.txt 2>&1 || true
+      - name: Commit diagnostics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diag-approval-selectors.txt diag-approval-check.txt
+          git commit -m "chore: capture Approval UI diagnostics"
+          git push origin HEAD:fix/approval-responsive-ui-cleanup
