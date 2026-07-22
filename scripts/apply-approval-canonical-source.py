@@ -125,3 +125,4 @@ verifier = verifier.replace("requireMatch(!worker.includes('approvalRuntime'), '
 verifier_test_path.write_text(verifier, encoding='utf-8')
 
 print('Canonical Approval loader applied to app.js; Cloudflare duplicate removed.')
+# trigger
