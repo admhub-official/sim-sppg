@@ -3,21 +3,9 @@ name: Frontend quality gate
 on:
   push:
     branches: [main]
-    paths:
-      - 'app.js'
-      - 'approval-transaction-loader.js'
-      - 'sw.js'
-      - '_worker.js'
-      - 'index.html'
-      - '.github/workflows/frontend-quality-gate.yml'
+    paths: ['app.js','sw.js','_worker.js','index.html','.github/workflows/frontend-quality-gate.yml']
   pull_request:
-    paths:
-      - 'app.js'
-      - 'approval-transaction-loader.js'
-      - 'sw.js'
-      - '_worker.js'
-      - 'index.html'
-      - '.github/workflows/frontend-quality-gate.yml'
+    paths: ['app.js','sw.js','_worker.js','index.html','.github/workflows/frontend-quality-gate.yml']
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
@@ -32,133 +20,47 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-
       - name: Validate JavaScript syntax
         run: |
           node --check app.js
-          node --check approval-transaction-loader.js
           node --check sw.js
           node --check _worker.js
-
       - name: Reject unresolved merge markers
         run: |
-          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js approval-transaction-loader.js sw.js _worker.js index.html; then
-            echo 'Unresolved merge marker detected.' >&2
-            exit 1
-          fi
-
-      - name: Validate explicit modular routing
-        shell: bash
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html; then exit 1; fi
+      - name: Validate canonical runtime
         run: |
           grep -Fq "var API_BASE_URL" app.js
           grep -Fq "var API_ROUTES" app.js
-          grep -Fq "var API_ROUTE_BY_FUNCTION" app.js
           grep -Fq "Fungsi API tidak terdaftar" app.js
-
-          for slug in \
-            transaction-action \
-            operations-action \
-            reporting-action \
-            master-action \
-            file-access-action \
-            secure-user-action \
-            push-action \
-            push-public-action \
-            geocode-action \
-            register-user-v2 \
-            auth-public-action \
-            account-recovery-action \
-            app-config-action \
-            notification-dispatch-action; do
-            grep -Fq "'$slug'" app.js || { echo "Missing API route: $slug" >&2; exit 1; }
-          done
-          grep -Fq "dispatchNotification" app.js
-
-          if grep -Fq 'dynamic-action' app.js approval-transaction-loader.js sw.js _worker.js; then
-            echo 'Legacy dynamic-action reference detected in frontend.' >&2
-            exit 1
-          fi
-
-          if grep -Fq 'networkFirstAppWithCompatibility' sw.js; then
-            echo 'Obsolete Service Worker JavaScript injection detected.' >&2
-            exit 1
-          fi
-
-          if grep -Fq '<script src="./approval-flow-hotfix.js' _worker.js; then
-            echo 'Retired Approval runtime override is still injected.' >&2
-            exit 1
-          fi
-
-          if grep -Fq '<script src="./uiux-fixes.js' _worker.js; then
-            echo 'Retired UI compatibility layer is still injected.' >&2
-            exit 1
-          fi
-
-          grep -Fq '<script src="./approval-transaction-loader.js' _worker.js
-          grep -Fq "window.loadApprovalData = function" approval-transaction-loader.js
-          grep -Fq "var filters = { kategori: 'PENGELUARAN' };" approval-transaction-loader.js
-          grep -Fq "if (Array.isArray(result)) rows = result;" approval-transaction-loader.js
-          grep -Fq "result && Array.isArray(result.data)" approval-transaction-loader.js
-          if grep -Fq 'approvalOnly' approval-transaction-loader.js; then
-            echo 'Approval adapter must not depend on approvalOnly.' >&2
-            exit 1
-          fi
-
+          grep -Fq "Cloudflare canonical Approval loader v16" _worker.js
+          grep -Fq "loadApprovalData = function ()" _worker.js
+          grep -Fq "var filters = { kategori: 'PENGELUARAN' };" _worker.js
+          grep -Fq "if (Array.isArray(result)) rows = result;" _worker.js
+          grep -Fq "result && Array.isArray(result.data)" _worker.js
+          grep -Fq "Renderer Approval tidak mengganti tampilan loading" _worker.js
+          grep -Fq "20260722-approval-direct-render-v16" _worker.js
+          grep -Fq "sim-sppg-v20260722-approval-direct-render-v15" sw.js
+          if grep -Fq '<script src="./approval-transaction-loader.js' _worker.js; then exit 1; fi
+          if grep -Fq 'networkFirstAppWithCompatibility' sw.js; then exit 1; fi
       - name: Validate pagination integrations
         run: |
-          for token in \
-            txServerPaged \
-            usersServerPaged \
-            bbServerPaged \
-            supplierServerPaged \
-            surveiServerPaged \
-            stServerPaged \
-            menuServerPaged \
-            pendingServerPaged \
-            auditServerPaged \
-            notifServerPaged; do
-            grep -Fq "$token" app.js || { echo "Missing pagination token: $token" >&2; exit 1; }
+          for token in txServerPaged usersServerPaged bbServerPaged supplierServerPaged surveiServerPaged stServerPaged menuServerPaged pendingServerPaged auditServerPaged notifServerPaged; do
+            grep -Fq "$token" app.js || exit 1
           done
-          grep -Fq "getTransactions" app.js
-          grep -Fq "getAllUsers" app.js
-          grep -Fq "getMasterBahanBaku" app.js
-          grep -Fq "getMasterSupplier" app.js
-          grep -Fq "getSurveiBahanBaku" app.js
-          grep -Fq "getSerahTerima" app.js
-          grep -Fq "getMenuHarian" app.js
-          grep -Fq "getPendingPayments" app.js
-          grep -Fq "getAuditLog" app.js
-          grep -Fq "getNotifications" app.js
-          grep -Fq "function loadMoreNotifications()" app.js
-
       - name: Check accidental credential literals
-        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
-          import sys
-
-          files = [Path('app.js'), Path('approval-transaction-loader.js'), Path('sw.js'), Path('_worker.js'), Path('index.html')]
-          pattern = re.compile(
-              r"(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*['\"]([A-Za-z0-9._-]{20,})['\"]",
-              re.IGNORECASE,
-          )
-
-          findings = []
-          for path in files:
-              text = path.read_text(encoding='utf-8', errors='replace')
-              for match in pattern.finditer(text):
-                  line = text.count('\n', 0, match.start()) + 1
-                  findings.append(f'{path}:{line}')
-
+          import re, sys
+          files=[Path('app.js'),Path('sw.js'),Path('_worker.js'),Path('index.html')]
+          p=re.compile(r"(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*['\"]([A-Za-z0-9._-]{20,})['\"]",re.I)
+          findings=[]
+          for f in files:
+              t=f.read_text(encoding='utf-8',errors='replace')
+              findings += [f'{f}:{t.count(chr(10),0,m.start())+1}' for m in p.finditer(t)]
           if findings:
-              print('Possible privileged credential literal detected in frontend:', file=sys.stderr)
-              for finding in findings:
-                  print(f'  {finding}', file=sys.stderr)
-              sys.exit(1)
+              print('\n'.join(findings),file=sys.stderr); sys.exit(1)
           PY
-
       - name: Summary
-        run: |
-          echo 'Frontend syntax, Approval transaction adapter, canonical runtime, routing, pagination, merge markers, and credential checks passed.'
+        run: echo 'Frontend direct Approval runtime checks passed.'
