@@ -1,0 +1,8 @@
+1646:    .approval-table tbody tr.status-belum-bayar { border-left: 4px solid var(--rose); }
+1647:    .approval-table tbody tr.status-menunggu-verifikasi { border-left: 4px solid var(--orange); }
+1648:    .approval-table tbody tr.status-belum-lunas { border-left: 4px solid var(--amber); }
+1649:    .approval-table tbody tr.status-transfer { border-left: 4px solid var(--blue); }
+1650:    .approval-table tbody tr.status-cash { border-left: 4px solid var(--emerald); }
+1652:    .approval-table tbody td:first-child { padding-left: 12px; }
+1654:      .approval-table tbody td:first-child { padding-left: 16px; }
+4296:<style id="approval-responsive-ui-v2">
