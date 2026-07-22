@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const serviceWorker = fs.readFileSync('sw.js', 'utf8');
+const worker = fs.readFileSync('_worker.js', 'utf8');
 
 function requireMatch(condition, message) {
   if (!condition) {
@@ -52,10 +53,9 @@ requireMatch(
   'signature snapshot must reset after successful verification'
 );
 requireMatch(
-  /<script src="\.\/app\.js\?v=20260722-approval-loader-v7<\/script>/.test(index),
+  /<script src="\.\/app\.js\?v=20260722-approval-loader-v7"><\/script>/.test(index),
   'index must use the current frontend cache-bust key'
 );
-
 requireMatch(
   serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-loader-v11';"),
   'service worker cache version must invalidate stale approval bundles'
@@ -75,6 +75,10 @@ requireMatch(
 requireMatch(
   !serviceWorker.includes('Bukti dan TTD wajib tersedia'),
   'retired combined proof/signature validation must not exist in the service worker path'
+);
+requireMatch(
+  !worker.includes('`<script src="./approval-flow-hotfix.js'),
+  'Cloudflare must not override canonical verifier handlers'
 );
 
 if (!process.exitCode) console.log('Verifier payment flow regression check passed.');
