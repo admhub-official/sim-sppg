@@ -3684,7 +3684,7 @@ function loadApprovalData() {
       approvalLoadState.inFlight = false;
       return;
     }
-    clearApprovalWatchdog();
+    clearApprovalWatchdog(); 
     approvalLoadState.inFlight = false;
     approvalLoadState.queued = false;
     setApprovalRefreshing(false);
