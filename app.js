@@ -2669,9 +2669,9 @@ function renderUsersTable() {
   pageData.forEach(function(u, i) {
     var avatarFallback = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.namaLengkap || u.username) + '&background=1e6f9c&color=fff&size=60&rounded=true';
     var avatarImgId = 'userAvatar_' + esc(u.username);
-    var rowNum = Number(u._row) || 0;
+    var userKey = getManagedUserKey(u);
     var rowLabel = 'Lihat detail user ' + (u.namaLengkap || u.username || '');
-    html += '<tr class="user-row-clickable" tabindex="0" role="button" data-user-row="' + rowNum + '" aria-label="' + esc(rowLabel) + '" onclick="openUserDetailModal(' + rowNum + ')" onkeydown="handleUserRowKeydown(event,' + rowNum + ')">' +
+    html += '<tr class="user-row-clickable" tabindex="0" role="button" data-user-key="' + esc(userKey) + '" aria-label="' + esc(rowLabel) + '" onclick="openUserDetailModal(this.dataset.userKey)" onkeydown="handleUserRowKeydown(event,this.dataset.userKey)">' +
       '<td style="text-align:center;color:var(--slate-400);font-weight:600;">' + (start + i + 1) + '</td>' +
       '<td>' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
@@ -2734,25 +2734,30 @@ function populateUsersFilterOptions() {
 }
 
 function goUsersPage(p) { if(usersServerPaged) loadUsers(false,p,false); else { usersPage=p; renderUsersTable(); } }
-function findManagedUser(rowNum) {
-  return allUsers.find(function(u) { return String(u._row) === String(rowNum); });
+function getManagedUserKey(user) {
+  return String(user && (user.id || user.username || user._row) || '');
 }
 
-function handleUserRowKeydown(event, rowNum) {
+function findManagedUser(userKey) {
+  var key = String(userKey || '');
+  return allUsers.find(function(u) { return getManagedUserKey(u) === key; });
+}
+
+function handleUserRowKeydown(event, userKey) {
   if (!event) return;
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault();
-    openUserDetailModal(rowNum);
+    openUserDetailModal(userKey);
   }
 }
 
-function openUserDetailModal(rowNum) {
-  var user = findManagedUser(rowNum);
+function openUserDetailModal(userKey) {
+  var user = findManagedUser(userKey);
   if (!user) {
     showToast('error', 'Error', 'Data user tidak ditemukan');
     return;
   }
-  currentDetailUserRow = user._row;
+  currentDetailUserRow = getManagedUserKey(user);
 
   var fullName = user.namaLengkap || user.username || '-';
   var username = user.username || '-';
@@ -2786,16 +2791,16 @@ function openUserDetailModal(rowNum) {
   if (user.fotoProfil && String(user.fotoProfil).trim() !== '' && user.fotoProfil !== '-') {
     callApi('getFileUrl', ['FOTO_PROFIL', user.fotoProfil], function(res) {
       var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
-      if (fotoUrl && currentDetailUserRow === user._row && avatar) avatar.src = fotoUrl;
+      if (fotoUrl && currentDetailUserRow === getManagedUserKey(user) && avatar) avatar.src = fotoUrl;
     }, null);
   }
 }
 
 function editUserFromDetail() {
-  var rowNum = currentDetailUserRow;
-  if (rowNum === null || rowNum === undefined) return;
+  var userKey = currentDetailUserRow;
+  if (!userKey) return;
   closeModal('modalUserDetail');
-  openEditUserModal(rowNum);
+  openEditUserModal(userKey);
 }
 
 function deleteUserFromDetail() {
@@ -2805,11 +2810,11 @@ function deleteUserFromDetail() {
   confirmHapus('user', 0, user.username, 'user ' + String(user.namaLengkap || '').substring(0, 20));
 }
 
-function openEditUserModal(rowNum) {
-  var user = findManagedUser(rowNum);
+function openEditUserModal(userKey) {
+  var user = findManagedUser(userKey);
   if (!user) return;
-  currentEditRow = rowNum;
-  $('editUserRow').value = rowNum;
+  currentEditRow = getManagedUserKey(user);
+  $('editUserRow').value = currentEditRow;
   $('editUserNama').value = user.namaLengkap || '';
   $('editUserEmail').value = user.email || '';
   $('editUserJabatan').value = user.jabatan || '';
@@ -2839,8 +2844,13 @@ function saveEditUser() {
   if (currentUser && currentUser.role === 'SUPER_ADMIN') {
     fields['ROLE'] = $('editUserRole').value;
   }
+    var managedUser = findManagedUser(currentEditRow);
+    if (!managedUser || !managedUser.username) {
+      showToast('error', 'Gagal', 'Data user tidak ditemukan');
+      return;
+    }
     callApi('updateUserProfile', [
-      allUsers.find(function(u) { return u._row == currentEditRow; }).username,
+      managedUser.username,
       fields
     ], function(result) {
         if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalEditUser'); loadUsers(); }
