@@ -31,7 +31,7 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260722-approval-transaction-v14';
+      const version = '20260722-approval-single-request-v15';
       const scripts = [
         `<script src="./app.js?v=${version}"></script>`,
         `<script src="./approval-transaction-loader.js?v=${version}"></script>`,
