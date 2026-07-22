@@ -35,9 +35,11 @@ requireMatch(!pageBlock.includes('>Aksi</th>'), 'Approval table must not restore
 requireMatch(!pageBlock.includes('table-container approval-table'), 'legacy Approval table wrapper must be removed');
 requireMatch(index.includes('id="approval-responsive-ui-v2"'), 'responsive Approval styles must exist');
 requireMatch(!index.includes('id="approval-row-detail-styles"'), 'old Approval-only style patch must be removed');
-
 requireMatch(!index.includes('/* --- Approval Table --- */'), 'retired Approval mobile mapper comment must be removed');
 requireMatch(!index.includes('.approval-table tbody'), 'retired Approval table selectors must be removed');
+requireMatch(index.includes('.approval-mobile-view { display: none; }'), 'mobile cards must be hidden on desktop by default');
+requireMatch(index.includes('.approval-desktop-view { display: none !important; }'), 'desktop table must be hidden at the mobile breakpoint');
+requireMatch(index.includes('.approval-mobile-view { display: block; }'), 'mobile cards must be shown at the mobile breakpoint');
 requireMatch(index.includes('body.dark-mode .approval-mobile-card'), 'new mobile Approval cards must support dark mode');
 requireMatch(index.includes('@media (max-width: 768px)'), 'mobile breakpoint must exist');
 requireMatch(index.includes('#modalDetail.approval-detail-mode .modal-box'), 'mobile/desktop detail mode must be scoped');
