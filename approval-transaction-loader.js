@@ -57,8 +57,8 @@
       window.loadUploadBuktiMode();
     }
 
-    // Sama seperti loadTransactions(forceAll=true): tidak memakai pagination
-    // atau approvalOnly. Status Approval ditentukan setelah data diterima.
+    // Sama seperti loadTransactions(forceAll=true): ambil seluruh transaksi
+    // pengeluaran, lalu tentukan status Approval setelah data diterima.
     var filters = { kategori: 'PENGELUARAN' };
     if (window.globalDateFilter && window.globalDateFilter.start) {
       filters.dateStart = window.globalDateFilter.start;
