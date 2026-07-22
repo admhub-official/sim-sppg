@@ -30,12 +30,6 @@ jobs:
           python-version: '3.12'
       - name: Apply loader lifecycle fix
         run: python scripts/apply-approval-loading-loop-fix.py
-      - name: Run focused checks
-        run: |
-          node --check app.js
-          node scripts/check-approval-row-detail.mjs
-          node scripts/check-verifier-flow-regression.mjs
-          node --check _worker.js
       - name: Commit generated changes
         run: |
           git config user.name "github-actions[bot]"
@@ -47,3 +41,9 @@ jobs:
             git commit -m "fix: stop Approval loading loop"
             git push origin HEAD:fix/approval-loading-loop-cleanup
           fi
+      - name: Run focused checks
+        run: |
+          node --check app.js
+          node scripts/check-approval-row-detail.mjs
+          node scripts/check-verifier-flow-regression.mjs
+          node --check _worker.js
