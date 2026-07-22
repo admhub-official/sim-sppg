@@ -28,14 +28,19 @@ jobs:
         with:
           python-version: '3.12'
       - name: Apply user management UI patch
-        run: python scripts/apply-clickable-user-detail.py
+        run: |
+          if grep -q "function openUserDetailModal(rowNum)" app.js; then
+            echo "Patch already applied"
+          else
+            python scripts/apply-clickable-user-detail.py
+          fi
       - name: Commit generated changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add app.js index.html sw.js scripts/check-verifier-flow-regression.mjs scripts/check-user-management-row-detail.mjs
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "No generated changes to commit"
           else
             git commit -m "feat: make user rows open detail modal"
             git push origin HEAD:feat/clickable-user-detail-modal
