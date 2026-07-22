@@ -46,9 +46,8 @@ requireMatch(index.includes('@media (max-width: 768px)'), 'mobile breakpoint mus
 requireMatch(index.includes('#modalDetail.approval-detail-mode .modal-box'), 'mobile/desktop detail mode must be scoped');
 requireMatch(app.includes("modal.classList.add('approval-detail-mode')"), 'Approval detail must enable scoped modal mode');
 requireMatch(app.includes("modal.classList.remove('approval-detail-mode')"), 'generic detail reset must clean Approval modal mode');
-requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-responsive-v5"><\/script>/.test(index), 'new responsive bundle cache key must be active');
+requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-data-v6"><\/script>/.test(index), 'Approval data bundle cache key must be active');
 requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-data-v10';"), 'service worker must invalidate the prior Approval UI');
-
 
 requireMatch(app.includes('function normalizeApprovalApiResponse(result)'), 'Approval loader must normalize array and wrapped responses');
 requireMatch(app.includes("var filters = { kategori: 'PENGELUARAN', approvalOnly: true };"), 'Approval loader must request only pending expense transactions');
@@ -58,4 +57,4 @@ requireMatch(!app.includes("if (!data || !Array.isArray(data))"), 'Approval load
 requireMatch(read.includes("const approvalOnly = filters.approvalOnly === true;"), 'Approval backend must support approvalOnly');
 requireMatch(read.includes(".neq('Metode Transaksi', 'SUDAH_DIBAYAR')"), 'Approval backend must exclude paid transactions before document enrichment');
 
-if (!process.exitCode) console.log('Approval responsive desktop/mobile UI check passed.');
+if (!process.exitCode) console.log('Approval responsive desktop/mobile UI and data loading check passed.');
