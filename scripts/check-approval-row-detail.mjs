@@ -13,6 +13,10 @@ function requireMatch(condition, message) {
   }
 }
 
+function occurrenceCount(source, needle) {
+  return source.split(needle).length - 1;
+}
+
 const renderStart = app.indexOf('function renderApprovalTable()');
 const renderEnd = app.indexOf('// ===== CEKLIS / BULK ACTION APPROVAL =====', renderStart);
 const renderBlock = app.slice(renderStart, renderEnd);
@@ -69,6 +73,11 @@ requireMatch(loaderBlock.includes('approvalLoadState.queued = true'), 'duplicate
 requireMatch(loaderBlock.includes('Server terlalu lama merespons'), 'Approval loader must expose a watchdog timeout');
 requireMatch(!loaderBlock.includes('showLoading(true)'), 'Approval list loading must not flash the global overlay');
 requireMatch(app.includes('approvalLoadState.hasLoaded && !approvalLoadState.inFlight'), 'upload mode response must wait for Approval data');
+requireMatch(occurrenceCount(app, 'function renderApprovalLoadingState()') === 1, 'Approval loading-state helper must be declared exactly once');
+requireMatch(occurrenceCount(app, 'function setApprovalRefreshing(refreshing)') === 1, 'Approval refreshing helper must be declared exactly once');
+requireMatch(occurrenceCount(app, 'function clearApprovalWatchdog()') === 1, 'Approval watchdog helper must be declared exactly once');
+requireMatch(occurrenceCount(app, 'function runQueuedApprovalReload()') === 1, 'Approval queued-reload helper must be declared exactly once');
+requireMatch(occurrenceCount(app, 'function loadApprovalData()') === 1, 'Approval data loader must be declared exactly once');
 requireMatch(!worker.includes('`<script src="./uiux-fixes.js'), 'Cloudflare must not inject uiux-fixes.js');
 requireMatch(!worker.includes('`<script src="./approval-flow-hotfix.js'), 'Cloudflare must not inject approval-flow-hotfix.js');
 requireMatch(worker.includes('20260722-approval-loader-v12'), 'Cloudflare runtime cache key must be current');
