@@ -3627,29 +3627,18 @@ function clearApprovalWatchdog() {
   }
 }
 
-function runQueuedApprovalReload() {
-  if (!approvalLoadState.queued) return;
-  approvalLoadState.queued = false;
-  setTimeout(function() { loadApprovalData(); }, 0);
-}
-
 function loadApprovalData() {
-  if (approvalLoadState.inFlight) {
-    approvalLoadState.queued = true;
-    return;
-  }
+  if (!currentUser || approvalLoadState.inFlight) return;
 
   approvalLoadState.inFlight = true;
   approvalLoadState.queued = false;
   var requestId = ++approvalLoadState.requestId;
 
+  selectedApprovalIds.clear();
   if (!approvalLoadState.hasLoaded) renderApprovalLoadingState();
   else setApprovalRefreshing(true);
 
-  selectedApprovalIds.clear();
-  if (!approvalModeLoaded) loadUploadBuktiMode();
-
-  var filters = { kategori: 'PENGELUARAN', approvalOnly: true };
+  var filters = { kategori: 'PENGELUARAN' };
   if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
   if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
 
@@ -3658,43 +3647,45 @@ function loadApprovalData() {
     if (!approvalLoadState.inFlight || requestId !== approvalLoadState.requestId) return;
     approvalLoadState.requestId++;
     approvalLoadState.inFlight = false;
+    approvalLoadState.queued = false;
     setApprovalRefreshing(false);
     renderApprovalLoadError('Server terlalu lama merespons. Tekan Muat Ulang untuk mencoba kembali.');
-    runQueuedApprovalReload();
-  }, 15000);
+  }, 20000);
 
-  callApi('getTransactions', [filters], function(data) {
+  callApi('getTransactions', [filters], function(result) {
     if (requestId !== approvalLoadState.requestId) return;
     clearApprovalWatchdog();
     approvalLoadState.inFlight = false;
+    approvalLoadState.queued = false;
     setApprovalRefreshing(false);
 
-    var normalizedResponse = normalizeApprovalApiResponse(data);
-    if (!normalizedResponse.valid) {
-      console.error('Kontrak respons Approval tidak dikenali:', data);
-      renderApprovalLoadError('Format respons server tidak dikenali.');
-      showToast('error', 'Gagal', 'Format data Approval tidak valid.');
-      runQueuedApprovalReload();
-      return;
-    }
+    try {
+      var normalizedResponse = normalizeApprovalApiResponse(result);
+      if (!normalizedResponse.valid) throw new Error('Format respons transaksi tidak dikenali.');
 
-    allTransactions = normalizedResponse.rows
-      .map(normalizeApprovalTransaction)
-      .filter(function(tx) { return tx && isApprovalQueueTransaction(tx); });
-    approvalLoadState.hasLoaded = true;
-    populateApprovalFilters();
-    filterApproval();
-    runQueuedApprovalReload();
+      allTransactions = normalizedResponse.rows
+        .map(normalizeApprovalTransaction)
+        .filter(function(tx) { return tx && isApprovalQueueTransaction(tx); });
+
+      approvalLoadState.hasLoaded = true;
+      approvalPage = 1;
+      populateApprovalFilters();
+      filterApproval();
+    } catch (renderError) {
+      console.error('Approval render failure:', renderError, result);
+      renderApprovalLoadError(renderError && renderError.message ? renderError.message : 'Data Approval gagal ditampilkan.');
+      showToast('error', 'Gagal', 'Data diterima tetapi gagal ditampilkan.');
+    }
   }, function(err) {
     if (requestId !== approvalLoadState.requestId) return;
     clearApprovalWatchdog();
     approvalLoadState.inFlight = false;
+    approvalLoadState.queued = false;
     setApprovalRefreshing(false);
     var message = err && err.message ? err.message : 'Tidak dapat memuat data Approval.';
     console.error('Gagal memuat Approval:', err);
     renderApprovalLoadError(message);
     showToast('error', 'Gagal', message);
-    runQueuedApprovalReload();
   });
 }
 
