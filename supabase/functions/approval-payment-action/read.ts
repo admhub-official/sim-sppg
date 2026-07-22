@@ -63,9 +63,16 @@ function pageSpec(value: any) {
 export async function getTransactions(parameters: any[], current: Caller) {
   const filters = parameters[0] || {};
   let query = sb.from(TABLE.tx).select('*').order('Tanggal', { ascending: false });
+  const approvalOnly = filters.approvalOnly === true;
   if (filters.sppg && filters.sppg !== 'ALL') query = query.eq('SPPG', filters.sppg);
   if (filters.yayasan && filters.yayasan !== 'ALL') query = query.eq('YAYASAN', filters.yayasan);
-  if (filters.kategori && filters.kategori !== 'ALL') query = query.eq('Kategori', filters.kategori);
+  if (approvalOnly) {
+    query = query.eq('Kategori', 'PENGELUARAN')
+      .neq('Metode Transaksi', 'SUDAH_DIBAYAR')
+      .neq('Metode Transaksi', 'LUNAS');
+  } else if (filters.kategori && filters.kategori !== 'ALL') {
+    query = query.eq('Kategori', filters.kategori);
+  }
   if (filters.dateStart) query = query.gte('Tanggal', text(filters.dateStart).slice(0, 10));
   if (filters.dateEnd) query = query.lte('Tanggal', text(filters.dateEnd).slice(0, 10));
 
@@ -78,6 +85,9 @@ export async function getTransactions(parameters: any[], current: Caller) {
     rows = (result.data || []).filter((row: any) => scope.has(norm(row.SPPG)));
   } else {
     rows = (result.data || []).filter((row: any) => String(row.User || '').toLowerCase() === current.email);
+  }
+  if (approvalOnly) {
+    rows = rows.filter((row: any) => norm(row.Kategori) === 'PENGELUARAN' && normalizeStatus(row['Metode Transaksi']) !== 'SUDAH_DIBAYAR');
   }
 
   const docs = await docsFor(rows.map((row: any) => text(row.ID)));

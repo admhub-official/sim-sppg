@@ -3533,6 +3533,67 @@ function renderFilePreview(fileInfo, title, iconClass) {
 /* ============================================================
      APPROVAL & PAYMENT VERIFICATION
      ============================================================ */
+function normalizeApprovalApiResponse(result) {
+  var current = result;
+  for (var depth = 0; depth < 4; depth++) {
+    if (Array.isArray(current)) return { valid: true, rows: current };
+    if (!current || typeof current !== 'object') break;
+    if (Array.isArray(current.data)) return { valid: true, rows: current.data };
+    if (Array.isArray(current.rows)) return { valid: true, rows: current.rows };
+    if (Object.prototype.hasOwnProperty.call(current, 'result')) {
+      current = current.result;
+      continue;
+    }
+    break;
+  }
+  return { valid: false, rows: [] };
+}
+
+function normalizeApprovalTransaction(tx) {
+  if (!tx || typeof tx !== 'object') return null;
+  var normalized = Object.assign({}, tx);
+  normalized.id = String(tx.id || tx.ID || '').trim();
+  normalized.kode = tx.kode || tx['Kode Pemasukan'] || normalized.id;
+  normalized.tanggal = tx.tanggal || tx.Tanggal || '';
+  normalized.kategori = String(tx.kategori || tx.Kategori || '').trim().toUpperCase();
+  normalized.jenisKategori = tx.jenisKategori || tx['Jenis Kategori'] || '';
+  normalized.sppg = tx.sppg || tx.SPPG || '';
+  normalized.yayasan = tx.yayasan || tx.YAYASAN || '';
+  normalized.nominal = Number(tx.nominal !== undefined ? tx.nominal : tx.Nominal) || 0;
+  normalized.user = tx.user || tx.User || '';
+  normalized.item = tx.item || tx.namaItem || tx['Nama Item/ Bahan Baku'] || '';
+  normalized.uploadFoto = tx.uploadFoto || tx['UPLOUD FOTO'] || '';
+  normalized.uploadFile = tx.uploadFile || tx['UPLOUD FILE'] || '';
+  normalized.notaPembelian = tx.notaPembelian || tx['NOTA PEMBELIAN'] || '';
+  normalized.ttdUser = tx.ttdUser || tx['TTD USER'] || '';
+  normalized.metodeTransaksi = String(tx.metodeTransaksi || tx['Metode Transaksi'] || 'BELUM_BAYAR')
+    .trim().toUpperCase().replace(/\s+/g, '_');
+  return normalized.id ? normalized : null;
+}
+}
+
+
+function isApprovalQueueTransaction(tx) {
+  if (!tx) return false;
+  var kategori = String(tx.kategori || '').trim().toUpperCase();
+  var status = String(tx.metodeTransaksi || '').trim().toUpperCase().replace(/\s+/g, '_');
+  return kategori === 'PENGELUARAN' && status !== 'SUDAH_DIBAYAR' && status !== 'LUNAS';
+}
+
+function renderApprovalLoadError(message) {
+  var safeMessage = esc(message || 'Data Approval gagal dimuat. Silakan muat ulang halaman.');
+  var html = '<div class="empty-state approval-load-error"><div class="empty-illustration"><i class="fas fa-exclamation-triangle"></i></div><h4>Data Approval Gagal Dimuat</h4><p>' + safeMessage + '</p><button type="button" class="btn btn-primary btn-sm" onclick="loadApprovalData()"><i class="fas fa-sync-alt"></i> Muat Ulang</button></div>';
+  var tbody = $('approvalTableBody');
+  var mobileList = $('approvalMobileList');
+  var pagination = $('approvalPagination');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="8">' + html + '</td></tr>';
+  if (mobileList) mobileList.innerHTML = html;
+  if (pagination) pagination.innerHTML = '';
+  filteredApprovalData = [];
+  selectedApprovalIds.clear();
+  updateApprovalBulkBar();
+}
+
 function loadApprovalData() {
   showLoading(true);
   var tbody = $('approvalTableBody');
@@ -3549,29 +3610,30 @@ function loadApprovalData() {
   }
   selectedApprovalIds.clear();
   loadUploadBuktiMode();
-  var filters = {};
+  var filters = { kategori: 'PENGELUARAN', approvalOnly: true };
   if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
   if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
-    callApi('getTransactions', [filters], function(data) {
-        showLoading(false);
-              if (!data || !Array.isArray(data)) {
-                showToast('error', 'Gagal', 'Data approval tidak valid.');
-                allTransactions = [];
-                populateApprovalFilters();
-                filterApproval();
-                return;
-              }
-              allTransactions = data;
-              populateApprovalFilters();
-              filterApproval();
-      },
-      function(err) {
-        showLoading(false);
-              showToast('error', 'Gagal', 'Tidak dapat memuat data approval.');
-              populateApprovalFilters();
-              filterApproval();
-      }
-    );
+  callApi('getTransactions', [filters], function(data) {
+    showLoading(false);
+    var normalizedResponse = normalizeApprovalApiResponse(data);
+    if (!normalizedResponse.valid) {
+      console.error('Kontrak respons Approval tidak dikenali:', data);
+      renderApprovalLoadError('Format respons server tidak dikenali.');
+      showToast('error', 'Gagal', 'Format data Approval tidak valid.');
+      return;
+    }
+    allTransactions = normalizedResponse.rows
+      .map(normalizeApprovalTransaction)
+      .filter(function(tx) { return tx && isApprovalQueueTransaction(tx); });
+    populateApprovalFilters();
+    filterApproval();
+  }, function(err) {
+    showLoading(false);
+    var message = err && err.message ? err.message : 'Tidak dapat memuat data Approval.';
+    console.error('Gagal memuat Approval:', err);
+    renderApprovalLoadError(message);
+    showToast('error', 'Gagal', message);
+  });
 }
 
 function renderApprovalTable() {
@@ -3888,10 +3950,7 @@ function printSelectedApprovalData() {
 }
 
 function populateApprovalFilters() {
-  var base = allTransactions.filter(function(t) {
-    var metode = String(t.metodeTransaksi || '').trim().toUpperCase();
-    return metode !== 'SUDAH_DIBAYAR' && t.kategori === 'PENGELUARAN';
-  });
+  var base = allTransactions.filter(isApprovalQueueTransaction);
   var sppgSet = {}, jenisSet = {};
   base.forEach(function(t) {
     if (t.sppg) sppgSet[t.sppg] = true;
@@ -3923,10 +3982,7 @@ function filterApproval() {
   var dateStart = $('apprFilterTglStart') ? $('apprFilterTglStart').value : '';
   var dateEnd = $('apprFilterTglEnd') ? $('apprFilterTglEnd').value : '';
 
-  var approvalBase = allTransactions.filter(function(t) {
-    var metode = String(t.metodeTransaksi || '').trim().toUpperCase();
-    return metode !== 'SUDAH_DIBAYAR' && t.kategori === 'PENGELUARAN';
-  });
+  var approvalBase = allTransactions.filter(isApprovalQueueTransaction);
 
   filteredApprovalData = approvalBase.filter(function(tx) {
     if (search) {
