@@ -121,4 +121,5 @@ verifier_test = verifier_test.replace('20260722-approval-loader-v7', '20260722-a
 verifier_test = verifier_test.replace('sim-sppg-v20260722-approval-loader-v11', 'sim-sppg-v20260722-approval-transaction-v12')
 verifier_test_path.write_text(verifier_test, encoding='utf-8')
 
+# Trigger marker: 2026-07-22 transaction-loader adaptation
 print('Approval now reuses the proven Transactions data-loading contract.')
