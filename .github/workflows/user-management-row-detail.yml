@@ -1,0 +1,27 @@
+name: User management row detail
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'scripts/check-user-management-row-detail.mjs'
+      - '.github/workflows/user-management-row-detail.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'scripts/check-user-management-row-detail.mjs'
+      - '.github/workflows/user-management-row-detail.yml'
+
+jobs:
+  user-row-detail:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check clickable user detail flow
+        run: node scripts/check-user-management-row-detail.mjs
