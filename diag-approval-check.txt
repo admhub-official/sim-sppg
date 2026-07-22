@@ -1,1 +1,0 @@
-FAIL: retired Approval table selectors must be removed

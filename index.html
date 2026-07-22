@@ -1642,17 +1642,6 @@
     tbody tr:last-child td { border-bottom: none; }
         tbody tr.row-paid { background: rgba(16, 185, 129, 0.06); }
     tbody tr.row-paid:hover { background: rgba(16, 185, 129, 0.1); }
-    /* R2: Status indicator left border — hanya pada tabel approval */
-    .approval-table tbody tr.status-belum-bayar { border-left: 4px solid var(--rose); }
-    .approval-table tbody tr.status-menunggu-verifikasi { border-left: 4px solid var(--orange); }
-    .approval-table tbody tr.status-belum-lunas { border-left: 4px solid var(--amber); }
-    .approval-table tbody tr.status-transfer { border-left: 4px solid var(--blue); }
-    .approval-table tbody tr.status-cash { border-left: 4px solid var(--emerald); }
-    /* Pastikan padding tetap rapi saat ada border kiri */
-    .approval-table tbody td:first-child { padding-left: 12px; }
-    @media (min-width: 768px) {
-      .approval-table tbody td:first-child { padding-left: 16px; }
-    }
 
     /* ============================================================
        BADGES
