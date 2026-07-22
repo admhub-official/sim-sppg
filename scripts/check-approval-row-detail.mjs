@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
+const read = fs.readFileSync('supabase/functions/approval-payment-action/read.ts', 'utf8');
 
 function requireMatch(condition, message) {
   if (!condition) {
@@ -45,7 +46,15 @@ requireMatch(index.includes('@media (max-width: 768px)'), 'mobile breakpoint mus
 requireMatch(index.includes('#modalDetail.approval-detail-mode .modal-box'), 'mobile/desktop detail mode must be scoped');
 requireMatch(app.includes("modal.classList.add('approval-detail-mode')"), 'Approval detail must enable scoped modal mode');
 requireMatch(app.includes("modal.classList.remove('approval-detail-mode')"), 'generic detail reset must clean Approval modal mode');
-requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-responsive-v5"><\/script>/.test(index), 'new responsive bundle cache key must be active');
-requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-responsive-v9';"), 'service worker must invalidate the prior Approval UI');
+requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-data-v6"><\/script>/.test(index), 'Approval data bundle cache key must be active');
+requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-data-v10';"), 'service worker must invalidate the prior Approval UI');
 
-if (!process.exitCode) console.log('Approval responsive desktop/mobile UI check passed.');
+requireMatch(app.includes('function normalizeApprovalApiResponse(result)'), 'Approval loader must normalize array and wrapped responses');
+requireMatch(app.includes("var filters = { kategori: 'PENGELUARAN', approvalOnly: true };"), 'Approval loader must request only pending expense transactions');
+requireMatch(app.includes('.map(normalizeApprovalTransaction)'), 'Approval rows must be normalized before filtering');
+requireMatch(app.includes('renderApprovalLoadError(message)'), 'Approval API failures must render a visible retry state');
+requireMatch(!app.includes("if (!data || !Array.isArray(data))"), 'Approval loader must not reject wrapped API responses');
+requireMatch(read.includes("const approvalOnly = filters.approvalOnly === true;"), 'Approval backend must support approvalOnly');
+requireMatch(read.includes(".neq('Metode Transaksi', 'SUDAH_DIBAYAR')"), 'Approval backend must exclude paid transactions before document enrichment');
+
+if (!process.exitCode) console.log('Approval responsive desktop/mobile UI and data loading check passed.');
