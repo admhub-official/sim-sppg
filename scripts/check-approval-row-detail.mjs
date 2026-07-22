@@ -52,7 +52,7 @@ requireMatch(index.includes('@media (max-width: 768px)'), 'mobile breakpoint mus
 requireMatch(index.includes('#modalDetail.approval-detail-mode .modal-box'), 'mobile/desktop detail mode must be scoped');
 requireMatch(app.includes("modal.classList.add('approval-detail-mode')"), 'Approval detail must enable scoped modal mode');
 requireMatch(app.includes("modal.classList.remove('approval-detail-mode')"), 'generic detail reset must clean Approval modal mode');
-requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-loader-v7"><\/script>/.test(index), 'Approval bundle cache key must be active');
+requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-loader-v7<\/script>/.test(index), 'Approval bundle cache key must be active');
 requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-loader-v11';"), 'service worker must invalidate prior Approval bundles');
 
 requireMatch(app.includes('function normalizeApprovalApiResponse(result)'), 'Approval loader must normalize array and wrapped responses');
