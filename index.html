@@ -4282,6 +4282,13 @@
   }
 </style>
 
+<style id="approval-loading-lifecycle-v3">
+  #page-approval .approval-desktop-view,
+  #page-approval .approval-mobile-view { transition: opacity .18s ease; }
+  #page-approval.approval-refreshing .approval-desktop-view,
+  #page-approval.approval-refreshing .approval-mobile-view { opacity: .58; pointer-events: none; }
+  #page-approval .approval-load-error .btn { margin-top: 12px; }
+</style>
 <style id="approval-responsive-ui-v2">
   /* Approval desktop: compact, scannable data table */
   .approval-mobile-view { display: none; }
@@ -6752,6 +6759,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260722-approval-data-v6"></script>
+<script src="./app.js?v=20260722-approval-loader-v7"></script>
 </body>
 </html>
