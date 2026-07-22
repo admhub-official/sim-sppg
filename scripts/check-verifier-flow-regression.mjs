@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const app = fs.readFileSync('app.js', 'utf8');
+const adapter = fs.readFileSync('approval-transaction-loader.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const serviceWorker = fs.readFileSync('sw.js', 'utf8');
 const worker = fs.readFileSync('_worker.js', 'utf8');
@@ -54,11 +55,15 @@ requireMatch(
 );
 requireMatch(
   index.includes('<script src="./app.js?v=20260722-approval-loader-v7"></script>'),
-  'index must use the current frontend cache-bust key'
+  'base index must retain its canonical app.js script tag'
 );
 requireMatch(
-  serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-loader-v11';"),
+  serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-transaction-v13';"),
   'service worker cache version must invalidate stale approval bundles'
+);
+requireMatch(
+  serviceWorker.includes("'./approval-transaction-loader.js'"),
+  'service worker must cache the Approval transaction adapter'
 );
 requireMatch(
   serviceWorker.includes("fetch(request, { cache: 'no-store' })"),
@@ -79,6 +84,14 @@ requireMatch(
 requireMatch(
   !worker.includes('`<script src="./approval-flow-hotfix.js'),
   'Cloudflare must not override canonical verifier handlers'
+);
+requireMatch(
+  worker.includes('`<script src="./approval-transaction-loader.js'),
+  'Cloudflare must load the Approval adapter after app.js'
+);
+requireMatch(
+  !adapter.includes('submitVerifikasiPembayaran') && !adapter.includes('doSubmitVerifikasiPembayaran'),
+  'Approval adapter must not alter verifier submission handlers'
 );
 
 if (!process.exitCode) console.log('Verifier payment flow regression check passed.');
