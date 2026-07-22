@@ -57,7 +57,7 @@ requireMatch(
 );
 
 requireMatch(
-  serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260721-verifier-flow-v4';"),
+  serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-user-detail-v5';"),
   'service worker cache version must invalidate stale approval bundles'
 );
 requireMatch(
