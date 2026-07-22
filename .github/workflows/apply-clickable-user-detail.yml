@@ -7,12 +7,17 @@ on:
     paths:
       - 'scripts/apply-clickable-user-detail.py'
       - '.github/workflows/apply-clickable-user-detail.yml'
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.head_ref == 'feat/clickable-user-detail-modal' || github.ref_name == 'feat/clickable-user-detail-modal'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
