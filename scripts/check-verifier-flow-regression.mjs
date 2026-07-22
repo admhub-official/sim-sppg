@@ -25,73 +25,22 @@ const submitBlock = app.slice(submitStart, submitEnd);
 const doSubmitBlock = app.slice(doSubmitStart, doSubmitEnd);
 
 requireMatch(app.includes("var verifTtdBase64Temp = '';"), 'temporary verifier signature state must exist');
-requireMatch(
-  submitBlock.includes("verifTtdBase64Temp = ttdCanvas.toDataURL('image/png').split(',')[1];"),
-  'signature must be snapshotted before nominal confirmation'
-);
-requireMatch(
-  submitBlock.indexOf('verifTtdBase64Temp =') < submitBlock.indexOf("openModal('modalPin')"),
-  'signature snapshot must happen before opening nominal modal'
-);
-requireMatch(
-  doSubmitBlock.includes("var ttdBase64 = verifTtdBase64Temp || '';"),
-  'submit must use the preserved signature snapshot'
-);
-requireMatch(
-  !doSubmitBlock.includes("isCanvasBlank('verifTtdCanvas')"),
-  'submit must not revalidate the modal canvas after nominal confirmation'
-);
-requireMatch(
-  !doSubmitBlock.includes("$('verifTtdCanvas')"),
-  'submit must not reread verifier canvas after modal transition'
-);
-requireMatch(
-  doSubmitBlock.includes("callApi('verifyUserPayment'"),
-  'submit must call verifyUserPayment'
-);
-requireMatch(
-  doSubmitBlock.includes("verifTtdBase64Temp = '';"),
-  'signature snapshot must reset after successful verification'
-);
-requireMatch(
-  index.includes('<script src="./app.js?v=20260722-approval-loader-v7"></script>'),
-  'base index must retain its canonical app.js script tag'
-);
-requireMatch(
-  serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-transaction-v13';"),
-  'service worker cache version must invalidate stale approval bundles'
-);
-requireMatch(
-  serviceWorker.includes("'./approval-transaction-loader.js'"),
-  'service worker must cache the Approval transaction adapter'
-);
-requireMatch(
-  serviceWorker.includes("fetch(request, { cache: 'no-store' })"),
-  'navigation and JavaScript must bypass the browser HTTP cache'
-);
-requireMatch(
-  !serviceWorker.includes('networkFirstAppWithCompatibility'),
-  'service worker must not patch app.js with a compatibility bundle'
-);
-requireMatch(
-  !serviceWorker.includes('uiux-fixes.js'),
-  'service worker must not inject the retired approval compatibility script'
-);
-requireMatch(
-  !serviceWorker.includes('Bukti dan TTD wajib tersedia'),
-  'retired combined proof/signature validation must not exist in the service worker path'
-);
-requireMatch(
-  !worker.includes('`<script src="./approval-flow-hotfix.js'),
-  'Cloudflare must not override canonical verifier handlers'
-);
-requireMatch(
-  worker.includes('`<script src="./approval-transaction-loader.js'),
-  'Cloudflare must load the Approval adapter after app.js'
-);
-requireMatch(
-  !adapter.includes('submitVerifikasiPembayaran') && !adapter.includes('doSubmitVerifikasiPembayaran'),
-  'Approval adapter must not alter verifier submission handlers'
-);
+requireMatch(submitBlock.includes("verifTtdBase64Temp = ttdCanvas.toDataURL('image/png').split(',')[1];"), 'signature must be snapshotted before nominal confirmation');
+requireMatch(submitBlock.indexOf('verifTtdBase64Temp =') < submitBlock.indexOf("openModal('modalPin')"), 'signature snapshot must happen before opening nominal modal');
+requireMatch(doSubmitBlock.includes("var ttdBase64 = verifTtdBase64Temp || '';"), 'submit must use the preserved signature snapshot');
+requireMatch(!doSubmitBlock.includes("isCanvasBlank('verifTtdCanvas')"), 'submit must not revalidate the modal canvas after nominal confirmation');
+requireMatch(!doSubmitBlock.includes("$('verifTtdCanvas')"), 'submit must not reread verifier canvas after modal transition');
+requireMatch(doSubmitBlock.includes("callApi('verifyUserPayment'"), 'submit must call verifyUserPayment');
+requireMatch(doSubmitBlock.includes("verifTtdBase64Temp = '';"), 'signature snapshot must reset after successful verification');
+requireMatch(index.includes('<script src="./app.js?v=20260722-approval-loader-v7"></script>'), 'base index must retain its canonical app.js script tag');
+requireMatch(serviceWorker.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-single-request-v14';"), 'service worker cache version must invalidate stale approval bundles');
+requireMatch(serviceWorker.includes("'./approval-transaction-loader.js'"), 'service worker must cache the Approval transaction adapter');
+requireMatch(serviceWorker.includes("fetch(request, { cache: 'no-store' })"), 'navigation and JavaScript must bypass the browser HTTP cache');
+requireMatch(!serviceWorker.includes('networkFirstAppWithCompatibility'), 'service worker must not patch app.js with a compatibility bundle');
+requireMatch(!serviceWorker.includes('uiux-fixes.js'), 'service worker must not inject the retired approval compatibility script');
+requireMatch(!serviceWorker.includes('Bukti dan TTD wajib tersedia'), 'retired combined proof/signature validation must not exist in the service worker path');
+requireMatch(!worker.includes('`<script src="./approval-flow-hotfix.js'), 'Cloudflare must not override canonical verifier handlers');
+requireMatch(worker.includes('`<script src="./approval-transaction-loader.js'), 'Cloudflare must load the Approval adapter after app.js');
+requireMatch(!adapter.includes('submitVerifikasiPembayaran') && !adapter.includes('doSubmitVerifikasiPembayaran'), 'Approval adapter must not alter verifier submission handlers');
 
 if (!process.exitCode) console.log('Verifier payment flow regression check passed.');
