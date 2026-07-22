@@ -32,7 +32,7 @@ requireMatch(!usersPage.includes('>Aksi</th>'), 'users table must not include an
 requireMatch(index.includes('id="modalUserDetail"'), 'user detail modal must exist');
 requireMatch(index.includes('onclick="editUserFromDetail()"'), 'edit action must be in detail modal');
 requireMatch(index.includes('onclick="deleteUserFromDetail()"'), 'delete action must be in detail modal');
-requireMatch(app.includes('function openUserDetailModal(rowNum)'), 'detail modal controller must exist');
+requireMatch(app.includes('function openUserDetailModal(userKey)'), 'detail modal controller must use the stable user key');
 requireMatch(app.includes('function editUserFromDetail()'), 'detail edit controller must exist');
 requireMatch(app.includes('function deleteUserFromDetail()'), 'detail delete controller must exist');
 requireMatch(index.includes('user-management-row-detail-styles'), 'responsive detail layout styles must exist');
