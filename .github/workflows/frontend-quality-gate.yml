@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'app.js'
+      - 'approval-transaction-loader.js'
       - 'sw.js'
       - '_worker.js'
       - 'index.html'
@@ -12,6 +13,7 @@ on:
   pull_request:
     paths:
       - 'app.js'
+      - 'approval-transaction-loader.js'
       - 'sw.js'
       - '_worker.js'
       - 'index.html'
@@ -34,12 +36,13 @@ jobs:
       - name: Validate JavaScript syntax
         run: |
           node --check app.js
+          node --check approval-transaction-loader.js
           node --check sw.js
           node --check _worker.js
 
       - name: Reject unresolved merge markers
         run: |
-          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html; then
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js approval-transaction-loader.js sw.js _worker.js index.html; then
             echo 'Unresolved merge marker detected.' >&2
             exit 1
           fi
@@ -71,7 +74,7 @@ jobs:
           done
           grep -Fq "dispatchNotification" app.js
 
-          if grep -Fq 'dynamic-action' app.js sw.js _worker.js; then
+          if grep -Fq 'dynamic-action' app.js approval-transaction-loader.js sw.js _worker.js; then
             echo 'Legacy dynamic-action reference detected in frontend.' >&2
             exit 1
           fi
@@ -88,6 +91,16 @@ jobs:
 
           if grep -Fq '<script src="./uiux-fixes.js' _worker.js; then
             echo 'Retired UI compatibility layer is still injected.' >&2
+            exit 1
+          fi
+
+          grep -Fq '<script src="./approval-transaction-loader.js' _worker.js
+          grep -Fq "window.loadApprovalData = function" approval-transaction-loader.js
+          grep -Fq "var filters = { kategori: 'PENGELUARAN' };" approval-transaction-loader.js
+          grep -Fq "if (Array.isArray(result)) rows = result;" approval-transaction-loader.js
+          grep -Fq "result && Array.isArray(result.data)" approval-transaction-loader.js
+          if grep -Fq 'approvalOnly' approval-transaction-loader.js; then
+            echo 'Approval adapter must not depend on approvalOnly.' >&2
             exit 1
           fi
 
@@ -126,7 +139,7 @@ jobs:
           import re
           import sys
 
-          files = [Path('app.js'), Path('sw.js'), Path('_worker.js'), Path('index.html')]
+          files = [Path('app.js'), Path('approval-transaction-loader.js'), Path('sw.js'), Path('_worker.js'), Path('index.html')]
           pattern = re.compile(
               r"(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*['\"]([A-Za-z0-9._-]{20,})['\"]",
               re.IGNORECASE,
@@ -148,4 +161,4 @@ jobs:
 
       - name: Summary
         run: |
-          echo 'Frontend syntax, canonical runtime, explicit routing, pagination, merge markers, and credential checks passed.'
+          echo 'Frontend syntax, Approval transaction adapter, canonical runtime, routing, pagination, merge markers, and credential checks passed.'
