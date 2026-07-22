@@ -1,0 +1,29 @@
+name: Approval row detail
+
+on:
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'sw.js'
+      - 'scripts/check-approval-row-detail.mjs'
+      - '.github/workflows/approval-row-detail.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'sw.js'
+      - 'scripts/check-approval-row-detail.mjs'
+      - '.github/workflows/approval-row-detail.yml'
+
+jobs:
+  approval-row-detail:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check clickable Approval detail flow
+        run: node scripts/check-approval-row-detail.mjs
