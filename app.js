@@ -207,6 +207,7 @@ var verifTtdBase64Temp = '';
 var currentApprovalNominal = 0;
 var currentEditRow = null;
 var currentDetailUserRow = null;
+var currentApprovalDetailId = null;
 var approvalFileData = null;
 var chartInstance = null;
 var menuItems = [];
@@ -3472,8 +3473,18 @@ function infoRow(label, value) {
 function resetDetailModalFooter() {
   var modal = $('modalDetail');
   if (!modal) return;
+  currentApprovalDetailId = null;
   var footer = modal.querySelector('.modal-footer');
   if (footer) footer.innerHTML = '<button onclick="closeModal(\'modalDetail\')" class="btn btn-outline">Tutup</button>';
+  var actions = $('detailHeaderActions');
+  if (actions) {
+    actions.innerHTML = '';
+    actions.classList.add('hidden');
+  }
+  var title = modal.querySelector('.modal-header h3');
+  var subtitle = modal.querySelector('.modal-header p');
+  if (title) title.innerHTML = '<i class="fas fa-file-invoice icon-modal-title"></i>Detail Transaksi';
+  if (subtitle) subtitle.textContent = 'Informasi lengkap transaksi & dokumen pendukung';
 }
 
 function renderFilePreview(fileInfo, title, iconClass) {
@@ -3564,14 +3575,19 @@ function loadApprovalData() {
 function renderApprovalTable() {
   var approvalData = filteredApprovalData;
   var tbody = $('approvalTableBody');
-  if (!approvalData.length) { tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-check-circle"></i></div><h4>Semua Lunas!</h4><p>Tidak ada transaksi yang menunggu approval.</p></div></td></tr>'; $('approvalPagination').innerHTML = ''; updateApprovalBulkBar(); return; }
+  if (!approvalData.length) {
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-check-circle"></i></div><h4>Semua Lunas!</h4><p>Tidak ada transaksi yang menunggu approval.</p></div></td></tr>';
+    $('approvalPagination').innerHTML = '';
+    updateApprovalBulkBar();
+    return;
+  }
   var totalPages = Math.ceil(approvalData.length / ITEMS_PER_PAGE);
   if (approvalPage > totalPages) approvalPage = totalPages;
   var start = (approvalPage - 1) * ITEMS_PER_PAGE;
   var pageData = approvalData.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
   var isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
-  // R2: Status class mapping untuk left border indicator
+
   function getStatusRowClass(metode) {
     var m = String(metode || '').trim().toUpperCase();
     if (m === 'BELUM_BAYAR') return 'status-belum-bayar';
@@ -3581,13 +3597,15 @@ function renderApprovalTable() {
     if (m === 'CASH') return 'status-cash';
     return '';
   }
+
   pageData.forEach(function(tx, idx) {
     var no = start + idx + 1;
     var isChecked = selectedApprovalIds.has(tx.id);
     var statusClass = getStatusRowClass(tx.metodeTransaksi);
-    html += '<tr data-id="' + esc(tx.id) + '" class="' + esc(statusClass) + '">' +
+    var rowLabel = 'Lihat detail approval ' + (tx.kode || tx.item || tx.id || '');
+    html += '<tr data-id="' + esc(tx.id) + '" class="approval-row-clickable ' + esc(statusClass) + '" tabindex="0" role="button" aria-label="' + esc(rowLabel) + '" onclick="handleApprovalRowClick(event,this.dataset.id)" onkeydown="handleApprovalRowKeydown(event,this.dataset.id)">' +
       '<td style="text-align:center;">' +
-        (isAdmin ? '<input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onchange="toggleApprovalSelect(this)" ' + (isChecked ? 'checked' : '') + '>' : '') +
+        (isAdmin ? '<input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()" onchange="toggleApprovalSelect(this)" ' + (isChecked ? 'checked' : '') + ' aria-label="Pilih transaksi ' + esc(tx.kode || tx.id) + '">' : '') +
       '</td>' +
       '<td style="text-align:center;color:var(--slate-400);font-weight:600;">' + no + '</td>' +
       '<td><strong style="color:var(--slate-800);font-size:12px;">' + esc(tx.kode || '-') + '</strong></td>' +
@@ -3598,17 +3616,7 @@ function renderApprovalTable() {
       '<td>' + getMetodeBadge(tx.metodeTransaksi) + '</td>' +
       '<td>' + esc(tx.user || '-') + '</td>' +
       '<td style="max-width:160px;"><span style="color:var(--slate-500);font-size:12px;font-style:italic;">' + esc(tx.catatan && tx.catatan !== '-' ? tx.catatan : '-') + '</span></td>' +
-      '<td style="text-align:center;">' +
-        '<div class="action-group" style="opacity:1;">' +
-          '<button class="action-btn view" onclick="openDetailTransaksi(\'' + esc(tx.id) + '\')" title="Detail"><i class="fas fa-eye"></i></button>' +
-          (isAdmin
-            ? (String(tx.metodeTransaksi||'').toUpperCase() === 'MENUNGGU_VERIFIKASI'
-                ? '<button class="action-btn approve" onclick="openVerifikasiModal(\'' + esc(tx.id) + '\')" title="Verifikasi & TTD"><i class="fas fa-stamp"></i></button>'
-                : '<button class="action-btn approve" onclick="openApprovalModal(\'' + esc(tx.id) + '\')" title="Approve"><i class="fas fa-check"></i></button>')
-            : (uploadBuktiModeEnabled && tx.user === currentUser.email && ['BELUM_BAYAR','BELUM_LUNAS'].indexOf(String(tx.metodeTransaksi||'').toUpperCase()) > -1
-                ? '<button class="action-btn edit" onclick="openUserBuktiModal(\'' + esc(tx.id) + '\')" title="Kirim Bukti Pembayaran"><i class="fas fa-upload"></i></button>'
-                : '')) +
-        '</div></td></tr>';
+      '</tr>';
   });
   tbody.innerHTML = html;
   renderPagination('approvalPagination', approvalPage, totalPages, 'goApprovalPage');
@@ -3620,6 +3628,97 @@ function renderApprovalTable() {
   updateApprovalBulkBar();
 }
 function goApprovalPage(p) { approvalPage = p; renderApprovalTable(); }
+
+
+function isApprovalInteractiveTarget(target) {
+  return !!(target && target.closest && target.closest('input,button,a,select,textarea,label'));
+}
+
+function handleApprovalRowClick(event, id) {
+  if (isApprovalInteractiveTarget(event && event.target)) return;
+  openApprovalDetail(id);
+}
+
+function handleApprovalRowKeydown(event, id) {
+  if (!event || isApprovalInteractiveTarget(event.target)) return;
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    openApprovalDetail(id);
+  }
+}
+
+function openApprovalDetail(id) {
+  if (!id) return;
+  showLoading(true);
+  callApi('getTransactionDetail', [id], function(tx) {
+    showLoading(false);
+    if (!tx) {
+      showToast('error', 'Error', 'Transaksi approval tidak ditemukan');
+      return;
+    }
+    renderDetailTransaksi(tx);
+    currentApprovalDetailId = tx.id || id;
+    var body = $('detailBody');
+    if (body) body.insertAdjacentHTML('afterbegin', renderApprovalDetailHero(tx));
+    var modal = $('modalDetail');
+    if (modal) {
+      var title = modal.querySelector('.modal-header h3');
+      var subtitle = modal.querySelector('.modal-header p');
+      if (title) title.innerHTML = '<i class="fas fa-clipboard-check" style="color:var(--emerald);margin-right:8px;"></i>Detail Approval';
+      if (subtitle) subtitle.textContent = 'Tinjau transaksi dan dokumen sebelum menindaklanjuti';
+    }
+    configureApprovalDetailActions(tx);
+    openModal('modalDetail');
+  }, function() {
+    showLoading(false);
+    showToast('error', 'Error', 'Gagal memuat detail approval');
+  });
+}
+
+function renderApprovalDetailHero(tx) {
+  var doc = _approvalDocStatus(tx);
+  var docBadge = doc.status === 'Lengkap' ? 'badge-green' : (doc.status === 'Tidak Ada Keduanya' ? 'badge-red' : 'badge-amber');
+  return '<div class="approval-detail-hero">' +
+    '<div class="approval-detail-icon"><i class="fas fa-file-invoice-dollar"></i></div>' +
+    '<div class="approval-detail-summary">' +
+      '<span class="approval-detail-eyebrow">Transaksi Approval</span>' +
+      '<h4>' + esc(tx.item || '-') + '</h4>' +
+      '<p>' + esc(tx.kode || tx.id || '-') + ' &bull; ' + esc(tx.tanggal || '-') + '</p>' +
+      '<div class="approval-detail-badges">' + getMetodeBadge(tx.metodeTransaksi) + '<span class="badge badge-outline">' + esc(tx.sppg || '-') + '</span><span class="badge ' + docBadge + '">' + esc(doc.status) + '</span></div>' +
+    '</div>' +
+    '<div class="approval-detail-nominal"><span>Nominal</span><strong>' + formatRupiah(tx.nominal) + '</strong></div>' +
+  '</div>';
+}
+
+function configureApprovalDetailActions(tx) {
+  var actions = $('detailHeaderActions');
+  if (!actions) return;
+  var status = String(tx.metodeTransaksi || '').trim().toUpperCase();
+  var isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
+  var currentKeys = currentUser ? [currentUser.email, currentUser.username].map(function(v) { return String(v || '').trim().toLowerCase(); }) : [];
+  var isOwner = currentKeys.indexOf(String(tx.user || '').trim().toLowerCase()) > -1;
+  var html = '';
+  if (isAdmin) {
+    if (status === 'MENUNGGU_VERIFIKASI') {
+      html = '<button type="button" class="btn btn-success btn-sm" onclick="runApprovalDetailAction(\'verify\')"><i class="fas fa-stamp"></i><span>Verifikasi &amp; TTD</span></button>';
+    } else {
+      html = '<button type="button" class="btn btn-success btn-sm" onclick="runApprovalDetailAction(\'approve\')"><i class="fas fa-check"></i><span>Approve</span></button>';
+    }
+  } else if (uploadBuktiModeEnabled && isOwner && ['BELUM_BAYAR', 'BELUM_LUNAS'].indexOf(status) > -1) {
+    html = '<button type="button" class="btn btn-primary btn-sm" onclick="runApprovalDetailAction(\'upload\')"><i class="fas fa-upload"></i><span>Kirim Bukti</span></button>';
+  }
+  actions.innerHTML = html;
+  actions.classList.toggle('hidden', !html);
+}
+
+function runApprovalDetailAction(action) {
+  var id = currentApprovalDetailId;
+  if (!id) return;
+  closeModal('modalDetail');
+  if (action === 'verify') openVerifikasiModal(id);
+  else if (action === 'approve') openApprovalModal(id);
+  else if (action === 'upload') openUserBuktiModal(id);
+}
 
 // ===== CEKLIS / BULK ACTION APPROVAL =====
 function toggleApprovalSelect(checkbox) {
