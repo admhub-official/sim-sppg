@@ -31,11 +31,9 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260721-report-center-v8';
+      const version = '20260722-approval-loader-v12';
       const scripts = [
-        `<script src="./uiux-fixes.js?v=${version}"></script>`,
         `<script src="./app.js?v=${version}"></script>`,
-        `<script src="./approval-flow-hotfix.js?v=${version}"></script>`,
         `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`,
         `<script src="./sidebar-menu-structure.js?v=${version}"></script>`,
         `<script src="./professional-report-v1.js?v=${version}"></script>`
@@ -59,8 +57,6 @@ export default {
     }
 
     if (
-      url.pathname.endsWith('/approval-flow-hotfix.js') ||
-      url.pathname.endsWith('/uiux-fixes.js') ||
       url.pathname.endsWith('/yayasan-dropdown-hotfix.js') ||
       url.pathname.endsWith('/sidebar-menu-structure.js') ||
       url.pathname.endsWith('/professional-report-v1.js')

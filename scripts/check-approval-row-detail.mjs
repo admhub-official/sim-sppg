@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
+const worker = fs.readFileSync('_worker.js', 'utf8');
 const read = fs.readFileSync('supabase/functions/approval-payment-action/read.ts', 'utf8');
 
 function requireMatch(condition, message) {
@@ -12,14 +13,22 @@ function requireMatch(condition, message) {
   }
 }
 
+function occurrenceCount(source, needle) {
+  return source.split(needle).length - 1;
+}
+
 const renderStart = app.indexOf('function renderApprovalTable()');
 const renderEnd = app.indexOf('// ===== CEKLIS / BULK ACTION APPROVAL =====', renderStart);
 const renderBlock = app.slice(renderStart, renderEnd);
+const loaderStart = app.indexOf('function loadApprovalData()');
+const loaderEnd = app.indexOf('function renderApprovalTable()', loaderStart);
+const loaderBlock = app.slice(loaderStart, loaderEnd);
 const pageStart = index.indexOf('<!-- ==================== APPROVAL PAGE ==================== -->');
 const pageEnd = index.indexOf('<!-- ==================== MASTER BAHAN BAKU PAGE ==================== -->', pageStart);
 const pageBlock = index.slice(pageStart, pageEnd);
 
 requireMatch(renderStart >= 0 && renderEnd > renderStart, 'Approval render block must exist');
+requireMatch(loaderStart >= 0 && loaderEnd > loaderStart, 'Approval loader block must exist');
 requireMatch(renderBlock.includes('renderApprovalDesktopRows(pageData, start, isAdmin)'), 'desktop Approval renderer must be used');
 requireMatch(renderBlock.includes('renderApprovalMobileCards(pageData, start, isAdmin)'), 'mobile Approval card renderer must be used');
 requireMatch(renderBlock.includes('class="approval-mobile-card '), 'mobile cards must be clickable cards');
@@ -35,6 +44,7 @@ requireMatch(pageBlock.includes('id="apprSelectAllMobile"'), 'mobile select-all 
 requireMatch(!pageBlock.includes('>Aksi</th>'), 'Approval table must not restore an action column');
 requireMatch(!pageBlock.includes('table-container approval-table'), 'legacy Approval table wrapper must be removed');
 requireMatch(index.includes('id="approval-responsive-ui-v2"'), 'responsive Approval styles must exist');
+requireMatch(index.includes('id="approval-loading-lifecycle-v3"'), 'Approval loading lifecycle styles must exist');
 requireMatch(!index.includes('id="approval-row-detail-styles"'), 'old Approval-only style patch must be removed');
 requireMatch(!index.includes('/* --- Approval Table --- */'), 'retired Approval mobile mapper comment must be removed');
 requireMatch(!index.includes('.approval-table tbody'), 'retired Approval table selectors must be removed');
@@ -46,8 +56,8 @@ requireMatch(index.includes('@media (max-width: 768px)'), 'mobile breakpoint mus
 requireMatch(index.includes('#modalDetail.approval-detail-mode .modal-box'), 'mobile/desktop detail mode must be scoped');
 requireMatch(app.includes("modal.classList.add('approval-detail-mode')"), 'Approval detail must enable scoped modal mode');
 requireMatch(app.includes("modal.classList.remove('approval-detail-mode')"), 'generic detail reset must clean Approval modal mode');
-requireMatch(/<script src="\.\/app\.js\?v=20260722-approval-data-v6"><\/script>/.test(index), 'Approval data bundle cache key must be active');
-requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-data-v10';"), 'service worker must invalidate the prior Approval UI');
+requireMatch(index.includes('<script src="./app.js?v=20260722-approval-loader-v7"></script>'), 'Approval bundle cache key must be active');
+requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-loader-v11';"), 'service worker must invalidate prior Approval bundles');
 
 requireMatch(app.includes('function normalizeApprovalApiResponse(result)'), 'Approval loader must normalize array and wrapped responses');
 requireMatch(app.includes("var filters = { kategori: 'PENGELUARAN', approvalOnly: true };"), 'Approval loader must request only pending expense transactions');
@@ -57,4 +67,19 @@ requireMatch(!app.includes("if (!data || !Array.isArray(data))"), 'Approval load
 requireMatch(read.includes("const approvalOnly = filters.approvalOnly === true;"), 'Approval backend must support approvalOnly');
 requireMatch(read.includes(".neq('Metode Transaksi', 'SUDAH_DIBAYAR')"), 'Approval backend must exclude paid transactions before document enrichment');
 
-if (!process.exitCode) console.log('Approval responsive desktop/mobile UI and data loading check passed.');
+requireMatch(app.includes('var approvalLoadState = {'), 'Approval loader must track in-flight state');
+requireMatch(loaderBlock.includes('if (approvalLoadState.inFlight)'), 'Approval loader must block duplicate requests');
+requireMatch(loaderBlock.includes('approvalLoadState.queued = true'), 'duplicate loads must be queued rather than started concurrently');
+requireMatch(loaderBlock.includes('Server terlalu lama merespons'), 'Approval loader must expose a watchdog timeout');
+requireMatch(!loaderBlock.includes('showLoading(true)'), 'Approval list loading must not flash the global overlay');
+requireMatch(app.includes('approvalLoadState.hasLoaded && !approvalLoadState.inFlight'), 'upload mode response must wait for Approval data');
+requireMatch(occurrenceCount(app, 'function renderApprovalLoadingState()') === 1, 'Approval loading-state helper must be declared exactly once');
+requireMatch(occurrenceCount(app, 'function setApprovalRefreshing(refreshing)') === 1, 'Approval refreshing helper must be declared exactly once');
+requireMatch(occurrenceCount(app, 'function clearApprovalWatchdog()') === 1, 'Approval watchdog helper must be declared exactly once');
+requireMatch(occurrenceCount(app, 'function runQueuedApprovalReload()') === 1, 'Approval queued-reload helper must be declared exactly once');
+requireMatch(occurrenceCount(app, 'function loadApprovalData()') === 1, 'Approval data loader must be declared exactly once');
+requireMatch(!worker.includes('`<script src="./uiux-fixes.js'), 'Cloudflare must not inject uiux-fixes.js');
+requireMatch(!worker.includes('`<script src="./approval-flow-hotfix.js'), 'Cloudflare must not inject approval-flow-hotfix.js');
+requireMatch(worker.includes('20260722-approval-loader-v12'), 'Cloudflare runtime cache key must be current');
+
+if (!process.exitCode) console.log('Approval responsive UI and loading lifecycle check passed.');

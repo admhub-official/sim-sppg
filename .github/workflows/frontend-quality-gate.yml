@@ -5,16 +5,17 @@ on:
     branches: [main]
     paths:
       - 'app.js'
-      - 'uiux-fixes.js'
       - 'sw.js'
+      - '_worker.js'
       - 'index.html'
       - '.github/workflows/frontend-quality-gate.yml'
   pull_request:
     paths:
       - 'app.js'
-      - 'uiux-fixes.js'
       - 'sw.js'
+      - '_worker.js'
       - 'index.html'
+      - '.github/workflows/frontend-quality-gate.yml'
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
@@ -33,12 +34,12 @@ jobs:
       - name: Validate JavaScript syntax
         run: |
           node --check app.js
-          node --check uiux-fixes.js
           node --check sw.js
+          node --check _worker.js
 
       - name: Reject unresolved merge markers
         run: |
-          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js uiux-fixes.js sw.js index.html; then
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html; then
             echo 'Unresolved merge marker detected.' >&2
             exit 1
           fi
@@ -70,18 +71,23 @@ jobs:
           done
           grep -Fq "dispatchNotification" app.js
 
-          if grep -Fq 'dynamic-action' app.js uiux-fixes.js sw.js; then
+          if grep -Fq 'dynamic-action' app.js sw.js _worker.js; then
             echo 'Legacy dynamic-action reference detected in frontend.' >&2
             exit 1
           fi
 
-          if grep -Fq 'window.callApi=function' uiux-fixes.js; then
-            echo 'Obsolete runtime callApi override detected in uiux-fixes.js.' >&2
+          if grep -Fq 'networkFirstAppWithCompatibility' sw.js; then
+            echo 'Obsolete Service Worker JavaScript injection detected.' >&2
             exit 1
           fi
 
-          if grep -Fq 'injected by sw.js' sw.js; then
-            echo 'Obsolete Service Worker JavaScript injection detected.' >&2
+          if grep -Fq '<script src="./approval-flow-hotfix.js' _worker.js; then
+            echo 'Retired Approval runtime override is still injected.' >&2
+            exit 1
+          fi
+
+          if grep -Fq '<script src="./uiux-fixes.js' _worker.js; then
+            echo 'Retired UI compatibility layer is still injected.' >&2
             exit 1
           fi
 
@@ -120,7 +126,7 @@ jobs:
           import re
           import sys
 
-          files = [Path('app.js'), Path('uiux-fixes.js'), Path('sw.js'), Path('index.html')]
+          files = [Path('app.js'), Path('sw.js'), Path('_worker.js'), Path('index.html')]
           pattern = re.compile(
               r"(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*['\"]([A-Za-z0-9._-]{20,})['\"]",
               re.IGNORECASE,
@@ -142,4 +148,4 @@ jobs:
 
       - name: Summary
         run: |
-          echo 'Frontend syntax, explicit routing, pagination, merge markers, and credential checks passed.'
+          echo 'Frontend syntax, canonical runtime, explicit routing, pagination, merge markers, and credential checks passed.'
