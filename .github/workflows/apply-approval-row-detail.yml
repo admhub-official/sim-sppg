@@ -32,6 +32,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "feat: make approval rows open actionable detail"
+            git commit -m "fix: align approval detail status and cache checks"
             git push origin HEAD:feat/approval-clickable-detail
           fi
