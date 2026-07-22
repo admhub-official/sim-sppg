@@ -17,14 +17,6 @@
     if (page) page.classList.toggle('approval-refreshing', !!refreshing);
   }
 
-  function runQueued(state) {
-    if (!state || !state.queued) return;
-    state.queued = false;
-    setTimeout(function () {
-      if (typeof window.loadApprovalData === 'function') window.loadApprovalData();
-    }, 0);
-  }
-
   window.loadApprovalData = function () {
     if (!window.currentUser) return;
 
@@ -34,10 +26,9 @@
       return;
     }
 
-    if (state.inFlight) {
-      state.queued = true;
-      return;
-    }
+    // Abaikan pemanggilan ganda. Jangan antrekan reload baru karena beberapa
+    // lifecycle menu dapat memanggil loader hampir bersamaan.
+    if (state.inFlight) return;
 
     state.inFlight = true;
     state.queued = false;
@@ -72,17 +63,18 @@
       if (!state.inFlight || requestId !== state.requestId) return;
       state.requestId++;
       state.inFlight = false;
+      state.queued = false;
       setRefreshing(false);
       if (typeof window.renderApprovalLoadError === 'function') {
         window.renderApprovalLoadError('Server terlalu lama merespons. Tekan Muat Ulang untuk mencoba kembali.');
       }
-      runQueued(state);
     }, 15000);
 
     window.callApi('getTransactions', [filters], function (result) {
       if (requestId !== state.requestId) return;
       clearWatchdog(state);
       state.inFlight = false;
+      state.queued = false;
       setRefreshing(false);
 
       var rows;
@@ -96,7 +88,6 @@
         if (typeof window.showToast === 'function') {
           window.showToast('error', 'Gagal', 'Data Approval tidak dapat dibaca.');
         }
-        runQueued(state);
         return;
       }
 
@@ -114,11 +105,11 @@
       state.hasLoaded = true;
       if (typeof window.populateApprovalFilters === 'function') window.populateApprovalFilters();
       if (typeof window.filterApproval === 'function') window.filterApproval();
-      runQueued(state);
     }, function (error) {
       if (requestId !== state.requestId) return;
       clearWatchdog(state);
       state.inFlight = false;
+      state.queued = false;
       setRefreshing(false);
 
       var message = error && error.message
@@ -131,7 +122,6 @@
       if (typeof window.showToast === 'function') {
         window.showToast('error', 'Gagal', message);
       }
-      runQueued(state);
     });
   };
 })();
