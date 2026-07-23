@@ -33,7 +33,7 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260723-login-card-cleanup-v19';
+      const version = '20260723-login-mobile-spacing-v20';
       const scripts = [
         `<script src="./app.js?v=${version}"></script>`,
         `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`,
