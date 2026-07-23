@@ -33,19 +33,21 @@ jobs:
       - name: Contract smoke tests
         run: |
           set -euo pipefail
-          grep -Fq "var GEOCODE_FN_URL" app.js
+          grep -Fq "'geocode-action': { geocodeAlamat:1 }" app.js
+          grep -Fq "API_ROUTE_BY_FUNCTION[fn] = slug" app.js
+          grep -Fq "var requestUrl = API_BASE_URL + slug;" app.js
           grep -Fq "Fungsi API tidak terdaftar" app.js
-          ! grep -E "requestUrl[^;]*SUPABASE_FN_URL" app.js
+          ! grep -Fq "SUPABASE_FN_URL" app.js
           ! grep -Fq 'dynamic-action` fallback' docs/dynamic-route-inventory.md
       - name: Final security audit
         run: node scripts/final-hardening-audit.mjs
       - name: Commit hardened source
         run: |
           set -euo pipefail
-          if [ -n "$(git status --porcelain -- app.js uiux-fixes.js docs/dynamic-route-inventory.md)" ]; then
+          if [ -n "$(git status --porcelain -- app.js docs/dynamic-route-inventory.md)" ]; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add app.js uiux-fixes.js docs/dynamic-route-inventory.md
+            git add app.js docs/dynamic-route-inventory.md
             git commit -m 'security: remove dynamic action frontend fallback'
             git push
           fi
