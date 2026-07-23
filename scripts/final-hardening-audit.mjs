@@ -13,8 +13,9 @@ const edgeFiles=[
 const source=edgeFiles.map(f=>fs.readFileSync(f,'utf8')).join('\n');
 const assert=(ok,msg)=>{if(!ok)throw new Error(msg)};
 
-assert(app.includes('var GEOCODE_FN_URL'), 'geocode route is not native');
-assert(app.includes("var GEOCODE_FN = { geocodeAlamat:1 };"), 'geocode map missing');
+assert(app.includes("'geocode-action': { geocodeAlamat:1 }"), 'geocode route is missing from API_ROUTES');
+assert(app.includes('API_ROUTE_BY_FUNCTION[fn] = slug'), 'central API route map is missing');
+assert(app.includes('var requestUrl = API_BASE_URL + slug;'), 'callApi does not use the central route map');
 assert(app.includes('Fungsi API tidak terdaftar'), 'unknown routes are not denied');
 assert(!/PUSH_FN\[fnName\]\s*\?\s*PUSH_FN_URL\s*:\s*SUPABASE_FN_URL/.test(app), 'dynamic-action fallback still present');
 assert(!/requestUrl[^;]*SUPABASE_FN_URL/.test(app), 'request resolver still references dynamic fallback');
