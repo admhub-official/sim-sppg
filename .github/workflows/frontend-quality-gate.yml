@@ -38,8 +38,9 @@ jobs:
           grep -Fq "var filters = { kategori: 'PENGELUARAN' };" app.js
           grep -Fq "var normalizedResponse = normalizeApprovalApiResponse(result);" app.js
           grep -Fq "Approval render failure:" app.js
-          grep -Fq "20260722-approval-canonical-source-v17" _worker.js
-          grep -Fq "sim-sppg-v20260722-approval-canonical-source-v16" sw.js
+          grep -Fq "20260723-approval-report-export-v18" _worker.js
+          grep -Fq "sim-sppg-v20260723-approval-report-export-v17" sw.js
+          grep -Fq "pageKey()==='approval'" app.js
           test "$(grep -Fc 'function loadApprovalData()' app.js)" -eq 1
           if grep -Fq "var filters = { kategori: 'PENGELUARAN', approvalOnly: true };" app.js; then exit 1; fi
           if grep -Fq 'function runQueuedApprovalReload()' app.js; then exit 1; fi

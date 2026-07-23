@@ -8751,7 +8751,10 @@ async function run(kind){var key=pageKey();if(!MODULES[key])throw new Error('Eks
 window.exportCurrentFilteredCSV=function(){run('csv').catch(function(e){if(typeof showToast==='function')showToast('error','Ekspor Gagal',e.message);else alert(e.message)})};
 window.printCurrentFilteredData=function(){run('print').catch(function(e){if(typeof showToast==='function')showToast('error','Print Gagal',e.message);else alert(e.message)})};
 document.addEventListener('click',function(ev){
-  var b=ev.target&&ev.target.closest?ev.target.closest('button,a'):null;if(!b||pageKey()==='laporan')return;
+  var b=ev.target&&ev.target.closest?ev.target.closest('button,a'):null;
+  // Approval memiliki generator laporan khusus dengan struktur bisnis,
+  // ringkasan, dan indikator kelengkapan. Jangan alihkan ke ekspor objek mentah.
+  if(!b||pageKey()==='laporan'||pageKey()==='approval')return;
   var signature=(String(b.textContent||'')+' '+String(b.title||'')+' '+String(b.getAttribute('aria-label')||'')+' '+String(b.getAttribute('onclick')||'')).toLowerCase();
   var kind=signature.indexOf('csv')>=0||signature.indexOf('export')>=0?'csv':signature.indexOf('print')>=0||signature.indexOf('cetak')>=0?'print':'';
   if(!kind||!MODULES[pageKey()])return;
