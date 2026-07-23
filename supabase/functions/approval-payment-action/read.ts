@@ -11,14 +11,17 @@ const DOC: Record<string, string> = {
   approval: 'BUKTI_APPROVAL_LEGACY',
 };
 
-function mapped(row: any, docs: Map<string, any>) {
+function mapped(row: any, docs: Map<string, any>, user: any = null) {
   const path = (type: string) => text(docs.get(type)?.storage_path);
+  const email = text(user?.EMAIL || row.User);
   return {
     id: row.ID || '', kode: row['Kode Pemasukan'] || '', tanggal: row.Tanggal || '',
     kategori: row.Kategori || '', jenisKategori: row['Jenis Kategori'] || '',
     sppg: row.SPPG || '', yayasan: row.YAYASAN || '', nominal: Number(row.Nominal) || 0,
     uploadFoto: path(DOC.foto), uploadFile: path(DOC.file), catatan: row.Catatan || '',
-    user: row.User || '', item: row['Nama Item/ Bahan Baku'] || '',
+    user: email, userEmail: email,
+    userName: text(user?.['NAMA LENGKAP']) || email || '-',
+    item: row['Nama Item/ Bahan Baku'] || '',
     namaItem: row['Nama Item/ Bahan Baku'] || '',
     metodeTransaksi: normalizeStatus(row['Metode Transaksi']),
     ttdVerifikator: path(DOC.ttdVerif), ttdUser: path(DOC.ttdUser),
@@ -26,6 +29,16 @@ function mapped(row: any, docs: Map<string, any>) {
     waktuApprove: row['WAKTU APPROVE'] || '',
     catatanApproval: row['Catatan Approval'] || row.Catatan_1 || '',
   };
+}
+
+async function usersFor(rows: any[]) {
+  const emails = Array.from(new Set(rows.map((row: any) => text(row.User).toLowerCase()).filter(Boolean)));
+  const out = new Map<string, any>();
+  if (!emails.length) return out;
+  const q = await sb.from('USERS').select('EMAIL,"NAMA LENGKAP"').in('EMAIL', emails);
+  if (q.error) throw q.error;
+  for (const user of q.data || []) out.set(text(user.EMAIL).toLowerCase(), user);
+  return out;
 }
 
 async function docsFor(ids: string[]) {
@@ -91,6 +104,7 @@ export async function getTransactions(parameters: any[], current: Caller) {
   }
 
   const docs = await docsFor(rows.map((row: any) => text(row.ID)));
+  const users = await usersFor(rows);
   const proofs = await proofRows(rows.map((row: any) => text(row.ID)));
   const grouped = new Map<string, any[]>();
   for (const proof of proofs) {
@@ -98,7 +112,10 @@ export async function getTransactions(parameters: any[], current: Caller) {
     list.push(proof);
     grouped.set(text(proof.transaksi_id), list);
   }
-  const data = rows.map((row: any) => enrich(mapped(row, docs.get(text(row.ID)) || new Map()), summarize(grouped.get(text(row.ID)) || [])));
+  const data = rows.map((row: any) => enrich(
+    mapped(row, docs.get(text(row.ID)) || new Map(), users.get(text(row.User).toLowerCase())),
+    summarize(grouped.get(text(row.ID)) || []),
+  ));
   const page = pageSpec(filters);
   if (!page) return data;
   return {
@@ -115,6 +132,7 @@ export async function getTransactionDetail(parameters: any[], current: Caller) {
   if (!(await canAccess(current, q.data))) throw new Error('Akses transaksi ditolak.');
 
   const docMap = (await docsFor([id])).get(id) || new Map();
+  const users = await usersFor([q.data]);
   const proofs = await proofRows([id]);
   const normalized = [];
   for (const proof of proofs) normalized.push(await normalizeProof(proof));
@@ -122,7 +140,7 @@ export async function getTransactionDetail(parameters: any[], current: Caller) {
   const latest = pending[pending.length - 1] || normalized[normalized.length - 1] || null;
 
   return {
-    ...enrich(mapped(q.data, docMap), summarize(proofs)),
+    ...enrich(mapped(q.data, docMap, users.get(text(q.data.User).toLowerCase())), summarize(proofs)),
     fileBuktiFoto: await signed(docMap.get(DOC.foto)),
     fileBuktiFile: await signed(docMap.get(DOC.file)),
     fileBuktiApproval: await signed(docMap.get(DOC.approval)),

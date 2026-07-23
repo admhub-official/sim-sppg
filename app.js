@@ -3569,6 +3569,8 @@ function normalizeApprovalTransaction(tx) {
   normalized.yayasan = tx.yayasan || tx.YAYASAN || '';
   normalized.nominal = Number(tx.nominal !== undefined ? tx.nominal : tx.Nominal) || 0;
   normalized.user = tx.user || tx.User || '';
+  normalized.userEmail = tx.userEmail || tx.emailPenginput || normalized.user;
+  normalized.userName = tx.userName || tx.namaPenginput || normalized.userEmail || '-';
   normalized.item = tx.item || tx.namaItem || tx['Nama Item/ Bahan Baku'] || '';
   normalized.uploadFoto = tx.uploadFoto || tx['UPLOUD FOTO'] || '';
   normalized.uploadFile = tx.uploadFile || tx['UPLOUD FILE'] || '';
@@ -3736,7 +3738,7 @@ function getApprovalStatusRowClass(metode) {
 
 function getApprovalDocumentBadge(tx) {
   var doc = _approvalDocStatus(tx);
-  var badgeClass = doc.status === 'Lengkap' ? 'badge-green' : (doc.status === 'Tidak Ada Keduanya' ? 'badge-red' : 'badge-amber');
+  var badgeClass = doc.status === 'Lengkap' ? 'badge-green' : (doc.status === 'Tidak Lengkap' ? 'badge-red' : 'badge-amber');
   return '<span class="badge ' + badgeClass + '"><i class="fas ' + (doc.status === 'Lengkap' ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i> ' + esc(doc.status) + '</span>';
 }
 
@@ -3851,7 +3853,7 @@ function openApprovalDetail(id) {
 
 function renderApprovalDetailHero(tx) {
   var doc = _approvalDocStatus(tx);
-  var docBadge = doc.status === 'Lengkap' ? 'badge-green' : (doc.status === 'Tidak Ada Keduanya' ? 'badge-red' : 'badge-amber');
+  var docBadge = doc.status === 'Lengkap' ? 'badge-green' : (doc.status === 'Tidak Lengkap' ? 'badge-red' : 'badge-amber');
   return '<div class="approval-detail-hero">' +
     '<div class="approval-detail-icon"><i class="fas fa-file-invoice-dollar"></i></div>' +
     '<div class="approval-detail-summary">' +
@@ -4005,7 +4007,7 @@ function printSelectedApprovalData() {
     grandCount++;
   });
 
-  exportApprovalPDF(data, metodeSummary, grandTotal, grandCount, 'Approval (Terpilih)');
+  exportApprovalReportPDF(data, 'Approval Transaksi Terpilih');
 }
 
 function populateApprovalFilters() {
@@ -4104,9 +4106,9 @@ function exportApproval(format) {
     grandCount++;
   });
   if (format === 'csv') {
-    exportApprovalCSV(approvalData, metodeSummary, grandTotal, grandCount);
+    exportApprovalReportCSV(approvalData);
   } else {
-    exportApprovalPDF(approvalData, metodeSummary, grandTotal, grandCount);
+    exportApprovalReportPDF(approvalData);
   }
 }
 
@@ -4118,15 +4120,18 @@ function _approvalDocStatus(tx) {
     if (/^(FOTO|FILE)$/i.test(s)) return false;
     return true;
   };
-  var bukti = ada(tx.uploadFoto) || ada(tx.uploadFile);
+  var bukti = ada(tx.uploadFoto) || ada(tx.uploadFile) ||
+    Number(tx.jumlahBuktiPembayaran || tx.paymentProofCount || 0) > 0 ||
+    tx.hasPendingPaymentProof === true;
   var nota  = ada(tx.notaPembelian);
   var ttd   = ada(tx.ttdUser);
-  // Status kelengkapan sekarang dihitung hanya dari Bukti Transaksi + Nota Pembelian (TTD tidak ikut menentukan status ini).
+  // Status laporan mengikuti dua dokumen pendukung utama. TTD tetap dicatat
+  // sebagai informasi audit, tetapi tidak mengubah status kelengkapan.
   var status;
   if (bukti && nota) status = 'Lengkap';
-  else if (bukti && !nota) status = 'Hanya Bukti';
-  else if (!bukti && nota) status = 'Hanya Nota';
-  else status = 'Tidak Ada Keduanya';
+  else if (bukti && !nota) status = 'Tidak ada Nota';
+  else if (!bukti && nota) status = 'Tidak ada bukti Pembayaran';
+  else status = 'Tidak Lengkap';
   return {
     bukti:  bukti ? 'Ada' : 'Tidak Ada',
     nota:   nota  ? 'Ada' : 'Tidak Ada',
@@ -4475,6 +4480,241 @@ function exportApprovalPDF(data, metodeSummary, grandTotal, grandCount, pageLabe
   win.document.close();
   win.onload = function() { win.print(); };
   showToast('success', 'Export PDF', 'Jendela cetak/simpan PDF telah dibuka.');
+}
+
+function _approvalReportModel(data) {
+  var rows = (data || []).map(function(tx, index) {
+    var doc = _approvalDocStatus(tx);
+    var email = String(tx.userEmail || tx.user || '-').trim() || '-';
+    var name = String(tx.userName || tx.namaPenginput || '').trim();
+    if (!name || name.toLowerCase() === email.toLowerCase()) name = '-';
+    var method = String(tx.metodeTransaksi || 'BELUM_BAYAR').trim().toUpperCase();
+    var methodLabel = method === 'BELUM_BAYAR' ? 'Belum Bayar'
+      : method === 'BELUM_LUNAS' ? 'Belum Lunas'
+      : method === 'MENUNGGU_VERIFIKASI' ? 'Menunggu Verifikasi'
+      : method === 'SUDAH_DIBAYAR' ? 'Sudah Dibayar'
+      : method === 'TRANSFER' ? 'Transfer'
+      : method === 'CASH' ? 'Cash'
+      : method.replace(/_/g, ' ');
+    return {
+      no: index + 1,
+      tanggal: String(tx.tanggal || '-'),
+      kode: String(tx.kode || tx.id || '-'),
+      sppg: String(tx.sppg || '-'),
+      nama: name,
+      email: email,
+      jenis: String(tx.jenisKategori || 'Lainnya'),
+      item: String(tx.item || '-'),
+      nominal: Number(tx.nominal) || 0,
+      metode: methodLabel,
+      kelengkapan: doc.status,
+      indikator: doc.status === 'Lengkap' ? 'HIJAU'
+        : doc.status === 'Tidak Lengkap' ? 'MERAH' : 'KUNING',
+      bukti: doc.bukti,
+      nota: doc.nota,
+      ttd: doc.ttd
+    };
+  });
+
+  var category = {}, sppg = {}, completeness = {};
+  var total = 0;
+  rows.forEach(function(row) {
+    total += row.nominal;
+    if (!category[row.jenis]) category[row.jenis] = { count: 0, total: 0 };
+    category[row.jenis].count++;
+    category[row.jenis].total += row.nominal;
+
+    var sppgKey = [row.sppg, row.nama, row.email].join('\u0001');
+    if (!sppg[sppgKey]) sppg[sppgKey] = {
+      sppg: row.sppg, nama: row.nama, email: row.email,
+      count: 0, total: 0, lengkap: 0, tidakLengkap: 0
+    };
+    sppg[sppgKey].count++;
+    sppg[sppgKey].total += row.nominal;
+    if (row.kelengkapan === 'Lengkap') sppg[sppgKey].lengkap++;
+    else sppg[sppgKey].tidakLengkap++;
+
+    if (!completeness[row.kelengkapan]) completeness[row.kelengkapan] = { count: 0, total: 0 };
+    completeness[row.kelengkapan].count++;
+    completeness[row.kelengkapan].total += row.nominal;
+  });
+
+  var dates = rows.map(function(row) {
+    var value = row.tanggal;
+    var match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return match ? match[3] + '-' + match[2] + '-' + match[1] : value.slice(0, 10);
+  }).filter(Boolean).sort();
+  var startFilter = $('apprFilterTglStart') ? $('apprFilterTglStart').value : '';
+  var endFilter = $('apprFilterTglEnd') ? $('apprFilterTglEnd').value : '';
+  var periodStart = startFilter || dates[0] || '-';
+  var periodEnd = endFilter || dates[dates.length - 1] || '-';
+  var filters = getActiveFilterInfo();
+
+  return {
+    rows: rows,
+    categories: Object.keys(category).sort().map(function(key) {
+      return { label: key, count: category[key].count, total: category[key].total };
+    }),
+    sppg: Object.keys(sppg).sort().map(function(key) { return sppg[key]; }),
+    completeness: ['Lengkap', 'Tidak ada Nota', 'Tidak ada bukti Pembayaran', 'Tidak Lengkap']
+      .filter(function(key) { return completeness[key]; })
+      .map(function(key) { return { label: key, count: completeness[key].count, total: completeness[key].total }; }),
+    count: rows.length,
+    total: total,
+    period: periodStart === periodEnd ? periodStart : periodStart + ' s.d. ' + periodEnd,
+    filters: filters || 'Semua data Approval'
+  };
+}
+
+function _approvalCsvCell(value) {
+  return '"' + String(value === null || value === undefined ? '' : value)
+    .replace(/\r?\n/g, ' ').replace(/"/g, '""') + '"';
+}
+
+function exportApprovalReportCSV(data) {
+  var report = _approvalReportModel(data);
+  var sep = ';';
+  var lines = [];
+  var add = function(values) { lines.push(values.map(_approvalCsvCell).join(sep)); };
+  add(['LAPORAN APPROVAL TRANSAKSI SIM-SPPG']);
+  add(['Periode', report.period]);
+  add(['Filter aktif', report.filters]);
+  add(['Dibuat pada', new Date().toLocaleString('id-ID')]);
+  add(['Dibuat oleh', currentUser ? (currentUser.namaLengkap || currentUser.email || '-') : '-']);
+  add(['Jumlah transaksi', report.count]);
+  add(['Total nominal', Math.round(report.total)]);
+  lines.push('');
+
+  add(['DETAIL TRANSAKSI']);
+  add(['No', 'Tanggal Transaksi', 'Kode Transaksi', 'SPPG', 'Nama Penginput', 'Email Penginput',
+    'Jenis Kategori', 'Nama Item', 'Nominal (Rp)', 'Status Approval/Pembayaran',
+    'Status Kelengkapan', 'Indikator Warna', 'Bukti Pembayaran', 'Nota', 'TTD User']);
+  report.rows.forEach(function(row) {
+    add([row.no, row.tanggal, row.kode, row.sppg, row.nama, row.email, row.jenis, row.item,
+      Math.round(row.nominal), row.metode, row.kelengkapan, row.indikator, row.bukti, row.nota, row.ttd]);
+  });
+  lines.push('');
+
+  add(['RINGKASAN PER JENIS KATEGORI']);
+  add(['Jenis Kategori', 'Jumlah Transaksi', 'Total Nominal (Rp)', 'Kontribusi']);
+  report.categories.forEach(function(row) {
+    add([row.label, row.count, Math.round(row.total),
+      report.total ? (row.total / report.total * 100).toFixed(1) + '%' : '0%']);
+  });
+  add(['TOTAL', report.count, Math.round(report.total), '100%']);
+  lines.push('');
+
+  add(['RINGKASAN PER SPPG DAN PENGINPUT']);
+  add(['SPPG', 'Nama Penginput', 'Email Penginput', 'Jumlah Transaksi', 'Dokumen Lengkap',
+    'Dokumen Belum Lengkap', 'Total Nominal (Rp)']);
+  report.sppg.forEach(function(row) {
+    add([row.sppg, row.nama, row.email, row.count, row.lengkap, row.tidakLengkap, Math.round(row.total)]);
+  });
+  lines.push('');
+
+  add(['RINGKASAN STATUS KELENGKAPAN']);
+  add(['Status', 'Jumlah Transaksi', 'Total Nominal (Rp)']);
+  report.completeness.forEach(function(row) { add([row.label, row.count, Math.round(row.total)]); });
+  lines.push('');
+  add(['CATATAN']);
+  add(['Status kelengkapan dinilai dari ketersediaan bukti pembayaran/transaksi dan nota. TTD User dicantumkan sebagai informasi audit.']);
+  add(['CSV tidak mendukung warna sel secara konsisten. Kolom Indikator Warna mempertahankan makna HIJAU/KUNING/MERAH di Excel, Google Sheets, dan aplikasi lain.']);
+
+  var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = 'Laporan_Approval_SIM-SPPG_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  showToast('success', 'CSV Siap', 'Laporan detail dan ringkasan berhasil diunduh.');
+}
+
+function _approvalStatusClass(status) {
+  if (status === 'Lengkap') return 'status-complete';
+  if (status === 'Tidak Lengkap') return 'status-missing';
+  return 'status-warning';
+}
+
+function exportApprovalReportPDF(data, pageLabel) {
+  var report = _approvalReportModel(data);
+  var now = new Date();
+  var printedBy = currentUser
+    ? ((currentUser.namaLengkap || currentUser.email || '-') + ' (' + (currentUser.role || '-') + ')')
+    : '-';
+  var title = pageLabel || 'Laporan Approval Transaksi';
+  var detailRows = report.rows.map(function(row) {
+    return '<tr>' +
+      '<td class="center">' + row.no + '</td>' +
+      '<td>' + esc(row.tanggal) + '</td>' +
+      '<td class="code">' + esc(row.kode) + '</td>' +
+      '<td>' + esc(row.sppg) + '</td>' +
+      '<td><strong>' + esc(row.nama) + '</strong><small>' + esc(row.email) + '</small></td>' +
+      '<td>' + esc(row.jenis) + '</td>' +
+      '<td>' + esc(row.item) + '</td>' +
+      '<td class="money">Rp ' + Math.round(row.nominal).toLocaleString('id-ID') + '</td>' +
+      '<td>' + esc(row.metode) + '</td>' +
+      '<td class="center"><span class="status ' + _approvalStatusClass(row.kelengkapan) + '">' +
+        esc(row.kelengkapan) + '</span></td>' +
+      '</tr>';
+  }).join('');
+  var categoryRows = report.categories.map(function(row) {
+    return '<tr><td>' + esc(row.label) + '</td><td class="center">' + row.count +
+      '</td><td class="money">Rp ' + Math.round(row.total).toLocaleString('id-ID') +
+      '</td><td class="center">' + (report.total ? (row.total / report.total * 100).toFixed(1) : '0') + '%</td></tr>';
+  }).join('');
+  var sppgRows = report.sppg.map(function(row) {
+    return '<tr><td>' + esc(row.sppg) + '</td><td><strong>' + esc(row.nama) + '</strong><small>' +
+      esc(row.email) + '</small></td><td class="center">' + row.count + '</td><td class="center good">' +
+      row.lengkap + '</td><td class="center bad">' + row.tidakLengkap +
+      '</td><td class="money">Rp ' + Math.round(row.total).toLocaleString('id-ID') + '</td></tr>';
+  }).join('');
+  var statusRows = report.completeness.map(function(row) {
+    return '<div class="status-card ' + _approvalStatusClass(row.label) + '"><span>' + esc(row.label) +
+      '</span><strong>' + row.count + ' transaksi</strong><small>Rp ' +
+      Math.round(row.total).toLocaleString('id-ID') + '</small></div>';
+  }).join('');
+
+  var html = '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>' + esc(title) + '</title>' +
+    '<style>' +
+    '@page{size:A4 landscape;margin:10mm 8mm 12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:0;font-size:8.2px;line-height:1.35}' +
+    '.header{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end;border-bottom:3px solid #15577a;padding:0 0 8px;margin-bottom:10px}.brand{font-size:10px;font-weight:800;color:#1e6f9c;letter-spacing:1.5px}.header h1{font-size:20px;margin:2px 0}.subtitle{color:#64748b}.report-id{text-align:right;color:#475569}.report-id strong{display:block;color:#172033;font-size:10px}' +
+    '.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}.meta div,.kpi{border:1px solid #dbe5ee;border-radius:6px;padding:6px 8px;background:#f8fafc}.meta span,.kpi span{display:block;color:#64748b;font-size:7px;text-transform:uppercase;font-weight:700}.meta strong,.kpi strong{display:block;margin-top:2px;font-size:9px}' +
+    '.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}.kpi.total{border-left:4px solid #15577a}.kpi.complete{border-left:4px solid #059669}.kpi.attention{border-left:4px solid #d97706}' +
+    '.section{break-before:page;margin-top:2px}.section.first{break-before:auto}.section-head{display:flex;justify-content:space-between;align-items:end;margin:0 0 5px}.section-head h2{font-size:11px;margin:0;color:#15577a}.section-head p{margin:0;color:#64748b}' +
+    'table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px}thead{display:table-header-group}th{background:#15577a;color:#fff;text-align:left;padding:5px 4px;font-size:7px;letter-spacing:.15px}td{border:1px solid #dbe5ee;padding:4px;vertical-align:top;overflow-wrap:anywhere}tbody tr:nth-child(even){background:#f8fafc}tr{break-inside:avoid}.center{text-align:center}.money{text-align:right;white-space:nowrap;font-weight:700}.code{font-family:monospace;font-size:7px}td small{display:block;color:#64748b;margin-top:2px}.status{display:inline-block;padding:2px 5px;border-radius:10px;font-size:6.8px;font-weight:800;line-height:1.25}.status-complete{background:#dcfce7;color:#047857}.status-warning{background:#fef3c7;color:#92400e}.status-missing{background:#ffe4e6;color:#be123c}.good{color:#047857;font-weight:800}.bad{color:#be123c;font-weight:800}' +
+    '.detail th:nth-child(1){width:3%}.detail th:nth-child(2){width:7%}.detail th:nth-child(3){width:8%}.detail th:nth-child(4){width:9%}.detail th:nth-child(5){width:14%}.detail th:nth-child(6){width:10%}.detail th:nth-child(7){width:17%}.detail th:nth-child(8){width:10%}.detail th:nth-child(9){width:10%}.detail th:nth-child(10){width:12%}' +
+    '.two-col{display:grid;grid-template-columns:.82fr 1.18fr;gap:10px;align-items:start}.status-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px}.status-card{border:1px solid #dbe5ee;border-left:4px solid #d97706;border-radius:6px;padding:6px 8px}.status-card.status-complete{border-left-color:#059669}.status-card.status-missing{border-left-color:#e11d48}.status-card span,.status-card strong,.status-card small{display:block;background:none}.status-card strong{font-size:10px;margin-top:3px}.status-card small{color:#64748b}' +
+    '.note{border:1px solid #bae6fd;background:#f0f9ff;border-radius:6px;padding:7px 9px;color:#334155}.note strong{color:#15577a}.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px}.legend span{padding:2px 6px;border-radius:10px;font-weight:700}.footer{position:fixed;bottom:-7mm;left:0;right:0;border-top:1px solid #dbe5ee;padding-top:3px;color:#64748b;font-size:7px;display:flex;justify-content:space-between}' +
+    '</style></head><body>' +
+    '<header class="header"><div><div class="brand">SIM-SPPG</div><h1>' + esc(title) + '</h1><div class="subtitle">Dokumen pengendalian transaksi untuk proses pemeriksaan dan persetujuan.</div></div>' +
+    '<div class="report-id"><span>Dibuat</span><strong>' + esc(now.toLocaleString('id-ID')) + '</strong><span>Oleh: ' + esc(printedBy) + '</span></div></header>' +
+    '<div class="meta"><div><span>Periode transaksi</span><strong>' + esc(report.period) + '</strong></div><div><span>Filter aktif</span><strong>' + esc(report.filters) + '</strong></div><div><span>Jumlah data</span><strong>' + report.count + ' transaksi</strong></div><div><span>Total nominal</span><strong>Rp ' + Math.round(report.total).toLocaleString('id-ID') + '</strong></div></div>' +
+    '<div class="summary-grid"><div class="kpi total"><span>Total diajukan</span><strong>Rp ' + Math.round(report.total).toLocaleString('id-ID') + '</strong></div><div class="kpi complete"><span>Dokumen lengkap</span><strong>' +
+      (report.completeness.find(function(x){return x.label === 'Lengkap';}) || {count:0}).count + ' transaksi</strong></div><div class="kpi attention"><span>Perlu tindak lanjut</span><strong>' +
+      (report.count - (report.completeness.find(function(x){return x.label === 'Lengkap';}) || {count:0}).count) + ' transaksi</strong></div></div>' +
+    '<section class="section first"><div class="section-head"><h2>1. Detail Transaksi Approval</h2><p>Urut sesuai data hasil filter aktif</p></div>' +
+    '<table class="detail"><thead><tr><th>No</th><th>Tanggal</th><th>Kode</th><th>SPPG</th><th>Penginput</th><th>Jenis Kategori</th><th>Nama Item</th><th>Nominal</th><th>Status Approval</th><th>Kelengkapan</th></tr></thead><tbody>' + detailRows + '</tbody></table></section>' +
+    '<section class="section"><div class="section-head"><h2>2. Ringkasan dan Pengendalian</h2><p>Dasar pemeriksaan sebelum persetujuan</p></div><div class="two-col"><div>' +
+    '<h3>Per Jenis Kategori</h3><table><thead><tr><th>Jenis Kategori</th><th>Trx</th><th>Total Nominal</th><th>%</th></tr></thead><tbody>' + categoryRows +
+    '<tr><td><strong>TOTAL</strong></td><td class="center"><strong>' + report.count + '</strong></td><td class="money">Rp ' + Math.round(report.total).toLocaleString('id-ID') + '</td><td class="center">100%</td></tr></tbody></table>' +
+    '<h3>Status Kelengkapan</h3><div class="status-grid">' + statusRows + '</div>' +
+    '<div class="note"><strong>Definisi status</strong><div class="legend"><span class="status-complete">Lengkap</span><span class="status-warning">Tidak ada Nota / Bukti Pembayaran</span><span class="status-missing">Tidak Lengkap</span></div><p>“Tidak Lengkap” berarti bukti pembayaran/transaksi dan nota sama-sama tidak tersedia. TTD User dicatat sebagai informasi audit dan tidak mengubah status ini.</p></div></div><div>' +
+    '<h3>Per SPPG dan Penginput</h3><table><thead><tr><th>SPPG</th><th>Nama &amp; Email Penginput</th><th>Trx</th><th>Lengkap</th><th>Belum Lengkap</th><th>Total Nominal</th></tr></thead><tbody>' +
+    sppgRows + '</tbody></table><div class="note"><strong>Catatan pengendalian</strong><p>Prioritaskan pemeriksaan transaksi berstatus merah, nominal besar, dokumen tanpa nota, dan transaksi yang lama menunggu persetujuan. Cocokkan juga periode, filter, identitas penginput, serta total kategori sebelum menyetujui pembayaran.</p></div></div></div></section>' +
+    '<div class="footer"><span>SIM-SPPG • Laporan Approval • Dokumen Internal</span><span>' + esc(report.period) + '</span></div>' +
+    '<script>window.onload=function(){window.print()}<\/script></body></html>';
+
+  var win = window.open('', '_blank');
+  if (!win) {
+    showToast('error', 'Gagal', 'Pop-up diblokir browser. Izinkan pop-up lalu coba lagi.');
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+  showToast('success', 'PDF Siap', 'Layout laporan siap dicetak atau disimpan sebagai PDF.');
 }
 
 function openApprovalModal(id) {
@@ -6668,6 +6908,10 @@ function printData(defaultRows) {
 
 function printCurrentPage() {
   if (!currentPage) return;
+  if (currentPage === 'approval') {
+    exportApprovalReportPDF(filteredApprovalData || [], 'Laporan Approval Transaksi');
+    return;
+  }
   var runPrint = function() {
   if (!currentPage) return;
   var originalTitle = document.title;
@@ -6711,7 +6955,7 @@ function printCurrentPage() {
   }, 300);
   };
   var normalPrintPages = ['dashboard','profil'];
-  if (normalPrintPages.indexOf(currentPage) > -1 || currentPage === 'approval') { runPrint(); return; }
+  if (normalPrintPages.indexOf(currentPage) > -1) { runPrint(); return; }
   preparePrintDataset(function(rows) {
     if (rows === null) return;
     _printDatasetOverride = rows;
