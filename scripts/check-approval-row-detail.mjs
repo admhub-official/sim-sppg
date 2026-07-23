@@ -18,6 +18,11 @@ const renderBlock = app.slice(renderStart, renderEnd);
 const pageStart = index.indexOf('<!-- ==================== APPROVAL PAGE ==================== -->');
 const pageEnd = index.indexOf('<!-- ==================== MASTER BAHAN BAKU PAGE ==================== -->', pageStart);
 const pageBlock = index.slice(pageStart, pageEnd);
+const workerVersion = worker.match(/const version = '([^']+)'/);
+const serviceWorkerVersion = sw.match(/const CACHE_VERSION = '([^']+)'/);
+const indexAppVersion = index.match(/<script src="\.\/app\.js\?v=([^"]+)"><\/script>/);
+const assetVersionPattern = /^\d{8}-[a-z0-9-]+-v\d+$/;
+const serviceWorkerVersionPattern = /^sim-sppg-v\d{8}-[a-z0-9-]+-v\d+$/;
 
 requireMatch(renderStart >= 0 && renderEnd > renderStart, 'Approval render block must exist');
 requireMatch(renderBlock.includes('renderApprovalDesktopRows(pageData, start, isAdmin)'), 'desktop Approval renderer must be used');
@@ -33,7 +38,9 @@ requireMatch(app.includes('var normalizedResponse = normalizeApprovalApiResponse
 requireMatch(app.includes("console.error('Approval render failure:'"), 'canonical loader must expose render errors');
 requireMatch((app.match(/function loadApprovalData\(\)/g) || []).length === 1, 'Approval loader must exist exactly once in source');
 requireMatch(!worker.includes('approvalRuntime'), 'Cloudflare worker must not inject a second Approval loader');
-requireMatch(worker.includes('20260722-approval-canonical-source-v17'), 'Cloudflare runtime cache key must be current');
-requireMatch(sw.includes("const CACHE_VERSION = 'sim-sppg-v20260722-approval-canonical-source-v16';"), 'service worker must invalidate previous Approval bundles');
+requireMatch(workerVersion && assetVersionPattern.test(workerVersion[1]), 'Cloudflare runtime cache version must follow the release format');
+requireMatch(serviceWorkerVersion && serviceWorkerVersionPattern.test(serviceWorkerVersion[1]), 'service worker cache version must follow the release format');
+requireMatch(indexAppVersion && assetVersionPattern.test(indexAppVersion[1]), 'base index must load a versioned canonical app script');
+requireMatch(sw.includes("fetch(request, { cache: 'no-store' })"), 'navigation and JavaScript must bypass browser cache');
 
 if (!process.exitCode) console.log('Approval direct runtime render check passed.');
