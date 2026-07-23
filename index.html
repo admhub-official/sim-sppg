@@ -3966,16 +3966,6 @@
   border-radius: 18px;
   box-shadow: 0 16px 44px rgba(23,32,51,.08);
 }
-.auth-card-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  color: #155f9f;
-  font-size: 15px;
-  font-weight: 800;
-}
-.auth-card-brand img { width: 36px; height: 36px; object-fit: contain; }
 .auth-architecture-heading { margin-bottom: 22px; }
 .auth-eyebrow {
   display: inline-flex;
@@ -4188,7 +4178,6 @@
     border-radius: 16px;
     box-shadow: 0 12px 32px rgba(23,32,51,.11);
   }
-  .auth-card-brand { margin-bottom: 16px; }
   .auth-architecture-heading { margin-bottom: 19px; }
   .auth-architecture-heading h2 { font-size: 25px; }
   #registerForm, #registerForm .form-row { grid-template-columns: 1fr; gap: 0; }
@@ -4202,8 +4191,6 @@
   .auth-form-panel,
   #authOverlay[data-auth-mode="register"] .auth-form-panel { padding-inline: 10px; margin-top: -30px; }
   .auth-card { padding: 21px 17px 19px; border-radius: 14px; }
-  .auth-card-brand { margin-bottom: 14px; }
-  .auth-card-brand img { width: 31px; height: 31px; }
   .auth-architecture-heading h2 { font-size: 22px; }
   .auth-card .form-input, .auth-card input, .auth-card select { min-height: 45px !important; }
   .auth-card .toggle-password { height: 45px !important; }
@@ -4446,11 +4433,6 @@
 
   <main class="auth-form-panel">
     <section class="auth-card" aria-live="polite">
-      <div class="auth-card-brand">
-        <img src="https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png" alt="Logo SIM-SPPG">
-        <span>SIM-SPPG</span>
-      </div>
-
       <div class="auth-architecture-heading">
         <span class="auth-eyebrow">Selamat datang</span>
         <h2>Masuk ke SIM-SPPG</h2>
@@ -6759,6 +6741,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260723-approval-report-export-v8"></script>
+<script src="./app.js?v=20260723-login-card-cleanup-v9"></script>
 </body>
 </html>
