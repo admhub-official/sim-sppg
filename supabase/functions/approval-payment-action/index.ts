@@ -7,7 +7,7 @@ import { directApproval } from './direct.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method === 'GET') return json({ status: 'ok', service: 'approval-payment-action', version: 2, scopeMode: 'assigned-sppg' });
+  if (req.method === 'GET') return json({ status: 'ok', service: 'approval-payment-action', version: 3, scopeMode: 'assigned-sppg', documentSource: 'storage-verified' });
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
   try {
     const current = await caller(req);
