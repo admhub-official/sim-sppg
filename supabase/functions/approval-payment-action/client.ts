@@ -8,7 +8,16 @@ export const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
-export const TABLE = { users: 'USERS', tx: 'TRANSAKSI', assignment: 'ADMIN_ASSIGNMENT', proofs: 'TRANSAKSI_PAYMENT_PROOFS', docs: 'TRANSAKSI_DOCUMENTS', settings: 'APP_SETTINGS', audit: 'AUDIT LOG' };
+export const TABLE = {
+  users: 'USERS',
+  tx: 'TRANSAKSI',
+  assignment: 'ADMIN_ASSIGNMENT',
+  proofs: 'TRANSAKSI_PAYMENT_PROOFS',
+  docs: 'TRANSAKSI_DOCUMENTS',
+  docsAvailable: 'TRANSAKSI_DOCUMENTS_AVAILABLE',
+  settings: 'APP_SETTINGS',
+  audit: 'AUDIT LOG',
+};
 export const BUCKET = { payment: 'bukti-payment', verifier: 'paraf-verifikator' };
 export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 export const text = (value: unknown) => String(value ?? '').trim();
