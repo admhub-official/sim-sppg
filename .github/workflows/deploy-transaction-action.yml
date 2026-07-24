@@ -40,16 +40,19 @@ jobs:
           test -s "$AP/verify.ts"
           grep -q 'Deno.serve' "$TX"
           grep -q 'TRANSAKSI_DOCUMENTS' "$TX"
+          grep -q 'TRANSAKSI_DOCUMENTS_AVAILABLE' "$TX"
+          grep -q 'SPPG_DIRECTORY' "$TX"
+          grep -q 'async function resolveYayasan' "$TX"
           grep -q 'async function removeFiles' "$TX"
-          grep -q 'function ownedUpload' "$TX"
+          grep -q 'const ownedUpload' "$TX"
           grep -q 'cleanup add orphan' "$TX"
           grep -q 'cleanup edit orphan' "$TX"
-          grep -q 'function txPageSpec' "$TX"
+          grep -q 'function pageSpec' "$TX"
           grep -q 'hasMore' "$TX"
           grep -q 'create_transaction_with_documents_atomic' "$TX"
           grep -q 'update_transaction_with_documents_atomic' "$TX"
-          grep -q "writeMode:'normalized-atomic'" "$TX"
-          grep -q 'version:5' "$TX"
+          grep -q "writeMode: 'normalized-atomic'" "$TX"
+          grep -q 'version: 7' "$TX"
           grep -q 'submit_transaction_payment_atomic' "$AP/submit.ts"
           grep -q 'verify_transaction_payment_batch_atomic' "$AP/verify.ts"
           grep -q 'p_verifier_signature_path' "$AP/verify.ts"
@@ -77,4 +80,4 @@ jobs:
         run: |
           set -euo pipefail
           supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
-          echo 'Deployment contains normalized atomic transaction writes and split approval/payment handlers.'
+          echo 'Deployment contains automatic SPPG to Yayasan resolution and normalized transaction documents.'
