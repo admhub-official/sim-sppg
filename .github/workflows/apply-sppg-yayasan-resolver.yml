@@ -1,0 +1,52 @@
+name: Apply SPPG Yayasan Resolver
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/apply-sppg-yayasan-resolver.py'
+      - '.github/workflows/apply-sppg-yayasan-resolver.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-sppg-yayasan-resolver
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply resolver patch
+        run: python scripts/apply-sppg-yayasan-resolver.py
+
+      - name: Validate patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          TX='supabase/functions/transaction-action/index.ts'
+          grep -q "S: 'SPPG_DIRECTORY'" "$TX"
+          grep -q 'async function resolveYayasan' "$TX"
+          grep -q 'const yayasan = await resolveYayasan' "$TX"
+          grep -q 'version: 7' "$TX"
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/transaction-action/index.ts
+          git commit -m 'Auto-resolve Yayasan from selected SPPG'
+          git push origin main
