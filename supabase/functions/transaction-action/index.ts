@@ -19,6 +19,7 @@ const T = {
   P: 'TRANSAKSI_PAYMENT_PROOFS',
   D: 'TRANSAKSI_DOCUMENTS',
   DA: 'TRANSAKSI_DOCUMENTS_AVAILABLE',
+  S: 'SPPG_DIRECTORY',
   L: 'AUDIT LOG',
 };
 
@@ -200,6 +201,34 @@ async function pairAllowed(current: Caller, sppg: unknown, yayasan: unknown) {
   const targetSppg = text(sppg);
   const targetYayasan = text(yayasan);
   return (await assignedPairs(current)).some(([assignedSppg, assignedYayasan]) => assignedSppg === targetSppg && assignedYayasan === targetYayasan);
+}
+
+const sameText = (left: unknown, right: unknown) => text(left).toUpperCase() === text(right).toUpperCase();
+
+async function resolveYayasan(sppg: unknown, requested: unknown, current: Caller) {
+  const targetSppg = text(sppg);
+  const explicitYayasan = text(requested);
+  if (!targetSppg) return '';
+  if (explicitYayasan) return explicitYayasan;
+
+  if (current.role === 'ADMIN') {
+    const matches = (await assignedPairs(current)).filter(
+      ([assignedSppg, assignedYayasan]) => sameText(assignedSppg, targetSppg) && !!text(assignedYayasan),
+    );
+    if (matches.length === 1) return text(matches[0][1]);
+    if (current.yayasan && matches.some(([, assignedYayasan]) => sameText(assignedYayasan, current.yayasan))) {
+      return current.yayasan;
+    }
+  }
+
+  if (sameText(current.sppg, targetSppg) && current.yayasan) return current.yayasan;
+
+  const directory = await sb.from(T.S)
+    .select('yayasan')
+    .eq('sppg', targetSppg.toUpperCase())
+    .maybeSingle();
+  if (directory.error) throw directory.error;
+  return text(directory.data?.yayasan);
 }
 
 async function canAccess(current: Caller, row: any) {
@@ -384,8 +413,9 @@ async function notify(payload: any) {
 
 async function addTransaction(data: any, current: Caller) {
   const sppg = ['ADMIN', 'SUPER_ADMIN'].includes(current.role) ? text(data.sppg || current.sppg) : current.sppg;
-  const yayasan = ['ADMIN', 'SUPER_ADMIN'].includes(current.role) ? text(data.yayasan || current.yayasan) : current.yayasan;
-  if (!sppg || !yayasan) throw new Error('SPPG dan YAYASAN wajib tersedia.');
+  if (!sppg) throw new Error('SPPG wajib tersedia.');
+  const yayasan = await resolveYayasan(sppg, data.yayasan, current);
+  if (!yayasan) throw new Error(`Yayasan untuk SPPG ${sppg} belum terdaftar di database.`);
   if (current.role === 'ADMIN' && !(await pairAllowed(current, sppg, yayasan))) throw new Error('Pasangan SPPG + YAYASAN tidak di-assign.');
   if (!(Number(data.nominal) > 0)) throw new Error('Nominal transaksi harus lebih dari 0.');
   const id = crypto.randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase();
@@ -464,7 +494,12 @@ async function editTransaction(id: string, fields: any, current: Caller) {
     if (fieldMap[key]) patch[fieldMap[key]] = fieldMap[key] === 'Tanggal' ? normalizeDate(value) : value;
   }
   const sppg = text(patch.SPPG ?? old.SPPG);
-  const yayasan = text(patch.YAYASAN ?? old.YAYASAN);
+  const requestedYayasan = Object.prototype.hasOwnProperty.call(patch, 'YAYASAN')
+    ? patch.YAYASAN
+    : (sameText(sppg, old.SPPG) ? old.YAYASAN : '');
+  const yayasan = await resolveYayasan(sppg, requestedYayasan, current);
+  if (!yayasan) throw new Error(`Yayasan untuk SPPG ${sppg} belum terdaftar di database.`);
+  if (['ADMIN', 'SUPER_ADMIN'].includes(current.role)) patch.YAYASAN = yayasan;
   if (current.role === 'ADMIN' && !(await pairAllowed(current, sppg, yayasan))) throw new Error('Pasangan SPPG + YAYASAN tujuan tidak di-assign.');
   if (!['ADMIN', 'SUPER_ADMIN'].includes(current.role)) {
     delete patch.SPPG;
@@ -595,8 +630,9 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') return json({
     status: 'ok',
     service: 'transaction-action',
-    version: 6,
+    version: 7,
     documentReadSource: T.DA,
+    yayasanResolutionSource: T.S,
     writeMode: 'normalized-atomic',
   });
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
