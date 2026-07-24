@@ -1,6 +1,6 @@
 import { BUCKET, normalizeStatus, norm, sb, TABLE, text } from './client.ts';
 import { assignedSppg, canAccess, type Caller } from './auth.ts';
-import { enrich, normalizeProof, proofRows, summarize } from './proofs.ts';
+import { enrich, inferMime, normalizeProof, proofRows, summarize } from './proofs.ts';
 
 const DOC: Record<string, string> = {
   foto: 'FOTO_TRANSAKSI',
@@ -10,6 +10,24 @@ const DOC: Record<string, string> = {
   ttdVerif: 'TTD_VERIFIKATOR_LEGACY',
   approval: 'BUKTI_APPROVAL_LEGACY',
 };
+
+function documentState(docs: Map<string, any>) {
+  const hasFoto = !!text(docs.get(DOC.foto)?.storage_path);
+  const hasFile = !!text(docs.get(DOC.file)?.storage_path);
+  const hasBuktiTransaksi = hasFoto || hasFile;
+  const hasNotaPembelian = !!text(docs.get(DOC.nota)?.storage_path);
+  const hasTtdUser = !!text(docs.get(DOC.ttdUser)?.storage_path);
+  const missing: string[] = [];
+  if (!hasBuktiTransaksi) missing.push('Bukti Transaksi');
+  if (!hasNotaPembelian) missing.push('Nota Pembelian');
+  if (!hasTtdUser) missing.push('TTD User');
+  return {
+    hasBuktiTransaksi,
+    hasNotaPembelian,
+    hasTtdUser,
+    statusDokumen: missing.length ? `Dokumen Tidak Lengkap: ${missing.join(', ')}` : 'Dokumen Lengkap',
+  };
+}
 
 function mapped(row: any, docs: Map<string, any>, user: any = null) {
   const path = (type: string) => text(docs.get(type)?.storage_path);
@@ -28,6 +46,7 @@ function mapped(row: any, docs: Map<string, any>, user: any = null) {
     notaPembelian: path(DOC.nota), approvedBy: row['APPROVED BY'] || '',
     waktuApprove: row['WAKTU APPROVE'] || '',
     catatanApproval: row['Catatan Approval'] || row.Catatan_1 || '',
+    ...documentState(docs),
   };
 }
 
@@ -44,7 +63,10 @@ async function usersFor(rows: any[]) {
 async function docsFor(ids: string[]) {
   const out = new Map<string, Map<string, any>>();
   if (!ids.length) return out;
-  const q = await sb.from(TABLE.docs).select('*').in('transaksi_id', ids);
+  const q = await sb.from(TABLE.docsAvailable)
+    .select('*')
+    .in('transaksi_id', ids)
+    .order('updated_at', { ascending: true });
   if (q.error) throw q.error;
   for (const doc of q.data || []) {
     const id = text(doc.transaksi_id);
@@ -62,7 +84,7 @@ async function signed(doc: any) {
     path: text(doc.storage_path), bucket: text(doc.storage_bucket),
     name: text(doc.original_file_name) || text(doc.storage_path).split('/').pop(),
     signedUrl: q.data.signedUrl, signedThumbnailUrl: q.data.signedUrl,
-    mimeType: doc.mime_type || null,
+    mimeType: inferMime(doc.storage_path, doc.mime_type),
   };
 }
 
