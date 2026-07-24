@@ -3428,16 +3428,18 @@ function openDetailSupplier(rowNum) {
   openModal('modalDetail');
 }
 
-function renderDetailTransaksi(tx) {
+function renderDetailTransaksi(tx, options) {
   resetDetailModalFooter();
+  options = options || {};
+  var hideMissingDocs = !!options.hideMissingDocs;
   var isLengkap = tx.statusDokumen && tx.statusDokumen.indexOf('Lengkap') > -1 && tx.statusDokumen.indexOf('Tidak') === -1;
   var docsHtml = '';
-  docsHtml += renderFilePreview(tx.fileBuktiFoto || tx.fileBukti, 'Foto Bukti Transaksi', 'fa-camera');
-  docsHtml += renderFilePreview(tx.fileBuktiFile, 'File Bukti Transaksi', 'fa-file');
-  docsHtml += renderFilePreview(tx.fileBuktiApproval, 'Bukti Pembayaran Admin', 'fa-money-check-alt');
-  docsHtml += renderFilePreview(tx.fileNota, 'Nota Pembelian', 'fa-receipt');
-  docsHtml += renderFilePreview(tx.fileTtdUser, 'TTD User', 'fa-signature');
-  docsHtml += renderFilePreview(tx.fileTtdVerif, 'TTD Verifikator', 'fa-shield-alt');
+  docsHtml += renderFilePreview(tx.fileBuktiFoto || tx.fileBukti, 'Foto Bukti Transaksi', 'fa-camera', hideMissingDocs);
+  docsHtml += renderFilePreview(tx.fileBuktiFile, 'File Bukti Transaksi', 'fa-file', hideMissingDocs);
+  docsHtml += renderFilePreview(tx.fileBuktiApproval, 'Bukti Pembayaran Admin', 'fa-money-check-alt', hideMissingDocs);
+  docsHtml += renderFilePreview(tx.fileNota, 'Nota Pembelian', 'fa-receipt', hideMissingDocs);
+  docsHtml += renderFilePreview(tx.fileTtdUser, 'TTD User', 'fa-signature', hideMissingDocs);
+  docsHtml += renderFilePreview(tx.fileTtdVerif, 'TTD Verifikator', 'fa-shield-alt', hideMissingDocs);
 
   $('detailBody').innerHTML =
     '<div style="margin-bottom:20px;">' +
@@ -3496,8 +3498,9 @@ function resetDetailModalFooter() {
   if (subtitle) subtitle.textContent = 'Informasi lengkap transaksi & dokumen pendukung';
 }
 
-function renderFilePreview(fileInfo, title, iconClass) {
+function renderFilePreview(fileInfo, title, iconClass, hideMissing) {
   if (!fileInfo) {
+    if (hideMissing) return '';
     return '<div style="margin-bottom:16px;">' +
       '<div class="detail-section-title"><i class="fas ' + iconClass + '" style="margin-right:6px;"></i>' + esc(title) + '</div>' +
       '<div class="detail-doc-item doc-missing">' +
@@ -3831,7 +3834,7 @@ function openApprovalDetail(id) {
       showToast('error', 'Error', 'Transaksi approval tidak ditemukan');
       return;
     }
-    renderDetailTransaksi(tx);
+    renderDetailTransaksi(tx, { hideMissingDocs: true });
     currentApprovalDetailId = tx.id || id;
     var body = $('detailBody');
     if (body) body.insertAdjacentHTML('afterbegin', renderApprovalDetailHero(tx));
