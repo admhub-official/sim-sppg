@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="auth-pending">
 <head>
   <base target="_top"> 
   <meta charset="UTF-8">
@@ -3850,17 +3850,18 @@
       #adminAssignmentTableBody tr {
         grid-template-areas:
           "email aksi"
-          "sppg yayasan"
+          "sppg sppg"
+          "yayasan yayasan"
           "tgl tgl" !important;
-        grid-template-columns: 1fr auto !important;
+        grid-template-columns: minmax(0, 1fr) 104px !important;
       }
       #adminAssignmentTableBody tr td:nth-child(1) { display: none !important; }
-      #adminAssignmentTableBody tr td:nth-child(2) { grid-area: email; text-align: left; font-weight: 700 !important; color: var(--slate-800) !important; word-break: break-word; }
+      #adminAssignmentTableBody tr td:nth-child(2) { grid-area: email; min-width: 0; padding-right: 8px !important; text-align: left; font-weight: 700 !important; color: var(--slate-800) !important; overflow-wrap: anywhere; }
       body.dark-mode #adminAssignmentTableBody tr td:nth-child(2) { color: #f1f5f9 !important; }
       #adminAssignmentTableBody tr td:nth-child(3) { grid-area: sppg; text-align: left; }
-      #adminAssignmentTableBody tr td:nth-child(4) { grid-area: yayasan; text-align: right; font-size: 12px !important; color: var(--slate-500) !important; }
+      #adminAssignmentTableBody tr td:nth-child(4) { grid-area: yayasan; min-width: 0; text-align: left; font-size: 12px !important; color: var(--slate-500) !important; overflow-wrap: anywhere; }
       #adminAssignmentTableBody tr td:nth-child(5) { grid-area: tgl; text-align: left; font-size: 11px !important; color: var(--slate-400) !important; border-top: 1px dashed var(--slate-100) !important; padding-top: 6px !important; }
-      #adminAssignmentTableBody tr td:nth-child(6) { grid-area: aksi; text-align: right; }
+      #adminAssignmentTableBody tr td:nth-child(6) { grid-area: aksi; width: 104px; min-width: 104px; padding-left: 4px !important; text-align: right; align-self: start; }
 
       /* 4. Smooth page transition micro-animation */
       .page-section {
@@ -4431,6 +4432,91 @@
     .approval-desktop-view { display: block; }
     .approval-mobile-view { display: none !important; }
   }
+
+  /* Bootstrap netral: cegah form login berkedip sebelum sesi lokal selesai diperiksa. */
+  html.auth-pending body { visibility: hidden; }
+  html.auth-pending::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    background: #f5f7fa;
+  }
+  html.auth-pending::after {
+    content: "Memuat SIM-SPPG...";
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 2147483647;
+    transform: translate(-50%, -50%);
+    color: #1e6f9c;
+    font: 700 13px/1.4 Inter, sans-serif;
+    letter-spacing: .2px;
+  }
+
+  /* Konfigurasi Admin: kolom aksi tidak ikut bergeser oleh panjang konten. */
+  #adminAssignmentTableBody .aa-actions-cell {
+    width: 112px;
+    min-width: 112px;
+    text-align: center;
+    vertical-align: top;
+  }
+  .admin-assignment-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 46px);
+    justify-content: end;
+    gap: 6px;
+  }
+  .admin-assignment-actions .btn {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    margin: 0 !important;
+    padding: 0;
+  }
+  #adminAssignmentTableBody .aa-email,
+  #adminAssignmentTableBody .aa-sppg,
+  #adminAssignmentTableBody .aa-yayasan {
+    overflow-wrap: anywhere;
+  }
+
+  /* Filter tanggal Transaksi. */
+  .tx-date-range {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(145px, 1fr));
+    flex: 1 1 320px;
+    gap: 10px;
+    min-width: 0;
+  }
+  .tx-date-field {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+  .tx-date-field span {
+    color: var(--slate-500);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .45px;
+    text-transform: uppercase;
+  }
+  .tx-date-field .form-input { width: 100%; min-width: 0; }
+
+  @media (max-width: 768px) {
+    #adminAssignmentTableBody .aa-actions-cell {
+      width: 104px !important;
+      min-width: 104px !important;
+    }
+    .admin-assignment-actions {
+      grid-template-columns: repeat(2, 46px);
+      gap: 6px;
+    }
+    .tx-date-range {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      flex-basis: 100%;
+      width: 100%;
+    }
+  }
 </style>
 </head>
 <body>
@@ -4803,6 +4889,16 @@
               <option value="PENDING">Belum Lunas</option>
               <option value="SUDAH_DIBAYAR">Sudah Dibayar</option>
             </select>
+            <div class="tx-date-range" role="group" aria-label="Rentang tanggal transaksi">
+              <label class="tx-date-field">
+                <span>Dari tanggal</span>
+                <input type="date" id="txFilterTglStart" class="form-input" onchange="filterTransaksi()" title="Tanggal mulai">
+              </label>
+              <label class="tx-date-field">
+                <span>Sampai tanggal</span>
+                <input type="date" id="txFilterTglEnd" class="form-input" onchange="filterTransaksi()" title="Tanggal akhir">
+              </label>
+            </div>
           </div>
         </div>
         <div class="table-container">
@@ -6769,6 +6865,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260726-approval-verification-state-v1"></script>
+<script src="./app.js?v=20260726-layout-session-date-filter-v1"></script>
 </body>
 </html>
