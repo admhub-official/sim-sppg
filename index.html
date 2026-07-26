@@ -4433,25 +4433,15 @@
     .approval-mobile-view { display: none !important; }
   }
 
-  /* Bootstrap netral: cegah form login berkedip sebelum sesi lokal selesai diperiksa. */
-  html.auth-pending body { visibility: hidden; }
-  html.auth-pending::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 2147483646;
-    background: #f5f7fa;
+  /* Gunakan overlay data yang sama sejak pemeriksaan sesi sampai aplikasi siap. */
+  html.auth-pending #authOverlay,
+  html.auth-pending #appContainer {
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
-  html.auth-pending::after {
-    content: "Memuat SIM-SPPG...";
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    z-index: 2147483647;
-    transform: translate(-50%, -50%);
-    color: #1e6f9c;
-    font: 700 13px/1.4 Inter, sans-serif;
-    letter-spacing: .2px;
+  html.auth-pending #appLoadingOverlay {
+    display: flex !important;
+    visibility: visible !important;
   }
 
   /* Konfigurasi Admin: kolom aksi tidak ikut bergeser oleh panjang konten. */
@@ -4604,11 +4594,11 @@
 <!-- MAIN APP CONTAINER                                           -->
 <!-- ============================================================ -->
 
-<!-- Full-screen loading overlay saat memuat seluruh data setelah login -->
-<div id="appLoadingOverlay" class="app-loading-overlay hidden">
+<!-- Satu loading overlay untuk pemeriksaan sesi dan pemuatan data aplikasi -->
+<div id="appLoadingOverlay" class="app-loading-overlay hidden" role="status" aria-live="polite" aria-label="Memuat aplikasi">
   <div class="app-loading-box">
     <img src="https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png" alt="Logo" class="app-loading-logo">
-    <p>Sedang memuat data...</p>
+    <p id="appLoadingStatusText">Menyiapkan SIM-SPPG...</p>
     <div class="app-loading-progress-track">
       <div class="app-loading-progress-fill" id="appLoadingProgressFill"></div>
     </div>
@@ -6865,6 +6855,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260726-layout-session-date-filter-v1"></script>
+<script src="./app.js?v=20260726-unified-loading-v1"></script>
 </body>
 </html>
