@@ -1796,8 +1796,8 @@ function switchPage(page, el) {
   // Page-specific init
   if (page === 'dashboard') { loadDashboardData(); updateChart(); renderQuickAccess(); }
   if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers();
-  if (page === 'transaksi') { loadTransactions(); restoreFilterBarState('txFilterBar'); }
-  if (page === 'approval') { loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
+  if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(); restoreFilterBarState('txFilterBar'); }
+  if (page === 'approval') { loadFeatureModes(true); loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
   if (page === 'master-bahan') { loadMasterBB(); restoreFilterBarState('bbFilterBar'); }
   if (page === 'master-supplier') { loadSuppliers(); restoreFilterBarState('supplierFilterBar'); }
