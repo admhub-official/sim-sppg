@@ -1998,38 +1998,6 @@ function executeWAReminder() {
 // ============================================================
 // 6. APP INITIALIZATION
 // ============================================================
-var _appLoadingProgressTimer = null;
-function startAppLoadingProgress() {
-  var fill = $('appLoadingProgressFill');
-  var text = $('appLoadingProgressText');
-  var status = $('appLoadingStatusText');
-  if (!fill || !text) return;
-  var progress = 0;
-  fill.style.width = '0%';
-  text.textContent = '0%';
-  if (status) status.textContent = 'Memuat data aplikasi...';
-  if (_appLoadingProgressTimer) clearInterval(_appLoadingProgressTimer);
-  // Naik cepat di awal, melambat mendekati 90% (menunggu data asli selesai)
-  _appLoadingProgressTimer = setInterval(function() {
-    var remaining = 90 - progress;
-    progress += Math.max(0.5, remaining * 0.08);
-    if (progress >= 90) progress = 90;
-    fill.style.width = progress + '%';
-    text.textContent = Math.round(progress) + '%';
-    if (progress >= 90) clearInterval(_appLoadingProgressTimer);
-  }, 100);
-}
-function finishAppLoadingProgress() {
-  if (_appLoadingProgressTimer) { clearInterval(_appLoadingProgressTimer); _appLoadingProgressTimer = null; }
-  var fill = $('appLoadingProgressFill');
-  var text = $('appLoadingProgressText');
-  var status = $('appLoadingStatusText');
-  if (fill) fill.style.width = '100%';
-  if (text) text.textContent = '100%';
-  if (status) status.textContent = 'Aplikasi siap';
-}
-
-
 /* ============================================================
      APPLICATION INITIALIZATION
      ============================================================ */
@@ -2038,7 +2006,6 @@ function initApp() {
 
   var appLoadingEl = $('appLoadingOverlay');
   if (appLoadingEl) appLoadingEl.classList.remove('hidden');
-  startAppLoadingProgress();
 
   loadGlobalDateFilterState();
   currentPage = getRestorablePage();
@@ -2086,12 +2053,10 @@ function initApp() {
       ]).then(function() {
         try { updateChart(); } catch(e) { console.error('updateChart error:', e); }
         renderQuickAccess();
-        finishAppLoadingProgress();
-        setTimeout(function() { if (appLoadingEl) appLoadingEl.classList.add('hidden'); }, 300);
+        if (appLoadingEl) appLoadingEl.classList.add('hidden');
       }).catch(function(e) {
         console.error('initApp load error:', e);
-        finishAppLoadingProgress();
-        setTimeout(function() { if (appLoadingEl) appLoadingEl.classList.add('hidden'); }, 300);
+        if (appLoadingEl) appLoadingEl.classList.add('hidden');
       });
     });
   });
