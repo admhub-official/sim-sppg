@@ -469,8 +469,17 @@ async function addTransaction(data: any, current: Caller) {
   }
 }
 
+async function userTransactionEditEnabled() {
+  const q = await sb.from('APP_SETTINGS').select('VALUE').eq('KEY', 'ALLOW_USER_EDIT_TRANSACTION').maybeSingle();
+  if (q.error) throw q.error;
+  return !q.data || String(q.data.VALUE || '').toLowerCase() === 'true';
+}
+
 async function editTransaction(id: string, fields: any, current: Caller) {
   const old = await getTransaction(current, id);
+  if (current.role === 'USER' && !(await userTransactionEditEnabled())) {
+    throw new Error('Edit transaksi untuk USER sedang dinonaktifkan oleh ADMIN.');
+  }
   const existing = (await docsFor([id])).get(id) || new Map<string, Doc>();
   const fieldMap: Record<string, string> = {
     Tanggal: 'Tanggal',
@@ -630,7 +639,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') return json({
     status: 'ok',
     service: 'transaction-action',
-    version: 7,
+    version: 8,
     documentReadSource: T.DA,
     yayasanResolutionSource: T.S,
     writeMode: 'normalized-atomic',
