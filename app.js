@@ -1389,6 +1389,28 @@ PIC: [
   ]
 };
 
+function getLastPageStorageKey() {
+  var identity = currentUser && (currentUser.email || currentUser.username || currentUser.id);
+  return 'sppg_last_page:' + String(identity || 'default').toLowerCase();
+}
+
+function isPageAllowedForCurrentUser(page) {
+  if (!currentUser || !page) return false;
+  var menus = MENU_CONFIG[currentUser.role] || MENU_CONFIG.USER || [];
+  return menus.some(function(item) { return item.page === page; });
+}
+
+function getRestorablePage() {
+  var saved = safeStorage('get', getLastPageStorageKey()) || 'dashboard';
+  return isPageAllowedForCurrentUser(saved) ? saved : 'dashboard';
+}
+
+function rememberCurrentPage(page) {
+  if (isPageAllowedForCurrentUser(page)) {
+    safeStorage('set', getLastPageStorageKey(), page);
+  }
+}
+
 function buildSidebar() {
   var role = currentUser ? currentUser.role : '';
  var menus = MENU_CONFIG[role] || MENU_CONFIG['USER'];
@@ -1754,6 +1776,7 @@ document.addEventListener('click', function(e) {
      APP SHELL & NAVIGATION
      ============================================================ */
 function switchPage(page, el) {
+  if (!isPageAllowedForCurrentUser(page)) page = 'dashboard';
   // SAFETY NET: pastikan body tidak terkunci sisa dari modal yang gagal
   // ditutup dengan benar (mis. alur Approval->PIN atau Verifikasi->PIN
   // yang terinterupsi). Tanpa ini, overflow:hidden bisa "nyangkut" dan
@@ -1775,6 +1798,7 @@ function switchPage(page, el) {
     if (menuItem) menuItem.classList.add('active');
   }
   currentPage = page;
+  rememberCurrentPage(page);
   // Update title
   var titles = {
     'dashboard': 'Dashboard', 'profil': 'Profil', 'users': 'Manajemen Users', 'laporan': 'Laporan',
@@ -2013,6 +2037,7 @@ function initApp() {
   startAppLoadingProgress();
 
   loadGlobalDateFilterState();
+  currentPage = getRestorablePage();
 
   buildSidebar();
   buildBottomNav();
@@ -2021,6 +2046,10 @@ function initApp() {
   loadFeatureModes();
   startIdleLogoutWatcher();
   if (_swRegistration) initPushNotification();
+
+  // Kembali ke halaman terakhir yang memang tersedia untuk role pengguna.
+  // Dashboard tetap menjadi fallback aman jika menu lama sudah tidak diizinkan.
+  if (currentPage !== 'dashboard') switchPage(currentPage);
 
 // Load foto profil ke icon menu (sidebar & bottom-nav) sejak awal, bukan hanya saat buka halaman Profil
   if (currentUser.fotoProfil && String(currentUser.fotoProfil).trim() !== '' && currentUser.fotoProfil !== '-') {
@@ -2900,8 +2929,15 @@ function loadTransactions(page, forceAll) {
   var sppgEl=$('txFilterSPPG'), kategoriEl=$('txFilterKategori');
   if (sppgEl && sppgEl.value && sppgEl.value !== 'ALL') filters.sppg=sppgEl.value;
   if (kategoriEl && kategoriEl.value && kategoriEl.value !== 'ALL') filters.kategori=kategoriEl.value;
-  if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
-  if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
+  var localDateStart = $('txFilterTglStart') ? $('txFilterTglStart').value : '';
+  var localDateEnd = $('txFilterTglEnd') ? $('txFilterTglEnd').value : '';
+  if (localDateStart || localDateEnd) {
+    if (localDateStart) filters.dateStart = localDateStart;
+    if (localDateEnd) filters.dateEnd = localDateEnd;
+  } else {
+    if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
+    if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
+  }
   if (!forceAll) { filters.page=page; filters.pageSize=ITEMS_PER_PAGE; }
 
   callApi('getTransactions', [filters], function(result) {
@@ -2991,6 +3027,11 @@ function applyTransactionFiltersLocal() {
   var sppg = $('txFilterSPPG') ? $('txFilterSPPG').value : 'ALL';
   var kategori = $('txFilterKategori') ? $('txFilterKategori').value : 'ALL';
   var status = $('txFilterStatus') ? $('txFilterStatus').value : 'ALL';
+  var localDateStart = $('txFilterTglStart') ? $('txFilterTglStart').value : '';
+  var localDateEnd = $('txFilterTglEnd') ? $('txFilterTglEnd').value : '';
+  var hasLocalDateRange = !!(localDateStart || localDateEnd);
+  var dateStart = hasLocalDateRange ? localDateStart : (globalDateFilter.start || '');
+  var dateEnd = hasLocalDateRange ? localDateEnd : (globalDateFilter.end || '');
   filteredTransactions = allTransactions.filter(function(tx) {
     if (search) {
       var text = ((tx.kode || '') + ' ' + (tx.item || '') + ' ' + (tx.user || '') + ' ' + (tx.sppg || '')).toLowerCase();
@@ -3001,13 +3042,31 @@ function applyTransactionFiltersLocal() {
     var metode = String(tx.metodeTransaksi || '').trim().toUpperCase();
     if (status === 'PENDING' && metode === 'SUDAH_DIBAYAR') return false;
     if (status === 'SUDAH_DIBAYAR' && metode !== 'SUDAH_DIBAYAR') return false;
+    var txDate = normalizeTransactionDateKey(tx.tanggal);
+    if (dateStart && (!txDate || txDate < dateStart)) return false;
+    if (dateEnd && (!txDate || txDate > dateEnd)) return false;
     return true;
   });
+}
+
+function normalizeTransactionDateKey(value) {
+  var raw = String(value || '').trim();
+  var iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+  var id = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (id) return id[3] + '-' + id[2] + '-' + id[1];
+  return '';
 }
 
 function filterTransaksi() {
   var search = $('txSearchInput') ? $('txSearchInput').value.trim() : '';
   var status = $('txFilterStatus') ? $('txFilterStatus').value : 'ALL';
+  var dateStart = $('txFilterTglStart') ? $('txFilterTglStart').value : '';
+  var dateEnd = $('txFilterTglEnd') ? $('txFilterTglEnd').value : '';
+  if (dateStart && dateEnd && dateStart > dateEnd) {
+    showToast('warning', 'Rentang Tanggal', 'Tanggal mulai tidak boleh melewati tanggal akhir.');
+    return;
+  }
   var needsFullDataset = !!search || status !== 'ALL';
   clearTimeout(txFilterTimer);
   txFilterTimer=setTimeout(function(){
@@ -3326,6 +3385,8 @@ function saveAddTransaksi() {
                   if ($('txFilterSPPG')) $('txFilterSPPG').value = 'ALL';
                   if ($('txFilterKategori')) $('txFilterKategori').value = 'ALL';
                   if ($('txFilterStatus')) $('txFilterStatus').value = 'ALL';
+                  if ($('txFilterTglStart')) $('txFilterTglStart').value = '';
+                  if ($('txFilterTglEnd')) $('txFilterTglEnd').value = '';
                   txPage = 1;
                   // Optimistic update: langsung muat ulang tanpa mengosongkan tabel dulu,
                   // jadi user tidak melihat tabel "kosong sesaat" lalu terisi lagi 6 detik kemudian.
@@ -6538,19 +6599,21 @@ function renderAdminAssignmentTable() {
   }
   var html = '';
   allAdminAssignments.forEach(function(a, idx) {
-    html += '<tr>' +
-      '<td style="text-align:center;color:var(--slate-400);">' + (idx + 1) + '</td>' +
-      '<td>' + esc(a.admin_email) + '</td>' +
-      '<td>' + esc(a.sppg) + '</td>' +
-      '<td>' + esc(a.yayasan) + '</td>' +
-      '<td style="white-space:nowrap;font-size:11px;">' + esc(a.created_at ? String(a.created_at).substring(0, 10) : '-') + '</td>' +
-      '<td style="text-align:center;">' +
-        '<button class="btn btn-icon" onclick="openEditAdminAssignmentModal(\'' + a.id + '\',\'' + esc(a.admin_email) + '\',\'' + esc(a.sppg) + '\',\'' + esc(a.yayasan) + '\')" title="Edit" style="margin-right:4px;">' +
+    html += '<tr class="admin-assignment-row">' +
+      '<td class="aa-index" style="text-align:center;color:var(--slate-400);">' + (idx + 1) + '</td>' +
+      '<td class="aa-email">' + esc(a.admin_email) + '</td>' +
+      '<td class="aa-sppg">' + esc(a.sppg) + '</td>' +
+      '<td class="aa-yayasan">' + esc(a.yayasan) + '</td>' +
+      '<td class="aa-date" style="white-space:nowrap;font-size:11px;">' + esc(a.created_at ? String(a.created_at).substring(0, 10) : '-') + '</td>' +
+      '<td class="aa-actions-cell">' +
+        '<div class="admin-assignment-actions">' +
+        '<button class="btn btn-icon" onclick="openEditAdminAssignmentModal(\'' + a.id + '\',\'' + esc(a.admin_email) + '\',\'' + esc(a.sppg) + '\',\'' + esc(a.yayasan) + '\')" title="Edit">' +
           '<i class="fas fa-edit"></i>' +
         '</button>' +
         '<button class="btn btn-icon btn-danger-outline" onclick="deleteAdminAssignmentRow(\'' + a.id + '\')" title="Hapus">' +
           '<i class="fas fa-trash"></i>' +
         '</button>' +
+        '</div>' +
       '</td>' +
       '</tr>';
   });
@@ -7004,6 +7067,8 @@ function getActiveFilterInfo() {
     if ($('txFilterSPPG').value !== 'ALL') info.push('SPPG=' + $('txFilterSPPG').value);
     if ($('txFilterKategori').value !== 'ALL') info.push('Kat=' + $('txFilterKategori').value);
     if ($('txFilterStatus').value !== 'ALL') info.push('Status=' + $('txFilterStatus').value);
+    if ($('txFilterTglStart') && $('txFilterTglStart').value) info.push('Dari=' + $('txFilterTglStart').value);
+    if ($('txFilterTglEnd') && $('txFilterTglEnd').value) info.push('Sampai=' + $('txFilterTglEnd').value);
     if ($('txSearchInput').value.trim()) info.push('Cari=' + $('txSearchInput').value.trim());
   }
   if (currentPage === 'master-bahan') {
@@ -7604,10 +7669,15 @@ function submitRecovery() {
   document.body.style.overflow = '';
   document.body.style.position = '';
 
-  if (checkSession()) {
+  var hasActiveSession = checkSession();
+  document.documentElement.classList.remove('auth-pending');
+  if (hasActiveSession) {
     document.getElementById('authOverlay').classList.add('hidden');
     document.getElementById('appContainer').classList.remove('hidden');
     initApp();
+  } else {
+    document.getElementById('appContainer').classList.add('hidden');
+    document.getElementById('authOverlay').classList.remove('hidden');
   }
 
   document.addEventListener('keydown', function(e) {
