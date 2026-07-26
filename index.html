@@ -1925,6 +1925,21 @@
       box-shadow: var(--shadow-sm);
     }
     .toggle-switch.active::after { transform: translateX(18px); }
+    .toggle-switch:disabled { opacity: .6; cursor: wait; }
+    .feature-toggle-card {
+      min-width: 250px;
+      border-radius: 14px;
+      padding: 8px 10px;
+      gap: 12px;
+      box-shadow: 0 4px 14px rgba(15,23,42,.05);
+    }
+    .feature-toggle-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .feature-toggle-title { display: flex; align-items: center; gap: 7px; color: var(--slate-700); font-weight: 800; }
+    .feature-toggle-title i { color: var(--primary); }
+    .feature-toggle-copy small { color: var(--slate-500); font-size: 10px; font-weight: 500; line-height: 1.3; }
+    body.dark-mode .feature-toggle-card { background: var(--slate-800); border-color: var(--slate-700); box-shadow: none; }
+    body.dark-mode .feature-toggle-title { color: var(--slate-100); }
+    body.dark-mode .feature-toggle-copy small { color: var(--slate-400); }
 
 
     .w-full { width: 100%; }
@@ -4354,7 +4369,10 @@
     #page-approval { padding-bottom: 8px; }
     #page-approval .page-header { align-items: flex-start; gap: 10px; }
     #page-approval .page-header-actions { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
-    #page-approval .page-header-actions .toggle-switch-wrap { grid-column: 1 / -1; justify-content: space-between; }
+    #page-approval .page-header-actions .toggle-switch-wrap { grid-column: 1 / -1; justify-content: space-between; width: 100%; min-width: 0; }
+    #page-transaksi .page-header-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    #page-transaksi .page-header-actions .feature-toggle-card { grid-column: 1 / -1; justify-content: space-between; width: 100%; min-width: 0; }
+    #page-transaksi .page-header-actions .btn { justify-content: center; min-width: 0; }
     #page-approval .page-header-actions .btn { justify-content: center; min-width: 0; }
     #page-approval .filter-bar { border-radius: 14px; }
     #apprBulkBar { position: sticky; top: calc(var(--header-height) + 8px); z-index: 20; margin: 0 0 12px !important; border-radius: 14px !important; box-shadow: 0 10px 24px rgba(30,111,156,.14); }
@@ -4748,6 +4766,13 @@
             <p class="page-desc" id="transaksiDesc">Daftar transaksi</p>
           </div>
           <div class="page-header-actions">
+            <div class="toggle-switch-wrap feature-toggle-card hidden no-print" id="txEditModeToggleWrap" title="Atur izin USER untuk mengedit transaksi miliknya">
+              <div class="feature-toggle-copy">
+                <span class="feature-toggle-title"><i class="fas fa-user-edit"></i><span id="txEditModeToggleLabel">Edit USER nonaktif</span></span>
+                <small id="txEditModeToggleHint">Memuat pengaturan...</small>
+              </div>
+              <button type="button" class="toggle-switch" id="txEditModeToggleSwitch" role="switch" aria-checked="false" aria-label="Aktifkan atau nonaktifkan edit transaksi USER" onclick="toggleTransactionEditMode()"></button>
+            </div>
             <button class="btn btn-primary btn-sm no-print desktop-add-transaction" onclick="openAddTransaksiModal()" title="Tambah Transaksi">
               <i class="fas fa-plus"></i><span class="btn-label-hide"> Tambah Transaksi</span>
             </button>
@@ -4812,9 +4837,12 @@
             <p class="page-desc">Tinjau transaksi melalui tabel desktop atau kartu ringkas di perangkat mobile</p>
           </div>
           <div class="page-header-actions">
-            <div class="toggle-switch-wrap hidden" id="apprModeToggleWrap" title="Izinkan user upload bukti pembayaran sendiri">
-              <span id="apprModeToggleLabel">Upload Mandiri: OFF</span>
-              <div class="toggle-switch" id="apprModeToggleSwitch" onclick="toggleUploadBuktiMode()"></div>
+            <div class="toggle-switch-wrap feature-toggle-card hidden no-print" id="apprModeToggleWrap" title="Atur izin USER untuk mengirim bukti pelunasan">
+              <div class="feature-toggle-copy">
+                <span class="feature-toggle-title"><i class="fas fa-receipt"></i><span id="apprModeToggleLabel">Upload mandiri nonaktif</span></span>
+                <small id="apprModeToggleHint">Memuat pengaturan...</small>
+              </div>
+              <button type="button" class="toggle-switch" id="apprModeToggleSwitch" role="switch" aria-checked="false" aria-label="Aktifkan atau nonaktifkan upload bukti mandiri USER" onclick="toggleUploadBuktiMode()"></button>
             </div>
             <button class="btn btn-outline btn-sm no-print" onclick="exportApproval('csv')">
               <i class="fas fa-file-csv"></i><span class="btn-label-hide"> CSV</span>
@@ -6741,6 +6769,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260724-approval-hide-missing-v1"></script>
+<script src="./app.js?v=20260726-feature-controls-v1"></script>
 </body>
 </html>
