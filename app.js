@@ -1818,19 +1818,19 @@ function switchPage(page, el) {
   updateBottomNavActive();
   updateFabVisibility();
   // Page-specific init
-  if (page === 'dashboard') { loadDashboardData(); updateChart(); renderQuickAccess(); }
-  if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers();
-  if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(); restoreFilterBarState('txFilterBar'); }
+  if (page === 'dashboard') { loadDashboardData(true); updateChart(); renderQuickAccess(); }
+  if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers(true);
+  if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(undefined, undefined, true); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadFeatureModes(true); loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
-  if (page === 'master-bahan') { loadMasterBB(); restoreFilterBarState('bbFilterBar'); }
-  if (page === 'master-supplier') { loadSuppliers(); restoreFilterBarState('supplierFilterBar'); }
-  if (page === 'survei') { loadSurvei(); restoreFilterBarState('surveiFilterBar'); }
-  if (page === 'serah-terima') { loadSerahTerima(); restoreFilterBarState('stFilterBar'); }
-  if (page === 'menu-mbg') loadMenuMBG();
-  if (page === 'pending-payment') loadPendingPayment();
-  if (page === 'audit-log' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) { loadAuditLog(); restoreFilterBarState('auditFilterBar'); }
-  if (page === 'admin-assignment' && currentUser.role === 'SUPER_ADMIN') { loadAdminAssignments(); restoreFilterBarState('adminAssignmentFilterBar'); }
+  if (page === 'master-bahan') { loadMasterBB(undefined, undefined, true); restoreFilterBarState('bbFilterBar'); }
+  if (page === 'master-supplier') { loadSuppliers(true); restoreFilterBarState('supplierFilterBar'); }
+  if (page === 'survei') { loadSurvei(undefined, undefined, true); restoreFilterBarState('surveiFilterBar'); }
+  if (page === 'serah-terima') { loadSerahTerima(undefined, undefined, true); restoreFilterBarState('stFilterBar'); }
+  if (page === 'menu-mbg') loadMenuMBG(undefined, true);
+  if (page === 'pending-payment') loadPendingPayment(undefined, true);
+  if (page === 'audit-log' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) { loadAuditLog(undefined, true); restoreFilterBarState('auditFilterBar'); }
+  if (page === 'admin-assignment' && currentUser.role === 'SUPER_ADMIN') { loadAdminAssignments(true); restoreFilterBarState('adminAssignmentFilterBar'); }
   if (page === 'laporan') { /* Unified report center is installed by bootstrapRuntime(). */ }
     if (page === 'profil') renderProfil();
   
@@ -2046,7 +2046,7 @@ function initApp() {
       try { initChart(); } catch(e) { console.error('initChart error:', e); }
       renderQuickAccess();
       Promise.all([
-        loadDashboardData(),
+        loadDashboardData(true),
         loadDropdownOptions(),
         loadUsers(true),
         loadSuppliers(true)
@@ -2157,19 +2157,19 @@ function populatePendingTransaksiSelect() {
 /* ============================================================
      DASHBOARD
      ============================================================ */
-function loadDashboardData() {
+function loadDashboardData(silent) {
   return new Promise(function(resolve) {
     if (!currentUser) { resolve(); return; }
     // R3: Tampilkan skeleton screen, sembunyikan stat cards sementara
     var skeleton = $('skeletonDashboard');
     var statCards = $('dashboardStats');
-    if (skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
-    showLoading(true);
+    if (!silent && skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
+    if (!silent) showLoading(true);
     callApi('getDashboardKPI', [
       globalDateFilter.start,
       globalDateFilter.end
     ], function(result) {
-        showLoading(false);
+        if (!silent) showLoading(false);
                 // R3: Sembunyikan skeleton, tampilkan stat cards
                 if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
                 if (result.success) {
@@ -2190,7 +2190,7 @@ function loadDashboardData() {
                 resolve();
       },
       function(err) {
-        showLoading(false); resolve();
+        if (!silent) showLoading(false); resolve();
       }
     );
   });
@@ -2880,11 +2880,11 @@ function saveEditUser() {
 /* ============================================================
      TRANSACTIONS
      ============================================================ */
-function loadTransactions(page, forceAll) {
+function loadTransactions(page, forceAll, silent) {
   if (!currentUser) return;
   page = Math.max(1, Number(page) || txPage || 1);
   forceAll = !!forceAll;
-  showLoading(true);
+  if (!silent) showLoading(true);
   var tbody = $('transaksiTableBody');
   if (tbody) {
     tbody.innerHTML = '<tr><td colspan="9"><div class="skeleton-screen" style="padding:20px;">' +
@@ -2910,7 +2910,7 @@ function loadTransactions(page, forceAll) {
   if (!forceAll) { filters.page=page; filters.pageSize=ITEMS_PER_PAGE; }
 
   callApi('getTransactions', [filters], function(result) {
-    showLoading(false);
+    if (!silent) showLoading(false);
     var rows, meta=null;
     if (Array.isArray(result)) rows=result;
     else if (result && Array.isArray(result.data)) { rows=result.data; meta=result; }
@@ -2927,7 +2927,7 @@ function loadTransactions(page, forceAll) {
     populatePendingTransaksiSelect();
     renderTransaksiTable();
   }, function(err) {
-    showLoading(false);
+    if (!silent) showLoading(false);
     showToast('error', 'Gagal', 'Tidak dapat memuat transaksi: ' + (err.message || ''));
     allTransactions=[]; filteredTransactions=[]; txServerTotal=0; txServerPaged=false; renderTransaksiTable();
   });
@@ -5168,11 +5168,11 @@ function doSubmitVerifikasiPembayaran() {
 /* ============================================================
      MASTER DATA - BAHAN BAKU
      ============================================================ */
-function loadMasterBB(page, forceAll) {
+function loadMasterBB(page, forceAll, silent) {
   page=Math.max(1,Number(page)||bbPage||1); forceAll=!!forceAll;
-  showLoading(true);
+  if (!silent) showLoading(true);
   callApi('getMasterBahanBaku', forceAll?[]:[{page:page,pageSize:ITEMS_PER_PAGE}], function(result) {
-    showLoading(false);
+    if (!silent) showLoading(false);
     if(result&&result.success){
       var rows=Array.isArray(result.data)?result.data:[];
       bbServerPaged=!forceAll&&Number(result.page)>0;
@@ -5180,7 +5180,7 @@ function loadMasterBB(page, forceAll) {
       bbPage=bbServerPaged?Number(result.page||page):1;
       allMasterBB=rows; applyMasterBBFiltersLocal(); renderMasterBBTable();
     }
-  }, function(err){showLoading(false);showToast('error','Gagal','Tidak dapat memuat data');allMasterBB=[];filteredMasterBB=[];bbServerTotal=0;bbServerPaged=false;renderMasterBBTable();});
+  }, function(err){if(!silent)showLoading(false);showToast('error','Gagal','Tidak dapat memuat data');allMasterBB=[];filteredMasterBB=[];bbServerTotal=0;bbServerPaged=false;renderMasterBBTable();});
 }
 function renderMasterBBTable() {
   var tbody = $('masterBBTableBody');
@@ -5804,12 +5804,12 @@ function clearSupTtd() { clearTtdCanvas('supTtdCanvas'); }
 /* ============================================================
      SURVEY
      ============================================================ */
-function loadSurvei(page, forceAll) {
-  page=Math.max(1,Number(page)||surveiPage||1); forceAll=!!forceAll; showLoading(true);
+function loadSurvei(page, forceAll, silent) {
+  page=Math.max(1,Number(page)||surveiPage||1); forceAll=!!forceAll; if(!silent)showLoading(true);
   callApi('getSurveiBahanBaku',forceAll?[]:[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){
-    showLoading(false);
+    if(!silent)showLoading(false);
     if(result&&result.success){var rows=Array.isArray(result.data)?result.data:[];surveiServerPaged=!forceAll&&Number(result.page)>0;surveiServerTotal=surveiServerPaged?Number(result.total||0):rows.length;surveiPage=surveiServerPaged?Number(result.page||page):1;allSurvei=rows;applySurveiFiltersLocal();populateSurveiFilterOptions();renderSurveiTable();}
-  },function(err){showLoading(false);showToast('error','Gagal','Tidak dapat memuat data survei');allSurvei=[];filteredSurvei=[];surveiServerTotal=0;surveiServerPaged=false;renderSurveiTable();});
+  },function(err){if(!silent)showLoading(false);showToast('error','Gagal','Tidak dapat memuat data survei');allSurvei=[];filteredSurvei=[];surveiServerTotal=0;surveiServerPaged=false;renderSurveiTable();});
 }
 function renderSurveiTable() {
   var tbody = $('surveiTableBody');
@@ -6031,7 +6031,7 @@ function submitSurveiData(data) {
 /* ============================================================
      SERAH TERIMA
      ============================================================ */
-function loadSerahTerima(page,forceAll){page=Math.max(1,Number(page)||stPage||1);forceAll=!!forceAll;showLoading(true);callApi('getSerahTerima',forceAll?[]:[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){showLoading(false);if(result&&result.success){var rows=Array.isArray(result.data)?result.data:[];stServerPaged=!forceAll&&Number(result.page)>0;stServerTotal=stServerPaged?Number(result.total||0):rows.length;stPage=stServerPaged?Number(result.page||page):1;allSerahTerima=rows;applySerahTerimaFiltersLocal();renderSerahTerimaTable();}},function(err){showLoading(false);showToast('error','Gagal','Tidak dapat memuat data');allSerahTerima=[];filteredSerahTerima=[];stServerTotal=0;stServerPaged=false;renderSerahTerimaTable();});}
+function loadSerahTerima(page,forceAll,silent){page=Math.max(1,Number(page)||stPage||1);forceAll=!!forceAll;if(!silent)showLoading(true);callApi('getSerahTerima',forceAll?[]:[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){if(!silent)showLoading(false);if(result&&result.success){var rows=Array.isArray(result.data)?result.data:[];stServerPaged=!forceAll&&Number(result.page)>0;stServerTotal=stServerPaged?Number(result.total||0):rows.length;stPage=stServerPaged?Number(result.page||page):1;allSerahTerima=rows;applySerahTerimaFiltersLocal();renderSerahTerimaTable();}},function(err){if(!silent)showLoading(false);showToast('error','Gagal','Tidak dapat memuat data');allSerahTerima=[];filteredSerahTerima=[];stServerTotal=0;stServerPaged=false;renderSerahTerimaTable();});}
 function renderSerahTerimaTable() {
   var tbody = $('serahTerimaTableBody');
   if (!filteredSerahTerima.length) { tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-dolly"></i></div><h4>Tidak Ada Data</h4></div></td></tr>'; $('serahTerimaPagination').innerHTML = ''; return; }
@@ -6214,7 +6214,7 @@ function saveAddSerahTerima() {
 /* ============================================================
      MENU MBG
      ============================================================ */
-function loadMenuMBG(page){page=Math.max(1,Number(page)||menuMBGPage||1);showLoading(true);callApi('getMenuHarian',[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){showLoading(false);if(result&&result.success){allMenuMBG=Array.isArray(result.data)?result.data:[];menuServerPaged=Number(result.page)>0;menuServerTotal=menuServerPaged?Number(result.total||0):allMenuMBG.length;menuMBGPage=menuServerPaged?Number(result.page||page):1;renderMenuMBGTable();}},function(err){showLoading(false);showToast('error','Gagal','Tidak dapat memuat data menu');allMenuMBG=[];menuServerTotal=0;menuServerPaged=false;renderMenuMBGTable();});}
+function loadMenuMBG(page,silent){page=Math.max(1,Number(page)||menuMBGPage||1);if(!silent)showLoading(true);callApi('getMenuHarian',[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){if(!silent)showLoading(false);if(result&&result.success){allMenuMBG=Array.isArray(result.data)?result.data:[];menuServerPaged=Number(result.page)>0;menuServerTotal=menuServerPaged?Number(result.total||0):allMenuMBG.length;menuMBGPage=menuServerPaged?Number(result.page||page):1;renderMenuMBGTable();}},function(err){if(!silent)showLoading(false);showToast('error','Gagal','Tidak dapat memuat data menu');allMenuMBG=[];menuServerTotal=0;menuServerPaged=false;renderMenuMBGTable();});}
 function renderMenuMBGTable() {
   var tbody = $('menuMBGTableBody');
   if (!allMenuMBG.length) { tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-utensils"></i></div><h4>Tidak Ada Data Menu</h4></div></td></tr>'; $('menuMBGPagination').innerHTML = ''; return; }
@@ -6359,7 +6359,7 @@ function saveAddMenuMBG() {
 /* ============================================================
      PENDING PAYMENT
      ============================================================ */
-function loadPendingPayment(page){page=Math.max(1,Number(page)||pendingPage||1);showLoading(true);callApi('getPendingPayments',[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){showLoading(false);if(Array.isArray(result)){allPending=result;pendingServerPaged=false;pendingServerTotal=result.length;pendingPage=1;}else if(result&&result.success){allPending=Array.isArray(result.data)?result.data:[];pendingServerPaged=Number(result.page)>0;pendingServerTotal=pendingServerPaged?Number(result.total||0):allPending.length;pendingPage=pendingServerPaged?Number(result.page||page):1;}else{allPending=[];pendingServerTotal=0;pendingServerPaged=false;}renderPendingTable();},function(err){showLoading(false);showToast('error','Gagal','Tidak dapat memuat data');allPending=[];pendingServerTotal=0;pendingServerPaged=false;renderPendingTable();});}
+function loadPendingPayment(page,silent){page=Math.max(1,Number(page)||pendingPage||1);if(!silent)showLoading(true);callApi('getPendingPayments',[{page:page,pageSize:ITEMS_PER_PAGE}],function(result){if(!silent)showLoading(false);if(Array.isArray(result)){allPending=result;pendingServerPaged=false;pendingServerTotal=result.length;pendingPage=1;}else if(result&&result.success){allPending=Array.isArray(result.data)?result.data:[];pendingServerPaged=Number(result.page)>0;pendingServerTotal=pendingServerPaged?Number(result.total||0):allPending.length;pendingPage=pendingServerPaged?Number(result.page||page):1;}else{allPending=[];pendingServerTotal=0;pendingServerPaged=false;}renderPendingTable();},function(err){if(!silent)showLoading(false);showToast('error','Gagal','Tidak dapat memuat data');allPending=[];pendingServerTotal=0;pendingServerPaged=false;renderPendingTable();});}
 
 
 function renderPendingTable() {
@@ -6467,7 +6467,7 @@ var auditLogPage = 1;
 /* ============================================================
      AUDIT LOG & NOTIFICATIONS
      ============================================================ */
-function loadAuditLog(page){if(!currentUser||['ADMIN','SUPER_ADMIN'].indexOf(currentUser.role)===-1)return;page=Math.max(1,Number(page)||auditLogPage||1);showLoading(true);var f={page:page,pageSize:ITEMS_PER_PAGE};if($('auditSearchInput')&&$('auditSearchInput').value.trim())f.search=$('auditSearchInput').value.trim();if($('auditFilterAction')&&$('auditFilterAction').value!=='ALL')f.actionType=$('auditFilterAction').value;if($('auditFilterTglStart')&&$('auditFilterTglStart').value)f.dateStart=$('auditFilterTglStart').value;if($('auditFilterTglEnd')&&$('auditFilterTglEnd').value)f.dateEnd=$('auditFilterTglEnd').value;callApi('getAuditLog',[f],function(result){showLoading(false);if(result&&result.success){allAuditLog=Array.isArray(result.data)?result.data:[];filteredAuditLog=allAuditLog.slice();auditServerPaged=Number(result.page)>0;auditServerTotal=auditServerPaged?Number(result.total||0):allAuditLog.length;auditLogPage=auditServerPaged?Number(result.page||page):1;populateAuditActionFilter();renderAuditLogTable();}else{showToast('error','Gagal',result&&result.message||'Tidak dapat memuat riwayat aktivitas');}},function(err){showLoading(false);showToast('error','Gagal','Tidak dapat memuat riwayat aktivitas');allAuditLog=[];filteredAuditLog=[];auditServerTotal=0;auditServerPaged=false;renderAuditLogTable();});}
+function loadAuditLog(page,silent){if(!currentUser||['ADMIN','SUPER_ADMIN'].indexOf(currentUser.role)===-1)return;page=Math.max(1,Number(page)||auditLogPage||1);if(!silent)showLoading(true);var f={page:page,pageSize:ITEMS_PER_PAGE};if($('auditSearchInput')&&$('auditSearchInput').value.trim())f.search=$('auditSearchInput').value.trim();if($('auditFilterAction')&&$('auditFilterAction').value!=='ALL')f.actionType=$('auditFilterAction').value;if($('auditFilterTglStart')&&$('auditFilterTglStart').value)f.dateStart=$('auditFilterTglStart').value;if($('auditFilterTglEnd')&&$('auditFilterTglEnd').value)f.dateEnd=$('auditFilterTglEnd').value;callApi('getAuditLog',[f],function(result){if(!silent)showLoading(false);if(result&&result.success){allAuditLog=Array.isArray(result.data)?result.data:[];filteredAuditLog=allAuditLog.slice();auditServerPaged=Number(result.page)>0;auditServerTotal=auditServerPaged?Number(result.total||0):allAuditLog.length;auditLogPage=auditServerPaged?Number(result.page||page):1;populateAuditActionFilter();renderAuditLogTable();}else{showToast('error','Gagal',result&&result.message||'Tidak dapat memuat riwayat aktivitas');}},function(err){if(!silent)showLoading(false);showToast('error','Gagal','Tidak dapat memuat riwayat aktivitas');allAuditLog=[];filteredAuditLog=[];auditServerTotal=0;auditServerPaged=false;renderAuditLogTable();});}
 
 
 function populateAuditActionFilter() {
@@ -6536,12 +6536,12 @@ function resetAuditFilter() {
 var allAdminAssignments = [];
 var _aaEmailDebounce = null;
 
-function loadAdminAssignments() {
+function loadAdminAssignments(silent) {
   if (!currentUser || currentUser.role !== 'SUPER_ADMIN') return;
   var targetEmail = ($('adminAssignmentEmailInput') && $('adminAssignmentEmailInput').value.trim()) || '';
-  showLoading(true);
+  if (!silent) showLoading(true);
   callApi('getAdminAssignments', [targetEmail], function(result) {
-    showLoading(false);
+    if (!silent) showLoading(false);
     if (result.success) {
       allAdminAssignments = result.data || [];
       renderAdminAssignmentTable();
@@ -6549,7 +6549,7 @@ function loadAdminAssignments() {
       showToast('error', 'Gagal', result.message || 'Tidak dapat memuat data assignment');
     }
   }, function(err) {
-    showLoading(false);
+    if (!silent) showLoading(false);
     showToast('error', 'Gagal', 'Tidak dapat memuat data assignment: ' + (err.message || ''));
   });
 }
