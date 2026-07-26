@@ -2002,10 +2002,12 @@ var _appLoadingProgressTimer = null;
 function startAppLoadingProgress() {
   var fill = $('appLoadingProgressFill');
   var text = $('appLoadingProgressText');
+  var status = $('appLoadingStatusText');
   if (!fill || !text) return;
   var progress = 0;
   fill.style.width = '0%';
   text.textContent = '0%';
+  if (status) status.textContent = 'Memuat data aplikasi...';
   if (_appLoadingProgressTimer) clearInterval(_appLoadingProgressTimer);
   // Naik cepat di awal, melambat mendekati 90% (menunggu data asli selesai)
   _appLoadingProgressTimer = setInterval(function() {
@@ -2021,8 +2023,10 @@ function finishAppLoadingProgress() {
   if (_appLoadingProgressTimer) { clearInterval(_appLoadingProgressTimer); _appLoadingProgressTimer = null; }
   var fill = $('appLoadingProgressFill');
   var text = $('appLoadingProgressText');
+  var status = $('appLoadingStatusText');
   if (fill) fill.style.width = '100%';
   if (text) text.textContent = '100%';
+  if (status) status.textContent = 'Aplikasi siap';
 }
 
 
@@ -7670,14 +7674,18 @@ function submitRecovery() {
   document.body.style.position = '';
 
   var hasActiveSession = checkSession();
-  document.documentElement.classList.remove('auth-pending');
+  var bootstrapLoading = document.getElementById('appLoadingOverlay');
   if (hasActiveSession) {
+    if (bootstrapLoading) bootstrapLoading.classList.remove('hidden');
     document.getElementById('authOverlay').classList.add('hidden');
     document.getElementById('appContainer').classList.remove('hidden');
+    document.documentElement.classList.remove('auth-pending');
     initApp();
   } else {
+    if (bootstrapLoading) bootstrapLoading.classList.add('hidden');
     document.getElementById('appContainer').classList.add('hidden');
     document.getElementById('authOverlay').classList.remove('hidden');
+    document.documentElement.classList.remove('auth-pending');
   }
 
   document.addEventListener('keydown', function(e) {
