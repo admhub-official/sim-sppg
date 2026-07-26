@@ -1,12 +1,12 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-23T14:41:30.312Z.
+Generated automatically from `app.js` at 2026-07-26T14:12:21.257Z.
 
 ## Summary
 
-- Literal API calls found: **60**
-- Functions declared in `API_ROUTES`: **73**
-- Routed literal API calls: **60**
+- Literal API calls found: **62**
+- Functions declared in `API_ROUTES`: **75**
+- Routed literal API calls: **62**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
 
@@ -57,6 +57,7 @@ Generated automatically from `app.js` at 2026-07-23T14:41:30.312Z.
 | `getSerahTerima` | `operations-action` |
 | `getSurveiBahanBaku` | `operations-action` |
 | `getTransactionDetail` | `approval-payment-action` |
+| `getTransactionEditMode` | `operations-action` |
 | `getTransactions` | `approval-payment-action` |
 | `getUploadBuktiMode` | `operations-action` |
 | `loginUser` | `auth-public-action` |
@@ -65,6 +66,7 @@ Generated automatically from `app.js` at 2026-07-23T14:41:30.312Z.
 | `registerUser` | `register-user-v2` |
 | `resendRegistrationOtp` | `auth-public-action` |
 | `savePushSubscription` | `push-action` |
+| `setTransactionEditMode` | `operations-action` |
 | `setUploadBuktiMode` | `operations-action` |
 | `submitUserBuktiPembayaran` | `approval-payment-action` |
 | `updateAdminAssignment` | `operations-action` |
