@@ -48,8 +48,8 @@ var API_ROUTES = {
     submitUserBuktiPembayaran:1, verifyUserPayment:1
   },
   'operations-action': {
-    getAllUsers:1, updatePresence:1, deleteUser:1, getUploadBuktiMode:1, setUploadBuktiMode:1,
-    getTransactionEditMode:1, setTransactionEditMode:1,
+    getAllUsers:1, updatePresence:1, deleteUser:1, getUploadBuktiMode:1,
+    getTransactionEditMode:1,
     addPendingPayment:1, addSurveiBahanBaku:1, addSerahTerima:1, addMenuHarian:1,
     getAdminAssignments:1, addAdminAssignment:1, updateAdminAssignment:1, deleteAdminAssignment:1,
     getPendingPayments:1, updatePendingPayment:1, deletePendingPayment:1,
@@ -1428,8 +1428,8 @@ function saveFeatureSettings() {
     if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Simpan Pengaturan'; }
     transactionEditModeEnabled = settingsHubState.features.allowUserEditTransaction === true;
     uploadBuktiModeEnabled = settingsHubState.features.allowUserUploadBukti === true;
-    renderModeToggleUI();
-    renderTransactionEditModeUI();
+    if (currentPage === 'approval') renderApprovalTable();
+    if (currentPage === 'transaksi') renderTransaksiTable();
     showToast('success', 'Pengaturan Tersimpan', result.message || 'Pengaturan transaksi berhasil disimpan.');
   }, function(error) {
     if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Simpan Pengaturan'; }
@@ -5358,8 +5358,6 @@ function submitApprovalWithPin() {
 // ===== MODE UPLOAD BUKTI MANDIRI (ON/OFF) =====
 function loadFeatureModes(force) {
   if (approvalModeLoaded && !force) {
-    renderModeToggleUI();
-    renderTransactionEditModeUI();
     return;
   }
   var requestId = ++featureModeRequestId;
@@ -5368,8 +5366,6 @@ function loadFeatureModes(force) {
     pending--;
     if (pending > 0 || requestId !== featureModeRequestId) return;
     approvalModeLoaded = true;
-    renderModeToggleUI();
-    renderTransactionEditModeUI();
     if (currentPage === 'approval' && approvalLoadState.hasLoaded && !approvalLoadState.inFlight) renderApprovalTable();
     if (currentPage === 'transaksi' && Array.isArray(filteredTransactions)) renderTransaksiTable();
   }
@@ -5391,49 +5387,6 @@ function loadFeatureModes(force) {
     transactionEditModeEnabled = false;
     finish();
   });
-}
-
-function loadUploadBuktiMode() {
-  loadFeatureModes();
-}
-
-function renderModeToggleUI() {
-  var wrap = $('apprModeToggleWrap');
-  if (!wrap) return;
-  if (currentUser && currentUser.role === 'ADMIN') {
-    wrap.classList.remove('hidden');
-    var sw = $('apprModeToggleSwitch');
-    var lbl = $('apprModeToggleLabel');
-    if (sw) sw.classList.toggle('active', uploadBuktiModeEnabled);
-    if (lbl) lbl.textContent = uploadBuktiModeEnabled ? 'Upload Mandiri: ON' : 'Upload Mandiri: OFF';
-  } else {
-    wrap.classList.add('hidden');
-  }
-}
-
-function toggleUploadBuktiMode() {
-  if (!currentUser || currentUser.role !== 'ADMIN') return;
-  var newState = !uploadBuktiModeEnabled;
-  var confirmMsg = newState
-    ? 'Aktifkan mode upload bukti mandiri? User pemilik transaksi akan bisa mengupload bukti pembayarannya sendiri.'
-    : 'Nonaktifkan mode upload bukti mandiri? User tidak akan bisa lagi mengupload bukti pembayaran sendiri.';
-  if (!confirm(confirmMsg)) return;
-  showLoading(true);
-    callApi('setUploadBuktiMode', [newState], function(result) {
-        showLoading(false);
-              if (result.success) {
-                uploadBuktiModeEnabled = result.enabled;
-                renderModeToggleUI();
-                showToast('success', 'Mode Diperbarui', uploadBuktiModeEnabled ? 'Upload bukti mandiri diaktifkan.' : 'Upload bukti mandiri dinonaktifkan.');
-                renderApprovalTable();
-              } else {
-                showToast('error', 'Gagal', result.message);
-              }
-      },
-      function(err) {
-        showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
-      }
-    );
 }
 
 // ===== USER KIRIM BUKTI PEMBAYARAN MANDIRI =====
@@ -9423,38 +9376,6 @@ renderApprovalTable=window.renderApprovalTable;
 window.renderTransaksiTable=function(){var body=$('transaksiTableBody'),count=filteredTransactions.length;if(!count){body.innerHTML='<tr><td colspan="9"><div class="empty-state"><h4>Tidak Ada Transaksi</h4></div></td></tr>';$('txPagination').innerHTML='';return}var pages=Math.ceil((txServerPaged?txServerTotal:count)/ITEMS_PER_PAGE);if(txPage>pages)txPage=pages;var start=(txPage-1)*ITEMS_PER_PAGE,rows=txServerPaged?filteredTransactions:filteredTransactions.slice(start,start+ITEMS_PER_PAGE),html='';rows.forEach(function(x,i){var action='';var canEdit=admin()||!currentUser||currentUser.role!=='USER'||transactionEditModeEnabled;if(admin()&&!paid(x))action=x.canVerify?'<button class="action-btn approve" onclick="openVerifikasiModal(\''+esc(x.id)+'\')"><i class="fas fa-stamp"></i></button>':'<button class="action-btn approve" onclick="openApprovalModal(\''+esc(x.id)+'\')"><i class="fas fa-check"></i></button>';html+='<tr class="'+(paid(x)?'row-paid':'')+'"><td>'+(start+i+1)+'</td><td><strong>'+esc(x.kode||'-')+'</strong></td><td>'+esc(x.tanggal||'-')+'</td><td><span class="badge '+(x.kategori==='PENGELUARAN'?'badge-red':'badge-green')+'">'+esc(x.kategori||'-')+'</span></td><td><span class="badge badge-outline">'+esc(x.sppg||'-')+'</span></td><td>'+esc(x.item||'-')+'</td><td><strong>'+formatRupiah(x.nominal)+'</strong>'+progress(x)+'</td><td>'+getMetodeBadge(x.metodeTransaksi)+'</td><td><div class="action-group" style="opacity:1"><button class="action-btn view" onclick="openDetailTransaksi(\''+esc(x.id)+'\')"><i class="fas fa-eye"></i></button>'+action+(canEdit?'<button class="action-btn edit" onclick="openEditTransaksi(\''+esc(x.id)+'\')" title="Edit Transaksi"><i class="fas fa-edit"></i></button>':'')+(admin()?'<button class="action-btn delete" onclick="confirmHapus(\'transaksi\',0,\''+esc(x.id)+'\',\'transaksi\')"><i class="fas fa-trash"></i></button>':'')+'</div></td></tr>'});body.innerHTML=html;renderPagination('txPagination',txPage,pages,'goTxPage')};
 renderTransaksiTable=window.renderTransaksiTable;
 window.openBulkApprovalPin=function(){showToast('warning','Tidak Tersedia','Bulk approval dinonaktifkan karena setiap transaksi wajib memiliki bukti pelunasan dan TTD verifikator.')};window.submitBulkApproval=window.openBulkApprovalPin;openBulkApprovalPin=window.openBulkApprovalPin;submitBulkApproval=window.submitBulkApproval;
-window.renderModeToggleUI=function(){
-  var w=$('apprModeToggleWrap');if(!w)return;
-  if(admin()){
-    w.classList.remove('hidden');
-    var sw=$('apprModeToggleSwitch'),lb=$('apprModeToggleLabel'),hint=$('apprModeToggleHint');
-    if(sw){sw.classList.toggle('active',uploadBuktiModeEnabled);sw.setAttribute('aria-checked',uploadBuktiModeEnabled?'true':'false');}
-    if(lb)lb.textContent=uploadBuktiModeEnabled?'Upload mandiri aktif':'Upload mandiri nonaktif';
-    if(hint)hint.textContent=uploadBuktiModeEnabled?'USER dapat mengirim bukti pelunasan.':'Tombol kirim bukti disembunyikan dari USER.';
-  }else w.classList.add('hidden');
-};renderModeToggleUI=window.renderModeToggleUI;
-window.renderTransactionEditModeUI=function(){
-  var w=$('txEditModeToggleWrap');if(!w)return;
-  if(admin()){
-    w.classList.remove('hidden');
-    var sw=$('txEditModeToggleSwitch'),lb=$('txEditModeToggleLabel'),hint=$('txEditModeToggleHint');
-    if(sw){sw.classList.toggle('active',transactionEditModeEnabled);sw.setAttribute('aria-checked',transactionEditModeEnabled?'true':'false');}
-    if(lb)lb.textContent=transactionEditModeEnabled?'Edit USER aktif':'Edit USER nonaktif';
-    if(hint)hint.textContent=transactionEditModeEnabled?'USER dapat mengubah transaksi miliknya.':'Tombol edit disembunyikan dan API edit USER ditolak.';
-  }else w.classList.add('hidden');
-};renderTransactionEditModeUI=window.renderTransactionEditModeUI;
-window.toggleUploadBuktiMode=function(){
-  if(!admin())return;var next=!uploadBuktiModeEnabled;
-  if(!confirm(next?'Aktifkan upload bukti mandiri untuk USER?':'Nonaktifkan upload bukti mandiri untuk USER?'))return;
-  var sw=$('apprModeToggleSwitch');if(sw)sw.disabled=true;showLoading(true);
-  callApi('setUploadBuktiMode',[next],function(r){showLoading(false);if(sw)sw.disabled=false;if(r&&r.success){uploadBuktiModeEnabled=!!r.enabled;renderModeToggleUI();renderApprovalTable();showToast('success','Pengaturan Disimpan',uploadBuktiModeEnabled?'USER dapat mengirim bukti pelunasan.':'Tombol kirim bukti USER telah dinonaktifkan.')}else showToast('error','Gagal',r&&r.message||'Mode gagal diubah')},function(e){showLoading(false);if(sw)sw.disabled=false;showToast('error','Gagal',e&&e.message||'Terjadi kesalahan')});
-};toggleUploadBuktiMode=window.toggleUploadBuktiMode;
-window.toggleTransactionEditMode=function(){
-  if(!admin())return;var next=!transactionEditModeEnabled;
-  if(!confirm(next?'Aktifkan kembali fitur edit transaksi untuk USER?':'Nonaktifkan edit transaksi untuk USER? Data tetap dapat diedit oleh ADMIN dan SUPER ADMIN.'))return;
-  var sw=$('txEditModeToggleSwitch');if(sw)sw.disabled=true;showLoading(true);
-  callApi('setTransactionEditMode',[next],function(r){showLoading(false);if(sw)sw.disabled=false;if(r&&r.success){transactionEditModeEnabled=!!r.enabled;renderTransactionEditModeUI();renderTransaksiTable();showToast('success','Pengaturan Disimpan',transactionEditModeEnabled?'USER dapat mengedit transaksi miliknya.':'Edit transaksi USER dinonaktifkan.')}else showToast('error','Gagal',r&&r.message||'Mode gagal diubah')},function(e){showLoading(false);if(sw)sw.disabled=false;showToast('error','Gagal',e&&e.message||'Terjadi kesalahan')});
-};toggleTransactionEditMode=window.toggleTransactionEditMode;
 })();
 
 /* APPROVAL V2 ACTION MODULE */
