@@ -2540,10 +2540,9 @@ function loadDashboardData(silent) {
     var statCards = $('dashboardStats');
     if (!silent && skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
     if (!silent) showLoading(true);
-    callApi('getDashboardKPI', [
-      globalDateFilter.start,
-      globalDateFilter.end
-    ], function(result) {
+    // KPI utama selalu all-time. Filter tanggal hanya digunakan pada grafik
+    // dan daftar data, sehingga pemuatan awal dan tombol refresh konsisten.
+    callApi('getDashboardKPI', [], function(result) {
         if (!silent) showLoading(false);
                 // R3: Sembunyikan skeleton, tampilkan stat cards
                 if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
