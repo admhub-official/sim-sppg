@@ -4214,6 +4214,8 @@
   .approval-pagination { margin-top: 14px; }
   .approval-filter-toolbar { order: -1; display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
   .approval-filter-toolbar .filter-toggle-btn { order: initial; }
+  .approval-filter-toolbar .btn,
+  .tx-filter-toolbar .btn { height: 42px; }
   .approval-toolbar-icon { width: 42px; min-width: 42px; justify-content: center; }
   #apprFilterBar .search-box { display: flex; align-items: center; gap: 10px; }
   #apprFilterBar .search-box i { position: static; flex: 0 0 auto; transform: none; }
@@ -4308,8 +4310,12 @@
     #page-approval { padding-bottom: 8px; }
     #page-approval .page-header { align-items: flex-start; gap: 10px; }
     #page-transaksi .page-header-actions { display: none !important; }
-    #page-transaksi .tx-filter-toolbar { width: 100%; }
-    #page-approval .approval-filter-toolbar { width: 100%; }
+    #page-transaksi .tx-filter-toolbar,
+    #page-approval .approval-filter-toolbar { flex: 0 0 auto; width: auto; }
+    #txFilterBar .search-box,
+    #apprFilterBar .search-box { flex: 1 1 120px; width: auto; max-width: none; }
+    #txFilterBar .search-box input,
+    #apprFilterBar .search-box input { height: 42px; }
     #page-approval .approval-download-wrap { width: 42px; }
     #page-approval .approval-download-trigger { width: 42px; }
     #page-approval .approval-download-menu { left: 0; right: auto; width: min(260px, calc(100vw - 32px)); }
@@ -4364,6 +4370,15 @@
     .approval-detail-icon { width: 46px; height: 46px; border-radius: 13px; }
     .approval-detail-summary h4 { font-size: 15px; }
     @keyframes approvalSheetUp { from { transform: translateY(28px); opacity: .65; } to { transform: translateY(0); opacity: 1; } }
+  }
+
+  @media (max-width: 420px) {
+    #txFilterBar .filter-toggle-btn span,
+    #apprFilterBar .filter-toggle-btn span { display: none; }
+    #txFilterBar .filter-toggle-btn,
+    #apprFilterBar .filter-toggle-btn { width: 42px; min-width: 42px; padding-left: 0; padding-right: 0; justify-content: center; }
+    #txFilterBar .search-box,
+    #apprFilterBar .search-box { gap: 7px; }
   }
 
   @media (min-width: 769px) {
