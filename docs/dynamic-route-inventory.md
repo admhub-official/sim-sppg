@@ -1,12 +1,12 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-27T01:42:46.101Z.
+Generated automatically from `app.js` at 2026-07-27T02:14:16.032Z.
 
 ## Summary
 
-- Literal API calls found: **62**
-- Functions declared in `API_ROUTES`: **75**
-- Routed literal API calls: **62**
+- Literal API calls found: **69**
+- Functions declared in `API_ROUTES`: **82**
+- Routed literal API calls: **69**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
 
@@ -29,6 +29,7 @@ Generated automatically from `app.js` at 2026-07-27T01:42:46.101Z.
 | `addSurveiBahanBaku` | `operations-action` |
 | `addTransaction` | `transaction-action` |
 | `approveTransaction` | `approval-payment-action` |
+| `createAnnouncement` | `settings-action` |
 | `deleteAdminAssignment` | `operations-action` |
 | `deleteMasterBahanBaku` | `master-action` |
 | `deleteMenuMBG` | `operations-action` |
@@ -50,11 +51,14 @@ Generated automatically from `app.js` at 2026-07-27T01:42:46.101Z.
 | `getMasterBahanBaku` | `master-action` |
 | `getMasterSupplier` | `master-action` |
 | `getMenuHarian` | `operations-action` |
+| `getMyAnnouncements` | `settings-action` |
+| `getMyMenuVisibility` | `settings-action` |
 | `getNotifications` | `reporting-action` |
 | `getPendingPayments` | `operations-action` |
 | `getPushPublicKey` | `push-public-action` |
 | `getSPPGData` | `reporting-action` |
 | `getSerahTerima` | `operations-action` |
+| `getSettingsHub` | `settings-action` |
 | `getSurveiBahanBaku` | `operations-action` |
 | `getTransactionDetail` | `approval-payment-action` |
 | `getTransactionEditMode` | `operations-action` |
@@ -66,13 +70,16 @@ Generated automatically from `app.js` at 2026-07-27T01:42:46.101Z.
 | `registerUser` | `register-user-v2` |
 | `resendRegistrationOtp` | `auth-public-action` |
 | `savePushSubscription` | `push-action` |
+| `setAnnouncementActive` | `settings-action` |
 | `setTransactionEditMode` | `operations-action` |
 | `setUploadBuktiMode` | `operations-action` |
 | `submitUserBuktiPembayaran` | `approval-payment-action` |
 | `updateAdminAssignment` | `operations-action` |
+| `updateFeatureSettings` | `settings-action` |
 | `updateMasterBahanBaku` | `master-action` |
 | `updateMasterSupplier` | `master-action` |
 | `updateMenuMBG` | `operations-action` |
+| `updateMenuVisibility` | `settings-action` |
 | `updatePendingPayment` | `operations-action` |
 | `updateSerahTerima` | `operations-action` |
 | `updateSurvei` | `operations-action` |
