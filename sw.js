@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260727-settings-hub-v1';
+const CACHE_VERSION = 'sim-sppg-v20260727-pwa-push-required-v1';
 const APP_SHELL = ['./index.html', './app.js', './manifest.json', './professional-report-v1.js'];
 
 self.addEventListener('install', (event) => {
@@ -70,6 +70,59 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => cached);
       return cached || network;
+    })
+  );
+});
+
+function normalizeNotificationPayload(event) {
+  const fallback = {
+    title: 'Pengumuman SIM-SPPG',
+    body: 'Ada pengumuman baru untuk Anda.',
+    url: '#dashboard'
+  };
+  if (!event.data) return fallback;
+  try {
+    const parsed = event.data.json();
+    return {
+      title: String(parsed.title || fallback.title).slice(0, 120),
+      body: String(parsed.body || fallback.body).slice(0, 500),
+      url: String(parsed.url || fallback.url).slice(0, 500)
+    };
+  } catch (_) {
+    const body = event.data.text();
+    return { ...fallback, body: String(body || fallback.body).slice(0, 500) };
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const payload = normalizeNotificationPayload(event);
+  const targetUrl = new URL(payload.url || '#dashboard', self.registration.scope).href;
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: 'https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png',
+      tag: `sim-sppg-announcement-${Date.now()}`,
+      renotify: true,
+      requireInteraction: payload.title.toLowerCase().includes('mendesak'),
+      data: { url: targetUrl },
+      vibrate: [180, 80, 180]
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data && event.notification.data.url
+    ? event.notification.data.url
+    : new URL('#dashboard', self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clientList) => {
+      for (const client of clientList) {
+        if (typeof client.navigate === 'function') await client.navigate(targetUrl);
+        if (typeof client.focus === 'function') return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      return undefined;
     })
   );
 });
