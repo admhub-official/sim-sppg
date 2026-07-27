@@ -2317,6 +2317,7 @@ function initApp() {
 
   var appLoadingEl = $('appLoadingOverlay');
   if (appLoadingEl) appLoadingEl.classList.remove('hidden');
+  updatePwaRequirementGate();
 
   loadGlobalDateFilterState();
   currentPage = getRestorablePage();
@@ -7802,6 +7803,97 @@ function submitRecovery() {
   // ============================================================
   var _pwaInstallEvent = null;
   var _pwaInstalled = false;
+  var _pushSubscriptionSynced = false;
+  var _pwaGateBusy = false;
+
+  function isStandalonePWA() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true ||
+      document.referrer.indexOf('android-app://') === 0;
+  }
+
+  function getInstallHelpText() {
+    var ua = navigator.userAgent;
+    var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    var isAndroid = /android/i.test(ua);
+    if (isIOS) return 'iPhone/iPad: buka lewat Safari, ketuk Bagikan (⬆), pilih “Tambahkan ke Layar Utama”, lalu buka SIM-SPPG dari ikon baru.';
+    if (isAndroid) return 'Android: ketuk Instal Aplikasi. Jika prompt tidak muncul, buka menu ⋮ Chrome lalu pilih “Instal aplikasi”.';
+    return 'Komputer: klik Instal Aplikasi. Jika prompt tidak muncul, gunakan ikon instal di sisi kanan address bar Chrome/Edge.';
+  }
+
+  function getNotificationHelpText() {
+    if (!('Notification' in window) || !('PushManager' in window)) {
+      return 'Perangkat atau browser ini tidak mendukung Web Push. Gunakan Chrome/Edge terbaru atau Safari melalui PWA di iPhone/iPad.';
+    }
+    if (Notification.permission === 'denied') {
+      return 'Izin notifikasi sudah diblokir. Buka pengaturan aplikasi/browser SIM-SPPG, ubah Notifikasi menjadi Izinkan, lalu tekan Periksa Lagi.';
+    }
+    return 'Ketuk Aktifkan Notifikasi lalu pilih Izinkan pada dialog resmi perangkat.';
+  }
+
+  function updatePwaRequirementGate() {
+    var gate = document.getElementById('pwaRequirementGate');
+    if (!gate || !currentUser) {
+      if (gate) gate.classList.add('hidden');
+      return;
+    }
+    var installed = isStandalonePWA();
+    var notificationSupported = 'Notification' in window && 'PushManager' in window;
+    var notificationGranted = notificationSupported && Notification.permission === 'granted';
+    var ready = installed && notificationGranted && _pushSubscriptionSynced;
+    gate.classList.toggle('hidden', ready);
+
+    var installStep = document.getElementById('pwaInstallStep');
+    var notifStep = document.getElementById('pwaNotificationStep');
+    var installStatus = document.getElementById('pwaInstallStatus');
+    var notifStatus = document.getElementById('pwaNotificationStatus');
+    if (installStep) installStep.classList.toggle('complete', installed);
+    if (notifStep) notifStep.classList.toggle('complete', notificationGranted && _pushSubscriptionSynced);
+    if (installStatus) installStatus.textContent = installed ? 'Terpasang' : 'Wajib';
+    if (notifStatus) {
+      notifStatus.textContent = !notificationSupported ? 'Tidak didukung' :
+        (Notification.permission === 'denied' ? 'Diblokir' :
+          (notificationGranted ? (_pushSubscriptionSynced ? 'Aktif' : 'Menyinkronkan') : 'Wajib'));
+    }
+
+    var button = document.getElementById('pwaGatePrimaryButton');
+    var help = document.getElementById('pwaGateHelp');
+    if (!button || !help) return;
+    button.disabled = _pwaGateBusy;
+    if (!installed) {
+      button.innerHTML = '<i class="fas fa-download"></i><span>Instal Aplikasi</span>';
+      help.textContent = getInstallHelpText();
+    } else if (!notificationSupported || Notification.permission === 'denied') {
+      button.innerHTML = '<i class="fas fa-cog"></i><span>Aktifkan dari Pengaturan Perangkat</span>';
+      help.textContent = getNotificationHelpText();
+    } else if (!notificationGranted) {
+      button.innerHTML = '<i class="fas fa-bell"></i><span>Aktifkan Notifikasi</span>';
+      help.textContent = getNotificationHelpText();
+    } else {
+      button.innerHTML = '<i class="fas fa-sync fa-spin"></i><span>Menyinkronkan Perangkat...</span>';
+      help.textContent = 'Mendaftarkan perangkat ini sebagai penerima pengumuman SIM-SPPG.';
+    }
+  }
+
+  function handlePwaGatePrimary() {
+    if (_pwaGateBusy) return;
+    if (!isStandalonePWA()) {
+      triggerPWAInstall();
+      return;
+    }
+    if (!('Notification' in window) || !('PushManager' in window) || Notification.permission === 'denied') {
+      updatePwaRequirementGate();
+      return;
+    }
+    promptEnablePushNotification();
+  }
+
+  function recheckPwaRequirements() {
+    _pwaInstalled = isStandalonePWA();
+    _pushSubscriptionSynced = false;
+    updatePwaRequirementGate();
+    if (_swRegistration && currentUser) initPushNotification();
+  }
 
   // Tangkap event beforeinstallprompt (Chrome/Edge/Android)
   window.addEventListener('beforeinstallprompt', function(e) {
@@ -7834,6 +7926,7 @@ function submitRecovery() {
     if (btn) btn.classList.remove('show');
     showToast('success', 'Berhasil Diinstall!', 'SIM-SPPG kini dapat dibuka seperti aplikasi native.');
     _pwaInstallEvent = null;
+    updatePwaRequirementGate();
   });
 
   function triggerPWAInstall() {
@@ -7841,13 +7934,14 @@ function submitRecovery() {
       _pwaInstallEvent.prompt();
       _pwaInstallEvent.userChoice.then(function(result) {
         if (result.outcome === 'accepted') {
-          showToast('success', 'Menginstall...', 'SIM-SPPG sedang ditambahkan ke layar utama.');
+          showToast('success', 'Aplikasi Terpasang', 'Buka SIM-SPPG dari ikon layar utama untuk melanjutkan.');
         } else {
           showToast('warning', 'Dibatalkan', 'Install dibatalkan. Kamu bisa install kapan saja.');
         }
         _pwaInstallEvent = null;
         var btn = document.getElementById('btnInstallPWA');
         if (btn) btn.classList.remove('show');
+        updatePwaRequirementGate();
       });
     } else {
       // Fallback manual untuk iOS Safari & browser lain yang tidak support prompt
@@ -7897,7 +7991,13 @@ function submitRecovery() {
     window.addEventListener('load', function() {
       navigator.serviceWorker.register('./sw.js')
         .then(function(reg) {
+          return reg.update().catch(function() { return reg; }).then(function() {
+            return navigator.serviceWorker.ready;
+          });
+        })
+        .then(function(reg) {
           _swRegistration = reg;
+          updatePwaRequirementGate();
           if (currentUser) initPushNotification();
         })
         .catch(function(err) {
@@ -7932,8 +8032,13 @@ function submitRecovery() {
   function sendSubscriptionToServer(subscriptionJson) {
     if (!currentUser) return;
     callApi('savePushSubscription', [subscriptionJson, deviceLabel()], function(result) {
-      // Berhasil disimpan — tidak perlu toast tiap kali agar tidak mengganggu
+      _pushSubscriptionSynced = !!(result && result.success);
+      _pwaGateBusy = false;
+      updatePwaRequirementGate();
     }, function(err) {
+      _pushSubscriptionSynced = false;
+      _pwaGateBusy = false;
+      updatePwaRequirementGate();
       console.error('Gagal simpan push subscription:', err);
     });
   }
@@ -7954,8 +8059,8 @@ function submitRecovery() {
 
   function initPushNotification() {
     updatePushButtonUI();
-    if (!_swRegistration || !('PushManager' in window)) return;
-    if (!currentUser) return;
+    updatePwaRequirementGate();
+    if (!_swRegistration || !('PushManager' in window) || !currentUser) return;
 
     // Ambil VAPID public key dari backend (sekali per sesi)
     callApi('getPushPublicKey', [], function(result) {
@@ -7980,7 +8085,13 @@ function submitRecovery() {
   }
 
   function subscribeUserToPush() {
-    if (!_swRegistration || !PUBLIC_VAPID_KEY) return;
+    if (!_swRegistration || !PUBLIC_VAPID_KEY) {
+      _pwaGateBusy = false;
+      updatePwaRequirementGate();
+      return;
+    }
+    _pwaGateBusy = true;
+    updatePwaRequirementGate();
     _swRegistration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
@@ -7989,8 +8100,11 @@ function submitRecovery() {
       updatePushButtonUI();
       showToast('success', 'Notifikasi Aktif', 'Anda akan menerima notifikasi push di perangkat ini.');
     }).catch(function(err) {
+      _pushSubscriptionSynced = false;
+      _pwaGateBusy = false;
       console.error('Gagal subscribe push:', err);
       updatePushButtonUI();
+      updatePwaRequirementGate();
     });
   }
 
@@ -8015,6 +8129,7 @@ function submitRecovery() {
         showToast('warning', 'Izin Ditolak', 'Anda tidak akan menerima notifikasi push.');
       }
       updatePushButtonUI();
+      updatePwaRequirementGate();
     });
   }
  
