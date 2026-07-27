@@ -4496,6 +4496,137 @@
   }
   .tx-date-field .form-input { width: 100%; min-width: 0; }
 
+  /* Pusat Pengaturan SUPER_ADMIN. */
+  .settings-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 6px;
+    overflow-x: auto;
+    background: var(--slate-100);
+    border: 1px solid var(--slate-200);
+    border-radius: 14px;
+    scrollbar-width: thin;
+  }
+  .settings-tab {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 9px 14px;
+    color: var(--slate-600);
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .settings-tab.active {
+    color: #fff;
+    background: var(--primary);
+    box-shadow: 0 6px 15px rgba(30,111,156,.22);
+  }
+  .settings-panel.hidden { display: none !important; }
+  .settings-card {
+    padding: 20px;
+    background: #fff;
+    border: 1px solid var(--slate-200);
+    border-radius: 16px;
+    box-shadow: 0 7px 20px rgba(15,23,42,.045);
+  }
+  .settings-card + .settings-card { margin-top: 14px; }
+  .settings-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .settings-card-head h3 { margin: 0 0 5px; color: var(--slate-900); font-size: 15px; }
+  .settings-card-head p { margin: 0; color: var(--slate-500); font-size: 11px; line-height: 1.5; }
+  .settings-role-tabs { display: flex; gap: 7px; margin-bottom: 15px; flex-wrap: wrap; }
+  .settings-role-tab.active { color: #fff; background: var(--primary); border-color: var(--primary); }
+  .settings-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 10px;
+  }
+  .settings-menu-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 11px 12px;
+    background: var(--slate-50);
+    border: 1px solid var(--slate-200);
+    border-radius: 11px;
+    color: var(--slate-700);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .settings-menu-option input { width: 17px; height: 17px; accent-color: var(--primary); }
+  .settings-menu-option.is-required { opacity: .72; }
+  .settings-menu-option i { width: 18px; color: var(--primary); text-align: center; }
+  .settings-announcement-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .settings-announcement-form .span-2 { grid-column: 1 / -1; }
+  .settings-role-targets { display: flex; gap: 10px; flex-wrap: wrap; }
+  .settings-role-target {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    background: var(--slate-50);
+    border: 1px solid var(--slate-200);
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .settings-role-target input { accent-color: var(--primary); }
+  .announcement-list { display: grid; gap: 10px; }
+  .announcement-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    padding: 14px;
+    background: #fff;
+    border: 1px solid var(--slate-200);
+    border-left: 4px solid var(--primary);
+    border-radius: 12px;
+  }
+  .announcement-item.priority-penting { border-left-color: var(--amber); }
+  .announcement-item.priority-mendesak { border-left-color: var(--rose); }
+  .announcement-item h4 { margin: 0 0 5px; color: var(--slate-900); font-size: 13px; }
+  .announcement-item p { margin: 0 0 8px; color: var(--slate-600); font-size: 11px; line-height: 1.5; }
+  .announcement-meta { display: flex; gap: 7px; flex-wrap: wrap; color: var(--slate-400); font-size: 9px; }
+  .dashboard-announcements { display: grid; gap: 10px; margin-bottom: 16px; }
+  .dashboard-announcement {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+    background: #eff8ff;
+    border: 1px solid #cce8f7;
+    border-radius: 14px;
+  }
+  .dashboard-announcement.priority-penting { background: #fffbeb; border-color: #fde68a; }
+  .dashboard-announcement.priority-mendesak { background: #fff1f2; border-color: #fecdd3; }
+  .dashboard-announcement-icon {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    color: #fff;
+    background: var(--primary);
+    border-radius: 11px;
+  }
+  .priority-penting .dashboard-announcement-icon { background: var(--amber); }
+  .priority-mendesak .dashboard-announcement-icon { background: var(--rose); }
+  .dashboard-announcement h3 { margin: 0 0 4px; color: var(--slate-900); font-size: 13px; }
+  .dashboard-announcement p { margin: 0; color: var(--slate-600); font-size: 11px; line-height: 1.5; }
+  .settings-embedded-page > .page-header { margin-top: 0; }
+
   @media (max-width: 768px) {
     #adminAssignmentTableBody .aa-actions-cell {
       width: 104px !important;
@@ -4510,6 +4641,14 @@
       flex-basis: 100%;
       width: 100%;
     }
+    .settings-tabs { margin-inline: -4px; padding: 5px; border-radius: 12px; }
+    .settings-tab { min-height: 40px; padding: 8px 12px; font-size: 11px; }
+    .settings-card { padding: 15px; border-radius: 14px; }
+    .settings-card-head { align-items: center; }
+    .settings-announcement-form { grid-template-columns: 1fr; }
+    .settings-announcement-form .span-2 { grid-column: auto; }
+    .settings-menu-grid { grid-template-columns: 1fr; }
+    .announcement-item { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -4695,6 +4834,7 @@
             <div class="skeleton-stat-card"><div class="skeleton-icon"></div><div class="skeleton-info"><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>
           </div>
         </div>
+        <div id="dashboardAnnouncements" class="dashboard-announcements hidden" aria-live="polite"></div>
         <!-- dots carousel dihapus — scroll snap ditangani CSS native -->
         <div class="stats-grid" id="dashboardStats">
           <div class="stat-card">
@@ -4741,6 +4881,131 @@
 
 <!-- Quick Access (mobile-first navigation cards) -->
         <div class="quick-access-section" id="quickAccessSection"></div>
+      </div>
+
+      <!-- ==================== SETTINGS HUB (SUPER_ADMIN) ==================== -->
+      <div id="page-settings" class="page-section hidden">
+        <div class="page-header">
+          <div class="page-header-info">
+            <div class="page-title"><i class="fas fa-sliders-h" style="color:var(--primary);"></i> Pengaturan</div>
+            <p class="page-desc">Pusat konfigurasi sistem dan akses pengguna</p>
+          </div>
+        </div>
+
+        <div class="settings-tabs" role="tablist" aria-label="Jenis pengaturan">
+          <button type="button" class="settings-tab active" data-settings-tab="features" role="tab" aria-selected="true" onclick="openSettingsTab('features',this)">
+            <i class="fas fa-toggle-on"></i> Fitur Transaksi
+          </button>
+          <button type="button" class="settings-tab" data-settings-tab="menus" role="tab" aria-selected="false" onclick="openSettingsTab('menus',this)">
+            <i class="fas fa-list-check"></i> Menu per Role
+          </button>
+          <button type="button" class="settings-tab" data-settings-tab="admin" role="tab" aria-selected="false" onclick="openSettingsTab('admin',this)">
+            <i class="fas fa-user-shield"></i> Konfigurasi Admin
+          </button>
+          <button type="button" class="settings-tab" data-settings-tab="users" role="tab" aria-selected="false" onclick="openSettingsTab('users',this)">
+            <i class="fas fa-users"></i> Manajemen User
+          </button>
+          <button type="button" class="settings-tab" data-settings-tab="announcements" role="tab" aria-selected="false" onclick="openSettingsTab('announcements',this)">
+            <i class="fas fa-bullhorn"></i> Pengumuman
+          </button>
+        </div>
+
+        <section id="settingsPanel-features" class="settings-panel" role="tabpanel">
+          <div class="settings-card">
+            <div class="settings-card-head">
+              <div>
+                <h3><i class="fas fa-user-edit"></i> Edit transaksi oleh User</h3>
+                <p>Jika nonaktif, tombol edit data transaksi tidak ditampilkan pada akun User.</p>
+              </div>
+              <button type="button" class="toggle-switch" id="settingsTxEditSwitch" role="switch" aria-checked="false" onclick="toggleSettingsFeature('edit')"></button>
+            </div>
+          </div>
+          <div class="settings-card">
+            <div class="settings-card-head">
+              <div>
+                <h3><i class="fas fa-receipt"></i> Upload bukti pelunasan mandiri</h3>
+                <p>Jika nonaktif, User tidak memiliki aksi untuk mengirim bukti pelunasan.</p>
+              </div>
+              <button type="button" class="toggle-switch" id="settingsUploadSwitch" role="switch" aria-checked="false" onclick="toggleSettingsFeature('upload')"></button>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+            <button type="button" class="btn btn-primary" id="btnSaveFeatureSettings" onclick="saveFeatureSettings()">
+              <i class="fas fa-save"></i> Simpan Pengaturan
+            </button>
+          </div>
+        </section>
+
+        <section id="settingsPanel-menus" class="settings-panel hidden" role="tabpanel">
+          <div class="settings-card">
+            <div class="settings-role-tabs">
+              <button type="button" class="btn btn-outline btn-sm settings-role-tab active" data-settings-role="SUPER_ADMIN" onclick="selectSettingsMenuRole('SUPER_ADMIN',this)">Super Admin</button>
+              <button type="button" class="btn btn-outline btn-sm settings-role-tab" data-settings-role="ADMIN" onclick="selectSettingsMenuRole('ADMIN',this)">Admin</button>
+              <button type="button" class="btn btn-outline btn-sm settings-role-tab" data-settings-role="USER" onclick="selectSettingsMenuRole('USER',this)">User</button>
+            </div>
+            <div id="settingsMenuGrid" class="settings-menu-grid"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+              <button type="button" class="btn btn-primary" id="btnSaveMenuVisibility" onclick="saveMenuVisibility()">
+                <i class="fas fa-save"></i> Simpan Menu Role
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section id="settingsPanel-admin" class="settings-panel settings-embedded-page hidden" role="tabpanel">
+          <div id="settingsAdminHost"></div>
+        </section>
+
+        <section id="settingsPanel-users" class="settings-panel settings-embedded-page hidden" role="tabpanel">
+          <div id="settingsUsersHost"></div>
+        </section>
+
+        <section id="settingsPanel-announcements" class="settings-panel hidden" role="tabpanel">
+          <div class="settings-card">
+            <div class="settings-announcement-form">
+              <div class="form-group span-2">
+                <label class="form-label" for="announcementTitle">Judul Pengumuman <span class="req">*</span></label>
+                <input id="announcementTitle" class="form-input" maxlength="120" placeholder="Contoh: Pemeliharaan sistem malam ini">
+              </div>
+              <div class="form-group span-2">
+                <label class="form-label" for="announcementBody">Isi Pengumuman <span class="req">*</span></label>
+                <textarea id="announcementBody" class="form-input" rows="4" maxlength="1000" placeholder="Tuliskan informasi yang perlu diketahui Admin dan/atau User"></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="announcementPriority">Prioritas</label>
+                <select id="announcementPriority" class="form-input">
+                  <option value="INFORMASI">Informasi</option>
+                  <option value="PENTING">Penting</option>
+                  <option value="MENDESAK">Mendesak</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="announcementEndsAt">Berlaku sampai</label>
+                <input type="datetime-local" id="announcementEndsAt" class="form-input">
+              </div>
+              <div class="form-group span-2">
+                <label class="form-label">Kirim kepada <span class="req">*</span></label>
+                <div class="settings-role-targets">
+                  <label class="settings-role-target"><input type="checkbox" id="announcementRoleAdmin" value="ADMIN"> Role ADMIN</label>
+                  <label class="settings-role-target"><input type="checkbox" id="announcementRoleUser" value="USER"> Role USER</label>
+                </div>
+                <p class="form-hint">Pengumuman tampil di Dashboard dan push dikirim ke perangkat yang sudah mengaktifkan notifikasi.</p>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+              <button type="button" class="btn btn-primary" id="btnSendAnnouncement" onclick="sendAnnouncement()">
+                <i class="fas fa-paper-plane"></i> Terbitkan &amp; Kirim
+              </button>
+            </div>
+          </div>
+          <div class="settings-card">
+            <div class="settings-card-head" style="margin-bottom:14px;">
+              <div><h3>Riwayat Pengumuman</h3><p>Aktifkan atau nonaktifkan pengumuman yang tampil di Dashboard.</p></div>
+              <button type="button" class="btn btn-outline btn-sm" onclick="loadSettingsHub()"><i class="fas fa-sync"></i></button>
+            </div>
+            <div id="settingsAnnouncementList" class="announcement-list"></div>
+          </div>
+        </section>
       </div>
 
       <!-- ==================== PROFIL PAGE ==================== -->
