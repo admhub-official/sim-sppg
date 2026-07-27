@@ -4231,7 +4231,8 @@
   #txFilterBar .search-box { display: flex; align-items: center; gap: 10px; }
   #txFilterBar .search-box i { position: static; flex: 0 0 auto; transform: none; }
   #txFilterBar .search-box input { min-width: 0; padding-left: 14px; }
-  .approval-download-wrap { position: relative; }
+  .approval-download-wrap,
+  .transaction-download-wrap { position: relative; }
   .approval-download-trigger { width: 42px; min-width: 42px; justify-content: center; }
   .approval-download-menu {
     position: absolute;
@@ -4323,9 +4324,11 @@
     #apprFilterBar .search-box { flex: 1 1 120px; width: auto; max-width: none; }
     #txFilterBar .search-box input,
     #apprFilterBar .search-box input { height: 42px; }
-    #page-approval .approval-download-wrap { width: 42px; }
+    #page-approval .approval-download-wrap,
+    #page-transaksi .transaction-download-wrap { width: 42px; }
     #page-approval .approval-download-trigger { width: 42px; }
-    #page-approval .approval-download-menu { left: 0; right: auto; width: min(260px, calc(100vw - 32px)); }
+    #page-approval .approval-download-menu,
+    #page-transaksi .approval-download-menu { left: 0; right: auto; width: min(260px, calc(100vw - 32px)); }
     #page-approval .filter-bar { border-radius: 14px; }
     #apprBulkBar { position: sticky; top: calc(var(--header-height) + 8px); z-index: 20; margin: 0 0 12px !important; border-radius: 14px !important; box-shadow: 0 10px 24px rgba(30,111,156,.14); }
     .approval-desktop-view { display: none !important; }
@@ -5190,6 +5193,27 @@
             <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('txFilterBar')" title="Tampilkan/Sembunyikan Filter">
               <i class="fas fa-filter"></i><span>Filter</span>
             </button>
+            <div class="transaction-download-wrap no-print" id="transactionDownloadWrap">
+              <button type="button" class="btn btn-outline btn-sm approval-download-trigger" id="transactionDownloadTrigger"
+                onclick="toggleTransactionDownloadMenu(event)" aria-haspopup="menu" aria-expanded="false"
+                title="Download laporan Transaksi">
+                <i class="fas fa-download"></i>
+              </button>
+              <div class="approval-download-menu hidden" id="transactionDownloadMenu" role="menu">
+                <button type="button" role="menuitem" onclick="exportTransactions('pdf')">
+                  <i class="fas fa-file-pdf"></i><span><strong>PDF</strong><small>Dokumen siap cetak</small></span>
+                </button>
+                <button type="button" role="menuitem" onclick="exportTransactions('csv')">
+                  <i class="fas fa-file-csv"></i><span><strong>CSV</strong><small>Kolom standar kompatibel Excel</small></span>
+                </button>
+                <button type="button" role="menuitem" onclick="exportTransactions('xlsx')">
+                  <i class="fas fa-file-excel"></i><span><strong>Excel</strong><small>Workbook berformat .xlsx</small></span>
+                </button>
+                <button type="button" role="menuitem" onclick="exportTransactions('ods')">
+                  <i class="fas fa-table"></i><span><strong>Spreadsheet</strong><small>Format terbuka .ods</small></span>
+                </button>
+              </div>
+            </div>
             <button class="btn btn-outline btn-sm tx-toolbar-icon" onclick="printCurrentPage()" title="Print Semua Data" aria-label="Print Semua Data">
               <i class="fas fa-print"></i>
             </button>
@@ -7195,6 +7219,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260727-approval-download-formats-v1"></script>
+<script src="./app.js?v=20260727-transaction-report-export-v1"></script>
 </body>
 </html>
