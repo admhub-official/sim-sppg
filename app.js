@@ -4126,7 +4126,7 @@ function resetApprovalFilter() {
 }
 
 // ============================================================
-// EXPORT APPROVAL — CSV & PDF
+// EXPORT APPROVAL — PDF, CSV, XLSX & ODS
 // ============================================================
 function exportApproval(format) {
   var approvalData = filteredApprovalData;
@@ -4134,24 +4134,39 @@ function exportApproval(format) {
     showToast('warning', 'Tidak Ada Data', 'Tidak ada transaksi yang menunggu approval.');
     return;
   }
-  var metodeSummary = {};
-  var grandTotal = 0;
-  var grandCount = 0;
-  approvalData.forEach(function(tx) {
-    var m = String(tx.metodeTransaksi || 'BELUM_BAYAR').trim().toUpperCase();
-    var label = m === 'BELUM_BAYAR' ? 'Belum Bayar' : m === 'TRANSFER' ? 'Transfer' : m === 'CASH' ? 'Cash' : m;
-    if (!metodeSummary[label]) metodeSummary[label] = { count: 0, total: 0 };
-    metodeSummary[label].count++;
-    metodeSummary[label].total += parseFloat(tx.nominal) || 0;
-    grandTotal += parseFloat(tx.nominal) || 0;
-    grandCount++;
-  });
+  closeApprovalDownloadMenu();
   if (format === 'csv') {
     exportApprovalReportCSV(approvalData);
-  } else {
+  } else if (format === 'pdf') {
     exportApprovalReportPDF(approvalData);
+  } else if (format === 'xlsx' || format === 'ods') {
+    exportApprovalSpreadsheet(approvalData, format);
+  } else {
+    showToast('warning', 'Format Tidak Dikenal', 'Silakan pilih format file yang tersedia.');
   }
 }
+
+function toggleApprovalDownloadMenu(event) {
+  if (event) event.stopPropagation();
+  var menu = $('approvalDownloadMenu');
+  var trigger = $('approvalDownloadTrigger');
+  if (!menu) return;
+  var willOpen = menu.classList.contains('hidden');
+  menu.classList.toggle('hidden', !willOpen);
+  if (trigger) trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+
+function closeApprovalDownloadMenu() {
+  var menu = $('approvalDownloadMenu');
+  var trigger = $('approvalDownloadTrigger');
+  if (menu) menu.classList.add('hidden');
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+document.addEventListener('click', function(event) {
+  var wrap = $('approvalDownloadWrap');
+  if (wrap && !wrap.contains(event.target)) closeApprovalDownloadMenu();
+});
 
 function _approvalDocStatus(tx) {
   var ada = function(v) {
@@ -4608,13 +4623,15 @@ function _approvalReportModel(data) {
 }
 
 function _approvalCsvCell(value) {
-  return '"' + String(value === null || value === undefined ? '' : value)
-    .replace(/\r?\n/g, ' ').replace(/"/g, '""') + '"';
+  var text = String(value === null || value === undefined ? '' : value)
+    .replace(/\r?\n/g, ' ');
+  if (/^[=+\-@]/.test(text)) text = "'" + text;
+  return '"' + text.replace(/"/g, '""') + '"';
 }
 
 function exportApprovalReportCSV(data) {
   var report = _approvalReportModel(data);
-  var sep = ';';
+  var sep = ',';
   var lines = [];
   var add = function(values) { lines.push(values.map(_approvalCsvCell).join(sep)); };
   add(['LAPORAN APPROVAL TRANSAKSI SIM-SPPG']);
@@ -4661,7 +4678,8 @@ function exportApprovalReportCSV(data) {
   add(['Status kelengkapan dinilai dari ketersediaan bukti pembayaran/transaksi dan nota. TTD User dicantumkan sebagai informasi audit.']);
   add(['CSV tidak mendukung warna sel secara konsisten. Kolom Indikator Warna mempertahankan makna HIJAU/KUNING/MERAH di Excel, Google Sheets, dan aplikasi lain.']);
 
-  var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  // sep=, memaksa Excel membaca koma sebagai pemisah kolom di semua locale.
+  var blob = new Blob(['\uFEFFsep=,\r\n' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   var url = URL.createObjectURL(blob);
   var link = document.createElement('a');
   link.href = url;
@@ -4670,7 +4688,109 @@ function exportApprovalReportCSV(data) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  showToast('success', 'CSV Siap', 'Laporan detail dan ringkasan berhasil diunduh.');
+  showToast('success', 'CSV Siap', 'Kolom CSV sudah dipisahkan dengan format standar Excel.');
+}
+
+function _loadApprovalSpreadsheetLibrary() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise(function(resolve, reject) {
+    var existing = document.querySelector('script[data-approval-xlsx]');
+    if (existing) {
+      existing.addEventListener('load', resolve, { once: true });
+      existing.addEventListener('error', function() { reject(new Error('Library spreadsheet gagal dimuat.')); }, { once: true });
+      return;
+    }
+    var script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.dataset.approvalXlsx = '1';
+    script.onload = resolve;
+    script.onerror = function() { reject(new Error('Library spreadsheet gagal dimuat.')); };
+    document.head.appendChild(script);
+  });
+}
+
+function _appendApprovalSheet(workbook, name, rows, widths, autoFilterRow) {
+  var sheet = window.XLSX.utils.aoa_to_sheet(rows);
+  sheet['!cols'] = (widths || []).map(function(width) { return { wch: width }; });
+  if (autoFilterRow && rows.length > autoFilterRow) {
+    var lastColumn = window.XLSX.utils.encode_col(Math.max(0, rows[autoFilterRow - 1].length - 1));
+    sheet['!autofilter'] = { ref: 'A' + autoFilterRow + ':' + lastColumn + rows.length };
+  }
+  window.XLSX.utils.book_append_sheet(workbook, sheet, name);
+}
+
+function exportApprovalSpreadsheet(data, format) {
+  var report = _approvalReportModel(data);
+  var extension = format === 'ods' ? 'ods' : 'xlsx';
+  var formatLabel = format === 'ods' ? 'Spreadsheet ODS' : 'Excel';
+  showLoading(true);
+  _loadApprovalSpreadsheetLibrary().then(function() {
+    var workbook = window.XLSX.utils.book_new();
+    var createdBy = currentUser ? (currentUser.namaLengkap || currentUser.email || '-') : '-';
+    var summaryRows = [
+      ['LAPORAN APPROVAL TRANSAKSI SIM-SPPG'],
+      ['Periode', report.period],
+      ['Filter aktif', report.filters],
+      ['Dibuat pada', new Date().toLocaleString('id-ID')],
+      ['Dibuat oleh', createdBy],
+      ['Jumlah transaksi', report.count],
+      ['Total nominal (Rp)', Math.round(report.total)],
+      [],
+      ['RINGKASAN PER JENIS KATEGORI'],
+      ['Jenis Kategori', 'Jumlah Transaksi', 'Total Nominal (Rp)', 'Kontribusi']
+    ];
+    report.categories.forEach(function(row) {
+      summaryRows.push([row.label, row.count, Math.round(row.total),
+        report.total ? row.total / report.total : 0]);
+    });
+    summaryRows.push(['TOTAL', report.count, Math.round(report.total), 1]);
+
+    var detailRows = [[
+      'No', 'Tanggal Transaksi', 'Kode Transaksi', 'SPPG', 'Nama Penginput',
+      'Email Penginput', 'Jenis Kategori', 'Nama Item', 'Nominal (Rp)',
+      'Status Approval/Pembayaran', 'Status Kelengkapan', 'Indikator Warna',
+      'Bukti Pembayaran', 'Nota', 'TTD User'
+    ]];
+    report.rows.forEach(function(row) {
+      detailRows.push([
+        row.no, row.tanggal, row.kode, row.sppg, row.nama, row.email, row.jenis,
+        row.item, Math.round(row.nominal), row.metode, row.kelengkapan,
+        row.indikator, row.bukti, row.nota, row.ttd
+      ]);
+    });
+
+    var sppgRows = [[
+      'SPPG', 'Nama Penginput', 'Email Penginput', 'Jumlah Transaksi',
+      'Dokumen Lengkap', 'Dokumen Belum Lengkap', 'Total Nominal (Rp)'
+    ]];
+    report.sppg.forEach(function(row) {
+      sppgRows.push([row.sppg, row.nama, row.email, row.count, row.lengkap,
+        row.tidakLengkap, Math.round(row.total)]);
+    });
+
+    var completenessRows = [['Status Kelengkapan', 'Jumlah Transaksi', 'Total Nominal (Rp)']];
+    report.completeness.forEach(function(row) {
+      completenessRows.push([row.label, row.count, Math.round(row.total)]);
+    });
+
+    _appendApprovalSheet(workbook, 'Ringkasan', summaryRows, [30, 20, 22, 16]);
+    _appendApprovalSheet(workbook, 'Detail Approval', detailRows,
+      [6, 16, 22, 16, 22, 30, 24, 36, 18, 25, 27, 18, 20, 14, 14], 1);
+    _appendApprovalSheet(workbook, 'SPPG dan Penginput', sppgRows,
+      [18, 24, 30, 18, 18, 24, 20], 1);
+    _appendApprovalSheet(workbook, 'Kelengkapan', completenessRows, [30, 20, 22], 1);
+
+    window.XLSX.writeFile(
+      workbook,
+      'Laporan_Approval_SIM-SPPG_' + new Date().toISOString().slice(0, 10) + '.' + extension,
+      { bookType: extension, compression: true }
+    );
+    showToast('success', formatLabel + ' Siap', 'Laporan bertab dan berkolom rapi berhasil diunduh.');
+  }).catch(function(error) {
+    showToast('error', 'Download Gagal', error && error.message ? error.message : 'File spreadsheet tidak dapat dibuat.');
+  }).then(function() {
+    showLoading(false);
+  });
 }
 
 function _approvalStatusClass(status) {
