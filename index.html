@@ -652,19 +652,6 @@
       height: auto;
     }
 
-    /* Loading Skeleton */
-    .loading-skeleton {
-      background: linear-gradient(90deg, var(--slate-200) 25%, var(--slate-100) 50%, var(--slate-200) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
-      border-radius: var(--radius);
-    }
-
-    @keyframes shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-
     /* Empty State */
     .empty-state {
       text-align: center;
@@ -2413,31 +2400,88 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Spinner tunggal untuk refresh, restore session, dan pemuatan data aplikasi. */
+    /* Skeleton aplikasi untuk refresh dan pemulihan sesi. */
     .app-loading-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(248, 250, 252, 0.96);
+      inset: 0;
+      background: #f4f7fa;
       z-index: 100000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: block;
+      overflow: hidden;
     }
     .app-loading-overlay.hidden { display: none !important; }
-    .app-loading-spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid #cbd5e1;
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
+    .app-skeleton-shell {
+      min-height: 100dvh;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+    }
+    .app-skeleton-sidebar {
+      padding: 24px 20px;
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+    }
+    .app-skeleton-brand,
+    .app-skeleton-nav,
+    .app-skeleton-bar,
+    .app-skeleton-card,
+    .app-skeleton-table {
+      position: relative;
+      overflow: hidden;
+      background: #e2e8f0;
+    }
+    .app-skeleton-brand::after,
+    .app-skeleton-nav::after,
+    .app-skeleton-bar::after,
+    .app-skeleton-card::after,
+    .app-skeleton-table::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent);
+      animation: skeletonSweep 1.35s ease-in-out infinite;
+    }
+    .app-skeleton-brand { width: 178px; height: 52px; margin-bottom: 44px; border-radius: 14px; }
+    .app-skeleton-nav { height: 42px; margin-bottom: 12px; border-radius: 11px; }
+    .app-skeleton-nav.short { width: 74%; }
+    .app-skeleton-main { min-width: 0; }
+    .app-skeleton-topbar {
+      height: 72px;
+      padding: 18px 28px;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .app-skeleton-bar { width: 230px; height: 34px; border-radius: 10px; }
+    .app-skeleton-content { padding: 28px; }
+    .app-skeleton-heading { width: min(420px, 70%); height: 28px; margin-bottom: 22px; border-radius: 9px; }
+    .app-skeleton-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .app-skeleton-card { height: 138px; border-radius: 18px; }
+    .app-skeleton-table { height: 330px; border-radius: 20px; }
+    @keyframes skeletonSweep {
+      to { transform: translateX(100%); }
     }
     @media (max-width: 768px) {
-      .app-loading-spinner {
-        width: 28px;
-        height: 28px;
-        border-width: 2.5px;
-      }
+      .app-skeleton-shell { grid-template-columns: 1fr; }
+      .app-skeleton-sidebar { display: none; }
+      .app-skeleton-topbar { height: 62px; padding: 15px 18px; }
+      .app-skeleton-bar { width: 48%; height: 30px; }
+      .app-skeleton-content { padding: 18px 14px; }
+      .app-skeleton-heading { height: 24px; margin-bottom: 18px; }
+      .app-skeleton-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .app-skeleton-card { height: 118px; border-radius: 16px; }
+      .app-skeleton-table { height: 290px; border-radius: 17px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .app-skeleton-brand::after,
+      .app-skeleton-nav::after,
+      .app-skeleton-bar::after,
+      .app-skeleton-card::after,
+      .app-skeleton-table::after { animation: none; }
     }
 
     /* ============================================================
@@ -4686,9 +4730,31 @@
 <!-- MAIN APP CONTAINER                                           -->
 <!-- ============================================================ -->
 
-<!-- Satu loading overlay untuk pemeriksaan sesi dan pemuatan data aplikasi -->
+<!-- Skeleton refresh untuk pemeriksaan sesi dan pemuatan data aplikasi -->
 <div id="appLoadingOverlay" class="app-loading-overlay hidden" role="status" aria-label="Memuat aplikasi">
-  <div class="app-loading-spinner" aria-hidden="true"></div>
+  <div class="app-skeleton-shell" aria-hidden="true">
+    <aside class="app-skeleton-sidebar">
+      <div class="app-skeleton-brand"></div>
+      <div class="app-skeleton-nav"></div>
+      <div class="app-skeleton-nav short"></div>
+      <div class="app-skeleton-nav"></div>
+      <div class="app-skeleton-nav short"></div>
+      <div class="app-skeleton-nav"></div>
+    </aside>
+    <div class="app-skeleton-main">
+      <div class="app-skeleton-topbar"><div class="app-skeleton-bar"></div></div>
+      <div class="app-skeleton-content">
+        <div class="app-skeleton-bar app-skeleton-heading"></div>
+        <div class="app-skeleton-grid">
+          <div class="app-skeleton-card"></div>
+          <div class="app-skeleton-card"></div>
+          <div class="app-skeleton-card"></div>
+          <div class="app-skeleton-card"></div>
+        </div>
+        <div class="app-skeleton-table"></div>
+      </div>
+    </div>
+  </div>
 </div>
  
 <div id="appContainer" class="hidden">
