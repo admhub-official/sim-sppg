@@ -3832,18 +3832,18 @@ function openDetailSupplier(rowNum) {
 function renderDetailTransaksi(tx, options) {
   resetDetailModalFooter();
   options = options || {};
-  var hideMissingDocs = !!options.hideMissingDocs;
-  var showApprovalDocuments = !!options.showApprovalDocuments;
+  var hideMissingDocs = options.hideMissingDocs !== false;
   var isLengkap = tx.statusDokumen && tx.statusDokumen.indexOf('Lengkap') > -1 && tx.statusDokumen.indexOf('Tidak') === -1;
   var docsHtml = '';
   docsHtml += renderFilePreview(tx.fileBuktiFoto || tx.fileBukti, 'Foto Bukti Transaksi', 'fa-camera', hideMissingDocs);
-  if (showApprovalDocuments) {
-    docsHtml += renderFilePreview(tx.fileBuktiFile, 'File Bukti Transaksi', 'fa-file', hideMissingDocs);
-    docsHtml += renderFilePreview(tx.fileBuktiApproval, 'Bukti Pembayaran Admin', 'fa-money-check-alt', hideMissingDocs);
-  }
+  docsHtml += renderFilePreview(tx.fileBuktiFile, 'File Bukti Transaksi', 'fa-file', hideMissingDocs);
+  docsHtml += renderFilePreview(tx.fileBuktiApproval, 'Bukti Pelunasan', 'fa-money-check-alt', hideMissingDocs);
   docsHtml += renderFilePreview(tx.fileNota, 'Nota Pembelian', 'fa-receipt', hideMissingDocs);
   docsHtml += renderFilePreview(tx.fileTtdUser, 'TTD User', 'fa-signature', hideMissingDocs);
   docsHtml += renderFilePreview(tx.fileTtdVerif, 'TTD Verifikator', 'fa-shield-alt', hideMissingDocs);
+  var paymentProofsHtml = Array.isArray(tx.paymentProofs) && tx.paymentProofs.length
+    ? '<div style="margin-bottom:16px;">' + renderPaymentProofHistory(tx) + '</div>'
+    : '';
 
   $('detailBody').innerHTML =
     '<div style="margin-bottom:20px;">' +
@@ -3866,7 +3866,7 @@ function renderDetailTransaksi(tx, options) {
         '<div class="detail-doc-icon"><i class="fas ' + (isLengkap ? 'fa-check' : 'fa-exclamation-triangle') + '"></i></div>' +
         '<div><div class="detail-doc-label">Status</div><div class="detail-doc-status">' + esc(tx.statusDokumen || 'Belum dicek') + '</div></div>' +
       '</div></div>' +
-    docsHtml +
+    docsHtml + paymentProofsHtml +
     '<div style="margin-bottom:10px;">' +
       '<div class="detail-section-title"><i class="fas fa-user" style="margin-right:6px;"></i>Penginput & Approval</div>' +
       '<div class="info-card" style="background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%);border-color:#bae6fd;">' +
@@ -3915,6 +3915,15 @@ function renderFilePreview(fileInfo, title, iconClass, hideMissing) {
       '</div></div>';
   }
   var url = fileInfo.signedUrl || fileInfo.previewUrl || fileInfo.viewUrl || '';
+  if (!url) {
+    if (hideMissing) return '';
+    return '<div style="margin-bottom:16px;">' +
+      '<div class="detail-section-title"><i class="fas ' + iconClass + '" style="margin-right:6px;"></i>' + esc(title) + '</div>' +
+      '<div class="detail-doc-item doc-missing">' +
+        '<div class="detail-doc-icon"><i class="fas fa-times"></i></div>' +
+        '<div><div class="detail-doc-label">' + esc(title) + '</div><div class="detail-doc-status">Belum diupload</div></div>' +
+      '</div></div>';
+  }
   var thumbUrl = fileInfo.signedThumbnailUrl || url;
   var isImage = fileInfo.mimeType && fileInfo.mimeType.indexOf('image') > -1;
   var isPdf = fileInfo.mimeType === 'application/pdf';
@@ -4240,7 +4249,7 @@ function openApprovalDetail(id) {
       showToast('error', 'Error', 'Transaksi approval tidak ditemukan');
       return;
     }
-    renderDetailTransaksi(tx, { hideMissingDocs: true, showApprovalDocuments: true });
+    renderDetailTransaksi(tx, { hideMissingDocs: true });
     currentApprovalDetailId = tx.id || id;
     var body = $('detailBody');
     if (body) body.insertAdjacentHTML('afterbegin', renderApprovalDetailHero(tx));
@@ -9397,17 +9406,6 @@ document.addEventListener('click',function(ev){
 /* APPROVAL V2 DETAIL MODULE */
 (function(){
 'use strict';
-function n(v){return Number(v)||0}
-function mimeOf(f){var m=String(f&&f.mimeType||'').toLowerCase();if(m)return m;var x=String(f&&(f.name||f.path)||'').toLowerCase();if(x.indexOf('.pdf')>-1)return'application/pdf';if(/\.(png|jpe?g|webp|heic|heif)/.test(x))return'image/jpeg';return'application/octet-stream'}
-window.renderFilePreview=function(fileInfo,title,iconClass){
- var url=fileInfo&&(fileInfo.signedUrl||fileInfo.previewUrl||fileInfo.viewUrl)||'';
- if(!url)return'<div style="margin-bottom:16px"><div class="detail-section-title"><i class="fas '+iconClass+'"></i> '+esc(title)+'</div><div class="detail-doc-item doc-missing"><div class="detail-doc-icon"><i class="fas fa-times"></i></div><div><div class="detail-doc-label">'+esc(title)+'</div><div class="detail-doc-status">Belum diupload</div></div></div></div>';
- var mime=mimeOf(fileInfo),thumb=fileInfo.signedThumbnailUrl||url;
- if(mime.indexOf('image/')===0)return'<div style="margin-bottom:16px"><div class="detail-section-title"><i class="fas '+iconClass+'"></i> '+esc(title)+'</div><img src="'+esc(thumb)+'" class="img-preview" style="cursor:pointer;width:100%;max-height:240px;object-fit:contain;border:1px solid var(--slate-200);border-radius:10px" onclick="openLightbox(\''+esc(url)+'\')" loading="lazy"></div>';
- if(mime==='application/pdf')return'<div style="margin-bottom:16px"><div class="detail-section-title"><i class="fas '+iconClass+'"></i> '+esc(title)+'</div><div style="border:1px solid var(--slate-200);border-radius:10px;overflow:hidden;cursor:pointer" onclick="openLightbox(\''+esc(url)+'\')"><iframe src="'+esc(url)+'#toolbar=0" style="width:100%;height:220px;border:0;pointer-events:none" loading="lazy"></iframe><div style="padding:9px;color:var(--primary);font-weight:600"><i class="fas fa-search-plus"></i> Klik untuk melihat PDF</div></div></div>';
- return'<div style="margin-bottom:16px"><div class="detail-section-title"><i class="fas '+iconClass+'"></i> '+esc(title)+'</div><div class="detail-doc-item" style="cursor:pointer" onclick="openLightbox(\''+esc(url)+'\')"><div class="detail-doc-icon"><i class="fas fa-file"></i></div><div><div class="detail-doc-label">'+esc(fileInfo.name||title)+'</div><div class="detail-doc-status">Klik untuk melihat file</div></div></div></div>';
-};
-renderFilePreview=window.renderFilePreview;
 window.renderPaymentProofHistory=function(tx){var ps=Array.isArray(tx&&tx.paymentProofs)?tx.paymentProofs:[];if(!ps.length)return'<div class="detail-doc-item doc-missing" style="margin-bottom:16px"><div class="detail-doc-icon"><i class="fas fa-receipt"></i></div><div><div class="detail-doc-label">Belum ada bukti pelunasan</div><div class="detail-doc-status">Transaksi masih menunggu pembayaran.</div></div></div>';var h='<div class="detail-section-title"><i class="fas fa-money-check-alt"></i> Riwayat Pembayaran ('+ps.length+')</div>';ps.forEach(function(p){var st=String(p.status||'').toUpperCase(),badge=st==='TERVERIFIKASI'?'badge-green':st==='DITOLAK'?'badge-red':'badge-orange';h+='<div class="info-card" style="margin-bottom:10px">'+infoRow('Pembayaran #'+(p.paymentSequence||'-'),'<strong>'+formatRupiah(p.nominal)+'</strong>')+infoRow('Status','<span class="badge '+badge+'">'+esc(st.replaceAll('_',' '))+'</span>')+infoRow('Diupload oleh',esc(p.submittedBy||'-'))+infoRow('Waktu upload',esc(p.submittedAt||'-'))+(p.verifiedBy?infoRow('Diverifikasi oleh',esc(p.verifiedBy)):'')+(p.verificationNotes?infoRow('Catatan',esc(p.verificationNotes)):'')+'</div>'+renderFilePreview(p.file,'Bukti Pelunasan #'+(p.paymentSequence||''),'fa-receipt')+(p.verifierSignature?renderFilePreview(p.verifierSignature,'TTD Verifikator #'+(p.paymentSequence||''),'fa-signature'):'')});return h};
 })();
 
