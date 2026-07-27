@@ -32,7 +32,7 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260724-approval-responsive-compact-v4';
+      const version = '20260727-settings-hub-v1';
       const scripts = [
         `<script src="./app.js?v=${version}"></script>`,
         `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`,
