@@ -4201,6 +4201,11 @@
   #page-approval .approval-row-clickable.status-belum-lunas td:first-child { border-left: 4px solid var(--orange); }
   #page-approval .approval-row-clickable.status-transfer td:first-child,
   #page-approval .approval-row-clickable.status-cash td:first-child { border-left: 4px solid var(--emerald); }
+  #page-transaksi .transaction-row-clickable { cursor: pointer; transition: background-color .18s ease, box-shadow .18s ease; }
+  #page-transaksi .transaction-row-clickable:hover td { background: #f6fbfe; }
+  #page-transaksi .transaction-row-clickable:hover { box-shadow: inset 4px 0 0 var(--primary); }
+  #page-transaksi .transaction-row-clickable:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+  #page-transaksi .transaction-row-clickable td { vertical-align: middle; }
   .approval-number-cell { text-align: center; color: var(--slate-400); font-size: 11px; font-weight: 800; }
   .approval-transaction-cell strong { display: block; max-width: 280px; overflow: hidden; color: var(--slate-900); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
   .approval-transaction-cell span { display: block; margin-top: 4px; color: var(--slate-500); font-size: 10px; }
@@ -4264,11 +4269,12 @@
   body.dark-mode .approval-desktop-view,
   body.dark-mode .approval-mobile-toolbar,
   body.dark-mode .approval-mobile-card,
-  body.dark-mode #modalDetail.approval-detail-mode .modal-box,
-  body.dark-mode #modalDetail.approval-detail-mode .modal-header { background: #1e293b; border-color: #334155; }
+  body.dark-mode #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-box,
+  body.dark-mode #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-header { background: #1e293b; border-color: #334155; }
   body.dark-mode .approval-data-table thead th { background: #172033; color: #94a3b8; border-color: #334155; }
   body.dark-mode .approval-data-table tbody td { background: #1e293b; border-color: #334155; color: #cbd5e1; }
   body.dark-mode #page-approval .approval-row-clickable:hover td { background: #243048; }
+  body.dark-mode #page-transaksi .transaction-row-clickable:hover td { background: #243048; }
   body.dark-mode .approval-transaction-cell strong,
   body.dark-mode .approval-nominal-cell,
   body.dark-mode .approval-card-title-wrap h3,
@@ -4293,8 +4299,8 @@
   .detail-modal-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
   .detail-context-actions { display: flex; align-items: center; gap: 8px; }
   .detail-context-actions .btn { min-height: 38px; white-space: nowrap; }
-  #modalDetail.approval-detail-mode .modal-box { border: 1px solid #dbe7ef; box-shadow: 0 24px 70px rgba(15, 23, 42, .22); }
-  #modalDetail.approval-detail-mode .modal-footer { display: none; }
+  #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-box { border: 1px solid #dbe7ef; box-shadow: 0 24px 70px rgba(15, 23, 42, .22); }
+  #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-footer { display: none; }
   .approval-detail-hero { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 20px; background: linear-gradient(135deg,#eff8fd 0%,#f8fbfd 55%,#f0fdf4 100%); border: 1px solid #d8eaf4; border-radius: 16px; }
   .approval-detail-icon { width: 54px; height: 54px; border-radius: 15px; display: grid; place-items: center; color: var(--primary); background: #fff; box-shadow: 0 7px 18px rgba(30,111,156,.12); font-size: 20px; }
   .approval-detail-summary { min-width: 0; }
@@ -4356,15 +4362,15 @@
     .approval-card-skeleton { min-height: 136px; padding: 16px; background: #fff; border: 1px solid #dbe7ef; border-radius: 17px; }
     .approval-mobile-skeleton { display: grid; gap: 12px; }
 
-    #modalDetail.approval-detail-mode .modal-overlay { align-items: flex-end; padding: 0; }
-    #modalDetail.approval-detail-mode .modal-box { width: 100%; max-width: none; max-height: 92dvh; margin: 0; border-width: 1px 0 0; border-radius: 22px 22px 0 0; animation: approvalSheetUp .22s ease-out; }
-    #modalDetail.approval-detail-mode .modal-header { position: sticky; top: 0; z-index: 5; flex-wrap: wrap; padding: 16px; background: rgba(255,255,255,.98); border-radius: 22px 22px 0 0; backdrop-filter: blur(12px); }
-    #modalDetail.approval-detail-mode .detail-modal-title-wrap { flex-basis: calc(100% - 48px); }
-    #modalDetail.approval-detail-mode .detail-modal-header-actions { width: 100%; order: 3; justify-content: stretch; }
-    #modalDetail.approval-detail-mode .detail-context-actions { flex: 1; }
-    #modalDetail.approval-detail-mode .detail-context-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
-    #modalDetail.approval-detail-mode .detail-modal-header-actions .modal-close { position: absolute; top: 14px; right: 14px; }
-    #modalDetail.approval-detail-mode .modal-body { padding: 14px 14px calc(18px + var(--safe-bottom)); overflow-y: auto; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-overlay { align-items: flex-end; padding: 0; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-box { width: 100%; max-width: none; max-height: 92dvh; margin: 0; border-width: 1px 0 0; border-radius: 22px 22px 0 0; animation: approvalSheetUp .22s ease-out; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-header { position: sticky; top: 0; z-index: 5; flex-wrap: wrap; padding: 16px; background: rgba(255,255,255,.98); border-radius: 22px 22px 0 0; backdrop-filter: blur(12px); }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-modal-title-wrap { flex-basis: calc(100% - 48px); }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-modal-header-actions { width: 100%; order: 3; justify-content: stretch; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-context-actions { flex: 1; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-context-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-modal-header-actions .modal-close { position: absolute; top: 14px; right: 14px; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-body { padding: 14px 14px calc(18px + var(--safe-bottom)); overflow-y: auto; }
     .approval-detail-hero { grid-template-columns: auto minmax(0,1fr); padding: 15px; gap: 12px; border-radius: 14px; }
     .approval-detail-nominal { grid-column: 1/-1; min-width: 0; text-align: left; padding-top: 12px; border-top: 1px solid #d8eaf4; }
     .approval-detail-icon { width: 46px; height: 46px; border-radius: 13px; }
@@ -5170,7 +5176,7 @@
         <div class="page-header">
           <div class="page-header-info">
             <div class="page-title" id="transaksiTitle"><i class="fas fa-exchange-alt" style="color:var(--primary);"></i> Transaksi</div>
-            <p class="page-desc" id="transaksiDesc">Daftar transaksi</p>
+            <p class="page-desc" id="transaksiDesc">Klik data untuk melihat detail dan tindakan</p>
           </div>
           <div class="page-header-actions">
             <button class="btn btn-primary btn-sm no-print desktop-add-transaction" onclick="openAddTransaksiModal()" title="Tambah Transaksi">
@@ -5231,7 +5237,6 @@
                   <th>Item</th>
                   <th>Nominal</th>
                   <th>Metode</th>
-                  <th style="width:80px;text-align:center;">Aksi</th>
                 </tr>
               </thead>
               <tbody id="transaksiTableBody"></tbody>
