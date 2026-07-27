@@ -32,6 +32,74 @@
   }, 2500);
 })();
 
+/* BULK PAYMENT + APPROVAL */
+(function(){
+'use strict';
+function rows(){return filteredApprovalData.filter(function(tx){return selectedApprovalIds.has(tx.id)})}
+function total(list){return list.reduce(function(sum,tx){var paid=Number(tx.nominalDibayar)||0;return sum+Math.max(0,(Number(tx.nominal)||0)-paid)},0)}
+function refreshAll(){selectedApprovalIds.clear();loadApprovalData();loadTransactions();loadDashboardData()}
+
+window.openBulkApprovalPin=function(){
+  var list=rows();
+  if(list.length<2){showToast('warning','Perhatian','Pilih minimal dua transaksi.');return}
+  if(currentUser&&currentUser.role==='USER'){
+    if(!uploadBuktiModeEnabled){showToast('warning','Tidak Tersedia','Upload bukti mandiri sedang dinonaktifkan.');return}
+    currentUserBuktiTxId=null;window.currentUserBuktiTxIds=list.map(function(tx){return tx.id});userBuktiFileData=null;
+    var items=list.map(function(tx){return '<div class="info-row"><span>'+esc(tx.kode||tx.item||'-')+'</span><strong>'+formatRupiah(Math.max(0,(Number(tx.nominal)||0)-(Number(tx.nominalDibayar)||0)))+'</strong></div>'}).join('');
+    $('userBuktiBody').innerHTML='<div class="info-card"><div style="font-weight:700;margin-bottom:8px">'+list.length+' transaksi dalam satu pelunasan</div>'+items+infoRow('Total bukti bersama','<strong style="color:var(--emerald)">'+formatRupiah(total(list))+'</strong>')+'</div><p class="form-hint" style="margin:10px 0">Satu file akan disimpan sebagai bukti pada masing-masing transaksi terpilih.</p><div class="form-group"><label class="form-label">Upload bukti pembayaran bersama <span class="req">*</span></label><div class="file-input-wrap"><input type="file" id="userBuktiFile" accept="image/*,.pdf" onchange="handleUserBuktiFile(this)"><div class="file-input-label" id="labelUserBukti"><i class="fas fa-receipt"></i><span>Pilih foto/PDF</span></div></div><div id="userBuktiPreview" style="margin-top:10px"></div></div>';
+    openModal('modalUserBukti');return;
+  }
+  bulkApprovalMode=true;window.bulkApprovalIds=list.map(function(tx){return tx.id});window.bulkApprovalNeedsProof=list.some(function(tx){return String(tx.metodeTransaksi||'').toUpperCase()!=='MENUNGGU_VERIFIKASI'});approvalFileData=null;currentApprovalNominal=total(list);
+  var items=list.map(function(tx){return '<div class="info-row"><span>'+esc(tx.kode||tx.item||'-')+'</span><strong>'+formatRupiah(Math.max(0,(Number(tx.nominal)||0)-(Number(tx.nominalDibayar)||0)))+'</strong></div>'}).join('');
+  $('approvalBody').innerHTML='<div class="info-card"><div style="font-weight:700;margin-bottom:8px">'+list.length+' transaksi dipilih</div>'+items+infoRow('Total konfirmasi','<strong style="color:var(--emerald)">'+formatRupiah(currentApprovalNominal)+'</strong>')+'</div><p class="form-hint" style="margin:10px 0">Satu bukti dan satu TTD diterapkan ke seluruh transaksi terpilih.</p>'+(window.bulkApprovalNeedsProof?'<div class="form-group"><label class="form-label">Bukti pelunasan bersama <span class="req">*</span></label><input type="file" id="approvalFileInput" class="form-input" accept="image/*,.pdf" onchange="handleApprovalFile(this)"></div>':'<div class="info-card" style="border-color:#a7f3d0;background:#ecfdf5"><i class="fas fa-check-circle"></i> Semua transaksi sudah memiliki bukti user; admin cukup menandatangani satu kali.</div>')+'<div class="form-group"><label class="form-label">Catatan (Opsional)</label><textarea id="approvalCatatan" class="form-input"></textarea></div><div class="form-group"><label class="form-label">TTD Verifikator Bersama <span class="req">*</span></label><div class="canvas-container"><canvas id="approvalTtdCanvas"></canvas></div><div class="canvas-actions"><button type="button" onclick="clearApprovalCanvas()"><i class="fas fa-eraser"></i> Hapus</button></div></div>';
+  openModal('modalApproval');setTimeout(initApprovalCanvas,100);
+};
+openBulkApprovalPin=window.openBulkApprovalPin;
+
+var previousSubmitUserBukti=window.submitUserBukti;
+window.submitUserBukti=function(){
+  var ids=Array.isArray(window.currentUserBuktiTxIds)?window.currentUserBuktiTxIds:[];
+  if(ids.length<2)return previousSubmitUserBukti();
+  if(!userBuktiFileData){showToast('error','Validasi','Bukti pembayaran wajib diupload.');return}
+  showLoading(true);callApi('submitUserBulkBuktiPembayaran',[{transactionIds:ids,buktiBase64:userBuktiFileData.base64,buktiMimeType:userBuktiFileData.mimeType,buktiFileName:userBuktiFileData.fileName}],function(r){showLoading(false);if(r&&r.success){window.currentUserBuktiTxIds=[];closeModal('modalUserBukti');showToast('success','Bukti Bersama Terkirim',r.message);refreshAll()}else showToast('error','Gagal',r&&r.message||'Bukti gagal disimpan')},function(e){showLoading(false);showToast('error','Gagal',e&&e.message||'Terjadi kesalahan')});
+};
+submitUserBukti=window.submitUserBukti;
+
+window.submitBulkApproval=function(){
+  var ids=Array.isArray(window.bulkApprovalIds)?window.bulkApprovalIds:[];
+  if(ids.length<2)return;
+  if(window.bulkApprovalNeedsProof&&!approvalFileData){showToast('error','Validasi','Bukti pelunasan bersama wajib diupload.');return}
+  if(!$('approvalTtdCanvas')||isCanvasBlank('approvalTtdCanvas')){showToast('error','Validasi','TTD verifikator wajib diisi.');return}
+  var payload={transactionIds:ids,approvedBy:currentUser.namaLengkap||currentUser.username,ttdBase64:$('approvalTtdCanvas').toDataURL('image/png').split(',')[1],catatanApproval:$('approvalCatatan')?$('approvalCatatan').value:''};
+  if(approvalFileData){payload.buktiBase64=approvalFileData.base64;payload.buktiMimeType=approvalFileData.mimeType;payload.buktiFileName=approvalFileData.fileName}
+  closeModal('modalApproval');showLoading(true);callApi('approveTransactionsBulk',[payload],function(r){showLoading(false);bulkApprovalMode=false;if(r&&r.success){showToast('success','Bulk Approval Selesai',r.message);refreshAll()}else showToast('error','Gagal',r&&r.message||'Bulk approval gagal')},function(e){showLoading(false);bulkApprovalMode=false;showToast('error','Gagal',e&&e.message||'Terjadi kesalahan')});
+};
+submitBulkApproval=window.submitBulkApproval;
+
+var previousPreSubmit=window.preSubmitApproval;
+window.preSubmitApproval=function(){
+  if(!bulkApprovalMode)return previousPreSubmit();
+  if(window.bulkApprovalNeedsProof&&!approvalFileData){showToast('error','Validasi','Bukti pelunasan bersama wajib diupload.');return}
+  if(!$('approvalTtdCanvas')||isCanvasBlank('approvalTtdCanvas')){showToast('error','Validasi','TTD verifikator wajib diisi.');return}
+  pendingConfirmNominal=currentApprovalNominal||0;$('nominalConfirmTitle').textContent='Total Bulk Approval';$('nominalConfirmDisplay').textContent=formatRupiah(pendingConfirmNominal);$('nominalConfirmLabel').textContent='Ketik ulang total nominal untuk konfirmasi';$('nominalConfirmInput').value='';$('pinError').style.display='none';openModal('modalPin');
+};
+preSubmitApproval=window.preSubmitApproval;
+
+var previousSubmitPin=window.submitApprovalWithPin;
+window.submitApprovalWithPin=function(){
+  if(!bulkApprovalMode)return previousSubmitPin();
+  var typed=String($('nominalConfirmInput')?$('nominalConfirmInput').value:'').trim();
+  if(!/^\d+$/.test(typed)||parseInt(typed,10)!==Math.round(pendingConfirmNominal)){if($('pinErrorText'))$('pinErrorText').textContent='Nominal konfirmasi tidak cocok.';if($('pinError'))$('pinError').style.display='block';return}
+  closeModal('modalPin');window.submitBulkApproval();
+};
+submitApprovalWithPin=window.submitApprovalWithPin;
+window.__bulkOpenApproval=window.openBulkApprovalPin;
+window.__bulkSubmitApproval=window.submitBulkApproval;
+window.__bulkSubmitUserProof=window.submitUserBukti;
+window.__bulkPreSubmitApproval=window.preSubmitApproval;
+window.__bulkSubmitApprovalPin=window.submitApprovalWithPin;
+})();
+
 /* ===== INLINE MODULE 2 ===== */
 // ============================================================
 // ============================================================
@@ -45,7 +113,8 @@ var API_ROUTES = {
   },
   'approval-payment-action': {
     getTransactions:1, getTransactionDetail:1, approveTransaction:1,
-    submitUserBuktiPembayaran:1, verifyUserPayment:1
+    submitUserBuktiPembayaran:1, submitUserBulkBuktiPembayaran:1,
+    verifyUserPayment:1, approveTransactionsBulk:1
   },
   'operations-action': {
     getAllUsers:1, updatePresence:1, deleteUser:1, getUploadBuktiMode:1,
@@ -4147,13 +4216,14 @@ function renderApprovalTable() {
   var mobileList = $('approvalMobileList');
   var pagination = $('approvalPagination');
   var isAdmin = !!(currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN'));
+  var canSelect = isAdmin || !!(currentUser && currentUser.role === 'USER' && uploadBuktiModeEnabled);
 
   if (!approvalData.length) {
     var emptyHtml = '<div class="empty-state"><div class="empty-illustration"><i class="fas fa-check-circle"></i></div><h4>Semua Lunas!</h4><p>Tidak ada transaksi yang menunggu approval.</p></div>';
     if (tbody) tbody.innerHTML = '<tr><td colspan="8">' + emptyHtml + '</td></tr>';
     if (mobileList) mobileList.innerHTML = emptyHtml;
     if (pagination) pagination.innerHTML = '';
-    syncApprovalSelectionControls(approvalData, isAdmin);
+    syncApprovalSelectionControls(approvalData, canSelect);
     updateApprovalBulkBar();
     return;
   }
@@ -4163,10 +4233,10 @@ function renderApprovalTable() {
   var start = (approvalPage - 1) * ITEMS_PER_PAGE;
   var pageData = approvalData.slice(start, start + ITEMS_PER_PAGE);
 
-  if (tbody) tbody.innerHTML = renderApprovalDesktopRows(pageData, start, isAdmin);
-  if (mobileList) mobileList.innerHTML = renderApprovalMobileCards(pageData, start, isAdmin);
+  if (tbody) tbody.innerHTML = renderApprovalDesktopRows(pageData, start, canSelect);
+  if (mobileList) mobileList.innerHTML = renderApprovalMobileCards(pageData, start, canSelect);
   renderPagination('approvalPagination', approvalPage, totalPages, 'goApprovalPage');
-  syncApprovalSelectionControls(approvalData, isAdmin);
+  syncApprovalSelectionControls(approvalData, canSelect);
   updateApprovalBulkBar();
 }
 
@@ -4186,14 +4256,24 @@ function getApprovalDocumentBadge(tx) {
   return '<span class="badge ' + badgeClass + '"><i class="fas ' + (doc.status === 'Lengkap' ? 'fa-check-circle' : 'fa-exclamation-circle') + '"></i> ' + esc(doc.status) + '</span>';
 }
 
-function renderApprovalDesktopRows(pageData, start, isAdmin) {
+function isApprovalBulkSelectable(tx) {
+  if (!currentUser) return false;
+  if (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') {
+    return String(tx && tx.metodeTransaksi || '').toUpperCase() !== 'SUDAH_DIBAYAR';
+  }
+  var status = String(tx && tx.metodeTransaksi || '').toUpperCase();
+  return currentUser.role === 'USER' && uploadBuktiModeEnabled &&
+    status !== 'SUDAH_DIBAYAR' && status !== 'MENUNGGU_VERIFIKASI';
+}
+
+function renderApprovalDesktopRows(pageData, start, canSelect) {
   return pageData.map(function(tx, idx) {
     var checked = selectedApprovalIds.has(tx.id);
     var statusClass = getApprovalStatusRowClass(tx.metodeTransaksi);
     var rowLabel = 'Lihat detail approval ' + (tx.kode || tx.item || tx.id || '');
     return '<tr data-id="' + esc(tx.id) + '" class="approval-row-clickable ' + esc(statusClass) + '" tabindex="0" role="button" aria-label="' + esc(rowLabel) + '" onclick="handleApprovalRowClick(event,this.dataset.id)" onkeydown="handleApprovalRowKeydown(event,this.dataset.id)">' +
       '<td class="approval-select-col hidden" style="text-align:center;">' +
-        (isAdmin ? '<input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()" onchange="toggleApprovalSelect(this)" ' + (checked ? 'checked' : '') + ' aria-label="Pilih transaksi ' + esc(tx.kode || tx.id) + '">' : '') +
+        (canSelect && isApprovalBulkSelectable(tx) ? '<input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()" onchange="toggleApprovalSelect(this)" ' + (checked ? 'checked' : '') + ' aria-label="Pilih transaksi ' + esc(tx.kode || tx.id) + '">' : '') +
       '</td>' +
       '<td class="approval-number-cell">' + (start + idx + 1) + '</td>' +
       '<td class="approval-transaction-cell"><strong>' + esc(tx.item || '-') + '</strong><span>' + esc(tx.kode || tx.id || '-') + ' &bull; ' + esc(tx.tanggal || '-') + '</span></td>' +
@@ -4206,12 +4286,12 @@ function renderApprovalDesktopRows(pageData, start, isAdmin) {
   }).join('');
 }
 
-function renderApprovalMobileCards(pageData, start, isAdmin) {
+function renderApprovalMobileCards(pageData, start, canSelect) {
   return pageData.map(function(tx, idx) {
     var checked = selectedApprovalIds.has(tx.id);
     var statusClass = getApprovalStatusRowClass(tx.metodeTransaksi);
     var rowLabel = 'Lihat detail approval ' + (tx.kode || tx.item || tx.id || '');
-    var selection = isAdmin
+    var selection = canSelect && isApprovalBulkSelectable(tx)
       ? '<label class="approval-card-select" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()"><input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onchange="toggleApprovalSelect(this)" ' + (checked ? 'checked' : '') + ' aria-label="Pilih transaksi ' + esc(tx.kode || tx.id) + '"><span></span></label>'
       : '';
     var note = tx.catatan && tx.catatan !== '-' ? '<p class="approval-card-note"><i class="fas fa-comment-alt"></i>' + esc(tx.catatan) + '</p>' : '';
@@ -4225,21 +4305,22 @@ function renderApprovalMobileCards(pageData, start, isAdmin) {
   }).join('');
 }
 
-function syncApprovalSelectionControls(approvalData, isAdmin) {
-  var allSelected = approvalData.length > 0 && approvalData.every(function(tx) { return selectedApprovalIds.has(tx.id); });
+function syncApprovalSelectionControls(approvalData, canSelect) {
+  var selectableData = approvalData.filter(isApprovalBulkSelectable);
+  var allSelected = selectableData.length > 0 && selectableData.every(function(tx) { return selectedApprovalIds.has(tx.id); });
   ['apprSelectAll', 'apprSelectAllMobile'].forEach(function(id) {
     var checkbox = $(id);
     if (checkbox) {
       checkbox.checked = allSelected;
-      checkbox.disabled = !isAdmin || !approvalData.length;
+      checkbox.disabled = !canSelect || !selectableData.length;
     }
   });
   var mobileToolbar = $('approvalMobileToolbar');
-  if (mobileToolbar) mobileToolbar.classList.toggle('hidden', !isAdmin);
+  if (mobileToolbar) mobileToolbar.classList.toggle('hidden', !canSelect);
   var mobileCount = $('approvalMobileCount');
   if (mobileCount) mobileCount.textContent = approvalData.length + ' transaksi';
   document.querySelectorAll('#page-approval .approval-select-col').forEach(function(cell) {
-    cell.classList.toggle('hidden', !isAdmin);
+    cell.classList.toggle('hidden', !canSelect);
   });
   document.querySelectorAll('#page-approval .appr-checkbox').forEach(function(checkbox) {
     checkbox.checked = selectedApprovalIds.has(checkbox.getAttribute('data-id'));
@@ -4345,14 +4426,14 @@ function toggleApprovalSelect(checkbox) {
   var id = checkbox.getAttribute('data-id');
   if (checkbox.checked) selectedApprovalIds.add(id);
   else selectedApprovalIds.delete(id);
-  var isAdmin = !!(currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN'));
-  syncApprovalSelectionControls(filteredApprovalData, isAdmin);
+  var canSelect = !!(currentUser && ((currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN') || (currentUser.role === 'USER' && uploadBuktiModeEnabled)));
+  syncApprovalSelectionControls(filteredApprovalData, canSelect);
   updateApprovalBulkBar();
 }
 
 function toggleSelectAllApproval(checkbox) {
   if (checkbox.checked) {
-    filteredApprovalData.forEach(function(tx) { selectedApprovalIds.add(tx.id); });
+    filteredApprovalData.filter(isApprovalBulkSelectable).forEach(function(tx) { selectedApprovalIds.add(tx.id); });
   } else {
     filteredApprovalData.forEach(function(tx) { selectedApprovalIds.delete(tx.id); });
   }
@@ -4372,6 +4453,8 @@ function updateApprovalBulkBar() {
     bar.classList.remove('hidden');
     var countEl = $('apprBulkCount');
     if (countEl) countEl.textContent = count;
+    var actionEl = $('apprBulkPrimaryLabel');
+    if (actionEl) actionEl.textContent = currentUser && currentUser.role === 'USER' ? 'Kirim Bukti Bersama' : 'Approve Terpilih';
   } else {
     bar.classList.add('hidden');
   }
@@ -9740,4 +9823,23 @@ window.renderVerifikasiForm=function(tx){$('verifikasiBody').innerHTML='<div cla
 window.submitVerifikasiPembayaran=function(){if(!$('verifTtdCanvas')||isCanvasBlank('verifTtdCanvas')){showToast('error','Validasi','TTD verifikator wajib diisi.');return}verifCatatanTemp=$('verifCatatan')?$('verifCatatan').value:'';verifikasiPembayaranMode=true;pendingConfirmNominal=currentVerifikasiNominal||0;$('nominalConfirmTitle').textContent='Total Transaksi';$('nominalConfirmDisplay').textContent=formatRupiah(pendingConfirmNominal);$('nominalConfirmLabel').textContent='Ketik ulang total nominal untuk konfirmasi TTD';$('nominalConfirmInput').value='';$('pinError').style.display='none';openModal('modalPin')};submitVerifikasiPembayaran=window.submitVerifikasiPembayaran;
 window.submitApprovalWithPin=function(){var t=String($('nominalConfirmInput')?$('nominalConfirmInput').value:'').trim();if(!/^\d+$/.test(t)||parseInt(t,10)!==Math.round(pendingConfirmNominal)){if($('pinErrorText'))$('pinErrorText').textContent='Nominal konfirmasi tidak cocok.';if($('pinError'))$('pinError').style.display='block';return}var verificationRequested=verifikasiPembayaranMode;closeModal('modalPin');if(verificationRequested){verifikasiPembayaranMode=false;doSubmitVerifikasiPembayaran();return}if(bulkApprovalMode){bulkApprovalMode=false;openBulkApprovalPin();return}if(!approvalFileData||!$('approvalTtdCanvas')||isCanvasBlank('approvalTtdCanvas')){showToast('error','Validasi','Bukti dan TTD wajib tersedia.');return}var d={id:currentTrxId,approvedBy:currentUser.namaLengkap||currentUser.username,ttdBase64:$('approvalTtdCanvas').toDataURL('image/png').split(',')[1],catatanApproval:$('approvalCatatan')?$('approvalCatatan').value:'',buktiBase64:approvalFileData.base64,buktiMimeType:approvalFileData.mimeType,buktiFileName:approvalFileData.fileName};closeModal('modalApproval');showLoading(true);callApi('approveTransaction',[d],function(r){showLoading(false);if(r&&r.success){showToast('success','Sudah Dibayar',r.message);loadTransactions();loadApprovalData();loadDashboardData()}else showToast('error','Gagal',r&&r.message||'Approval gagal')},function(e){showLoading(false);showToast('error','Gagal',e&&e.message||'Terjadi kesalahan')})};submitApprovalWithPin=window.submitApprovalWithPin;
 window.doSubmitVerifikasiPembayaran=function(){if(!$('verifTtdCanvas')||isCanvasBlank('verifTtdCanvas'))return;var sig=$('verifTtdCanvas').toDataURL('image/png').split(',')[1];closeModal('modalVerifikasiPembayaran');showLoading(true);callApi('verifyUserPayment',[{txId:currentVerifikasiTxId,ttdBase64:sig,catatanApproval:verifCatatanTemp,approvedBy:currentUser.namaLengkap||currentUser.username}],function(r){showLoading(false);if(r&&r.success){showToast('success','Sudah Dibayar',r.message);loadApprovalData();loadTransactions();loadDashboardData()}else showToast('error','Gagal',r&&r.message||'Verifikasi gagal')},function(e){showLoading(false);showToast('error','Gagal',e&&e.message||'Terjadi kesalahan')})};doSubmitVerifikasiPembayaran=window.doSubmitVerifikasiPembayaran;
+})();
+
+/* Activate bulk payment handlers after the legacy action modules. */
+(function(){
+  var submitSingleUserProof=window.submitUserBukti;
+  window.openBulkApprovalPin=window.__bulkOpenApproval;
+  window.submitBulkApproval=window.__bulkSubmitApproval;
+  window.preSubmitApproval=window.__bulkPreSubmitApproval;
+  window.submitApprovalWithPin=window.__bulkSubmitApprovalPin;
+  window.submitUserBukti=function(){
+    var ids=Array.isArray(window.currentUserBuktiTxIds)?window.currentUserBuktiTxIds:[];
+    if(ids.length>=2)return window.__bulkSubmitUserProof();
+    return submitSingleUserProof();
+  };
+  openBulkApprovalPin=window.openBulkApprovalPin;
+  submitBulkApproval=window.submitBulkApproval;
+  preSubmitApproval=window.preSubmitApproval;
+  submitApprovalWithPin=window.submitApprovalWithPin;
+  submitUserBukti=window.submitUserBukti;
 })();
