@@ -3208,7 +3208,7 @@ function loadTransactions(page, forceAll, silent) {
   if (!silent) showLoading(true);
   var tbody = $('transaksiTableBody');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="skeleton-screen" style="padding:20px;">' +
+    tbody.innerHTML = '<tr><td colspan="8"><div class="skeleton-screen" style="padding:20px;">' +
       '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div></div>'.repeat(5) +
       '</div></td></tr>';
   }
@@ -3274,7 +3274,7 @@ function renderTransaksiTable() {
   var count = filteredTransactions.length;
   if (!count) {
     var canAdd = currentUser && currentUser.role; // semua role yang punya akses halaman ini boleh tambah
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-inbox"></i></div><h4>Tidak Ada Transaksi</h4><p>Belum ada transaksi yang tercatat di sini.</p>' +
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-inbox"></i></div><h4>Tidak Ada Transaksi</h4><p>Belum ada transaksi yang tercatat di sini.</p>' +
       (canAdd ? '<button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openAddTransaksiModal()"><i class="fas fa-plus"></i> Tambah Transaksi Pertama</button>' : '') +
       '</div></td></tr>';
     $('txPagination').innerHTML = ''; return;
@@ -3284,13 +3284,13 @@ function renderTransaksiTable() {
   var start = (txPage - 1) * ITEMS_PER_PAGE;
   var pageData = txServerPaged ? filteredTransactions : filteredTransactions.slice(start, start + ITEMS_PER_PAGE);
   var html = '';
-  var isAdmin = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN');
-    pageData.forEach(function(tx, idx) {
+  pageData.forEach(function(tx, idx) {
     var no = start + idx + 1;
     var metode = String(tx.metodeTransaksi || '').trim().toUpperCase();
     var isPaid = metode === 'SUDAH_DIBAYAR';
     var rowClass = isPaid ? 'row-paid' : '';
-    html += '<tr class="' + rowClass + '" data-id="' + esc(tx.id) + '">' +
+    var rowLabel = 'Lihat detail transaksi ' + (tx.kode || tx.item || tx.id || '');
+    html += '<tr class="transaction-row-clickable ' + rowClass + '" data-id="' + esc(tx.id) + '" tabindex="0" role="button" aria-label="' + esc(rowLabel) + '" onclick="handleTransactionRowClick(event,this.dataset.id)" onkeydown="handleTransactionRowKeydown(event,this.dataset.id)">' +
       '<td style="text-align:center;color:var(--slate-400);font-weight:600;">' + no + '</td>' +
       '<td><strong style="color:var(--slate-800);font-size:12px;">' + esc(tx.kode || '-') + '</strong></td>' +
       '<td>' + esc(tx.tanggal || '-') + '</td>' +
@@ -3299,13 +3299,7 @@ function renderTransaksiTable() {
       '<td><strong style="color:var(--slate-700);">' + esc(tx.item || '-') + '</strong></td>' +
       '<td><strong style="color:var(--slate-800);">' + formatRupiah(tx.nominal) + '</strong></td>' +
       '<td>' + getMetodeBadge(tx.metodeTransaksi) + '</td>' +
-      '<td style="text-align:center;">' +
-        '<div class="action-group" style="opacity:1;">' +
-          '<button class="action-btn view" onclick="openDetailTransaksi(\'' + esc(tx.id) + '\')" title="Detail Transaksi"><i class="fas fa-eye"></i><span class="tooltip">Detail</span></button>' +
-          (isAdmin && !isPaid ? '<button class="action-btn approve" onclick="openApprovalModal(\'' + esc(tx.id) + '\')" title="Approve"><i class="fas fa-check"></i><span class="tooltip">Approve</span></button>' : '') +
-          ((isAdmin || !isPaid) ? '<button class="action-btn edit" onclick="openEditTransaksi(\'' + esc(tx.id) + '\')" title="Edit Transaksi"><i class="fas fa-edit"></i><span class="tooltip">Edit</span></button>' : '') +
-          (isAdmin ? '<button class="action-btn delete" onclick="confirmHapus(\'transaksi\',0,\'' + esc(tx.id) + '\',\'transaksi ' + esc((tx.kode||'').substring(0,15)) + '\')" title="Hapus"><i class="fas fa-trash"></i><span class="tooltip">Hapus</span></button>' : '') +
-        '</div></td></tr>';
+      '</tr>';
   });
   tbody.innerHTML = html;
   renderPagination('txPagination', txPage, totalPages, 'goTxPage');
@@ -3747,18 +3741,72 @@ function saveAddTransaksi() {
   if (!uploadsPending) doSubmit();
 }
 
+function handleTransactionRowClick(event, id) {
+  if (event && event.target && event.target.closest && event.target.closest('input,button,a,select,textarea,label')) return;
+  openDetailTransaksi(id);
+}
+
+function handleTransactionRowKeydown(event, id) {
+  if (!event || (event.target && event.target.closest && event.target.closest('input,button,a,select,textarea,label'))) return;
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    openDetailTransaksi(id);
+  }
+}
+
 function openDetailTransaksi(id) {
   showLoading(true);
     callApi('getTransactionDetail', [id], function(tx) {
         showLoading(false);
               if (!tx) { showToast('error', 'Error', 'Transaksi tidak ditemukan'); return; }
               renderDetailTransaksi(tx);
+              configureTransactionDetailActions(tx);
+              var modal = $('modalDetail');
+              if (modal) modal.classList.add('transaction-detail-mode');
               openModal('modalDetail');
       },
       function(err) {
         showLoading(false); showToast('error', 'Error', 'Gagal memuat detail');
       }
     );
+}
+
+function configureTransactionDetailActions(tx) {
+  var actions = $('detailHeaderActions');
+  if (!actions) return;
+  var isAdmin = !!(currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN'));
+  var isUser = !!(currentUser && currentUser.role === 'USER');
+  var currentKeys = currentUser ? [currentUser.email, currentUser.username].map(function(v) {
+    return String(v || '').trim().toLowerCase();
+  }) : [];
+  var isOwner = currentKeys.indexOf(String(tx.user || '').trim().toLowerCase()) > -1;
+  var canEdit = isAdmin || (!isUser ? true : (transactionEditModeEnabled && isOwner));
+  var status = String(tx.metodeTransaksi || '').trim().toUpperCase();
+  var html = '';
+
+  if (isAdmin && status !== 'SUDAH_DIBAYAR') {
+    html += '<button type="button" class="btn btn-success btn-sm" onclick="runTransactionDetailAction(\'' + (tx.canVerify ? 'verify' : 'approve') + '\')"><i class="fas ' + (tx.canVerify ? 'fa-stamp' : 'fa-check') + '"></i><span>' + (tx.canVerify ? 'Verifikasi' : 'Approve') + '</span></button>';
+  }
+  if (canEdit) {
+    html += '<button type="button" class="btn btn-primary btn-sm" onclick="runTransactionDetailAction(\'edit\')"><i class="fas fa-edit"></i><span>Edit</span></button>';
+  }
+  if (isAdmin) {
+    html += '<button type="button" class="btn btn-danger btn-sm" onclick="runTransactionDetailAction(\'delete\')"><i class="fas fa-trash"></i><span>Hapus</span></button>';
+  }
+
+  window.currentTransactionDetail = tx;
+  actions.innerHTML = html;
+  actions.classList.toggle('hidden', !html);
+}
+
+function runTransactionDetailAction(action) {
+  var tx = window.currentTransactionDetail;
+  if (!tx || !tx.id) return;
+  closeModal('modalDetail');
+  if (action === 'edit') openEditTransaksi(tx.id);
+  else if (action === 'delete') confirmHapus('transaksi', 0, tx.id, 'transaksi ' + String(tx.kode || '').substring(0, 15));
+  else if (action === 'verify') openVerifikasiModal(tx.id);
+  else if (action === 'approve') openApprovalModal(tx.id);
 }
 
 function openDetailSupplier(rowNum) {
@@ -3844,6 +3892,8 @@ function resetDetailModalFooter() {
   if (!modal) return;
   currentApprovalDetailId = null;
   modal.classList.remove('approval-detail-mode');
+  modal.classList.remove('transaction-detail-mode');
+  window.currentTransactionDetail = null;
   var footer = modal.querySelector('.modal-footer');
   if (footer) footer.innerHTML = '<button onclick="closeModal(\'modalDetail\')" class="btn btn-outline">Tutup</button>';
   var actions = $('detailHeaderActions');
@@ -9369,14 +9419,7 @@ renderDetailTransaksi=window.renderDetailTransaksi;
 /* APPROVAL V2 STATUS MODULE */
 (function(){
 'use strict';
-function admin(){return currentUser&&(currentUser.role==='ADMIN'||currentUser.role==='SUPER_ADMIN')}
-function st(tx){return String(tx&&tx.metodeTransaksi||'').trim().toUpperCase()}
-function paid(tx){return st(tx)==='SUDAH_DIBAYAR'}
-function owner(tx){return currentUser&&String(tx.user||'').toLowerCase()===String(currentUser.email||'').toLowerCase()}
-function progress(tx){var total=Number(tx.nominal)||0,done=Number(tx.nominalDibayar)||0,left=Math.max(0,Number(tx.sisaPembayaran!=null?tx.sisaPembayaran:total-done)||0);if(!done)return'';var pct=total?Math.min(100,Math.round(done/total*100)):0;return'<div style="margin-top:4px;min-width:140px"><div style="height:5px;background:var(--slate-200);border-radius:9px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--primary)"></div></div><div style="font-size:10px;color:var(--slate-500);margin-top:3px">Diajukan '+formatRupiah(done)+' · Sisa '+formatRupiah(left)+'</div></div>'}
 renderApprovalTable=window.renderApprovalTable;
-window.renderTransaksiTable=function(){var body=$('transaksiTableBody'),count=filteredTransactions.length;if(!count){body.innerHTML='<tr><td colspan="9"><div class="empty-state"><h4>Tidak Ada Transaksi</h4></div></td></tr>';$('txPagination').innerHTML='';return}var pages=Math.ceil((txServerPaged?txServerTotal:count)/ITEMS_PER_PAGE);if(txPage>pages)txPage=pages;var start=(txPage-1)*ITEMS_PER_PAGE,rows=txServerPaged?filteredTransactions:filteredTransactions.slice(start,start+ITEMS_PER_PAGE),html='';rows.forEach(function(x,i){var action='';var canEdit=admin()||!currentUser||currentUser.role!=='USER'||transactionEditModeEnabled;if(admin()&&!paid(x))action=x.canVerify?'<button class="action-btn approve" onclick="openVerifikasiModal(\''+esc(x.id)+'\')"><i class="fas fa-stamp"></i></button>':'<button class="action-btn approve" onclick="openApprovalModal(\''+esc(x.id)+'\')"><i class="fas fa-check"></i></button>';html+='<tr class="'+(paid(x)?'row-paid':'')+'"><td>'+(start+i+1)+'</td><td><strong>'+esc(x.kode||'-')+'</strong></td><td>'+esc(x.tanggal||'-')+'</td><td><span class="badge '+(x.kategori==='PENGELUARAN'?'badge-red':'badge-green')+'">'+esc(x.kategori||'-')+'</span></td><td><span class="badge badge-outline">'+esc(x.sppg||'-')+'</span></td><td>'+esc(x.item||'-')+'</td><td><strong>'+formatRupiah(x.nominal)+'</strong>'+progress(x)+'</td><td>'+getMetodeBadge(x.metodeTransaksi)+'</td><td><div class="action-group" style="opacity:1"><button class="action-btn view" onclick="openDetailTransaksi(\''+esc(x.id)+'\')"><i class="fas fa-eye"></i></button>'+action+(canEdit?'<button class="action-btn edit" onclick="openEditTransaksi(\''+esc(x.id)+'\')" title="Edit Transaksi"><i class="fas fa-edit"></i></button>':'')+(admin()?'<button class="action-btn delete" onclick="confirmHapus(\'transaksi\',0,\''+esc(x.id)+'\',\'transaksi\')"><i class="fas fa-trash"></i></button>':'')+'</div></td></tr>'});body.innerHTML=html;renderPagination('txPagination',txPage,pages,'goTxPage')};
-renderTransaksiTable=window.renderTransaksiTable;
 window.openBulkApprovalPin=function(){showToast('warning','Tidak Tersedia','Bulk approval dinonaktifkan karena setiap transaksi wajib memiliki bukti pelunasan dan TTD verifikator.')};window.submitBulkApproval=window.openBulkApprovalPin;openBulkApprovalPin=window.openBulkApprovalPin;submitBulkApproval=window.submitBulkApproval;
 })();
 
