@@ -7798,7 +7798,9 @@ function submitRecovery() {
     var installed = isStandalonePWA();
     var notificationSupported = 'Notification' in window && 'PushManager' in window;
     var notificationGranted = notificationSupported && Notification.permission === 'granted';
-    var ready = installed && notificationGranted && _pushSubscriptionSynced;
+    // Izin browser adalah sumber kebenaran untuk UI. Sinkronisasi subscription
+    // dilanjutkan diam-diam ke backend dan tidak boleh memblokir refresh.
+    var ready = installed && notificationGranted;
     gate.classList.toggle('hidden', ready);
 
     var installStep = document.getElementById('pwaInstallStep');
@@ -7806,12 +7808,12 @@ function submitRecovery() {
     var installStatus = document.getElementById('pwaInstallStatus');
     var notifStatus = document.getElementById('pwaNotificationStatus');
     if (installStep) installStep.classList.toggle('complete', installed);
-    if (notifStep) notifStep.classList.toggle('complete', notificationGranted && _pushSubscriptionSynced);
+    if (notifStep) notifStep.classList.toggle('complete', notificationGranted);
     if (installStatus) installStatus.textContent = installed ? 'Terpasang' : 'Wajib';
     if (notifStatus) {
       notifStatus.textContent = !notificationSupported ? 'Tidak didukung' :
         (Notification.permission === 'denied' ? 'Diblokir' :
-          (notificationGranted ? (_pushSubscriptionSynced ? 'Aktif' : 'Menyinkronkan') : 'Wajib'));
+          (notificationGranted ? 'Aktif' : 'Wajib'));
     }
 
     var button = document.getElementById('pwaGatePrimaryButton');
@@ -7828,8 +7830,8 @@ function submitRecovery() {
       button.innerHTML = '<i class="fas fa-bell"></i><span>Aktifkan Notifikasi</span>';
       help.textContent = getNotificationHelpText();
     } else {
-      button.innerHTML = '<i class="fas fa-sync fa-spin"></i><span>Menyinkronkan Perangkat...</span>';
-      help.textContent = 'Mendaftarkan perangkat ini sebagai penerima pengumuman SIM-SPPG.';
+      button.innerHTML = '<i class="fas fa-check-circle"></i><span>Notifikasi Aktif</span>';
+      help.textContent = 'Perangkat memenuhi persyaratan. Sinkronisasi penerima notifikasi berjalan otomatis.';
     }
   }
 
