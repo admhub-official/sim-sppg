@@ -76,7 +76,12 @@ var API_ROUTES = {
   'auth-public-action': { verifyRegistrationOtp:1, resendRegistrationOtp:1, loginUser:1, checkSession:1 },
   'account-recovery-action': { recoverPassword:1, recoverUsername:1, recoverToken:1 },
   'app-config-action': { getAppConfig:1, getDropdownOptions:1 },
-  'notification-dispatch-action': { dispatchNotification:1 }
+  'notification-dispatch-action': { dispatchNotification:1 },
+  'settings-action': {
+    getMyMenuVisibility:1, getMyAnnouncements:1, getSettingsHub:1,
+    updateFeatureSettings:1, updateMenuVisibility:1,
+    createAnnouncement:1, setAnnouncementActive:1
+  }
 };
 var PUBLIC_FN = {
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
@@ -228,6 +233,15 @@ var notifList = [];
 var notifPollTimer = null;
 var notifPage = 1, notifPageSize = 15, notifServerTotal = 0, notifServerPaged = false, notifHasMore = false;
 var notifLoadingMore = false;
+var menuVisibilityByRole = {};
+var settingsHubState = {
+  loaded: false,
+  features: { allowUserEditTransaction: false, allowUserUploadBukti: false },
+  menuVisibility: { SUPER_ADMIN: [], ADMIN: [], USER: [] },
+  announcements: [],
+  selectedMenuRole: 'SUPER_ADMIN',
+  layoutReady: false
+};
 
 
 // Centralized server-pagination refresh after successful mutations.
@@ -1269,6 +1283,276 @@ function stopIdleLogoutWatcher() {
 }
 
 // ============================================================
+// 4b. SETTINGS HUB & ANNOUNCEMENTS
+// ============================================================
+function loadMyMenuVisibility() {
+  return new Promise(function(resolve) {
+    if (!currentUser) { resolve(); return; }
+    callApi('getMyMenuVisibility', [], function(result) {
+      if (result && result.success && Array.isArray(result.menus)) {
+        menuVisibilityByRole[result.role || currentUser.role] = result.menus;
+        if (!isPageAllowedForCurrentUser(currentPage)) currentPage = 'dashboard';
+        buildSidebar();
+        buildBottomNav();
+        renderQuickAccess();
+      }
+      resolve(result);
+    }, function(error) {
+      console.error('Menu visibility gagal dimuat:', error);
+      resolve();
+    });
+  });
+}
+
+function initializeSettingsHubLayout() {
+  if (settingsHubState.layoutReady || !currentUser || currentUser.role !== 'SUPER_ADMIN') return;
+  var usersPage = $('page-users');
+  var adminPage = $('page-admin-assignment');
+  var usersHost = $('settingsUsersHost');
+  var adminHost = $('settingsAdminHost');
+  if (usersPage && usersHost) {
+    while (usersPage.firstChild) usersHost.appendChild(usersPage.firstChild);
+  }
+  if (adminPage && adminHost) {
+    while (adminPage.firstChild) adminHost.appendChild(adminPage.firstChild);
+  }
+  settingsHubState.layoutReady = true;
+}
+
+function openSettingsTab(tabName, button) {
+  if (!currentUser || currentUser.role !== 'SUPER_ADMIN') return;
+  document.querySelectorAll('.settings-panel').forEach(function(panel) {
+    panel.classList.toggle('hidden', panel.id !== 'settingsPanel-' + tabName);
+  });
+  document.querySelectorAll('.settings-tab').forEach(function(tab) {
+    var active = tab.getAttribute('data-settings-tab') === tabName;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  if (button) button.scrollIntoView({ block: 'nearest', inline: 'center' });
+  if (tabName === 'users') {
+    loadUsers(true);
+    restoreFilterBarState('usersFilterBar');
+  }
+  if (tabName === 'admin') {
+    loadAdminAssignments(true);
+    restoreFilterBarState('adminAssignmentFilterBar');
+  }
+}
+
+function loadSettingsHub() {
+  if (!currentUser || currentUser.role !== 'SUPER_ADMIN') return;
+  initializeSettingsHubLayout();
+  callApi('getSettingsHub', [], function(result) {
+    if (!result || !result.success) return;
+    settingsHubState.loaded = true;
+    settingsHubState.features = result.features || settingsHubState.features;
+    settingsHubState.menuVisibility = result.menuVisibility || settingsHubState.menuVisibility;
+    settingsHubState.announcements = Array.isArray(result.announcements) ? result.announcements : [];
+    Object.keys(settingsHubState.menuVisibility).forEach(function(role) {
+      menuVisibilityByRole[role] = settingsHubState.menuVisibility[role];
+    });
+    transactionEditModeEnabled = settingsHubState.features.allowUserEditTransaction === true;
+    uploadBuktiModeEnabled = settingsHubState.features.allowUserUploadBukti === true;
+    renderSettingsFeatureSwitches();
+    renderSettingsMenuGrid();
+    renderSettingsAnnouncementList();
+    buildSidebar();
+    buildBottomNav();
+  }, function(error) {
+    showToast('error', 'Pengaturan Gagal Dimuat', error.message || 'Terjadi kesalahan.');
+  });
+}
+
+function renderSettingsFeatureSwitches() {
+  var editSwitch = $('settingsTxEditSwitch');
+  var uploadSwitch = $('settingsUploadSwitch');
+  if (editSwitch) {
+    editSwitch.classList.toggle('active', settingsHubState.features.allowUserEditTransaction === true);
+    editSwitch.setAttribute('aria-checked', settingsHubState.features.allowUserEditTransaction === true ? 'true' : 'false');
+  }
+  if (uploadSwitch) {
+    uploadSwitch.classList.toggle('active', settingsHubState.features.allowUserUploadBukti === true);
+    uploadSwitch.setAttribute('aria-checked', settingsHubState.features.allowUserUploadBukti === true ? 'true' : 'false');
+  }
+}
+
+function toggleSettingsFeature(type) {
+  if (type === 'edit') {
+    settingsHubState.features.allowUserEditTransaction = !settingsHubState.features.allowUserEditTransaction;
+  } else if (type === 'upload') {
+    settingsHubState.features.allowUserUploadBukti = !settingsHubState.features.allowUserUploadBukti;
+  }
+  renderSettingsFeatureSwitches();
+}
+
+function saveFeatureSettings() {
+  var button = $('btnSaveFeatureSettings');
+  if (button) { button.disabled = true; button.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...'; }
+  callApi('updateFeatureSettings', [settingsHubState.features], function(result) {
+    if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Simpan Pengaturan'; }
+    transactionEditModeEnabled = settingsHubState.features.allowUserEditTransaction === true;
+    uploadBuktiModeEnabled = settingsHubState.features.allowUserUploadBukti === true;
+    renderModeToggleUI();
+    renderTransactionEditModeUI();
+    showToast('success', 'Pengaturan Tersimpan', result.message || 'Pengaturan transaksi berhasil disimpan.');
+  }, function(error) {
+    if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Simpan Pengaturan'; }
+    showToast('error', 'Gagal Menyimpan', error.message || 'Terjadi kesalahan.');
+  });
+}
+
+function selectSettingsMenuRole(role, button) {
+  settingsHubState.selectedMenuRole = role;
+  document.querySelectorAll('.settings-role-tab').forEach(function(tab) {
+    tab.classList.toggle('active', tab.getAttribute('data-settings-role') === role);
+  });
+  renderSettingsMenuGrid();
+}
+
+function getSettingsMenuOptions(role) {
+  var source = MENU_CONFIG[role] || MENU_CONFIG.USER;
+  var found = {};
+  return source.filter(function(item) {
+    if (!item.page || found[item.page]) return false;
+    found[item.page] = true;
+    return true;
+  });
+}
+
+function renderSettingsMenuGrid() {
+  var grid = $('settingsMenuGrid');
+  if (!grid) return;
+  var role = settingsHubState.selectedMenuRole;
+  var selected = settingsHubState.menuVisibility[role] || [];
+  var required = role === 'SUPER_ADMIN' ? ['dashboard', 'profil', 'settings'] : ['dashboard', 'profil'];
+  grid.innerHTML = getSettingsMenuOptions(role).map(function(item) {
+    var mandatory = required.indexOf(item.page) !== -1;
+    var checked = mandatory || selected.indexOf(item.page) !== -1;
+    return '<label class="settings-menu-option ' + (mandatory ? 'is-required' : '') + '">' +
+      '<input type="checkbox" value="' + esc(item.page) + '" ' + (checked ? 'checked' : '') + ' ' + (mandatory ? 'disabled' : '') + '>' +
+      '<i class="fas ' + esc(item.icon || 'fa-circle') + '"></i>' +
+      '<span>' + esc(item.label) + (mandatory ? ' <small>(wajib)</small>' : '') + '</span>' +
+    '</label>';
+  }).join('');
+}
+
+function saveMenuVisibility() {
+  var role = settingsHubState.selectedMenuRole;
+  var menus = [];
+  document.querySelectorAll('#settingsMenuGrid input[type="checkbox"]').forEach(function(input) {
+    if (input.checked) menus.push(input.value);
+  });
+  var button = $('btnSaveMenuVisibility');
+  if (button) { button.disabled = true; button.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...'; }
+  callApi('updateMenuVisibility', [{ role: role, menus: menus }], function(result) {
+    if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Simpan Menu Role'; }
+    settingsHubState.menuVisibility[role] = result.menus || menus;
+    menuVisibilityByRole[role] = settingsHubState.menuVisibility[role];
+    buildSidebar();
+    buildBottomNav();
+    renderQuickAccess();
+    renderSettingsMenuGrid();
+    showToast('success', 'Menu Tersimpan', result.message || 'Visibilitas menu berhasil diperbarui.');
+  }, function(error) {
+    if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-save"></i> Simpan Menu Role'; }
+    showToast('error', 'Gagal Menyimpan', error.message || 'Terjadi kesalahan.');
+  });
+}
+
+function sendAnnouncement() {
+  var title = $('announcementTitle') ? $('announcementTitle').value.trim() : '';
+  var body = $('announcementBody') ? $('announcementBody').value.trim() : '';
+  var targetRoles = [];
+  if ($('announcementRoleAdmin') && $('announcementRoleAdmin').checked) targetRoles.push('ADMIN');
+  if ($('announcementRoleUser') && $('announcementRoleUser').checked) targetRoles.push('USER');
+  if (!title || !body || !targetRoles.length) {
+    showToast('warning', 'Data Belum Lengkap', 'Isi judul, pengumuman, dan pilih minimal satu role.');
+    return;
+  }
+  var button = $('btnSendAnnouncement');
+  if (button) { button.disabled = true; button.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Mengirim...'; }
+  callApi('createAnnouncement', [{
+    title: title,
+    body: body,
+    targetRoles: targetRoles,
+    priority: $('announcementPriority') ? $('announcementPriority').value : 'INFORMASI',
+    endsAt: $('announcementEndsAt') && $('announcementEndsAt').value ? new Date($('announcementEndsAt').value).toISOString() : null
+  }], function(result) {
+    if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-paper-plane"></i> Terbitkan &amp; Kirim'; }
+    $('announcementTitle').value = '';
+    $('announcementBody').value = '';
+    $('announcementEndsAt').value = '';
+    $('announcementRoleAdmin').checked = false;
+    $('announcementRoleUser').checked = false;
+    var sent = 0;
+    (result.push || []).forEach(function(row) {
+      if (row.result) sent += Number(row.result.sent || 0);
+    });
+    showToast('success', 'Pengumuman Diterbitkan', 'Tampil di Dashboard. Push terkirim ke ' + sent + ' perangkat.');
+    loadSettingsHub();
+  }, function(error) {
+    if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-paper-plane"></i> Terbitkan &amp; Kirim'; }
+    showToast('error', 'Gagal Mengirim', error.message || 'Terjadi kesalahan.');
+  });
+}
+
+function renderSettingsAnnouncementList() {
+  var list = $('settingsAnnouncementList');
+  if (!list) return;
+  if (!settingsHubState.announcements.length) {
+    list.innerHTML = '<div class="empty-state"><i class="fas fa-bullhorn"></i><p>Belum ada pengumuman.</p></div>';
+    return;
+  }
+  list.innerHTML = settingsHubState.announcements.map(function(item) {
+    var priority = String(item.priority || 'INFORMASI').toLowerCase();
+    var roles = Array.isArray(item.target_roles) ? item.target_roles.join(' & ') : '-';
+    return '<article class="announcement-item priority-' + esc(priority) + '">' +
+      '<div><h4>' + esc(item.title) + '</h4><p>' + esc(item.body) + '</p>' +
+      '<div class="announcement-meta"><span>' + esc(roles) + '</span><span>' + esc(formatDate(item.created_at)) + '</span><span>' + (item.is_active ? 'Aktif' : 'Nonaktif') + '</span></div></div>' +
+      '<button type="button" class="toggle-switch ' + (item.is_active ? 'active' : '') + '" role="switch" aria-checked="' + (item.is_active ? 'true' : 'false') + '" onclick="toggleAnnouncementActive(\'' + esc(item.id) + '\',' + (!item.is_active) + ')"></button>' +
+    '</article>';
+  }).join('');
+}
+
+function toggleAnnouncementActive(id, isActive) {
+  callApi('setAnnouncementActive', [{ id: id, isActive: isActive }], function(result) {
+    showToast('success', 'Pengumuman Diperbarui', result.message || 'Status berhasil diperbarui.');
+    loadSettingsHub();
+  }, function(error) {
+    showToast('error', 'Gagal Memperbarui', error.message || 'Terjadi kesalahan.');
+  });
+}
+
+function loadMyAnnouncements() {
+  var container = $('dashboardAnnouncements');
+  if (!container || !currentUser) return;
+  if (currentUser.role !== 'ADMIN' && currentUser.role !== 'USER') {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+  callApi('getMyAnnouncements', [], function(result) {
+    var items = result && Array.isArray(result.announcements) ? result.announcements : [];
+    if (!items.length) {
+      container.classList.add('hidden');
+      container.innerHTML = '';
+      return;
+    }
+    container.innerHTML = items.map(function(item) {
+      var priority = String(item.priority || 'INFORMASI').toLowerCase();
+      return '<article class="dashboard-announcement priority-' + esc(priority) + '">' +
+        '<div class="dashboard-announcement-icon"><i class="fas fa-bullhorn"></i></div>' +
+        '<div><h3>' + esc(item.title) + '</h3><p>' + esc(item.body) + '</p></div>' +
+      '</article>';
+    }).join('');
+    container.classList.remove('hidden');
+  }, function() {
+    container.classList.add('hidden');
+  });
+}
+
+// ============================================================
 // 5. SIDEBAR & NAVIGATION
 // ============================================================
 
@@ -1277,12 +1561,11 @@ var MENU_CONFIG = {
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
     { label: 'MENU UTAMA', isHeader: true },
-    { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
+    { page: 'settings', label: 'Pengaturan', icon: 'fa-sliders-h' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
     { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
-    { page: 'admin-assignment', label: 'Konfigurasi Admin', icon: 'fa-user-shield' },
     { label: 'DATA MASTER', isHeader: true },
     { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
     { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
@@ -1394,9 +1677,22 @@ function getLastPageStorageKey() {
   return 'sppg_last_page:' + String(identity || 'default').toLowerCase();
 }
 
+function isMenuPageVisibleForRole(page, role) {
+  var configured = menuVisibilityByRole[role];
+  if (!Array.isArray(configured) || !configured.length) return true;
+  return configured.indexOf(page) !== -1;
+}
+
+function getVisibleMenusForRole(role) {
+  var menus = MENU_CONFIG[role] || MENU_CONFIG.USER || [];
+  return menus.filter(function(item) {
+    return !item.page || isMenuPageVisibleForRole(item.page, role);
+  });
+}
+
 function isPageAllowedForCurrentUser(page) {
   if (!currentUser || !page) return false;
-  var menus = MENU_CONFIG[currentUser.role] || MENU_CONFIG.USER || [];
+  var menus = getVisibleMenusForRole(currentUser.role);
   return menus.some(function(item) { return item.page === page; });
 }
 
@@ -1413,8 +1709,10 @@ function rememberCurrentPage(page) {
 
 function buildSidebar() {
   var role = currentUser ? currentUser.role : '';
- var menus = MENU_CONFIG[role] || MENU_CONFIG['USER'];
-  var bottomNavPages = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['USER'];
+  var menus = getVisibleMenusForRole(role);
+  var bottomNavPages = (BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['USER']).filter(function(page) {
+    return isMenuPageVisibleForRole(page, role);
+  });
 
   // Di desktop (>= 768px) tidak ada bottom nav, jadi semua menu tampil di sidebar.
   // Di mobile, item yang sudah ada di bottom nav disembunyikan dari sidebar
@@ -1487,7 +1785,9 @@ var BNAV_ICON_LABEL = {
 function buildBottomNav() {
   if (!currentUser) return;
   var role = currentUser.role;
-  var tabs = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+  var tabs = (BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN']).filter(function(page) {
+    return isMenuPageVisibleForRole(page, role);
+  });
   var html = '';
 
   // 5 item navigation tanpa FAB dan tanpa "Lainnya"
@@ -1522,8 +1822,10 @@ function syncApprovalBadgeToBottomNav() {
 function openMoreSheet() {
   if (!currentUser) return;
   var role = currentUser.role;
-  var menus = MENU_CONFIG[role] || MENU_CONFIG['LAPANGAN'];
-  var mainTabs = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+  var menus = getVisibleMenusForRole(role);
+  var mainTabs = (BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN']).filter(function(page) {
+    return isMenuPageVisibleForRole(page, role);
+  });
   var html = '';
   var currentGroup = '';
   menus.forEach(function(item) {
@@ -1593,7 +1895,9 @@ function updateBreadcrumb(page, pageLabel) {
 // R7: Highlight tombol "Lainnya" saat halaman aktif ada di more-sheet
 function syncMoreButtonActive(page) {
   var role = currentUser ? currentUser.role : '';
-  var mainTabs = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN'];
+  var mainTabs = (BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG['LAPANGAN']).filter(function(menuPage) {
+    return isMenuPageVisibleForRole(menuPage, role);
+  });
   // Jika halaman tidak ada di bottom nav utama, berarti ada di "Lainnya"
   var isInMainTabs = mainTabs.indexOf(page) > -1;
   var moreBtn = document.querySelector('.bnav-item:last-child');
@@ -1628,7 +1932,9 @@ var QA_ICON_LABEL = {
 function renderQuickAccess() {
   var container = $('quickAccessSection');
   if (!container || !currentUser) return;
-  var pages = QUICK_ACCESS_CONFIG[currentUser.role] || [];
+  var pages = (QUICK_ACCESS_CONFIG[currentUser.role] || []).filter(function(page) {
+    return isMenuPageVisibleForRole(page, currentUser.role);
+  });
   if (!pages.length) { container.innerHTML = ''; return; }
   var html = '<div class="quick-access-title">Akses Cepat</div><div class="quick-access-grid">';
   pages.forEach(function(page) {
@@ -1776,7 +2082,10 @@ document.addEventListener('click', function(e) {
      APP SHELL & NAVIGATION
      ============================================================ */
 function switchPage(page, el) {
-  if (!isPageAllowedForCurrentUser(page)) page = 'dashboard';
+  if (!isPageAllowedForCurrentUser(page)) {
+    page = 'dashboard';
+    el = null;
+  }
   // SAFETY NET: pastikan body tidak terkunci sisa dari modal yang gagal
   // ditutup dengan benar (mis. alur Approval->PIN atau Verifikasi->PIN
   // yang terinterupsi). Tanpa ini, overflow:hidden bisa "nyangkut" dan
@@ -1807,7 +2116,8 @@ function switchPage(page, el) {
     'pending-payment': 'Pending Payment', 'master-bahan': 'Master Bahan Baku',
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
     'serah-terima': 'Serah Terima', 'menu-mbg': 'Data Menu MBG',
-    'audit-log': 'Riwayat Aktivitas', 'admin-assignment': 'Konfigurasi Admin'
+    'audit-log': 'Riwayat Aktivitas', 'admin-assignment': 'Konfigurasi Admin',
+    'settings': 'Pengaturan'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
   // R4: Update breadcrumb
@@ -1818,7 +2128,8 @@ function switchPage(page, el) {
   updateBottomNavActive();
   updateFabVisibility();
   // Page-specific init
-  if (page === 'dashboard') { loadDashboardData(true); updateChart(); renderQuickAccess(); }
+  if (page === 'dashboard') { loadDashboardData(true); updateChart(); renderQuickAccess(); loadMyAnnouncements(); }
+  if (page === 'settings' && currentUser.role === 'SUPER_ADMIN') { initializeSettingsHubLayout(); loadSettingsHub(); }
   if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers(true);
   if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(undefined, undefined, true); restoreFilterBarState('txFilterBar'); }
   if (page === 'approval') { loadFeatureModes(true); loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
@@ -2009,12 +2320,14 @@ function initApp() {
 
   loadGlobalDateFilterState();
   currentPage = getRestorablePage();
+  if (currentUser.role === 'SUPER_ADMIN') initializeSettingsHubLayout();
 
   buildSidebar();
   buildBottomNav();
   updateFabVisibility();
   initNotifBell();
   loadFeatureModes();
+  loadMyAnnouncements();
   startIdleLogoutWatcher();
   if (_swRegistration) initPushNotification();
 
@@ -2046,6 +2359,7 @@ function initApp() {
       try { initChart(); } catch(e) { console.error('initChart error:', e); }
       renderQuickAccess();
       Promise.all([
+        loadMyMenuVisibility(),
         loadDashboardData(true),
         loadDropdownOptions(),
         loadUsers(true),
