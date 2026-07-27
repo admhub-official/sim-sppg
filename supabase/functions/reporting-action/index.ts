@@ -36,9 +36,9 @@ Deno.serve(async (req: Request) => {
     return json({
       status: 'ok',
       service: 'reporting-action',
-      version: 7,
+      version: 8,
       scopeMode: 'assigned-sppg-with-yayasan-compatibility',
-      balanceMode: 'approved-expenses-only',
+      balanceMode: 'all-time-approved-expenses-only',
     });
   }
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
