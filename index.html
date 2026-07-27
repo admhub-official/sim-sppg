@@ -6359,28 +6359,32 @@
             <option value="TRANSFER">TRANSFER</option>
             <option value="SUDAH_DIBAYAR" style="color:#16a34a;font-weight:700;">SUDAH DIBAYAR</option>
           </select>
-          <p class="form-hint" id="addTxSudahDibayarWarning" style="display:none;color:#dc2626;">
-            <i class="fas fa-exclamation-triangle"></i> Transaksi dengan status "Sudah Dibayar" akan langsung terkunci dan tidak dapat diedit lagi.
+          <p class="form-hint">
+            <i class="fas fa-info-circle"></i> Pilih metode sesuai transaksi antara penjual dan pembeli. Jika pembayaran dilakukan langsung dari rekening yayasan/mitra, pilih <strong>SUDAH DIBAYAR</strong>.
+          </p>
+          <p class="form-hint" id="addTxSudahDibayarWarning" style="display:none;color:#047857;font-weight:600;">
+            <i class="fas fa-check-circle"></i> Bukti transaksi akan sekaligus dicatat sebagai bukti pelunasan. Transaksi langsung selesai dan tidak masuk menu Approval.
           </p>
         </div>
 
         <!-- Bukti Transaksi -->
         <div class="form-group">
-          <label class="form-label">Bukti Transaksi</label>
+          <label class="form-label">Upload Bukti Transaksi <span class="req" id="addTxBuktiRequired" style="display:none;">*</span></label>
           <div class="file-input-wrap">
-            <input type="file" id="addTxFoto" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" onchange="updateFileLabel(this,'labelFoto')">
+            <input type="file" id="addTxFoto" accept="image/*,application/pdf,.pdf" onchange="updateFileLabel(this,'labelFoto')">
             <div class="file-input-label" id="labelFoto"><i class="fas fa-camera"></i><span>Kamera / Galeri / File</span></div>
           </div>
-          <p class="form-hint"><i class="fas fa-info-circle"></i> Di HP: pilih kamera atau galeri. Di desktop: pilih file dari komputer.</p>
+          <p class="form-hint" id="addTxBuktiHint"><i class="fas fa-info-circle"></i> Opsional untuk metode BELUM BAYAR. Wajib untuk metode pembayaran lainnya.</p>
         </div>
 
         <!-- Nota Pembelian -->
         <div class="form-group">
-          <label class="form-label">Upload Nota Pembelian</label>
+          <label class="form-label">Upload Nota Pembelian <span class="req">*</span></label>
           <div class="file-input-wrap">
-            <input type="file" id="addTxNota" accept="image/*,.pdf" onchange="updateFileLabel(this,'labelNota')">
+            <input type="file" id="addTxNota" accept="image/*,application/pdf,.pdf" required onchange="updateFileLabel(this,'labelNota')">
             <div class="file-input-label" id="labelNota"><i class="fas fa-receipt"></i><span>Pilih nota pembelian</span></div>
           </div>
+          <p class="form-hint"><i class="fas fa-asterisk" style="font-size:8px;"></i> Nota pembelian wajib diunggah untuk setiap transaksi.</p>
         </div>
 
         <!-- TTD Digital -->
@@ -7219,6 +7223,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260727-transaction-report-export-v1"></script>
+<script src="./app.js?v=20260727-paid-transaction-proof-v1"></script>
 </body>
 </html>
