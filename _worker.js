@@ -32,7 +32,7 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260727-pwa-push-required-v1';
+      const version = '20260727-presence-sound-v1';
       const scripts = [
         `<script src="./app.js?v=${version}"></script>`,
         `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`,
