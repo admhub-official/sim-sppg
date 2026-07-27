@@ -74,9 +74,13 @@ export async function approveBulkTransactions(data: any, current: Caller) {
   const rows = [];
   for (const id of ids) rows.push(await transaction(current, id));
   const states = await paymentState(ids);
-  const needsProof = rows.some((row: any) =>
+  const remainingFlags = rows.map((row: any) =>
     Math.max(0, Number(row.Nominal || 0) - (states.get(text(row.ID))?.used || 0)) > 0
   );
+  const needsProof = remainingFlags.some(Boolean);
+  if (needsProof && remainingFlags.some((value) => !value)) {
+    throw new Error('Jangan gabungkan transaksi yang sudah memiliki pelunasan penuh dengan transaksi yang belum memiliki pelunasan penuh.');
+  }
   let proofPath = '';
   let signaturePath = '';
   try {
