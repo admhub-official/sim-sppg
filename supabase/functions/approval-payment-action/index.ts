@@ -4,10 +4,11 @@ import { getTransactionDetail, getTransactions } from './read.ts';
 import { submitPayment } from './submit.ts';
 import { verifyPayment } from './verify.ts';
 import { directApproval } from './direct.ts';
+import { approveBulkTransactions, submitBulkPayment } from './bulk.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method === 'GET') return json({ status: 'ok', service: 'approval-payment-action', version: 3, scopeMode: 'assigned-sppg', documentSource: 'storage-verified' });
+  if (req.method === 'GET') return json({ status: 'ok', service: 'approval-payment-action', version: 4, scopeMode: 'assigned-sppg', documentSource: 'storage-verified', bulkApproval: true });
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
   try {
     const current = await caller(req);
@@ -17,8 +18,10 @@ Deno.serve(async (req: Request) => {
     if (body?.function === 'getTransactions') result = await getTransactions(parameters, current);
     else if (body?.function === 'getTransactionDetail') result = await getTransactionDetail(parameters, current);
     else if (body?.function === 'submitUserBuktiPembayaran') result = await submitPayment(parameters[0] || {}, current);
+    else if (body?.function === 'submitUserBulkBuktiPembayaran') result = await submitBulkPayment(parameters[0] || {}, current);
     else if (body?.function === 'verifyUserPayment') result = await verifyPayment(parameters[0] || {}, current);
     else if (body?.function === 'approveTransaction') result = await directApproval(parameters[0] || {}, current);
+    else if (body?.function === 'approveTransactionsBulk') result = await approveBulkTransactions(parameters[0] || {}, current);
     else return json({ error: `Fungsi tidak diizinkan: ${body?.function || ''}` }, 404);
     return json({ result });
   } catch (error) {
