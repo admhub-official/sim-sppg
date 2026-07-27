@@ -4496,6 +4496,76 @@
   }
   .tx-date-field .form-input { width: 100%; min-width: 0; }
 
+  .pwa-requirement-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 200000;
+    display: grid;
+    place-items: center;
+    padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    background: linear-gradient(145deg, rgba(15,23,42,.96), rgba(21,87,122,.97));
+  }
+  .pwa-requirement-gate.hidden { display: none !important; }
+  .pwa-gate-card {
+    width: min(430px, 100%);
+    padding: 28px;
+    background: #fff;
+    border: 1px solid rgba(255,255,255,.45);
+    border-radius: 24px;
+    box-shadow: 0 28px 70px rgba(0,0,0,.32);
+    text-align: center;
+  }
+  .pwa-gate-logo {
+    width: 68px;
+    height: 68px;
+    margin: 0 auto 16px;
+    padding: 10px;
+    object-fit: contain;
+    background: #eff8ff;
+    border-radius: 20px;
+  }
+  .pwa-gate-card h2 { margin: 0 0 8px; color: var(--slate-900); font-size: 21px; }
+  .pwa-gate-card > p { margin: 0 auto 18px; color: var(--slate-500); font-size: 12px; line-height: 1.6; }
+  .pwa-gate-steps { display: grid; gap: 9px; margin-bottom: 18px; text-align: left; }
+  .pwa-gate-step {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 54px;
+    padding: 10px 12px;
+    background: var(--slate-50);
+    border: 1px solid var(--slate-200);
+    border-radius: 13px;
+  }
+  .pwa-gate-step-icon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    color: var(--primary);
+    background: #e0f2fe;
+    border-radius: 10px;
+  }
+  .pwa-gate-step strong { display: block; color: var(--slate-800); font-size: 12px; }
+  .pwa-gate-step small { display: block; margin-top: 2px; color: var(--slate-400); font-size: 9px; }
+  .pwa-gate-status { color: var(--amber); font-size: 10px; font-weight: 800; }
+  .pwa-gate-step.complete .pwa-gate-step-icon { color: #047857; background: #d1fae5; }
+  .pwa-gate-step.complete .pwa-gate-status { color: #047857; }
+  .pwa-gate-actions { display: grid; gap: 9px; }
+  .pwa-gate-actions .btn { width: 100%; min-height: 46px; justify-content: center; }
+  .pwa-gate-help {
+    min-height: 34px;
+    margin-top: 13px;
+    padding: 9px 11px;
+    color: var(--slate-500);
+    background: var(--slate-50);
+    border-radius: 10px;
+    font-size: 10px;
+    line-height: 1.55;
+    text-align: left;
+  }
+
   /* Pusat Pengaturan SUPER_ADMIN. */
   .settings-tabs {
     display: flex;
@@ -4743,6 +4813,35 @@
 </div>
  
 <div id="appContainer" class="hidden">
+
+  <div id="pwaRequirementGate" class="pwa-requirement-gate hidden" role="dialog" aria-modal="true" aria-labelledby="pwaGateTitle">
+    <div class="pwa-gate-card">
+      <img class="pwa-gate-logo" src="https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png" alt="">
+      <h2 id="pwaGateTitle">Siapkan aplikasi SIM-SPPG</h2>
+      <p id="pwaGateDescription">Instal aplikasi dan aktifkan notifikasi agar pengumuman penting tetap diterima di perangkat ini.</p>
+      <div class="pwa-gate-steps">
+        <div class="pwa-gate-step" id="pwaInstallStep">
+          <span class="pwa-gate-step-icon"><i class="fas fa-mobile-alt"></i></span>
+          <span><strong>Instal sebagai aplikasi</strong><small>Buka SIM-SPPG dari ikon layar utama.</small></span>
+          <span class="pwa-gate-status" id="pwaInstallStatus">Belum</span>
+        </div>
+        <div class="pwa-gate-step" id="pwaNotificationStep">
+          <span class="pwa-gate-step-icon"><i class="fas fa-bell"></i></span>
+          <span><strong>Aktifkan notifikasi</strong><small>Izinkan pengumuman muncul di perangkat.</small></span>
+          <span class="pwa-gate-status" id="pwaNotificationStatus">Belum</span>
+        </div>
+      </div>
+      <div class="pwa-gate-actions">
+        <button type="button" class="btn btn-primary" id="pwaGatePrimaryButton" onclick="handlePwaGatePrimary()">
+          <i class="fas fa-download"></i><span>Instal Aplikasi</span>
+        </button>
+        <button type="button" class="btn btn-outline" id="pwaGateRetryButton" onclick="recheckPwaRequirements()">
+          <i class="fas fa-sync"></i><span>Periksa Lagi</span>
+        </button>
+      </div>
+      <div class="pwa-gate-help" id="pwaGateHelp">Ikuti langkah instalasi yang ditampilkan browser.</div>
+    </div>
+  </div>
 
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
 
