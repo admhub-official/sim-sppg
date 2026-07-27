@@ -6,18 +6,18 @@ function isApprovedExpense(row: any) {
 }
 
 export async function getDashboardKPI(p: any[], c: Caller) {
-  let rows = await visibleTransactions(c);
-  const start = iso(p[0]), end = iso(p[1]);
-  if (start) rows = rows.filter((x: any) => s(x.Tanggal) >= start);
-  if (end) rows = rows.filter((x: any) => s(x.Tanggal) <= end);
-  let totalIn = 0, totalOut = 0, belum = 0, antrian = 0;
+  const rows = await visibleTransactions(c);
+  let totalIn = 0, totalOut = 0, belum = 0, antrian = 0, approvedExpenseCount = 0;
   const sppg = new Set<string>(), yayasan = new Set<string>();
   for (const row of rows) {
     const nominal = Number(row.Nominal) || 0;
     const kategori = norm(row.Kategori);
     const status = paymentStatus(row['Metode Transaksi']);
     if (kategori === 'PEMASUKAN') totalIn += nominal;
-    else if (isApprovedExpense(row)) totalOut += nominal;
+    else if (isApprovedExpense(row)) {
+      totalOut += nominal;
+      approvedExpenseCount++;
+    }
     if (kategori === 'PENGELUARAN' && status !== 'SUDAH_DIBAYAR') {
       belum += nominal;
       antrian++;
@@ -31,8 +31,10 @@ export async function getDashboardKPI(p: any[], c: Caller) {
     totalPemasukan: totalIn,
     totalPengeluaran: totalOut,
     saldoBerjalan: totalIn - totalOut,
+    approvedExpenseCount,
     totalBelumBayar: belum,
     antrianApproval: antrian,
+    calculationMode: 'ALL_TIME_APPROVED_EXPENSES',
     scope: {
       role: c.role, assignmentCount: assignments.length, transactionCount: rows.length,
       sppgCount: sppg.size, yayasanCount: yayasan.size,
