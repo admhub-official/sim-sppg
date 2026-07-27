@@ -1,12 +1,12 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-27T02:33:46.708Z.
+Generated automatically from `app.js` at 2026-07-27T02:50:26.234Z.
 
 ## Summary
 
-- Literal API calls found: **69**
-- Functions declared in `API_ROUTES`: **82**
-- Routed literal API calls: **69**
+- Literal API calls found: **70**
+- Functions declared in `API_ROUTES`: **83**
+- Routed literal API calls: **70**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
 
@@ -81,6 +81,7 @@ Generated automatically from `app.js` at 2026-07-27T02:33:46.708Z.
 | `updateMenuMBG` | `operations-action` |
 | `updateMenuVisibility` | `settings-action` |
 | `updatePendingPayment` | `operations-action` |
+| `updatePresence` | `operations-action` |
 | `updateSerahTerima` | `operations-action` |
 | `updateSurvei` | `operations-action` |
 | `updateUserProfile` | `secure-user-action` |
