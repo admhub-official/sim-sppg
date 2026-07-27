@@ -3575,11 +3575,25 @@ function openAddTransaksiModal() {
 function updateAddTxMetodeStyle() {
   var sel = $('addTxMetodeTransaksi');
   var warn = $('addTxSudahDibayarWarning');
+  var requiredMark = $('addTxBuktiRequired');
+  var proofInput = $('addTxFoto');
+  var proofHint = $('addTxBuktiHint');
   if (!sel) return;
   var isSudahDibayar = sel.value === 'SUDAH_DIBAYAR';
+  var proofRequired = sel.value !== 'BELUM_BAYAR';
   sel.style.color = isSudahDibayar ? '#16a34a' : '';
   sel.style.fontWeight = isSudahDibayar ? '700' : '';
   if (warn) warn.style.display = isSudahDibayar ? 'block' : 'none';
+  if (requiredMark) requiredMark.style.display = proofRequired ? 'inline' : 'none';
+  if (proofInput) {
+    proofInput.required = proofRequired;
+    proofInput.setAttribute('aria-required', proofRequired ? 'true' : 'false');
+  }
+  if (proofHint) {
+    proofHint.innerHTML = proofRequired
+      ? '<i class="fas fa-asterisk" style="font-size:8px;"></i> Bukti transaksi wajib untuk metode yang dipilih.'
+      : '<i class="fas fa-info-circle"></i> Bukti transaksi belum wajib untuk metode BELUM BAYAR.';
+  }
 }
 
 function saveAddTransaksi() {
@@ -3596,10 +3610,18 @@ function saveAddTransaksi() {
   if (!data.tanggal || !data.sppg || !data.namaItem || !data.nominal) {
     showToast('error', 'Validasi', 'Tanggal, SPPG, Nama Item, dan Nominal wajib diisi'); return;
   }
-  showLoading(true);
-
   var fotoFile = $('addTxFoto').files[0];
   var notaFile = $('addTxNota') ? $('addTxNota').files[0] : null;
+  var proofRequired = data.metodeTransaksi !== 'BELUM_BAYAR';
+  if (proofRequired && !fotoFile) {
+    showToast('error', 'Bukti Transaksi Wajib', 'Upload foto atau file bukti transaksi untuk metode pembayaran yang dipilih.');
+    return;
+  }
+  if (!notaFile) {
+    showToast('error', 'Nota Wajib', 'Upload nota pembelian sebelum menyimpan transaksi.');
+    return;
+  }
+  showLoading(true);
   var ttdCanvas = $('addTxTtdCanvas');
   var uploadsPending = 0;
   var uploadErrors = [];
@@ -3697,14 +3719,18 @@ function saveAddTransaksi() {
     var r = new FileReader();
     r.onload = function(e) {
       var b64 = e.target.result.split(',')[1];
+      var proofKind = String(fotoFile.type || '').toLowerCase().indexOf('image/') === 0 ? 'foto' : 'file';
     callApi('uploadTxFile', [
       b64,
       fotoFile.type,
       fotoFile.name,
-      'foto'
+      proofKind
     ], function(up) {
-        finishRequiredUpload('Foto bukti transaksi', up, function(result) { data.uploadFoto = result.fileName; });
-      }, function(err) { failRequiredUpload('Foto bukti transaksi', err); });
+        finishRequiredUpload('Bukti transaksi', up, function(result) {
+          if (proofKind === 'foto') data.uploadFoto = result.fileName;
+          else data.uploadFile = result.fileName;
+        });
+      }, function(err) { failRequiredUpload('Bukti transaksi', err); });
     };
     r.readAsDataURL(fotoFile);
   }
