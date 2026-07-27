@@ -4296,9 +4296,10 @@
   .detail-modal-title-wrap { flex: 1; min-width: 0; }
   .detail-modal-title-wrap h3 { margin: 0; }
   .detail-modal-title-wrap p { margin: 5px 0 0; color: var(--slate-500); font-size: 12px; }
-  .detail-modal-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
-  .detail-context-actions { display: flex; align-items: center; gap: 8px; }
+  .detail-modal-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; flex-shrink: 0; }
+  .detail-context-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; }
   .detail-context-actions .btn { min-height: 38px; white-space: nowrap; }
+  .detail-modal-header-actions .modal-close { flex: 0 0 auto; }
   #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-box { border: 1px solid #dbe7ef; box-shadow: 0 24px 70px rgba(15, 23, 42, .22); }
   #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-footer { display: none; }
   .approval-detail-hero { display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 20px; background: linear-gradient(135deg,#eff8fd 0%,#f8fbfd 55%,#f0fdf4 100%); border: 1px solid #d8eaf4; border-radius: 16px; }
@@ -4367,7 +4368,7 @@
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-header { position: sticky; top: 0; z-index: 5; flex-wrap: wrap; padding: 16px; background: rgba(255,255,255,.98); border-radius: 22px 22px 0 0; backdrop-filter: blur(12px); }
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-modal-title-wrap { flex-basis: calc(100% - 48px); }
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-modal-header-actions { width: 100%; order: 3; justify-content: stretch; }
-    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-context-actions { flex: 1; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-context-actions { flex: 1; padding-right: 50px; }
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-context-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-modal-header-actions .modal-close { position: absolute; top: 14px; right: 14px; }
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-body { padding: 14px 14px calc(18px + var(--safe-bottom)); overflow-y: auto; }
