@@ -1,12 +1,12 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-27T07:00:59.661Z.
+Generated automatically from `app.js` at 2026-07-27T07:17:18.083Z.
 
 ## Summary
 
-- Literal API calls found: **68**
-- Functions declared in `API_ROUTES`: **81**
-- Routed literal API calls: **68**
+- Literal API calls found: **70**
+- Functions declared in `API_ROUTES`: **83**
+- Routed literal API calls: **70**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
 
@@ -29,6 +29,7 @@ Generated automatically from `app.js` at 2026-07-27T07:00:59.661Z.
 | `addSurveiBahanBaku` | `operations-action` |
 | `addTransaction` | `transaction-action` |
 | `approveTransaction` | `approval-payment-action` |
+| `approveTransactionsBulk` | `approval-payment-action` |
 | `createAnnouncement` | `settings-action` |
 | `deleteAdminAssignment` | `operations-action` |
 | `deleteMasterBahanBaku` | `master-action` |
@@ -72,6 +73,7 @@ Generated automatically from `app.js` at 2026-07-27T07:00:59.661Z.
 | `savePushSubscription` | `push-action` |
 | `setAnnouncementActive` | `settings-action` |
 | `submitUserBuktiPembayaran` | `approval-payment-action` |
+| `submitUserBulkBuktiPembayaran` | `approval-payment-action` |
 | `updateAdminAssignment` | `operations-action` |
 | `updateFeatureSettings` | `settings-action` |
 | `updateMasterBahanBaku` | `master-action` |
