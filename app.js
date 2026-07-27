@@ -4543,7 +4543,283 @@ function closeApprovalDownloadMenu() {
 document.addEventListener('click', function(event) {
   var wrap = $('approvalDownloadWrap');
   if (wrap && !wrap.contains(event.target)) closeApprovalDownloadMenu();
+  var transactionWrap = $('transactionDownloadWrap');
+  if (transactionWrap && !transactionWrap.contains(event.target)) closeTransactionDownloadMenu();
 });
+
+// ============================================================
+// EXPORT TRANSAKSI — data bisnis terpilih, tanpa field internal
+// ============================================================
+function toggleTransactionDownloadMenu(event) {
+  if (event) event.stopPropagation();
+  var menu = $('transactionDownloadMenu');
+  var trigger = $('transactionDownloadTrigger');
+  if (!menu) return;
+  var willOpen = menu.classList.contains('hidden');
+  menu.classList.toggle('hidden', !willOpen);
+  if (trigger) trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+
+function closeTransactionDownloadMenu() {
+  var menu = $('transactionDownloadMenu');
+  var trigger = $('transactionDownloadTrigger');
+  if (menu) menu.classList.add('hidden');
+  if (trigger) trigger.setAttribute('aria-expanded', 'false');
+}
+
+function _transactionReportFilters() {
+  var filters = {};
+  var sppg = $('txFilterSPPG') ? $('txFilterSPPG').value : 'ALL';
+  var kategori = $('txFilterKategori') ? $('txFilterKategori').value : 'ALL';
+  var start = $('txFilterTglStart') ? $('txFilterTglStart').value : '';
+  var end = $('txFilterTglEnd') ? $('txFilterTglEnd').value : '';
+  if (sppg && sppg !== 'ALL') filters.sppg = sppg;
+  if (kategori && kategori !== 'ALL') filters.kategori = kategori;
+  if (start) filters.dateStart = start;
+  else if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
+  if (end) filters.dateEnd = end;
+  else if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
+  return filters;
+}
+
+function _fetchTransactionReportRows() {
+  var filters = _transactionReportFilters();
+  var rows = [];
+  var page = 1;
+  var pageSize = 100;
+
+  return new Promise(function(resolve, reject) {
+    function next() {
+      var request = Object.assign({}, filters, { page: page, pageSize: pageSize });
+      callApi('getTransactions', [request], function(result) {
+        var batch = Array.isArray(result) ? result : (result && Array.isArray(result.data) ? result.data : null);
+        if (!batch) {
+          reject(new Error('Format data transaksi tidak valid.'));
+          return;
+        }
+        rows = rows.concat(batch);
+        var total = Number(result && result.total) || rows.length;
+        var hasMore = !!(result && result.hasMore) || rows.length < total;
+        if (hasMore && batch.length && page < 100) {
+          page++;
+          next();
+          return;
+        }
+        var search = $('txSearchInput') ? String($('txSearchInput').value || '').trim().toLowerCase() : '';
+        var status = $('txFilterStatus') ? $('txFilterStatus').value : 'ALL';
+        rows = rows.filter(function(tx) {
+          if (search) {
+            var haystack = [tx.kode, tx.item, tx.user, tx.userEmail, tx.userName, tx.sppg, tx.catatan]
+              .join(' ').toLowerCase();
+            if (haystack.indexOf(search) === -1) return false;
+          }
+          var metode = String(tx.metodeTransaksi || '').trim().toUpperCase();
+          if (status === 'PENDING' && metode === 'SUDAH_DIBAYAR') return false;
+          if (status === 'SUDAH_DIBAYAR' && metode !== 'SUDAH_DIBAYAR') return false;
+          return true;
+        });
+        resolve(rows);
+      }, function(error) {
+        reject(error || new Error('Data transaksi gagal dimuat.'));
+      });
+    }
+    next();
+  });
+}
+
+function _transactionDocumentStatus(tx) {
+  var present = function(value) {
+    if (value === true) return true;
+    if (!value || value === false) return false;
+    if (typeof value === 'object') {
+      return !!(value.signedUrl || value.previewUrl || value.viewUrl || value.path || value.name);
+    }
+    var text = String(value).trim();
+    return !!text && text !== '-' && !/^(FOTO|FILE)$/i.test(text);
+  };
+  var proof = tx.hasBuktiTransaksi === true ||
+    present(tx.uploadFoto) || present(tx.uploadFile) ||
+    present(tx.fileBuktiFoto) || present(tx.fileBuktiFile) ||
+    present(tx.fileBuktiApproval) ||
+    Number(tx.jumlahBuktiPembayaran || tx.paymentProofCount || 0) > 0 ||
+    (Array.isArray(tx.paymentProofs) && tx.paymentProofs.length > 0);
+  var note = tx.hasNotaPembelian === true ||
+    present(tx.notaPembelian) || present(tx.fileNota);
+  if (proof && note) return 'Lengkap';
+  if (proof && !note) return 'Tidak ada Nota';
+  if (!proof && note) return 'Tidak ada bukti';
+  return 'Tidak Lengkap';
+}
+
+function _transactionApprovalStatus(tx) {
+  var approved = tx.isApproved === true || tx.approved === true ||
+    (tx.approvedBy && String(tx.approvedBy).trim() !== '-') ||
+    (tx.waktuApprove && String(tx.waktuApprove).trim() !== '-');
+  return approved ? 'Sudah Diapprove' : 'Belum Diapprove';
+}
+
+function _transactionReportModel(data) {
+  var rows = (data || []).map(function(tx, index) {
+    var rawUser = String(tx.user || '').trim();
+    var email = String(tx.userEmail || tx.emailPenginput || (rawUser.indexOf('@') > -1 ? rawUser : '') || '-');
+    var name = String(tx.userName || tx.namaPenginput || tx.namaUser ||
+      (rawUser && rawUser.indexOf('@') === -1 ? rawUser : '') || '-');
+    return {
+      no: index + 1,
+      tanggal: String(tx.tanggal || '-'),
+      kode: String(tx.kode || '-'),
+      sppg: String(tx.sppg || '-'),
+      penginput: name,
+      email: email,
+      kategori: String(tx.kategori || '-'),
+      jenis: String(tx.jenisKategori || '-'),
+      item: String(tx.item || tx.namaItem || '-'),
+      catatan: String(tx.catatan || '-'),
+      nominal: Number(tx.nominal) || 0,
+      approval: _transactionApprovalStatus(tx),
+      dokumen: _transactionDocumentStatus(tx)
+    };
+  });
+  var dates = rows.map(function(row) {
+    var match = row.tanggal.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return match ? match[3] + '-' + match[2] + '-' + match[1] : row.tanggal.slice(0, 10);
+  }).filter(function(value) { return value && value !== '-'; }).sort();
+  var filters = _transactionReportFilters();
+  var periodStart = filters.dateStart || dates[0] || '-';
+  var periodEnd = filters.dateEnd || dates[dates.length - 1] || '-';
+  return {
+    rows: rows,
+    count: rows.length,
+    total: rows.reduce(function(sum, row) { return sum + row.nominal; }, 0),
+    period: periodStart === periodEnd ? periodStart : periodStart + ' s.d. ' + periodEnd,
+    filter: getActiveFilterInfo() || 'Semua transaksi'
+  };
+}
+
+function _transactionReportHeaders() {
+  return ['No', 'Tanggal Transaksi', 'Kode Transaksi', 'SPPG', 'Nama Penginput', 'Email Penginput',
+    'Kategori', 'Jenis Kategori', 'Item', 'Catatan', 'Nominal (Rp)', 'Status Approval', 'Status Bukti'];
+}
+
+function _transactionReportValues(row) {
+  return [row.no, row.tanggal, row.kode, row.sppg, row.penginput, row.email, row.kategori,
+    row.jenis, row.item, row.catatan, Math.round(row.nominal), row.approval, row.dokumen];
+}
+
+function _downloadTransactionCSV(report) {
+  var lines = [];
+  var add = function(values) { lines.push(values.map(_approvalCsvCell).join(',')); };
+  add(['LAPORAN TRANSAKSI SIM-SPPG']);
+  add(['Periode', report.period]);
+  add(['Filter aktif', report.filter]);
+  add(['Jumlah transaksi', report.count]);
+  add(['Total nominal (Rp)', Math.round(report.total)]);
+  lines.push('');
+  add(_transactionReportHeaders());
+  report.rows.forEach(function(row) { add(_transactionReportValues(row)); });
+  var blob = new Blob(['\uFEFFsep=,\r\n' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = 'Laporan_Transaksi_SIM-SPPG_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(function() { URL.revokeObjectURL(url); }, 500);
+}
+
+function _downloadTransactionSpreadsheet(report, format) {
+  return _loadApprovalSpreadsheetLibrary().then(function() {
+    var workbook = window.XLSX.utils.book_new();
+    var rows = [
+      ['LAPORAN TRANSAKSI SIM-SPPG'],
+      ['Periode', report.period],
+      ['Filter aktif', report.filter],
+      ['Jumlah transaksi', report.count],
+      ['Total nominal (Rp)', Math.round(report.total)],
+      [],
+      _transactionReportHeaders()
+    ];
+    report.rows.forEach(function(row) { rows.push(_transactionReportValues(row)); });
+    _appendApprovalSheet(workbook, 'Transaksi', rows,
+      [6, 16, 20, 18, 23, 30, 15, 22, 30, 38, 18, 20, 22], 7);
+    var extension = format === 'ods' ? 'ods' : 'xlsx';
+    window.XLSX.writeFile(workbook,
+      'Laporan_Transaksi_SIM-SPPG_' + new Date().toISOString().slice(0, 10) + '.' + extension,
+      { bookType: extension, compression: true });
+  });
+}
+
+function _transactionReportHTML(report) {
+  var createdBy = currentUser ? (currentUser.namaLengkap || currentUser.email || '-') : '-';
+  var printHeaders = ['No', 'Tanggal', 'Kode', 'SPPG', 'Penginput', 'Kategori',
+    'Jenis Kategori', 'Item', 'Catatan', 'Nominal', 'Status Approval', 'Status Bukti'];
+  var bodyRows = report.rows.map(function(row) {
+    var statusClass = row.dokumen === 'Lengkap' ? 'ok' : (row.dokumen === 'Tidak Lengkap' ? 'bad' : 'warn');
+    var approvalClass = row.approval === 'Sudah Diapprove' ? 'ok' : 'warn';
+    return '<tr>' +
+      '<td class="center">' + row.no + '</td><td>' + esc(row.tanggal) + '</td>' +
+      '<td class="code">' + esc(row.kode) + '</td><td>' + esc(row.sppg) + '</td>' +
+      '<td><strong>' + esc(row.penginput) + '</strong><small>' + esc(row.email) + '</small></td>' +
+      '<td>' + esc(row.kategori) + '</td><td>' + esc(row.jenis) + '</td>' +
+      '<td>' + esc(row.item) + '</td><td>' + esc(row.catatan) + '</td>' +
+      '<td class="money">Rp ' + Math.round(row.nominal).toLocaleString('id-ID') + '</td>' +
+      '<td><span class="status ' + approvalClass + '">' + esc(row.approval) + '</span></td>' +
+      '<td><span class="status ' + statusClass + '">' + esc(row.dokumen) + '</span></td></tr>';
+  }).join('');
+  return '<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Laporan Transaksi SIM-SPPG</title><style>' +
+    '@page{size:A4 landscape;margin:9mm 7mm 11mm}*{box-sizing:border-box}body{margin:0;color:#172033;font:7.4px/1.35 Arial,sans-serif}' +
+    'header{display:flex;justify-content:space-between;gap:20px;align-items:flex-end;padding-bottom:8px;margin-bottom:8px;border-bottom:3px solid #15577a}' +
+    '.brand{color:#1e6f9c;font-weight:800;letter-spacing:1.4px}.title{margin:2px 0;font-size:19px}.muted{color:#64748b}.right{text-align:right}' +
+    '.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}.meta div{padding:6px 8px;border:1px solid #dbe5ee;border-radius:6px;background:#f8fafc}.meta span{display:block;color:#64748b;font-size:6.5px;text-transform:uppercase;font-weight:700}.meta strong{display:block;margin-top:2px;font-size:8.5px}' +
+    'table{width:100%;border-collapse:collapse;table-layout:fixed}thead{display:table-header-group}th{padding:5px 4px;color:#fff;background:#15577a;text-align:left;font-size:6.6px}td{padding:4px;border:1px solid #dbe5ee;vertical-align:top;overflow-wrap:anywhere}tbody tr:nth-child(even){background:#f8fafc}tr{break-inside:avoid}' +
+    'th:nth-child(1){width:3%}th:nth-child(2){width:7%}th:nth-child(3){width:7%}th:nth-child(4){width:8%}th:nth-child(5){width:11%}th:nth-child(6){width:7%}th:nth-child(7){width:9%}th:nth-child(8){width:11%}th:nth-child(9){width:12%}th:nth-child(10){width:8%}th:nth-child(11){width:8%}th:nth-child(12){width:9%}' +
+    '.center{text-align:center}.money{text-align:right;white-space:nowrap;font-weight:700}.code{font-family:monospace}small{display:block;margin-top:2px;color:#64748b}.status{display:inline-block;padding:2px 4px;border-radius:9px;font-weight:700}.ok{background:#dcfce7;color:#047857}.warn{background:#fef3c7;color:#92400e}.bad{background:#ffe4e6;color:#be123c}' +
+    '</style></head><body><header><div><div class="brand">SIM-SPPG</div><h1 class="title">Laporan Transaksi</h1><div class="muted">Data transaksi sesuai filter aktif.</div></div>' +
+    '<div class="right"><strong>' + esc(new Date().toLocaleString('id-ID')) + '</strong><div class="muted">Dibuat oleh ' + esc(createdBy) + '</div></div></header>' +
+    '<div class="meta"><div><span>Periode</span><strong>' + esc(report.period) + '</strong></div><div><span>Filter</span><strong>' + esc(report.filter) + '</strong></div><div><span>Jumlah</span><strong>' + report.count + ' transaksi</strong></div><div><span>Total Nominal</span><strong>Rp ' + Math.round(report.total).toLocaleString('id-ID') + '</strong></div></div>' +
+    '<table><thead><tr>' + printHeaders.map(function(header) { return '<th>' + esc(header) + '</th>'; }).join('') +
+    '</tr></thead><tbody>' + bodyRows + '</tbody></table>' +
+    '<script>window.onload=function(){setTimeout(function(){window.print()},120)}<\/script></body></html>';
+}
+
+function exportTransactions(format) {
+  closeTransactionDownloadMenu();
+  var printWindow = null;
+  if (format === 'pdf') {
+    printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast('error', 'Pop-up Diblokir', 'Izinkan pop-up browser untuk mencetak atau menyimpan PDF.');
+      return;
+    }
+    printWindow.document.write('<!doctype html><title>Menyiapkan laporan...</title><p style="font-family:Arial;padding:24px">Menyiapkan laporan transaksi...</p>');
+    printWindow.document.close();
+  }
+  showLoading(true);
+  _fetchTransactionReportRows().then(function(data) {
+    if (!data.length) throw new Error('Tidak ada transaksi sesuai filter aktif.');
+    var report = _transactionReportModel(data);
+    if (format === 'pdf') {
+      printWindow.document.open();
+      printWindow.document.write(_transactionReportHTML(report));
+      printWindow.document.close();
+    } else if (format === 'csv') {
+      _downloadTransactionCSV(report);
+    } else if (format === 'xlsx' || format === 'ods') {
+      return _downloadTransactionSpreadsheet(report, format);
+    } else {
+      throw new Error('Format download tidak didukung.');
+    }
+    return null;
+  }).then(function() {
+    showToast('success', 'Laporan Siap', 'Data transaksi berhasil disiapkan dengan kolom ringkas.');
+  }).catch(function(error) {
+    if (printWindow && !printWindow.closed) printWindow.close();
+    showToast('error', 'Laporan Gagal', error && error.message ? error.message : 'Laporan tidak dapat dibuat.');
+  }).then(function() {
+    showLoading(false);
+  });
+}
 
 function _approvalDocStatus(tx) {
   var ada = function(v) {
@@ -7423,6 +7699,10 @@ function printData(defaultRows) {
 
 function printCurrentPage() {
   if (!currentPage) return;
+  if (currentPage === 'transaksi') {
+    exportTransactions('pdf');
+    return;
+  }
   if (currentPage === 'approval') {
     exportApprovalReportPDF(filteredApprovalData || [], 'Laporan Approval Transaksi');
     return;
@@ -9395,7 +9675,7 @@ document.addEventListener('click',function(ev){
   var b=ev.target&&ev.target.closest?ev.target.closest('button,a'):null;
   // Approval memiliki generator laporan khusus dengan struktur bisnis,
   // ringkasan, dan indikator kelengkapan. Jangan alihkan ke ekspor objek mentah.
-  if(!b||pageKey()==='laporan'||pageKey()==='approval')return;
+  if(!b||pageKey()==='laporan'||pageKey()==='approval'||pageKey()==='transaksi')return;
   var signature=(String(b.textContent||'')+' '+String(b.title||'')+' '+String(b.getAttribute('aria-label')||'')+' '+String(b.getAttribute('onclick')||'')).toLowerCase();
   var kind=signature.indexOf('csv')>=0||signature.indexOf('export')>=0?'csv':signature.indexOf('print')>=0||signature.indexOf('cetak')>=0?'print':'';
   if(!kind||!MODULES[pageKey()])return;
