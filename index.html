@@ -4212,6 +4212,9 @@
   .approval-user-cell span { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
   .approval-select-col input, .approval-card-select input, .approval-select-all-mobile input { accent-color: var(--primary); cursor: pointer; }
   .approval-pagination { margin-top: 14px; }
+  .approval-filter-toolbar { order: -1; display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .approval-filter-toolbar .filter-toggle-btn { order: initial; }
+  .approval-toolbar-icon { width: 42px; min-width: 42px; justify-content: center; }
   .approval-download-wrap { position: relative; }
   .approval-download-trigger { width: 42px; min-width: 42px; justify-content: center; }
   .approval-download-menu {
@@ -4295,13 +4298,12 @@
   @media (max-width: 768px) {
     #page-approval { padding-bottom: 8px; }
     #page-approval .page-header { align-items: flex-start; gap: 10px; }
-    #page-approval .page-header-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
     #page-transaksi .page-header-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
     #page-transaksi .page-header-actions .btn { justify-content: center; min-width: 0; }
-    #page-approval .page-header-actions .btn { justify-content: center; min-width: 0; }
-    #page-approval .approval-download-wrap { width: 100%; }
-    #page-approval .approval-download-trigger { width: 100%; }
-    #page-approval .approval-download-menu { right: 0; width: min(260px, calc(100vw - 32px)); }
+    #page-approval .approval-filter-toolbar { width: 100%; }
+    #page-approval .approval-download-wrap { width: 42px; }
+    #page-approval .approval-download-trigger { width: 42px; }
+    #page-approval .approval-download-menu { left: 0; right: auto; width: min(260px, calc(100vw - 32px)); }
     #page-approval .filter-bar { border-radius: 14px; }
     #apprBulkBar { position: sticky; top: calc(var(--header-height) + 8px); z-index: 20; margin: 0 0 12px !important; border-radius: 14px !important; box-shadow: 0 10px 24px rgba(30,111,156,.14); }
     .approval-desktop-view { display: none !important; }
@@ -5220,7 +5222,12 @@
             <div class="page-title"><i class="fas fa-clipboard-check" style="color:var(--emerald);"></i> Approval Transaksi</div>
             <p class="page-desc">Tinjau transaksi melalui tabel desktop atau kartu ringkas di perangkat mobile</p>
           </div>
-          <div class="page-header-actions">
+        </div>
+        <div class="filter-bar" id="apprFilterBar">
+          <div class="approval-filter-toolbar no-print" role="toolbar" aria-label="Aksi dan filter Approval">
+            <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('apprFilterBar')" title="Tampilkan/Sembunyikan Filter">
+              <i class="fas fa-filter"></i><span>Filter</span>
+            </button>
             <div class="approval-download-wrap no-print" id="approvalDownloadWrap">
               <button type="button" class="btn btn-outline btn-sm approval-download-trigger" id="approvalDownloadTrigger"
                 onclick="toggleApprovalDownloadMenu(event)" aria-haspopup="menu" aria-expanded="false"
@@ -5242,19 +5249,14 @@
                 </button>
               </div>
             </div>
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
+            <button class="btn btn-outline btn-sm approval-toolbar-icon" onclick="printCurrentPage()" title="Print Semua Data" aria-label="Print Semua Data">
+              <i class="fas fa-print"></i>
             </button>
           </div>
-        </div>
-        <div class="filter-bar" id="apprFilterBar">
           <div class="search-box">
             <i class="fas fa-search"></i>
             <input type="text" id="apprSearchInput" placeholder="Cari kode, item, user..." oninput="filterApproval()">
           </div>
-          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('apprFilterBar')" title="Tampilkan/Sembunyikan Filter">
-            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
-          </button>
           <div class="filter-collapsible" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;">
             <select id="apprFilterSPPG" class="form-input" onchange="filterApproval()">
               <option value="ALL">Semua SPPG</option>
