@@ -4363,7 +4363,7 @@
     .approval-mobile-skeleton { display: grid; gap: 12px; }
 
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-overlay { align-items: flex-end; padding: 0; }
-    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-box { width: 100%; max-width: none; max-height: 92dvh; margin: 0; border-width: 1px 0 0; border-radius: 22px 22px 0 0; animation: approvalSheetUp .22s ease-out; }
+    #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-box { width: 100%; max-width: none; max-height: 92dvh; margin: 0; border-width: 1px 0 0; border-radius: 22px 22px 0 0; transform: translateY(0); animation: approvalSheetUp .22s ease-out both; }
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .modal-header { position: sticky; top: 0; z-index: 5; flex-wrap: wrap; padding: 16px; background: rgba(255,255,255,.98); border-radius: 22px 22px 0 0; backdrop-filter: blur(12px); }
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-modal-title-wrap { flex-basis: calc(100% - 48px); }
     #modalDetail:is(.approval-detail-mode,.transaction-detail-mode) .detail-modal-header-actions { width: 100%; order: 3; justify-content: stretch; }
