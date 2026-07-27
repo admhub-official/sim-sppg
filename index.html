@@ -4218,6 +4218,12 @@
   #apprFilterBar .search-box { display: flex; align-items: center; gap: 10px; }
   #apprFilterBar .search-box i { position: static; flex: 0 0 auto; transform: none; }
   #apprFilterBar .search-box input { min-width: 0; padding-left: 14px; }
+  .tx-filter-toolbar { order: -1; display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .tx-filter-toolbar .filter-toggle-btn { order: initial; }
+  .tx-toolbar-icon { width: 42px; min-width: 42px; justify-content: center; }
+  #txFilterBar .search-box { display: flex; align-items: center; gap: 10px; }
+  #txFilterBar .search-box i { position: static; flex: 0 0 auto; transform: none; }
+  #txFilterBar .search-box input { min-width: 0; padding-left: 14px; }
   .approval-download-wrap { position: relative; }
   .approval-download-trigger { width: 42px; min-width: 42px; justify-content: center; }
   .approval-download-menu {
@@ -4301,8 +4307,8 @@
   @media (max-width: 768px) {
     #page-approval { padding-bottom: 8px; }
     #page-approval .page-header { align-items: flex-start; gap: 10px; }
-    #page-transaksi .page-header-actions { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
-    #page-transaksi .page-header-actions .btn { justify-content: center; min-width: 0; }
+    #page-transaksi .page-header-actions { display: none !important; }
+    #page-transaksi .tx-filter-toolbar { width: 100%; }
     #page-approval .approval-filter-toolbar { width: 100%; }
     #page-approval .approval-download-wrap { width: 42px; }
     #page-approval .approval-download-trigger { width: 42px; }
@@ -5155,19 +5161,21 @@
             <button class="btn btn-primary btn-sm no-print desktop-add-transaction" onclick="openAddTransaksiModal()" title="Tambah Transaksi">
               <i class="fas fa-plus"></i><span class="btn-label-hide"> Tambah Transaksi</span>
             </button>
-            <button class="btn btn-outline btn-sm no-print btn-print" onclick="printCurrentPage()" title="Print Semua Data">
-              <i class="fas fa-print"></i><span class="btn-label-hide"> Print</span>
-            </button>
           </div>
         </div>
         <div class="filter-bar" id="txFilterBar">
+          <div class="tx-filter-toolbar no-print" role="toolbar" aria-label="Aksi dan filter Transaksi">
+            <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('txFilterBar')" title="Tampilkan/Sembunyikan Filter">
+              <i class="fas fa-filter"></i><span>Filter</span>
+            </button>
+            <button class="btn btn-outline btn-sm tx-toolbar-icon" onclick="printCurrentPage()" title="Print Semua Data" aria-label="Print Semua Data">
+              <i class="fas fa-print"></i>
+            </button>
+          </div>
           <div class="search-box">
             <i class="fas fa-search"></i>
             <input type="text" id="txSearchInput" placeholder="Cari kode, item, user..." oninput="filterTransaksi()">
           </div>
-          <button class="btn btn-outline btn-sm filter-toggle-btn" onclick="toggleFilterBar('txFilterBar')" title="Tampilkan/Sembunyikan Filter">
-            <i class="fas fa-filter"></i><span class="btn-label-hide"> Filter</span>
-          </button>
           <div class="filter-collapsible" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;">
             <select id="txFilterSPPG" class="form-input" onchange="filterTransaksi()">
               <option value="ALL">Semua SPPG</option>
