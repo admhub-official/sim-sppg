@@ -36,7 +36,9 @@
 (function(){
 'use strict';
 function rows(){return filteredApprovalData.filter(function(tx){return selectedApprovalIds.has(tx.id)})}
-function total(list){return list.reduce(function(sum,tx){var paid=Number(tx.nominalDibayar)||0;return sum+Math.max(0,(Number(tx.nominal)||0)-paid)},0)}
+function remainingAmount(tx){return Math.max(0,(Number(tx.nominal)||0)-(Number(tx.nominalDibayar)||0))}
+function remainingTotal(list){return list.reduce(function(sum,tx){return sum+remainingAmount(tx)},0)}
+function transactionTotal(list){return list.reduce(function(sum,tx){return sum+(Number(tx.nominal)||0)},0)}
 function refreshAll(){selectedApprovalIds.clear();loadApprovalData();loadTransactions();loadDashboardData()}
 
 window.openBulkApprovalPin=function(){
@@ -45,14 +47,14 @@ window.openBulkApprovalPin=function(){
   if(currentUser&&currentUser.role==='USER'){
     if(!uploadBuktiModeEnabled){showToast('warning','Tidak Tersedia','Upload bukti mandiri sedang dinonaktifkan.');return}
     currentUserBuktiTxId=null;window.currentUserBuktiTxIds=list.map(function(tx){return tx.id});userBuktiFileData=null;
-    var items=list.map(function(tx){return '<div class="info-row"><span>'+esc(tx.kode||tx.item||'-')+'</span><strong>'+formatRupiah(Math.max(0,(Number(tx.nominal)||0)-(Number(tx.nominalDibayar)||0)))+'</strong></div>'}).join('');
-    $('userBuktiBody').innerHTML='<div class="info-card"><div style="font-weight:700;margin-bottom:8px">'+list.length+' transaksi dalam satu pelunasan</div>'+items+infoRow('Total bukti bersama','<strong style="color:var(--emerald)">'+formatRupiah(total(list))+'</strong>')+'</div><p class="form-hint" style="margin:10px 0">Satu file akan disimpan sebagai bukti pada masing-masing transaksi terpilih.</p><div class="form-group"><label class="form-label">Upload bukti pembayaran bersama <span class="req">*</span></label><div class="file-input-wrap"><input type="file" id="userBuktiFile" accept="image/*,.pdf" onchange="handleUserBuktiFile(this)"><div class="file-input-label" id="labelUserBukti"><i class="fas fa-receipt"></i><span>Pilih foto/PDF</span></div></div><div id="userBuktiPreview" style="margin-top:10px"></div></div>';
+    var items=list.map(function(tx){return '<div class="info-row"><span>'+esc(tx.kode||tx.item||'-')+'</span><strong>'+formatRupiah(remainingAmount(tx))+'</strong></div>'}).join('');
+    $('userBuktiBody').innerHTML='<div class="info-card"><div style="font-weight:700;margin-bottom:8px">'+list.length+' transaksi dalam satu pelunasan</div>'+items+infoRow('Total bukti bersama','<strong style="color:var(--emerald)">'+formatRupiah(remainingTotal(list))+'</strong>')+'</div><p class="form-hint" style="margin:10px 0">Satu file akan disimpan sebagai bukti pada masing-masing transaksi terpilih.</p><div class="form-group"><label class="form-label">Upload bukti pembayaran bersama <span class="req">*</span></label><div class="file-input-wrap"><input type="file" id="userBuktiFile" accept="image/*,.pdf" onchange="handleUserBuktiFile(this)"><div class="file-input-label" id="labelUserBukti"><i class="fas fa-receipt"></i><span>Pilih foto/PDF</span></div></div><div id="userBuktiPreview" style="margin-top:10px"></div></div>';
     openModal('modalUserBukti');return;
   }
   var waitingFlags=list.map(function(tx){return String(tx.metodeTransaksi||'').toUpperCase()==='MENUNGGU_VERIFIKASI'});
   if(waitingFlags.some(Boolean)&&waitingFlags.some(function(value){return !value})){showToast('warning','Pilihan Tidak Seragam','Pilih bersama-sama transaksi yang sudah memiliki bukti user, atau transaksi yang semuanya masih membutuhkan bukti admin.');return}
-  bulkApprovalMode=true;window.bulkApprovalIds=list.map(function(tx){return tx.id});window.bulkApprovalNeedsProof=!waitingFlags.every(Boolean);approvalFileData=null;currentApprovalNominal=total(list);
-  var items=list.map(function(tx){return '<div class="info-row"><span>'+esc(tx.kode||tx.item||'-')+'</span><strong>'+formatRupiah(Math.max(0,(Number(tx.nominal)||0)-(Number(tx.nominalDibayar)||0)))+'</strong></div>'}).join('');
+  bulkApprovalMode=true;window.bulkApprovalIds=list.map(function(tx){return tx.id});window.bulkApprovalNeedsProof=!waitingFlags.every(Boolean);approvalFileData=null;currentApprovalNominal=transactionTotal(list);
+  var items=list.map(function(tx){return '<div class="info-row"><span>'+esc(tx.kode||tx.item||'-')+'</span><strong>'+formatRupiah(Number(tx.nominal)||0)+'</strong></div>'}).join('');
   $('approvalBody').innerHTML='<div class="info-card"><div style="font-weight:700;margin-bottom:8px">'+list.length+' transaksi dipilih</div>'+items+infoRow('Total konfirmasi','<strong style="color:var(--emerald)">'+formatRupiah(currentApprovalNominal)+'</strong>')+'</div><p class="form-hint" style="margin:10px 0">Satu bukti dan satu TTD diterapkan ke seluruh transaksi terpilih.</p>'+(window.bulkApprovalNeedsProof?'<div class="form-group"><label class="form-label">Bukti pelunasan bersama <span class="req">*</span></label><input type="file" id="approvalFileInput" class="form-input" accept="image/*,.pdf" onchange="handleApprovalFile(this)"></div>':'<div class="info-card" style="border-color:#a7f3d0;background:#ecfdf5"><i class="fas fa-check-circle"></i> Semua transaksi sudah memiliki bukti user; admin cukup menandatangani satu kali.</div>')+'<div class="form-group"><label class="form-label">Catatan (Opsional)</label><textarea id="approvalCatatan" class="form-input"></textarea></div><div class="form-group"><label class="form-label">TTD Verifikator Bersama <span class="req">*</span></label><div class="canvas-container"><canvas id="approvalTtdCanvas"></canvas></div><div class="canvas-actions"><button type="button" onclick="clearApprovalCanvas()"><i class="fas fa-eraser"></i> Hapus</button></div></div>';
   openModal('modalApproval');setTimeout(initApprovalCanvas,100);
 };
