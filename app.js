@@ -3781,12 +3781,8 @@ function configureTransactionDetailActions(tx) {
   }) : [];
   var isOwner = currentKeys.indexOf(String(tx.user || '').trim().toLowerCase()) > -1;
   var canEdit = isAdmin || (!isUser ? true : (transactionEditModeEnabled && isOwner));
-  var status = String(tx.metodeTransaksi || '').trim().toUpperCase();
   var html = '';
 
-  if (isAdmin && status !== 'SUDAH_DIBAYAR') {
-    html += '<button type="button" class="btn btn-success btn-sm" onclick="runTransactionDetailAction(\'' + (tx.canVerify ? 'verify' : 'approve') + '\')"><i class="fas ' + (tx.canVerify ? 'fa-stamp' : 'fa-check') + '"></i><span>' + (tx.canVerify ? 'Verifikasi' : 'Approve') + '</span></button>';
-  }
   if (canEdit) {
     html += '<button type="button" class="btn btn-primary btn-sm" onclick="runTransactionDetailAction(\'edit\')"><i class="fas fa-edit"></i><span>Edit</span></button>';
   }
@@ -3805,8 +3801,6 @@ function runTransactionDetailAction(action) {
   closeModal('modalDetail');
   if (action === 'edit') openEditTransaksi(tx.id);
   else if (action === 'delete') confirmHapus('transaksi', 0, tx.id, 'transaksi ' + String(tx.kode || '').substring(0, 15));
-  else if (action === 'verify') openVerifikasiModal(tx.id);
-  else if (action === 'approve') openApprovalModal(tx.id);
 }
 
 function openDetailSupplier(rowNum) {
@@ -9415,8 +9409,6 @@ window.renderFilePreview=function(fileInfo,title,iconClass){
 };
 renderFilePreview=window.renderFilePreview;
 window.renderPaymentProofHistory=function(tx){var ps=Array.isArray(tx&&tx.paymentProofs)?tx.paymentProofs:[];if(!ps.length)return'<div class="detail-doc-item doc-missing" style="margin-bottom:16px"><div class="detail-doc-icon"><i class="fas fa-receipt"></i></div><div><div class="detail-doc-label">Belum ada bukti pelunasan</div><div class="detail-doc-status">Transaksi masih menunggu pembayaran.</div></div></div>';var h='<div class="detail-section-title"><i class="fas fa-money-check-alt"></i> Riwayat Pembayaran ('+ps.length+')</div>';ps.forEach(function(p){var st=String(p.status||'').toUpperCase(),badge=st==='TERVERIFIKASI'?'badge-green':st==='DITOLAK'?'badge-red':'badge-orange';h+='<div class="info-card" style="margin-bottom:10px">'+infoRow('Pembayaran #'+(p.paymentSequence||'-'),'<strong>'+formatRupiah(p.nominal)+'</strong>')+infoRow('Status','<span class="badge '+badge+'">'+esc(st.replaceAll('_',' '))+'</span>')+infoRow('Diupload oleh',esc(p.submittedBy||'-'))+infoRow('Waktu upload',esc(p.submittedAt||'-'))+(p.verifiedBy?infoRow('Diverifikasi oleh',esc(p.verifiedBy)):'')+(p.verificationNotes?infoRow('Catatan',esc(p.verificationNotes)):'')+'</div>'+renderFilePreview(p.file,'Bukti Pelunasan #'+(p.paymentSequence||''),'fa-receipt')+(p.verifierSignature?renderFilePreview(p.verifierSignature,'TTD Verifikator #'+(p.paymentSequence||''),'fa-signature'):'')});return h};
-window.renderDetailTransaksi=function(tx){resetDetailModalFooter();var docs=renderFilePreview(tx.fileBuktiFoto||tx.fileBukti,'Foto Bukti Transaksi','fa-camera')+renderFilePreview(tx.fileBuktiFile,'File Bukti Transaksi','fa-file')+renderFilePreview(tx.fileBuktiApproval,'Bukti Pelunasan Admin','fa-money-check-alt')+renderFilePreview(tx.fileNota,'Nota Pembelian','fa-receipt')+renderFilePreview(tx.fileTtdUser,'TTD User','fa-signature')+renderFilePreview(tx.fileTtdVerif,'TTD Verifikator','fa-shield-alt');$('detailBody').innerHTML='<div class="detail-section-title"><i class="fas fa-info-circle"></i> Informasi Transaksi</div><div class="info-card">'+infoRow('ID',esc(tx.id))+infoRow('Kode',esc(tx.kode||'-'))+infoRow('Tanggal',esc(tx.tanggal||'-'))+infoRow('Kategori',esc(tx.kategori||'-'))+infoRow('SPPG',esc(tx.sppg||'-'))+infoRow('Item',esc(tx.item||'-'))+infoRow('Nominal','<strong>'+formatRupiah(tx.nominal)+'</strong>')+infoRow('Status',getMetodeBadge(tx.metodeTransaksi))+(tx.catatan?infoRow('Catatan',esc(tx.catatan)):'')+'</div><div class="detail-section-title"><i class="fas fa-coins"></i> Ringkasan Pelunasan</div><div class="info-card">'+infoRow('Total diajukan',formatRupiah(n(tx.nominalDibayar)))+infoRow('Terverifikasi','<strong style="color:var(--emerald)">'+formatRupiah(n(tx.nominalTerverifikasi))+'</strong>')+infoRow('Sisa','<strong style="color:'+(n(tx.sisaPembayaran)>0?'var(--rose)':'var(--emerald)')+'">'+formatRupiah(n(tx.sisaPembayaran))+'</strong>')+'</div>'+docs+'<div style="margin-bottom:16px">'+renderPaymentProofHistory(tx)+'</div><div class="detail-section-title"><i class="fas fa-user"></i> Penginput & Approval</div><div class="info-card">'+infoRow('Penginput',esc(tx.user||'-'))+infoRow('Approved By',esc(tx.approvedBy||'-'))+infoRow('Waktu Approve',esc(tx.waktuApprove||'-'))+(tx.catatanApproval?infoRow('Catatan Approval',esc(tx.catatanApproval)):'')+'</div>'};
-renderDetailTransaksi=window.renderDetailTransaksi;
 })();
 
 /* APPROVAL V2 STATUS MODULE */
