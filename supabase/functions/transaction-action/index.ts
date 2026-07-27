@@ -112,6 +112,17 @@ const missingDocs = (docs: Map<string, Doc>) => {
   if (!validPath(docPath(docs, DT.nota))) missing.push('Nota Pembelian');
   return missing;
 };
+const missingCreateDocs = (docs: Map<string, Doc>, method: string) => {
+  const missing: string[] = [];
+  if (normalizeStatus(method) !== 'BELUM_BAYAR' &&
+      !validPath(docPath(docs, DT.foto)) &&
+      !validPath(docPath(docs, DT.file))) {
+    missing.push('Bukti Transaksi');
+  }
+  if (!validPath(docPath(docs, DT.ttdUser))) missing.push('TTD User');
+  if (!validPath(docPath(docs, DT.nota))) missing.push('Nota Pembelian');
+  return missing;
+};
 const documentStatus = (docs: Map<string, Doc>) => {
   const missing = missingDocs(docs);
   return missing.length ? `Dokumen Tidak Lengkap: ${missing.join(', ')}` : 'Dokumen Lengkap';
@@ -348,10 +359,18 @@ async function transactionDetail(id: string, current: Caller) {
   if (proofQuery.error) throw proofQuery.error;
   const paymentProofs: any[] = [];
   for (const proof of proofQuery.data || []) {
+    const proofDocument: Doc = {
+      transaksi_id: id,
+      document_type: 'PAYMENT_PROOF',
+      storage_bucket: text(proof.storage_bucket) || B.payment,
+      storage_path: text(proof.storage_path),
+      mime_type: proof.mime_type,
+      original_file_name: proof.original_file_name,
+    };
     paymentProofs.push({
       ...proof,
       nominal: Number(proof.nominal) || 0,
-      file: await sign('payment', proof.storage_path, proof.mime_type),
+      file: await signDoc(proofDocument),
       verifierSignature: await sign('ttdVerif', proof.verifier_signature_path, 'image/png'),
     });
   }
@@ -418,6 +437,9 @@ async function addTransaction(data: any, current: Caller) {
   if (!yayasan) throw new Error(`Yayasan untuk SPPG ${sppg} belum terdaftar di database.`);
   if (current.role === 'ADMIN' && !(await pairAllowed(current, sppg, yayasan))) throw new Error('Pasangan SPPG + YAYASAN tidak di-assign.');
   if (!(Number(data.nominal) > 0)) throw new Error('Nominal transaksi harus lebih dari 0.');
+  const method = normalizeStatus(data.metodeTransaksi);
+  const paidDirectly = method === 'SUDAH_DIBAYAR';
+  const createdAt = new Date().toISOString();
   const id = crypto.randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase();
   const core: any = {
     ID: id,
@@ -429,22 +451,23 @@ async function addTransaction(data: any, current: Caller) {
     YAYASAN: yayasan,
     Nominal: Number(data.nominal),
     Catatan: text(data.catatan),
-    Timestamp: new Date().toISOString(),
+    Timestamp: createdAt,
     User: current.email,
     'Nama Item/ Bahan Baku': text(data.namaItem || data.item),
-    'Metode Transaksi': normalizeStatus(data.metodeTransaksi),
-    'APPROVED BY': '',
-    'WAKTU APPROVE': '',
+    'Metode Transaksi': method,
+    'APPROVED BY': paidDirectly ? current.email : '',
+    'WAKTU APPROVE': paidDirectly ? createdAt : '',
     Catatan_1: '',
-    'Catatan Approval': '',
+    'Catatan Approval': paidDirectly ? 'Pembayaran langsung telah dilengkapi saat transaksi dibuat.' : '',
     Deskripsi: '',
   };
   const documents = inputDocs(data, id);
-  const missing = missingDocs(documents);
+  const missing = missingCreateDocs(documents, method);
   if (missing.length) throw new Error(`Upload wajib belum lengkap atau gagal: ${missing.join(', ')}.`);
   const uploaded = [...documents.values()]
     .filter((document) => ownedUpload(current, docKind(document.document_type), document.storage_path))
     .map((document) => ({ bucket: document.storage_bucket, path: document.storage_path }));
+  let transactionCreated = false;
   try {
     const result = await sb.rpc('create_transaction_with_documents_atomic', {
       p_transaction: core,
@@ -452,8 +475,31 @@ async function addTransaction(data: any, current: Caller) {
       p_uploaded_by: current.email,
     });
     if (result.error) throw result.error;
+    transactionCreated = true;
+    if (paidDirectly) {
+      const proofDocument = documents.get(DT.foto) || documents.get(DT.file);
+      if (!proofDocument || !validPath(proofDocument.storage_path)) {
+        throw new Error('Bukti transaksi wajib tersedia untuk pembayaran langsung.');
+      }
+      const proofInsert = await sb.from(T.P).insert({
+        transaksi_id: id,
+        payment_sequence: 1,
+        nominal: Number(data.nominal),
+        storage_bucket: proofDocument.storage_bucket,
+        storage_path: proofDocument.storage_path,
+        mime_type: inferMime(proofDocument.storage_path, proofDocument.mime_type),
+        original_file_name: proofDocument.original_file_name || text(proofDocument.storage_path).split('/').pop(),
+        submitted_by: current.email,
+        submitted_at: createdAt,
+        status: 'TERVERIFIKASI',
+        verified_by: current.email,
+        verified_at: createdAt,
+        verification_notes: 'Bukti transaksi digunakan otomatis sebagai bukti pelunasan pembayaran langsung.',
+      });
+      if (proofInsert.error) throw proofInsert.error;
+    }
     const normalized = (await docsFor([id])).get(id) || documents;
-    await audit(id, 'ADD', current, { sppg, yayasan, documentWrite: 'normalized-atomic' });
+    await audit(id, 'ADD', current, { sppg, yayasan, method, paidDirectly, documentWrite: 'normalized-atomic' });
     await notify({
       mode: 'pair',
       sppg,
@@ -462,8 +508,19 @@ async function addTransaction(data: any, current: Caller) {
       body: `Transaksi ${id} sebesar Rp ${Number(data.nominal).toLocaleString('id-ID')} telah dibuat.`,
       url: '/?page=transaksi',
     });
-    return { success: true, message: 'Transaksi berhasil ditambahkan.', id, data: mapTransaction(result.data, normalized) };
+    return {
+      success: true,
+      message: paidDirectly
+        ? 'Transaksi sudah dibayar dan bukti pelunasan otomatis terverifikasi.'
+        : 'Transaksi berhasil ditambahkan.',
+      id,
+      data: mapTransaction(result.data, normalized),
+    };
   } catch (error) {
+    if (transactionCreated) {
+      const rollback = await sb.from(T.X).delete().eq('ID', id);
+      if (rollback.error) console.error('rollback add transaction failed', rollback.error);
+    }
     await removeFiles(uploaded).catch((cleanupError) => console.error('cleanup add orphan', cleanupError));
     throw error;
   }
@@ -639,7 +696,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') return json({
     status: 'ok',
     service: 'transaction-action',
-    version: 8,
+    version: 9,
     documentReadSource: T.DA,
     yayasanResolutionSource: T.S,
     writeMode: 'normalized-atomic',
