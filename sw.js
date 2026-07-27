@@ -103,9 +103,10 @@ self.addEventListener('push', (event) => {
       icon: 'https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png',
       tag: `sim-sppg-announcement-${Date.now()}`,
       renotify: true,
+      silent: false,
       requireInteraction: payload.title.toLowerCase().includes('mendesak'),
       data: { url: targetUrl },
-      vibrate: [180, 80, 180]
+      vibrate: [220, 100, 220, 100, 320]
     })
   );
 });
