@@ -3839,11 +3839,14 @@ function renderDetailTransaksi(tx, options) {
   resetDetailModalFooter();
   options = options || {};
   var hideMissingDocs = !!options.hideMissingDocs;
+  var showApprovalDocuments = !!options.showApprovalDocuments;
   var isLengkap = tx.statusDokumen && tx.statusDokumen.indexOf('Lengkap') > -1 && tx.statusDokumen.indexOf('Tidak') === -1;
   var docsHtml = '';
   docsHtml += renderFilePreview(tx.fileBuktiFoto || tx.fileBukti, 'Foto Bukti Transaksi', 'fa-camera', hideMissingDocs);
-  docsHtml += renderFilePreview(tx.fileBuktiFile, 'File Bukti Transaksi', 'fa-file', hideMissingDocs);
-  docsHtml += renderFilePreview(tx.fileBuktiApproval, 'Bukti Pembayaran Admin', 'fa-money-check-alt', hideMissingDocs);
+  if (showApprovalDocuments) {
+    docsHtml += renderFilePreview(tx.fileBuktiFile, 'File Bukti Transaksi', 'fa-file', hideMissingDocs);
+    docsHtml += renderFilePreview(tx.fileBuktiApproval, 'Bukti Pembayaran Admin', 'fa-money-check-alt', hideMissingDocs);
+  }
   docsHtml += renderFilePreview(tx.fileNota, 'Nota Pembelian', 'fa-receipt', hideMissingDocs);
   docsHtml += renderFilePreview(tx.fileTtdUser, 'TTD User', 'fa-signature', hideMissingDocs);
   docsHtml += renderFilePreview(tx.fileTtdVerif, 'TTD Verifikator', 'fa-shield-alt', hideMissingDocs);
@@ -4243,7 +4246,7 @@ function openApprovalDetail(id) {
       showToast('error', 'Error', 'Transaksi approval tidak ditemukan');
       return;
     }
-    renderDetailTransaksi(tx, { hideMissingDocs: true });
+    renderDetailTransaksi(tx, { hideMissingDocs: true, showApprovalDocuments: true });
     currentApprovalDetailId = tx.id || id;
     var body = $('detailBody');
     if (body) body.insertAdjacentHTML('afterbegin', renderApprovalDetailHero(tx));
