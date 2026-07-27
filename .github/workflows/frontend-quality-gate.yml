@@ -38,8 +38,16 @@ jobs:
           grep -Fq "var filters = { kategori: 'PENGELUARAN' };" app.js
           grep -Fq "var normalizedResponse = normalizeApprovalApiResponse(result);" app.js
           grep -Fq "Approval render failure:" app.js
-          grep -Fq "20260723-login-mobile-spacing-v20" _worker.js
-          grep -Fq "sim-sppg-v20260723-login-mobile-spacing-v19" sw.js
+          worker_version="$(sed -n "s/.*const version = '\([^']*\)'.*/\1/p" _worker.js | head -n 1)"
+          sw_version="$(sed -n "s/.*const CACHE_VERSION = 'sim-sppg-v\([^']*\)'.*/\1/p" sw.js | head -n 1)"
+          if [ -z "$worker_version" ] || [ -z "$sw_version" ]; then
+            echo "::error::Versi cache frontend tidak ditemukan di _worker.js atau sw.js."
+            exit 1
+          fi
+          if [ "$worker_version" != "$sw_version" ]; then
+            echo "::error::Versi cache frontend tidak sinkron: worker=$worker_version, sw=$sw_version"
+            exit 1
+          fi
           grep -Fq "pageKey()==='approval'" app.js
           if grep -Fq 'class="auth-card-brand"' index.html; then exit 1; fi
           grep -Fq "margin-top: -14px;" index.html
