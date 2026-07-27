@@ -48,7 +48,7 @@ var API_ROUTES = {
     submitUserBuktiPembayaran:1, verifyUserPayment:1
   },
   'operations-action': {
-    getAllUsers:1, deleteUser:1, getUploadBuktiMode:1, setUploadBuktiMode:1,
+    getAllUsers:1, updatePresence:1, deleteUser:1, getUploadBuktiMode:1, setUploadBuktiMode:1,
     getTransactionEditMode:1, setTransactionEditMode:1,
     addPendingPayment:1, addSurveiBahanBaku:1, addSerahTerima:1, addMenuHarian:1,
     getAdminAssignments:1, addAdminAssignment:1, updateAdminAssignment:1, deleteAdminAssignment:1,
@@ -166,6 +166,7 @@ var currentUser = null;
 var sessionExpiry = 0;
 var currentPage = 'dashboard';
 var sidebarCollapsed = false;
+var presenceHeartbeatTimer = null;
 
 // Data stores
 var allTransactions = [];
@@ -1233,6 +1234,7 @@ function executeLogout(isAutoLogout) {
   safeStorage('remove', 'sppg_session');
   try { localStorage.removeItem('sppg_jwt'); } catch(e) {}
   if (notifPollTimer) { clearInterval(notifPollTimer); notifPollTimer = null; }
+  stopPresenceHeartbeat();
   stopIdleLogoutWatcher();
   currentUser = null;
   $('appContainer').classList.add('hidden');
@@ -1282,6 +1284,40 @@ function stopIdleLogoutWatcher() {
   if (_idleLogoutTimer) { clearTimeout(_idleLogoutTimer); _idleLogoutTimer = null; }
 }
 
+function sendPresenceHeartbeat() {
+  if (!currentUser || document.visibilityState === 'hidden') return;
+  callApi('updatePresence', [], function(result) {
+    if (result && result.success && currentUser) {
+      currentUser.lastSeenAt = result.lastSeenAt;
+      var settingsUsersPanel = $('settingsPanel-users');
+      var usersVisible = currentPage === 'users' ||
+        (currentPage === 'settings' && settingsUsersPanel && !settingsUsersPanel.classList.contains('hidden'));
+      if (usersVisible && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) {
+        loadUsers(true, usersPage, false);
+      }
+    }
+  }, function(error) {
+    console.warn('Presence heartbeat gagal:', error && error.message ? error.message : error);
+  });
+}
+
+function startPresenceHeartbeat() {
+  stopPresenceHeartbeat();
+  sendPresenceHeartbeat();
+  presenceHeartbeatTimer = setInterval(sendPresenceHeartbeat, 60000);
+}
+
+function stopPresenceHeartbeat() {
+  if (presenceHeartbeatTimer) {
+    clearInterval(presenceHeartbeatTimer);
+    presenceHeartbeatTimer = null;
+  }
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && currentUser) sendPresenceHeartbeat();
+});
+
 // ============================================================
 // 4b. SETTINGS HUB & ANNOUNCEMENTS
 // ============================================================
@@ -1294,7 +1330,6 @@ function loadMyMenuVisibility() {
         if (!isPageAllowedForCurrentUser(currentPage)) currentPage = 'dashboard';
         buildSidebar();
         buildBottomNav();
-        renderQuickAccess();
       }
       resolve(result);
     }, function(error) {
@@ -1451,7 +1486,6 @@ function saveMenuVisibility() {
     menuVisibilityByRole[role] = settingsHubState.menuVisibility[role];
     buildSidebar();
     buildBottomNav();
-    renderQuickAccess();
     renderSettingsMenuGrid();
     showToast('success', 'Menu Tersimpan', result.message || 'Visibilitas menu berhasil diperbarui.');
   }, function(error) {
@@ -1757,7 +1791,7 @@ function buildSidebar() {
 }
 
 // ============================================================
-// BOTTOM NAV, FAB, MORE-SHEET, QUICK ACCESS — Mobile Navigation
+// BOTTOM NAV, FAB, MORE-SHEET — Mobile Navigation
 // ============================================================
 
 // Tab utama per role (4 item permanen: Beranda, Transaksi, Approval/menu utama, Profil)
@@ -1911,51 +1945,6 @@ function syncMoreButtonActive(page) {
   
   // Juga update FAB visibility saat halaman berubah
   updateFabVisibility();
-}
-
-// ── Quick Access grid di Dashboard ──
-var QUICK_ACCESS_CONFIG = {
-  ADMIN:          ['approval', 'survei', 'master-supplier', 'serah-terima'],
-  AKUNTAN:        ['survei', 'master-supplier', 'serah-terima', 'menu-mbg'],
-  LAPANGAN:       ['approval', 'survei', 'serah-terima', 'master-supplier'],
-  WAKIL_LAPANGAN: ['serah-terima'],
-  AHLI_GIZI:      ['menu-mbg', 'master-bahan']
-};
-var QA_ICON_LABEL = {
-  'approval':         { icon: 'fa-clipboard-check', label: 'Approval' },
-  'survei':           { icon: 'fa-search-dollar',   label: 'Survei Harga' },
-  'master-supplier':  { icon: 'fa-truck',           label: 'Supplier' },
-  'serah-terima':     { icon: 'fa-dolly',           label: 'Serah Terima' },
-  'menu-mbg':         { icon: 'fa-utensils',        label: 'Menu MBG' },
-  'master-bahan':     { icon: 'fa-boxes',           label: 'Bahan Baku' }
-};
-function renderQuickAccess() {
-  var container = $('quickAccessSection');
-  if (!container || !currentUser) return;
-  var pages = (QUICK_ACCESS_CONFIG[currentUser.role] || []).filter(function(page) {
-    return isMenuPageVisibleForRole(page, currentUser.role);
-  });
-  if (!pages.length) { container.innerHTML = ''; return; }
-  var html = '<div class="quick-access-title">Akses Cepat</div><div class="quick-access-grid">';
-  pages.forEach(function(page) {
-    var meta = QA_ICON_LABEL[page] || { icon: 'fa-circle', label: page };
-    var badgeHtml = (page === 'approval') ? '<span class="qa-badge" id="qaApprovalBadge" style="display:none;">0</span>' : '';
-    html += '<div class="qa-card" onclick="switchPage(\'' + page + '\')">' +
-      badgeHtml +
-      '<i class="fas ' + meta.icon + '"></i>' +
-      '<span>' + meta.label + '</span>' +
-      '</div>';
-  });
-  html += '</div>';
-  container.innerHTML = html;
-  syncApprovalBadgeToQuickAccess();
-}
-function syncApprovalBadgeToQuickAccess() {
-  var src = $('approvalCount');
-  var dst = $('qaApprovalBadge');
-  if (!src || !dst) return;
-  dst.textContent = src.textContent;
-  dst.style.display = (parseInt(src.textContent) > 0) ? 'flex' : 'none';
 }
 
 function goToTransaksiFiltered(kategori) {
@@ -2128,7 +2117,7 @@ function switchPage(page, el) {
   updateBottomNavActive();
   updateFabVisibility();
   // Page-specific init
-  if (page === 'dashboard') { loadDashboardData(true); updateChart(); renderQuickAccess(); loadMyAnnouncements(); }
+  if (page === 'dashboard') { loadDashboardData(true); updateChart(); loadMyAnnouncements(); }
   if (page === 'settings' && currentUser.role === 'SUPER_ADMIN') { initializeSettingsHubLayout(); loadSettingsHub(); }
   if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers(true);
   if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(undefined, undefined, true); restoreFilterBarState('txFilterBar'); }
@@ -2330,6 +2319,7 @@ function initApp() {
   loadFeatureModes();
   loadMyAnnouncements();
   startIdleLogoutWatcher();
+  startPresenceHeartbeat();
   if (_swRegistration) initPushNotification();
 
   // Kembali ke halaman terakhir yang memang tersedia untuk role pengguna.
@@ -2353,12 +2343,10 @@ function initApp() {
   populateSPPGSelects();
 
   // Gunakan requestAnimationFrame agar DOM selesai render (termasuk ukuran
-  // canvas) sebelum chart dan data dimuat. Ini mencegah Quick Access kosong,
-  // KPI stuck di "Rp 0", dan chart kosong saat pertama masuk.
+  // canvas) sebelum chart dan data dimuat agar KPI dan chart stabil.
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
       try { initChart(); } catch(e) { console.error('initChart error:', e); }
-      renderQuickAccess();
       Promise.all([
         loadMyMenuVisibility(),
         loadDashboardData(true),
@@ -2367,7 +2355,6 @@ function initApp() {
         loadSuppliers(true)
       ]).then(function() {
         try { updateChart(); } catch(e) { console.error('updateChart error:', e); }
-        renderQuickAccess();
         if (appLoadingEl) appLoadingEl.classList.add('hidden');
       }).catch(function(e) {
         console.error('initApp load error:', e);
@@ -2500,7 +2487,6 @@ function loadDashboardData(silent) {
                   var badgeSidebar = $('approvalCountSidebar');
                   if (badgeSidebar) { badgeSidebar.textContent = cnt; badgeSidebar.style.display = cnt > 0 ? 'inline-flex' : 'none'; }
                   syncApprovalBadgeToBottomNav();
-                  syncApprovalBadgeToQuickAccess();
                 }
                 resolve();
       },
@@ -2983,7 +2969,7 @@ function loadUsers(silent, page, forceAll) {
 function renderUsersTable() {
   var tbody = $('usersTableBody');
   if (!filteredUsers.length) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-users"></i></div><h4>Tidak Ada Users</h4></div></td></tr>';
     renderPagination('usersPagination', 1, 0, 'goUsersPage');
     return;
   }
@@ -2997,6 +2983,10 @@ function renderUsersTable() {
     var avatarImgId = 'userAvatar_' + esc(u.username);
     var userKey = getManagedUserKey(u);
     var rowLabel = 'Lihat detail user ' + (u.namaLengkap || u.username || '');
+    var isOnline = !!u.isOnline || (!!u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000);
+    var presenceColor = isOnline ? '#16a34a' : '#94a3b8';
+    var presenceBg = isOnline ? '#dcfce7' : '#f1f5f9';
+    var presenceText = isOnline ? 'Online' : formatUserLastSeen(u.lastSeenAt);
     html += '<tr class="user-row-clickable" tabindex="0" role="button" data-user-key="' + esc(userKey) + '" aria-label="' + esc(rowLabel) + '" onclick="openUserDetailModal(this.dataset.userKey)" onkeydown="handleUserRowKeydown(event,this.dataset.userKey)">' +
       '<td style="text-align:center;color:var(--slate-400);font-weight:600;">' + (start + i + 1) + '</td>' +
       '<td>' +
@@ -3007,6 +2997,7 @@ function renderUsersTable() {
       '<td>' + esc(u.email || '-') + '</td>' +
       '<td><span class="badge badge-blue">' + esc(u.jabatan || '-') + '</span></td>' +
       '<td><span class="badge badge-outline">' + esc(u.sppg || '-') + '</span></td>' +
+      '<td><span title="' + esc(u.lastSeenAt ? new Date(u.lastSeenAt).toLocaleString('id-ID') : 'Belum ada aktivitas') + '" style="display:inline-flex;align-items:center;gap:7px;padding:6px 9px;border-radius:999px;background:' + presenceBg + ';color:' + presenceColor + ';font-size:11px;font-weight:700;white-space:nowrap;"><span style="width:8px;height:8px;border-radius:50%;background:' + presenceColor + ';box-shadow:' + (isOnline ? '0 0 0 3px rgba(22,163,74,.14)' : 'none') + ';"></span>' + esc(presenceText) + '</span></td>' +
       '</tr>';
   });
 
@@ -3024,6 +3015,21 @@ function renderUsersTable() {
       }, null);
     }
   });
+}
+
+function formatUserLastSeen(value) {
+  if (!value) return 'Belum pernah online';
+  var date = new Date(value);
+  if (isNaN(date.getTime())) return 'Tidak diketahui';
+  var seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 60) return 'Baru saja';
+  var minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + ' menit lalu';
+  var hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + ' jam lalu';
+  var days = Math.floor(hours / 24);
+  if (days < 7) return days + ' hari lalu';
+  return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function applyUsersFiltersLocal() {
@@ -7175,7 +7181,6 @@ function refreshData() {
                   var badgeSidebar = $('approvalCountSidebar');
                   if (badgeSidebar) { badgeSidebar.textContent = cnt2; badgeSidebar.style.display = cnt2 > 0 ? 'inline-flex' : 'none'; }
                   syncApprovalBadgeToBottomNav();
-                  syncApprovalBadgeToQuickAccess();
                 }
                 updateChart();
                 checkDone();
@@ -8224,7 +8229,6 @@ function submitRecovery() {
   style.textContent = [
     '.auth-container .auth-sub{color:var(--slate-400);font-size:13px;margin-bottom:24px;text-align:center;line-height:1.5}',
     '#btnLogin{touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:46px}',
-    '.quick-access-section{margin-bottom:24px}',
     '.stat-card{background:#fff;border-radius:20px;padding:18px 16px;display:flex;flex-direction:column;align-items:center;text-align:center}',
     '.stat-icon{width:56px;height:56px;min-width:56px;display:flex;align-items:center;justify-content:center}',
     '.notif-item{position:relative;display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--slate-100);background:var(--white);transition:.2s ease;cursor:pointer}',
@@ -8481,7 +8485,7 @@ function renderCharts(rows){if(!window.Chart)return;Chart.defaults.font.family='
 function renderSppg(rows){var box=$('dashSppgList'),data=(rows||[]).slice().sort((a,b)=>(+b.pengeluaran||0)-(+a.pengeluaran||0)).slice(0,7);if(!data.length){box.innerHTML='<div class="dash-empty"><div><i class="fas fa-building"></i><strong>Data per SPPG belum tersedia.</strong></div></div>';return}var max=Math.max.apply(null,data.map(r=>+r.pengeluaran||0))||1;box.innerHTML=data.map(r=>`<div class="dash-sppg-row"><div class="dash-sppg-name" title="${esc(r.name)}">${esc(r.name)}</div><div class="dash-track"><span style="width:${Math.max(3,Math.round((+r.pengeluaran||0)/max*100))}%"></span></div><div class="dash-val">${compact(r.pengeluaran)}</div></div>`).join('')}
 function insights(rows,sppg){var box=$('dashInsights'),queue=num('statAntrian'),pending=num('statAntrianNominal'),last=rows[rows.length-1],top=(sppg||[]).slice().sort((a,b)=>(+b.pengeluaran||0)-(+a.pengeluaran||0))[0],items=[['fa-hourglass-half','#fff7ed','#c2410c',queue+' transaksi menunggu approval',pending?'Nominal tertunda '+money(pending)+'.':'Tidak ada nominal tertunda.'],['fa-calendar-check','#ecfdf5','#047857',last?'Aktivitas terakhir '+last.tanggal:'Belum ada aktivitas harian',last?'Pemasukan '+money(last.pemasukan)+' dan pengeluaran '+money(last.pengeluaran)+'.':'Data muncul setelah transaksi tercatat.'],['fa-building','#eff6ff','#1d4ed8',top?top.name+' tertinggi':'Perbandingan SPPG belum tersedia',top?'Pengeluaran tercatat '+money(top.pengeluaran)+'.':'Data unit belum tersedia.'],['fa-shield-alt','#f5f3ff','#6d28d9','Kontrol pengeluaran','Pastikan bukti transaksi dan approval selalu lengkap.']];box.innerHTML=items.map(i=>`<div class="dash-insight"><i class="fas ${i[0]}" style="background:${i[1]};color:${i[2]}"></i><div><strong>${esc(i[3])}</strong><span>${esc(i[4])}</span></div></div>`).join('')}
 var loading=false,lastLoad=0;async function load(force){if(loading||!window.currentUser||(!force&&Date.now()-lastLoad<30000))return;loading=true;var days=+$('dashPeriod').value||30,r=range(days),res=await Promise.all([api('getChartData',[{dateStart:r.start,dateEnd:r.end}]),api('getSPPGData',[r.start,r.end])]),rows=Array.isArray(res[0])?res[0]:[],sppg=Array.isArray(res[1])?res[1]:[];renderCharts(rows);renderSppg(sppg);insights(rows,sppg);identity();health();lastLoad=Date.now();loading=false}
-function init(){var page=$('page-dashboard'),stats=$('dashboardStats'),quick=$('quickAccessSection');if(!page||!stats||!quick)return setTimeout(init,300);if($('dashPanels'))return;css();stats.insertAdjacentHTML('beforebegin',hero());page.insertBefore(quick,stats);stats.insertAdjacentHTML('afterend',panels());applyDashboardRoleVisibility();$('dashPeriod').addEventListener('change',()=>load(true));['statSaldo','statPemasukan','statPengeluaran','statAntrian','statAntrianNominal'].forEach(id=>{var n=$(id);if(n)new MutationObserver(function(){health()}).observe(n,{childList:true,subtree:true,characterData:true})});identity();health();setInterval(function(){var p=$('page-dashboard');if(p&&!p.classList.contains('hidden')&&getComputedStyle(p).display!=='none')load(false)},30000);setTimeout(()=>load(true),700)}
+function init(){var page=$('page-dashboard'),stats=$('dashboardStats');if(!page||!stats)return setTimeout(init,300);if($('dashPanels'))return;css();stats.insertAdjacentHTML('beforebegin',hero());stats.insertAdjacentHTML('afterend',panels());applyDashboardRoleVisibility();$('dashPeriod').addEventListener('change',()=>load(true));['statSaldo','statPemasukan','statPengeluaran','statAntrian','statAntrianNominal'].forEach(id=>{var n=$(id);if(n)new MutationObserver(function(){health()}).observe(n,{childList:true,subtree:true,characterData:true})});identity();health();setInterval(function(){var p=$('page-dashboard');if(p&&!p.classList.contains('hidden')&&getComputedStyle(p).display!=='none')load(false)},30000);setTimeout(()=>load(true),700)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 
