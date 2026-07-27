@@ -1,12 +1,12 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-27T02:50:26.234Z.
+Generated automatically from `app.js` at 2026-07-27T03:05:04.307Z.
 
 ## Summary
 
-- Literal API calls found: **70**
-- Functions declared in `API_ROUTES`: **83**
-- Routed literal API calls: **70**
+- Literal API calls found: **68**
+- Functions declared in `API_ROUTES`: **81**
+- Routed literal API calls: **68**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
 
@@ -71,8 +71,6 @@ Generated automatically from `app.js` at 2026-07-27T02:50:26.234Z.
 | `resendRegistrationOtp` | `auth-public-action` |
 | `savePushSubscription` | `push-action` |
 | `setAnnouncementActive` | `settings-action` |
-| `setTransactionEditMode` | `operations-action` |
-| `setUploadBuktiMode` | `operations-action` |
 | `submitUserBuktiPembayaran` | `approval-payment-action` |
 | `updateAdminAssignment` | `operations-action` |
 | `updateFeatureSettings` | `settings-action` |
