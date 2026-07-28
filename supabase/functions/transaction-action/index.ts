@@ -352,6 +352,48 @@ async function listTransactions(filters: any, current: Caller) {
   };
 }
 
+function uniqueSuggestionValues(rows: any[], key: string, limit: number) {
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const row of rows) {
+    const value = text(row?.[key]);
+    if (!value || value === '-') continue;
+    const normalized = value.replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    values.push(value);
+    if (values.length >= limit) break;
+  }
+  return values;
+}
+
+async function getTransactionSuggestions(current: Caller) {
+  let query = sb.from(T.X)
+    .select('User,SPPG,YAYASAN,"Jenis Kategori","Nama Item/ Bahan Baku",Catatan,Tanggal')
+    .order('Tanggal', { ascending: false })
+    .limit(1000);
+  if (current.role === 'USER') query = query.eq('User', current.email);
+  const result = await query;
+  if (result.error) throw result.error;
+
+  let rows = result.data || [];
+  if (current.role === 'ADMIN') {
+    const allowed = new Set(
+      (await assignedPairs(current)).map(([sppg, yayasan]) =>
+        `${text(sppg).toUpperCase()}\u0000${text(yayasan).toUpperCase()}`),
+    );
+    rows = rows.filter((row: any) =>
+      allowed.has(`${text(row.SPPG).toUpperCase()}\u0000${text(row.YAYASAN).toUpperCase()}`));
+  }
+
+  return {
+    success: true,
+    jenisKategori: uniqueSuggestionValues(rows, 'Jenis Kategori', 100),
+    items: uniqueSuggestionValues(rows, 'Nama Item/ Bahan Baku', 300),
+    catatan: uniqueSuggestionValues(rows, 'Catatan', 300),
+  };
+}
+
 async function transactionDetail(id: string, current: Caller) {
   const row = await getTransaction(current, id);
   const documents = (await docsFor([id])).get(id) || new Map<string, Doc>();
@@ -683,6 +725,7 @@ async function deleteTransaction(id: string, current: Caller) {
 
 const HANDLERS: Record<string, (parameters: any[], current: Caller) => Promise<any>> = {
   getTransactions: (parameters, current) => listTransactions(parameters[0] || {}, current),
+  getTransactionSuggestions: (_parameters, current) => getTransactionSuggestions(current),
   getTransactionDetail: (parameters, current) => transactionDetail(text(parameters[0]), current),
   addTransaction: (parameters, current) => addTransaction(parameters[0] || {}, current),
   editTransaction: (parameters, current) => editTransaction(text(parameters[0]), parameters[1] || {}, current),
@@ -696,10 +739,11 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') return json({
     status: 'ok',
     service: 'transaction-action',
-    version: 9,
+    version: 10,
     documentReadSource: T.DA,
     yayasanResolutionSource: T.S,
     writeMode: 'normalized-atomic',
+    suggestionMode: 'authenticated-role-scoped',
   });
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
   try {
