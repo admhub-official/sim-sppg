@@ -9974,8 +9974,18 @@ updateAuthHeading();
   bootstrapRuntime();
 
   window.addEventListener('pageshow', bootstrapRuntime, { passive:true });
+  window.addEventListener('storage', function(event) {
+    if (event.key === CONFIG.sessionKey && !event.newValue && window.currentUser) {
+      clearAuthState('Sesi telah berakhir di perangkat ini.', true);
+    } else if (event.key === CONFIG.tokenKey && event.newValue) {
+      window._supabaseToken = event.newValue;
+    }
+  });
   setInterval(function () {
-    if (!storageGet(CONFIG.sessionKey)) return;
+    if (!storageGet(CONFIG.sessionKey)) {
+      if (window.currentUser) clearAuthState('Sesi berakhir. Silakan login kembali.', true);
+      return;
+    }
     if (!readValidSession(true)) {
       clearAuthState('Sesi berakhir. Silakan login kembali.', true);
       return;
