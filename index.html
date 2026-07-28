@@ -2848,7 +2848,12 @@
       align-items: center;
       box-sizing: border-box;
     }
-    .autocomplete-item:hover { background: var(--slate-50); }
+    .autocomplete-item:hover,
+    .autocomplete-item.keyboard-active {
+      color: var(--primary-dark);
+      background: var(--primary-light);
+    }
+    .autocomplete-item.keyboard-active { box-shadow: inset 3px 0 0 var(--primary); }
     .autocomplete-item:last-child { border-bottom: none; }
     .autocomplete-header {
       padding: 6px 14px;
@@ -6340,8 +6345,11 @@
         <div class="form-row">
           <div class="form-group autocomplete-box">
             <label class="form-label">Jenis Kategori</label>
-            <input type="text" id="addTxJenisKat" class="form-input" placeholder="Ketik atau pilih jenis kategori..." oninput="handleJenisKatAutocomplete(this); updateItemFieldHint();" autocomplete="off">
-            <div class="autocomplete-dropdown" id="jenisKatDropdown"></div>
+            <input type="text" id="addTxJenisKat" class="form-input" placeholder="Ketik atau pilih jenis kategori..."
+              oninput="handleJenisKatAutocomplete(this); updateItemFieldHint();"
+              onkeydown="handleTransactionAutocompleteKeydown(event,'jenisKatDropdown')" autocomplete="off"
+              role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="jenisKatDropdown">
+            <div class="autocomplete-dropdown" id="jenisKatDropdown" role="listbox"></div>
           </div>
           <div class="form-group">
             <label class="form-label">SPPG <span class="req">*</span></label>
@@ -6354,9 +6362,12 @@
         <div class="form-row">
           <div class="form-group autocomplete-box">
             <label class="form-label">Nama Item / Bahan Baku <span class="req">*</span></label>
-            <input type="text" id="addTxItem" class="form-input" placeholder="Ketik nama item atau bahan baku..." oninput="handleItemAutocomplete(this)" onfocus="onItemFocus()" autocomplete="off">
+            <input type="text" id="addTxItem" class="form-input" placeholder="Ketik nama item atau bahan baku..."
+              oninput="handleItemAutocomplete(this)" onfocus="onItemFocus()"
+              onkeydown="handleTransactionAutocompleteKeydown(event,'itemDropdown')" autocomplete="off"
+              role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="itemDropdown">
             <p class="form-hint" id="addTxItemHint"></p>
-            <div class="autocomplete-dropdown" id="itemDropdown"></div>
+            <div class="autocomplete-dropdown" id="itemDropdown" role="listbox"></div>
           </div>
           <div class="form-group">
             <label class="form-label">Nominal (Rp) <span class="req">*</span></label>
@@ -6368,8 +6379,11 @@
         <!-- Catatan -->
         <div class="form-group autocomplete-box">
           <label class="form-label">Catatan</label>
-          <textarea id="addTxCatatan" class="form-input" placeholder="Catatan transaksi..." oninput="handleCatatanAutocomplete(this)" autocomplete="off" rows="2"></textarea>
-          <div class="autocomplete-dropdown" id="catatanDropdown"></div>
+          <textarea id="addTxCatatan" class="form-input" placeholder="Catatan transaksi..."
+            oninput="handleCatatanAutocomplete(this)"
+            onkeydown="handleTransactionAutocompleteKeydown(event,'catatanDropdown')" autocomplete="off" rows="2"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="catatanDropdown"></textarea>
+          <div class="autocomplete-dropdown" id="catatanDropdown" role="listbox"></div>
         </div>
 
         <!-- Metode Transaksi -->
@@ -7245,6 +7259,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260728-transaction-note-v1"></script>
+<script src="./app.js?v=20260728-transaction-autocomplete-v1"></script>
 </body>
 </html>
