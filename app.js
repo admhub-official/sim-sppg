@@ -1377,7 +1377,10 @@ function sendPresenceHeartbeat() {
 function startPresenceHeartbeat() {
   stopPresenceHeartbeat();
   sendPresenceHeartbeat();
-  presenceHeartbeatTimer = setInterval(sendPresenceHeartbeat, 60000);
+  // Heartbeat 30 detik memberi status live tanpa membebani API secara berlebihan.
+  // Backend memakai ambang 75 detik agar satu heartbeat yang terlambat tidak
+  // langsung membuat user berkedip offline.
+  presenceHeartbeatTimer = setInterval(sendPresenceHeartbeat, 30000);
 }
 
 function stopPresenceHeartbeat() {
@@ -3055,7 +3058,7 @@ function renderUsersTable() {
     var avatarImgId = 'userAvatar_' + esc(u.username);
     var userKey = getManagedUserKey(u);
     var rowLabel = 'Lihat detail user ' + (u.namaLengkap || u.username || '');
-    var isOnline = !!u.isOnline || (!!u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 120000);
+    var isOnline = !!u.isOnline || (!!u.lastSeenAt && Date.now() - new Date(u.lastSeenAt).getTime() < 75000);
     var presenceColor = isOnline ? '#16a34a' : '#94a3b8';
     var presenceBg = isOnline ? '#dcfce7' : '#f1f5f9';
     var presenceText = isOnline ? 'Online' : formatUserLastSeen(u.lastSeenAt);
