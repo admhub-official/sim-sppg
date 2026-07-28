@@ -673,7 +673,7 @@ function updateItemFieldHint() {
   } else {
     itemInput.placeholder = 'Ketik nama item atau bahan baku...';
     if (itemHint) itemHint.innerHTML = '';
-    $('itemDropdown').classList.remove('active');
+    closeTransactionAutocomplete('itemDropdown', 'addTxItem');
   }
 }
 
@@ -8735,7 +8735,11 @@ function submitRecovery() {
     boxes.forEach(function(box) {
       if (!box.contains(e.target)) {
         var dd = box.querySelector('.autocomplete-dropdown');
-        if (dd) dd.classList.remove('active');
+        if (dd) {
+          dd.classList.remove('active');
+          var combobox = box.querySelector('[role="combobox"]');
+          if (combobox) combobox.setAttribute('aria-expanded', 'false');
+        }
       }
     });
   });
