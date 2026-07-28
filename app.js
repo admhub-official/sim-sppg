@@ -146,7 +146,7 @@ var API_ROUTES = {
   'push-public-action': { getPushPublicKey:1 },
   'geocode-action': { geocodeAlamat:1 },
   'register-user-v2': { registerUser:1 },
-  'auth-public-action': { verifyRegistrationOtp:1, resendRegistrationOtp:1, loginUser:1, checkSession:1 },
+  'auth-public-action': { verifyRegistrationOtp:1, resendRegistrationOtp:1, loginUser:1, refreshSession:1, checkSession:1 },
   'account-recovery-action': { recoverPassword:1, recoverUsername:1, recoverToken:1 },
   'app-config-action': { getAppConfig:1, getDropdownOptions:1 },
   'notification-dispatch-action': { dispatchNotification:1 },
@@ -158,7 +158,7 @@ var API_ROUTES = {
 };
 var PUBLIC_FN = {
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
-  loginUser:1, checkSession:1, recoverPassword:1, recoverUsername:1,
+  loginUser:1, refreshSession:1, checkSession:1, recoverPassword:1, recoverUsername:1,
   recoverToken:1, getAppConfig:1, getDropdownOptions:1, getPushPublicKey:1
 };
 var API_ROUTE_BY_FUNCTION = {};
@@ -231,7 +231,7 @@ function callApi(fnName, params, onSuccess, onFailure) {
 // ============================================================
 // 1. STATE MANAGEMENT
 // ============================================================
-var SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 jam
+var SESSION_DURATION = 60 * 60 * 1000; // 1 jam tanpa aktivitas
 var ITEMS_PER_PAGE = 15;
 var CFG_SPPG_FALLBACK = ['DARMARAJA','CIAMIS','TANJUNG MEDAR','PAKUALAM','KIRISIK','CIBUNAR','CINTA JAYA'];
 
@@ -1450,6 +1450,7 @@ function logout() { $('modalLogout').classList.remove('hidden'); }
 function executeLogout(isAutoLogout) {
   safeStorage('remove', 'sppg_session');
   try { localStorage.removeItem('sppg_jwt'); } catch(e) {}
+  try { localStorage.removeItem('sppg_refresh_token'); } catch(e) {}
   if (notifPollTimer) { clearInterval(notifPollTimer); notifPollTimer = null; }
   stopPresenceHeartbeat();
   stopIdleLogoutWatcher();
@@ -1461,7 +1462,7 @@ function executeLogout(isAutoLogout) {
   showLogin();
   closeModal('modalLogout');
   if (isAutoLogout) {
-    showToast('info', 'Sesi Berakhir', 'Anda otomatis keluar karena tidak ada aktivitas selama 3 jam.');
+    showToast('info', 'Sesi Berakhir', 'Anda otomatis keluar karena aplikasi tidak aktif selama 1 jam.');
   } else {
     showToast('success', 'Logout', 'Anda telah keluar.');
   }
@@ -1470,18 +1471,61 @@ function executeLogout(isAutoLogout) {
 // ============================================================
 // 4b. AUTO LOGOUT KARENA TIDAK ADA AKTIVITAS (IDLE)
 // ============================================================
-// Aturan: jika tidak ada aktivitas apapun (klik, tap, scroll, keyboard)
-// selama lebih dari 3 jam, user otomatis logout.
-var IDLE_LOGOUT_MS = 3 * 60 * 60 * 1000; // 3 jam
+// Aturan: sesi tetap hidup selama aplikasi terlihat atau pengguna beraktivitas.
+// Jika aplikasi tidak dibuka/tidak aktif selama 1 jam, sesi otomatis berakhir.
+var IDLE_LOGOUT_MS = 60 * 60 * 1000;
 var _idleLogoutTimer = null;
 var _idleActivityBound = false;
+var _idleLastPersistAt = 0;
+var _idleLastResetAt = 0;
+
+function persistIdleSession(now, force) {
+  if (!currentUser) return 0;
+  now = Number(now) || Date.now();
+  var expiry = now + IDLE_LOGOUT_MS;
+  sessionExpiry = expiry;
+  if (force || now - _idleLastPersistAt >= 15000) {
+    _idleLastPersistAt = now;
+    safeStorage('set', 'sppg_session', JSON.stringify({
+      user: currentUser,
+      expiry: expiry,
+      lastActivity: now
+    }));
+  }
+  return expiry;
+}
+
+function storedIdleExpiry() {
+  try {
+    var raw = safeStorage('get', 'sppg_session');
+    var session = raw ? JSON.parse(raw) : null;
+    return Number(session && session.expiry) || 0;
+  } catch (error) {
+    return 0;
+  }
+}
+
+function scheduleIdleLogout(expiry) {
+  if (_idleLogoutTimer) clearTimeout(_idleLogoutTimer);
+  var remaining = Math.max(0, Number(expiry) - Date.now());
+  if (!remaining) {
+    if (currentUser) executeLogout(true);
+    return;
+  }
+  _idleLogoutTimer = setTimeout(function() {
+    if (!currentUser) return;
+    var currentExpiry = storedIdleExpiry();
+    if (!currentExpiry || Date.now() >= currentExpiry) executeLogout(true);
+    else scheduleIdleLogout(currentExpiry);
+  }, remaining);
+}
 
 function resetIdleLogoutTimer() {
   if (!currentUser) return;
-  if (_idleLogoutTimer) clearTimeout(_idleLogoutTimer);
-  _idleLogoutTimer = setTimeout(function() {
-    if (currentUser) executeLogout(true);
-  }, IDLE_LOGOUT_MS);
+  var now = Date.now();
+  if (now - _idleLastResetAt < 10000) return;
+  _idleLastResetAt = now;
+  scheduleIdleLogout(persistIdleSession(now, true));
 }
 
 function startIdleLogoutWatcher() {
@@ -1490,7 +1534,14 @@ function startIdleLogoutWatcher() {
       document.addEventListener(evt, resetIdleLogoutTimer, { passive: true, capture: true });
     });
     document.addEventListener('visibilitychange', function() {
+      if (!currentUser) return;
+      var expiry = storedIdleExpiry();
+      if (!expiry || Date.now() >= expiry) {
+        executeLogout(true);
+        return;
+      }
       if (document.visibilityState === 'visible') resetIdleLogoutTimer();
+      else scheduleIdleLogout(expiry);
     });
     _idleActivityBound = true;
   }
@@ -9095,8 +9146,11 @@ if (dashboardObserverTarget) {
   var CONFIG = {
     registerUrl: 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/register-user-v2',
     tokenKey: 'sppg_jwt',
+    refreshTokenKey: 'sppg_refresh_token',
     sessionKey: 'sppg_session',
     clockSkewMs: 60 * 1000,
+    refreshLeadMs: 5 * 60 * 1000,
+    idleTimeoutMs: 60 * 60 * 1000,
     sessionCheckMs: 30 * 1000,
     logoUrl: 'https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png'
   };
@@ -9106,6 +9160,7 @@ if (dashboardObserverTarget) {
     verifyRegistrationOtp: 1,
     resendRegistrationOtp: 1,
     loginUser: 1,
+    refreshSession: 1,
     checkSession: 1,
     recoverPassword: 1,
     recoverUsername: 1,
@@ -9133,6 +9188,7 @@ if (dashboardObserverTarget) {
   var installAttempts = 0;
   var reportInstalled = false;
   var authObserver = null;
+  var sessionRefreshPromise = null;
 
   function byId(id) { return document.getElementById(id); }
   function storageGet(key) { try { return localStorage.getItem(key) || ''; } catch (_) { return ''; } }
@@ -9219,6 +9275,7 @@ if (dashboardObserverTarget) {
 
   function clearAuthState(message, updateUi) {
     storageRemove(CONFIG.tokenKey);
+    storageRemove(CONFIG.refreshTokenKey);
     storageRemove(CONFIG.sessionKey);
     window._supabaseToken = '';
     window.currentUser = null;
@@ -9230,8 +9287,9 @@ if (dashboardObserverTarget) {
   function readValidSession(restoreGlobals) {
     var raw = storageGet(CONFIG.sessionKey);
     var token = storageGet(CONFIG.tokenKey);
-    if (!raw && !token) return false;
-    if (!raw || !isTokenUsable(token)) {
+    var refreshToken = storageGet(CONFIG.refreshTokenKey);
+    if (!raw && !token && !refreshToken) return false;
+    if (!raw) {
       clearAuthState('', false);
       return false;
     }
@@ -9241,20 +9299,18 @@ if (dashboardObserverTarget) {
       clearAuthState('', false);
       return false;
     }
-    var tokenLimit = jwtExpiryMs(token) - CONFIG.clockSkewMs;
-    var appLimit = Number(session.expiry) || 0;
-    var effectiveExpiry = appLimit > 0 ? Math.min(appLimit, tokenLimit) : tokenLimit;
-    if (!effectiveExpiry || Date.now() >= effectiveExpiry) {
+    var idleExpiry = Number(session.expiry) || 0;
+    if (!idleExpiry || Date.now() >= idleExpiry) {
       clearAuthState('', false);
       return false;
     }
-    if (Number(session.expiry) !== effectiveExpiry) {
-      session.expiry = effectiveExpiry;
-      storageSet(CONFIG.sessionKey, JSON.stringify(session));
+    if (!isTokenUsable(token) && !refreshToken) {
+      clearAuthState('', false);
+      return false;
     }
     if (restoreGlobals) {
       window.currentUser = session.user;
-      window.sessionExpiry = effectiveExpiry;
+      window.sessionExpiry = idleExpiry;
       window._supabaseToken = token;
     }
     return true;
@@ -9267,11 +9323,17 @@ if (dashboardObserverTarget) {
 
   function validTokenOrEmpty() {
     var token = storageGet(CONFIG.tokenKey);
-    if (!isTokenUsable(token)) {
-      if (token || storageGet(CONFIG.sessionKey)) clearAuthState('', false);
-      return '';
-    }
-    return token;
+    return isTokenUsable(token) ? token : '';
+  }
+
+  function tokenNeedsRefresh() {
+    var expiry = jwtExpiryMs(storageGet(CONFIG.tokenKey));
+    return !expiry || expiry <= Date.now() + CONFIG.refreshLeadMs;
+  }
+
+  function touchVisibleSession() {
+    if (document.visibilityState === 'hidden' || !window.currentUser) return;
+    if (typeof window.resetIdleLogoutTimer === 'function') window.resetIdleLogoutTimer();
   }
 
   function installSessionGuard() {
@@ -9281,40 +9343,97 @@ if (dashboardObserverTarget) {
 
     var original = window.callApi;
     window.getJwtToken = function () {
-      var token = validTokenOrEmpty();
-      if (!token && window.currentUser) clearAuthState('Sesi berakhir. Silakan login kembali.', true);
-      return token;
+      return storageGet(CONFIG.tokenKey);
     };
     window.checkSession = function () { return readValidSession(true); };
+
+    function refreshAccessToken() {
+      if (sessionRefreshPromise) return sessionRefreshPromise;
+      var refreshToken = storageGet(CONFIG.refreshTokenKey);
+      if (!refreshToken || !readValidSession(false)) return Promise.resolve(false);
+      sessionRefreshPromise = new Promise(function(resolve) {
+        original('refreshSession', [refreshToken], function(result) {
+          if (!result || !result.success || !result.token || !result.refreshToken) {
+            resolve(false);
+            return;
+          }
+          storageSet(CONFIG.tokenKey, result.token);
+          storageSet(CONFIG.refreshTokenKey, result.refreshToken);
+          window._supabaseToken = result.token;
+          resolve(isTokenUsable(result.token));
+        }, function() {
+          resolve(false);
+        });
+      }).then(function(ok) {
+        sessionRefreshPromise = null;
+        return ok;
+      }, function() {
+        sessionRefreshPromise = null;
+        return false;
+      });
+      return sessionRefreshPromise;
+    }
+    window.__sppgRefreshAccessToken = refreshAccessToken;
 
     window.callApi = function (action, params, success, failure) {
       var isPublic = !!PUBLIC_FUNCTIONS[action];
       if (action === 'loginUser') {
         clearAuthState('', false);
-      } else if (!isPublic && !validTokenOrEmpty()) {
+      } else if (!isPublic && !readValidSession(false)) {
         var error = new Error('Sesi berakhir. Silakan login kembali.');
         clearAuthState(error.message, true);
         if (typeof failure === 'function') setTimeout(function () { failure(error); }, 0);
         return;
       }
 
-      return original(action, params, function (result) {
+      function handleSuccess(result) {
         if (action === 'loginUser' && result && result.success && result.token) {
           var tokenExpiry = jwtExpiryMs(result.token);
-          if (!tokenExpiry || tokenExpiry <= Date.now() + CONFIG.clockSkewMs) {
+          if (!tokenExpiry || tokenExpiry <= Date.now() + CONFIG.clockSkewMs || !result.refreshToken) {
             clearAuthState('', false);
             if (typeof failure === 'function') failure(new Error('Server mengirim sesi yang tidak valid. Silakan login kembali.'));
             return;
           }
-          result.sessionExpiry = Math.min(Number(result.sessionExpiry) || tokenExpiry, tokenExpiry - CONFIG.clockSkewMs);
+          result.sessionExpiry = Date.now() + CONFIG.idleTimeoutMs;
           storageSet(CONFIG.tokenKey, result.token);
+          storageSet(CONFIG.refreshTokenKey, result.refreshToken);
           window._supabaseToken = result.token;
         }
         if (!isPublic && isAuthFailure(result)) clearAuthState('Sesi berakhir. Silakan login kembali.', true);
         if (typeof success === 'function') success(result);
-      }, function (error) {
-        if (!isPublic && isAuthFailure(error)) clearAuthState('Sesi berakhir. Silakan login kembali.', true);
+      }
+
+      function handleFailure(error) {
+        if (!isPublic && isAuthFailure(error)) {
+          clearAuthState('Sesi berakhir. Silakan login kembali.', true);
+        }
         if (typeof failure === 'function') failure(error);
+      }
+
+      if (isPublic) return original(action, params, handleSuccess, handleFailure);
+      touchVisibleSession();
+
+      function invoke(retried) {
+        return original(action, params, handleSuccess, function(error) {
+          if (!retried && isAuthFailure(error) && storageGet(CONFIG.refreshTokenKey)) {
+            refreshAccessToken().then(function(ok) {
+              if (ok) invoke(true);
+              else handleFailure(error);
+            });
+            return;
+          }
+          handleFailure(error);
+        });
+      }
+
+      if (!tokenNeedsRefresh() && validTokenOrEmpty()) return invoke(false);
+      refreshAccessToken().then(function(ok) {
+        if (ok) invoke(true);
+        else {
+          var error = new Error('Sesi tidak dapat diperpanjang. Silakan login kembali.');
+          clearAuthState(error.message, true);
+          if (typeof failure === 'function') failure(error);
+        }
       });
     };
     window.callApi.__unifiedRuntime = true;
@@ -9850,12 +9969,27 @@ updateAuthHeading();
     clearAuth: function (message) { clearAuthState(message, true); }
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootstrapRuntime, { once:true });
-  else bootstrapRuntime();
+  // Script berada di akhir body, jadi guard dipasang langsung sebelum bootstrap
+  // aplikasi lain berjalan pada DOMContentLoaded.
+  bootstrapRuntime();
 
   window.addEventListener('pageshow', bootstrapRuntime, { passive:true });
   setInterval(function () {
-    if (storageGet(CONFIG.sessionKey) && !readValidSession(true)) clearAuthState('Sesi berakhir. Silakan login kembali.', true);
+    if (!storageGet(CONFIG.sessionKey)) return;
+    if (!readValidSession(true)) {
+      clearAuthState('Sesi berakhir. Silakan login kembali.', true);
+      return;
+    }
+    if (document.visibilityState !== 'hidden' && tokenNeedsRefresh()) {
+      touchVisibleSession();
+      if (typeof window.__sppgRefreshAccessToken === 'function') {
+        window.__sppgRefreshAccessToken().then(function(ok) {
+          if (!ok && !isTokenUsable(storageGet(CONFIG.tokenKey))) {
+            clearAuthState('Sesi tidak dapat diperpanjang. Silakan login kembali.', true);
+          }
+        });
+      }
+    }
   }, CONFIG.sessionCheckMs);
 
   var domObserver = new MutationObserver(function () {
