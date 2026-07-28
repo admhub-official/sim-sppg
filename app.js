@@ -3817,6 +3817,7 @@ function openAddTransaksiModal() {
   }
 
   $('addTxKategori').value = 'PENGELUARAN';
+  updateAddTxKategoriStyle();
   $('addTxJenisKat').value = '';
   // Set SPPG default dari user, setelah datalist dipastikan terisi
   (function() {
@@ -3848,6 +3849,15 @@ function openAddTransaksiModal() {
   $('addTxNota').value = '';
   openModal('modalAddTransaksi');
   setTimeout(initAddTxTtd, 100);
+}
+
+function updateAddTxKategoriStyle() {
+  var select = $('addTxKategori');
+  if (!select) return;
+  var isPemasukan = select.value === 'PEMASUKAN';
+  select.classList.toggle('category-income', isPemasukan);
+  select.classList.toggle('category-expense', !isPemasukan);
+  select.setAttribute('aria-label', isPemasukan ? 'Kategori Pemasukan' : 'Kategori Pengeluaran');
 }
 
 function updateAddTxMetodeStyle() {
