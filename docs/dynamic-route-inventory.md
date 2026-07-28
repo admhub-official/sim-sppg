@@ -1,12 +1,12 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-28T04:42:04.583Z.
+Generated automatically from `app.js` at 2026-07-28T04:50:15.445Z.
 
 ## Summary
 
-- Literal API calls found: **70**
-- Functions declared in `API_ROUTES`: **83**
-- Routed literal API calls: **70**
+- Literal API calls found: **71**
+- Functions declared in `API_ROUTES`: **84**
+- Routed literal API calls: **71**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
 
@@ -63,6 +63,7 @@ Generated automatically from `app.js` at 2026-07-28T04:42:04.583Z.
 | `getSurveiBahanBaku` | `operations-action` |
 | `getTransactionDetail` | `approval-payment-action` |
 | `getTransactionEditMode` | `operations-action` |
+| `getTransactionSuggestions` | `transaction-action` |
 | `getTransactions` | `approval-payment-action` |
 | `getUploadBuktiMode` | `operations-action` |
 | `loginUser` | `auth-public-action` |
