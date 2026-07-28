@@ -34,7 +34,35 @@ function changedFiles(table:string,old:any,patch:any){const map=STORAGE_FILES[ta
 function pageSpec(v:any){const requested=Number(v?.page)>0||Number(v?.pageSize)>0;if(!requested)return null;const page=Math.max(1,Math.floor(Number(v?.page)||1));const pageSize=Math.min(100,Math.max(1,Math.floor(Number(v?.pageSize)||25)));return{page,pageSize,from:(page-1)*pageSize,to:page*pageSize-1}}
 function paged(data:any[],v:any){const x=pageSpec(v);if(!x)return null;const total=data.length;return{data:data.slice(x.from,x.to+1),page:x.page,pageSize:x.pageSize,total,hasMore:x.to+1<total}}
 
-async function getAllUsers(c:Caller,opt:any={}){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Akses ditolak.');const q=await sb.from('USERS').select('ID,"NAMA LENGKAP",EMAIL,JABATAN,SPPG,ROLE,"FOTO PROFIL",TIMESTAMP,USERNAME,"NAMA YAYASAN"').order('TIMESTAMP',{ascending:false});if(q.error)throw q.error;const out=[];for(const r of q.data||[]){if(c.role==='SUPER_ADMIN'||await pairOK(c,r.SPPG,r['NAMA YAYASAN']))out.push({id:r.ID,namaLengkap:r['NAMA LENGKAP'],email:r.EMAIL,jabatan:r.JABATAN,sppg:r.SPPG,role:r.ROLE,fotoProfil:r['FOTO PROFIL'],timestamp:r.TIMESTAMP,username:r.USERNAME,namaYayasan:r['NAMA YAYASAN']||''});}const pg=paged(out,opt);return pg?{success:true,...pg}:{success:true,data:out};}
+async function getAllUsers(c:Caller,opt:any={}) {
+  if(!['ADMIN','SUPER_ADMIN'].includes(c.role)) throw new Error('Akses ditolak.');
+  const q=await sb.from('USERS')
+    .select('ID,"NAMA LENGKAP",EMAIL,JABATAN,SPPG,ROLE,"FOTO PROFIL",TIMESTAMP,USERNAME,"NAMA YAYASAN",LAST_SEEN_AT')
+    .order('TIMESTAMP',{ascending:false});
+  if(q.error) throw q.error;
+  const now=Date.now(), out=[];
+  for(const r of q.data||[]) {
+    if(c.role==='SUPER_ADMIN'||await pairOK(c,r.SPPG,r['NAMA YAYASAN'])) {
+      const seen=r.LAST_SEEN_AT?new Date(r.LAST_SEEN_AT).getTime():0;
+      out.push({
+        id:r.ID,namaLengkap:r['NAMA LENGKAP'],email:r.EMAIL,jabatan:r.JABATAN,
+        sppg:r.SPPG,role:r.ROLE,fotoProfil:r['FOTO PROFIL'],timestamp:r.TIMESTAMP,
+        username:r.USERNAME,namaYayasan:r['NAMA YAYASAN']||'',
+        lastSeenAt:r.LAST_SEEN_AT||null,
+        isOnline:!!seen&&Number.isFinite(seen)&&(now-seen)<75000
+      });
+    }
+  }
+  const pg=paged(out,opt);
+  return pg?{success:true,...pg}:{success:true,data:out};
+}
+async function updatePresence(c:Caller) {
+  const now=new Date().toISOString();
+  const q=await sb.from('USERS').update({LAST_SEEN_AT:now}).eq('ID',c.id).select('LAST_SEEN_AT').maybeSingle();
+  if(q.error) throw q.error;
+  if(!q.data) throw new Error('Profil user tidak ditemukan saat memperbarui presence.');
+  return {success:true,lastSeenAt:q.data.LAST_SEEN_AT||now,isOnline:true};
+}
 async function deleteUser(username:string,c:Caller){
   if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Akses ditolak.');
   const q=await sb.from('USERS').select('*').eq('USERNAME',lo(username)).maybeSingle();
@@ -151,7 +179,7 @@ const SURVEI_FIELDS=['KODE BAHAN BAKU','KATEGORI BAHAN BAKU','NAMA BAHAN BAKU','
 const SERAH_FIELDS=['KODE BAHAN BAKU','KATEGORI BAHAN BAKU','NAMA BAHAN BAKU','FOTO BARANG DATANG','LINK FOTO BARANG DATANG','FOTO SURAT JALAN','LINK FOTO SURAT JALAN','PENERIMA','TTD PENERIMA','LINK TTD PENERIMA','SUPPLIER','TTD SUPPLIER','LINK TTD SUPPLIER','KONDISI BAHAN BAKU','CATATAN','LOKASI'];
 const MENU_FIELDS=['TANGGAL','JUMLAH KPM','MENU'];
 const H:any={
- getAllUsers:(p:any[],c:Caller)=>getAllUsers(c,p[0]||{}),deleteUser:(p:any[],c:Caller)=>deleteUser(s(p[0]),c),
+ getAllUsers:(p:any[],c:Caller)=>getAllUsers(c,p[0]||{}),updatePresence:(_p:any[],c:Caller)=>updatePresence(c),deleteUser:(p:any[],c:Caller)=>deleteUser(s(p[0]),c),
  getUploadBuktiMode:(_p:any[],c:Caller)=>getUploadBuktiMode(c),setUploadBuktiMode:(p:any[],c:Caller)=>setUploadBuktiMode(Boolean(p[0]),c),
  getTransactionEditMode:(_p:any[],c:Caller)=>getTransactionEditMode(c),setTransactionEditMode:(p:any[],c:Caller)=>setTransactionEditMode(Boolean(p[0]),c),
  addPendingPayment:(p:any[],c:Caller)=>addPending(p[0]||{},c),addSurveiBahanBaku:(p:any[],c:Caller)=>addSurvei(p[0]||{},c),addSerahTerima:(p:any[],c:Caller)=>addSerahTerima(p[0]||{},c),addMenuHarian:(p:any[],c:Caller)=>addMenu(p[0]||{},c),
@@ -161,4 +189,4 @@ const H:any={
  getSerahTerima:async(p:any[],c:Caller)=>ownedResult(await listOwned('SERAH_TERIMA',c),p[0]||{}),updateSerahTerima:(p:any[],c:Caller)=>updateRecord('SERAH_TERIMA',s(p[0]),p[1]||{},c,SERAH_FIELDS),deleteSerahTerima:(p:any[],c:Caller)=>delRecord('SERAH_TERIMA',s(p[0]),c),
  getMenuHarian:(p:any[],c:Caller)=>getMenu(c,p[0]||{}),updateMenuMBG:(p:any[],c:Caller)=>updateMenuAtomic(s(p[0]),p[1]||{},c),deleteMenuMBG:(p:any[],c:Caller)=>delRecord('MENU_HARIAN',s(p[0]),c)
 };
-Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method==='GET')return j({status:'ok',service:'operations-action',version:6});if(req.method!=='POST')return j({error:'Method tidak didukung.'},405);try{const c=await caller(req),b=await req.json(),fn=H[b?.function];if(!fn)return j({error:`Fungsi tidak diizinkan: ${b?.function||''}`},404);return j({result:await fn(Array.isArray(b.parameters)?b.parameters:[],c)})}catch(e){const message=e instanceof Error?e.message:String(e);const denied=/akses|token|hanya admin|super_admin|assignment|ditolak/i.test(message);console.error(message);return j({error:message,result:{success:false,message}},denied?403:400)}});
+Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method==='GET')return j({status:'ok',service:'operations-action',version:8});if(req.method!=='POST')return j({error:'Method tidak didukung.'},405);try{const c=await caller(req),b=await req.json(),fn=H[b?.function];if(!fn)return j({error:`Fungsi tidak diizinkan: ${b?.function||''}`},404);return j({result:await fn(Array.isArray(b.parameters)?b.parameters:[],c)})}catch(e){const message=e instanceof Error?e.message:String(e);const denied=/akses|token|hanya admin|super_admin|assignment|ditolak/i.test(message);console.error(message);return j({error:message,result:{success:false,message}},denied?403:400)}});
