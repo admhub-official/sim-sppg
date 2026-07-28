@@ -112,7 +112,7 @@ window.__bulkSubmitApprovalPin=window.submitApprovalWithPin;
 var API_BASE_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/';
 var API_ROUTES = {
   'transaction-action': {
-    addTransaction:1, editTransaction:1, sendCatatanApproval:1,
+    addTransaction:1, editTransaction:1, sendCatatanApproval:1, getTransactionSuggestions:1,
     uploadTxFile:1, deleteTransaction:1
   },
   'approval-payment-action': {
@@ -257,6 +257,13 @@ var filteredSerahTerima = [];
 var allMenuMBG = [];
 var allPending = [];
 var dropdownOptions = {};
+var transactionSuggestionHistory = {
+  loaded: false,
+  loading: false,
+  jenisKategori: [],
+  items: [],
+  catatan: []
+};
 
 // Pagination state
 var txPage = 1, usersPage = 1, bbPage = 1, supplierPage = 1;
@@ -469,31 +476,180 @@ function getNominalRaw() {
   return parseInt(raw.replace(/[^0-9]/g, '')) || 0;
 }
 
+/* ===== Autocomplete transaksi: realtime + keyboard ===== */
+function normalizeAutocompleteKey(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
+}
+
+function uniqueAutocompleteValues(groups) {
+  var seen = {};
+  var values = [];
+  (groups || []).forEach(function(group) {
+    (group || []).forEach(function(value) {
+      var clean = String(value || '').trim();
+      var key = normalizeAutocompleteKey(clean);
+      if (!clean || clean === '-' || seen[key]) return;
+      seen[key] = true;
+      values.push(clean);
+    });
+  });
+  return values;
+}
+
+function filterAutocompleteValues(values, query, limit) {
+  var needle = normalizeAutocompleteKey(query);
+  if (!needle) return [];
+  return values
+    .map(function(value, index) {
+      var normalized = normalizeAutocompleteKey(value);
+      return { value: value, index: index, starts: normalized.indexOf(needle) === 0, matches: normalized.indexOf(needle) > -1 };
+    })
+    .filter(function(entry) { return entry.matches; })
+    .sort(function(a, b) {
+      if (a.starts !== b.starts) return a.starts ? -1 : 1;
+      return a.index - b.index;
+    })
+    .slice(0, limit)
+    .map(function(entry) { return entry.value; });
+}
+
+function encodedAutocompleteValue(value) {
+  try { return encodeURIComponent(String(value || '')); }
+  catch (error) { return ''; }
+}
+
+function transactionAutocompleteItem(kind, value, labelHtml, extraStyle) {
+  return '<div class="autocomplete-item" role="option" aria-selected="false" tabindex="-1" ' +
+    'data-autocomplete-kind="' + esc(kind) + '" data-value="' + esc(encodedAutocompleteValue(value)) + '"' +
+    (extraStyle ? ' style="' + esc(extraStyle) + '"' : '') +
+    ' onclick="selectTransactionAutocomplete(this)">' + labelHtml + '</div>';
+}
+
+function setTransactionAutocompleteOpen(dropdown, input, open) {
+  if (!dropdown) return;
+  dropdown.classList.toggle('active', !!open);
+  dropdown.querySelectorAll('.autocomplete-item.keyboard-active').forEach(function(item) {
+    item.classList.remove('keyboard-active');
+    item.setAttribute('aria-selected', 'false');
+  });
+  if (input) input.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function closeTransactionAutocomplete(dropdownId, inputId) {
+  setTransactionAutocompleteOpen($(dropdownId), $(inputId), false);
+}
+
+function selectTransactionAutocomplete(element) {
+  if (!element) return;
+  var kind = element.getAttribute('data-autocomplete-kind') || '';
+  var encoded = element.getAttribute('data-value') || '';
+  var value = '';
+  try { value = decodeURIComponent(encoded); } catch (error) { value = encoded; }
+  if (kind === 'jenisKategori') selectJenisKat(value);
+  else if (kind === 'item') selectItem(value);
+  else if (kind === 'catatan') selectCatatan(value);
+}
+
+function handleTransactionAutocompleteKeydown(event, dropdownId) {
+  var dropdown = $(dropdownId);
+  if (!dropdown) return;
+  var isOpen = dropdown.classList.contains('active');
+  var items = Array.prototype.slice.call(dropdown.querySelectorAll('.autocomplete-item'));
+  if (event.key === 'Escape' && isOpen) {
+    event.preventDefault();
+    event.stopPropagation();
+    setTransactionAutocompleteOpen(dropdown, event.currentTarget, false);
+    return;
+  }
+  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter') return;
+  if (!isOpen || !items.length) return;
+  var activeIndex = items.findIndex(function(item) { return item.classList.contains('keyboard-active'); });
+  if (event.key === 'Enter') {
+    if (activeIndex < 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    selectTransactionAutocomplete(items[activeIndex]);
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  activeIndex = event.key === 'ArrowDown'
+    ? (activeIndex + 1) % items.length
+    : (activeIndex <= 0 ? items.length - 1 : activeIndex - 1);
+  items.forEach(function(item, index) {
+    var active = index === activeIndex;
+    item.classList.toggle('keyboard-active', active);
+    item.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  items[activeIndex].scrollIntoView({ block: 'nearest' });
+}
+
+function refreshActiveTransactionAutocomplete() {
+  var active = document.activeElement;
+  if (!active) return;
+  if (active.id === 'addTxJenisKat') handleJenisKatAutocomplete(active);
+  else if (active.id === 'addTxItem') handleItemAutocomplete(active);
+  else if (active.id === 'addTxCatatan') handleCatatanAutocomplete(active);
+}
+
+function loadTransactionSuggestions(force) {
+  if (transactionSuggestionHistory.loading) return;
+  if (transactionSuggestionHistory.loaded && !force) return;
+  transactionSuggestionHistory.loading = true;
+  callApi('getTransactionSuggestions', [], function(result) {
+    transactionSuggestionHistory.loading = false;
+    if (!result || result.success === false) return;
+    transactionSuggestionHistory.loaded = true;
+    transactionSuggestionHistory.jenisKategori = Array.isArray(result.jenisKategori) ? result.jenisKategori : [];
+    transactionSuggestionHistory.items = Array.isArray(result.items) ? result.items : [];
+    transactionSuggestionHistory.catatan = Array.isArray(result.catatan) ? result.catatan : [];
+    refreshActiveTransactionAutocomplete();
+  }, function() {
+    transactionSuggestionHistory.loading = false;
+  });
+}
+
+function rememberTransactionSuggestions(data) {
+  function remember(key, value) {
+    var clean = String(value || '').trim();
+    if (!clean) return;
+    var list = transactionSuggestionHistory[key] || [];
+    var normalized = normalizeAutocompleteKey(clean);
+    transactionSuggestionHistory[key] = [clean].concat(list.filter(function(item) {
+      return normalizeAutocompleteKey(item) !== normalized;
+    }));
+  }
+  remember('jenisKategori', data.jenisKategori);
+  remember('items', data.namaItem || data.item);
+  remember('catatan', data.catatan);
+}
+
 /* ===== Autocomplete Jenis Kategori ===== */
 function handleJenisKatAutocomplete(input) {
   var dropdown = $('jenisKatDropdown');
   var val = input.value.trim().toLowerCase();
-  // Kumpulkan dari data transaksi
-  var sources = [];
-  if (dropdownOptions.txJenisKategori) sources = sources.concat(dropdownOptions.txJenisKategori);
-  // Tambahkan saran default
   var defaults = ['Operasional', 'Belanja Bahan Baku', 'Transportasi', 'Gaji', 'Utilitas', 'Lain-lain', 'Anggaran MBG', 'Dana Pemerintah'];
-  defaults.forEach(function(d) { if (sources.indexOf(d) === -1) sources.push(d); });
-
-  if (!val) { dropdown.classList.remove('active'); return; }
-  var matches = sources.filter(function(s) { return s.toLowerCase().indexOf(val) > -1; }).slice(0, 8);
-  if (!matches.length) { dropdown.classList.remove('active'); return; }
+  var pageHistory = allTransactions.map(function(t) { return t.jenisKategori; });
+  var sources = uniqueAutocompleteValues([
+    transactionSuggestionHistory.jenisKategori,
+    dropdownOptions.txJenisKategori || [],
+    pageHistory,
+    defaults
+  ]);
+  if (!val) { setTransactionAutocompleteOpen(dropdown, input, false); return; }
+  var matches = filterAutocompleteValues(sources, val, 8);
+  if (!matches.length) { setTransactionAutocompleteOpen(dropdown, input, false); return; }
   var html = '';
   matches.forEach(function(m) {
-    html += '<div class="autocomplete-item" onclick="selectJenisKat(\'' + esc(m) + '\')">' + esc(m) + '</div>';
+    html += transactionAutocompleteItem('jenisKategori', m, esc(m));
   });
   dropdown.innerHTML = html;
-  dropdown.classList.add('active');
+  setTransactionAutocompleteOpen(dropdown, input, true);
 }
 
 function selectJenisKat(val) {
   $('addTxJenisKat').value = val;
-  $('jenisKatDropdown').classList.remove('active');
+  closeTransactionAutocomplete('jenisKatDropdown', 'addTxJenisKat');
   // Setelah pilih jenis kategori, update hint di field Nama Item
   updateItemFieldHint();
 }
@@ -529,7 +685,7 @@ function handleItemAutocomplete(input) {
   var isBelanjaBB = (jenisKat === 'BELANJA BAHAN BAKU');
 
   // Tampilkan dropdown bahkan saat val kosong jika BELANJA BAHAN BAKU (langsung tampil saat fokus)
-  if (!val && !isBelanjaBB) { dropdown.classList.remove('active'); return; }
+  if (!val && !isBelanjaBB) { setTransactionAutocompleteOpen(dropdown, input, false); return; }
 
   var html = '';
 
@@ -548,7 +704,7 @@ function handleItemAutocomplete(input) {
 
     if (!matches.length) {
       dropdown.innerHTML = '<div style="padding:12px 14px;font-size:12px;color:var(--slate-400);text-align:center;"><i class="fas fa-inbox" style="margin-right:6px;"></i>Data bahan baku belum dimuat. Coba refresh halaman.</div>';
-      dropdown.classList.add('active');
+      setTransactionAutocompleteOpen(dropdown, input, true);
       return;
     }
 
@@ -567,46 +723,39 @@ function handleItemAutocomplete(input) {
         : '';
       // data-value menyimpan format final: "Nama - Kode"
       var dataVal = b.nama + ' - ' + b.kode;
-      html += '<div class="autocomplete-item" ' +
-              'style="display:flex;justify-content:space-between;align-items:center;" ' +
-              'onclick="selectItem(\'' + esc(dataVal) + '\')">' +
-              '<span>' + label + '</span>' + labelKat +
-              '</div>';
+      html += transactionAutocompleteItem(
+        'item',
+        dataVal,
+        '<span>' + label + '</span>' + labelKat,
+        'display:flex;justify-content:space-between;align-items:center;'
+      );
     });
 
   } else {
     // Mode: enum bebas dari histori transaksi + saran umum
-    if (!val) { dropdown.classList.remove('active'); return; }
-
-    var sources = new Set();
-    // Dari histori transaksi yang sudah ada
-    allTransactions.forEach(function(t) {
-      if (t.item && t.item !== '-') sources.add(t.item);
-      if (t.namaItem && t.namaItem !== '-') sources.add(t.namaItem);
-    });
-    // Juga sertakan nama dari master BB sebagai fallback
-    if (dropdownOptions.bahanBaku) {
-      dropdownOptions.bahanBaku.forEach(function(b) { if (b.nama) sources.add(b.nama); });
-    }
-
-    var matches = Array.from(sources)
-      .filter(function(s) { return s.toLowerCase().indexOf(val) > -1; })
-      .slice(0, 10);
-
-    if (!matches.length) { dropdown.classList.remove('active'); return; }
+    if (!val) { setTransactionAutocompleteOpen(dropdown, input, false); return; }
+    var pageItems = allTransactions.map(function(t) { return t.item || t.namaItem; });
+    var masterItems = (dropdownOptions.bahanBaku || []).map(function(b) { return b.nama; });
+    var sources = uniqueAutocompleteValues([
+      transactionSuggestionHistory.items,
+      pageItems,
+      masterItems
+    ]);
+    var matches = filterAutocompleteValues(sources, val, 10);
+    if (!matches.length) { setTransactionAutocompleteOpen(dropdown, input, false); return; }
 
     matches.forEach(function(m) {
-      html += '<div class="autocomplete-item" onclick="selectItem(\'' + esc(m) + '\')">' + esc(m) + '</div>';
+      html += transactionAutocompleteItem('item', m, esc(m));
     });
   }
 
   dropdown.innerHTML = html;
-  dropdown.classList.add('active');
+  setTransactionAutocompleteOpen(dropdown, input, true);
 }
 
 function selectItem(val) {
   $('addTxItem').value = val;
-  $('itemDropdown').classList.remove('active');
+  closeTransactionAutocomplete('itemDropdown', 'addTxItem');
 }
 
 // Trigger autocomplete saat field item difokus (untuk mode BELANJA BAHAN BAKU langsung tampil list)
@@ -621,28 +770,23 @@ function handleCatatanAutocomplete(input) {
   var dropdown = $('catatanDropdown');
   if (!dropdown) return;
   var val = input.value.trim().toLowerCase();
-  if (!val) { dropdown.classList.remove('active'); return; }
-  var sources = new Set();
-  allTransactions.forEach(function(t) {
-    if (t.catatan && t.catatan.trim() && t.catatan !== '-') sources.add(t.catatan.trim());
-  });
-  var matches = Array.from(sources)
-    .filter(function(s) { return s.toLowerCase().indexOf(val) > -1; })
-    .slice(0, 8);
-  if (!matches.length) { dropdown.classList.remove('active'); return; }
+  if (!val) { setTransactionAutocompleteOpen(dropdown, input, false); return; }
+  var pageNotes = allTransactions.map(function(t) { return t.catatan; });
+  var sources = uniqueAutocompleteValues([transactionSuggestionHistory.catatan, pageNotes]);
+  var matches = filterAutocompleteValues(sources, val, 8);
+  if (!matches.length) { setTransactionAutocompleteOpen(dropdown, input, false); return; }
   var html = '';
   matches.forEach(function(m) {
-    html += '<div class="autocomplete-item" onclick="selectCatatan(\'' + esc(m) + '\')">' + esc(m) + '</div>';
+    html += transactionAutocompleteItem('catatan', m, esc(m));
   });
   dropdown.innerHTML = html;
-  dropdown.classList.add('active');
+  setTransactionAutocompleteOpen(dropdown, input, true);
 }
 
 function selectCatatan(val) {
   var el = $('addTxCatatan');
   if (el) el.value = val;
-  var dd = $('catatanDropdown');
-  if (dd) dd.classList.remove('active');
+  closeTransactionAutocomplete('catatanDropdown', 'addTxCatatan');
 }
 
 /* ===== Konfirmasi nominal live ===== */
@@ -3600,6 +3744,7 @@ function getMetodeBadge(m) {
 
 function openAddTransaksiModal() {
   $('addTxTanggal').value = formatDateInput();
+  loadTransactionSuggestions();
 
   // Pastikan data bahan baku sudah dimuat sebelum modal dibuka
   if (!dropdownOptions.bahanBaku || dropdownOptions.bahanBaku.length === 0) {
@@ -3766,6 +3911,7 @@ function saveAddTransaksi() {
                 if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = '<i class="fas fa-save"></i> Simpan Transaksi'; }
         
                 if (result && result.success) {
+                  rememberTransactionSuggestions(data);
                   showToast('success', 'Tersimpan!', result.message || 'Transaksi berhasil ditambahkan.');
                   closeModal('modalAddTransaksi');
                   // Reset semua filter
