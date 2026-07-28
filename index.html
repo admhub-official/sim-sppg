@@ -2867,6 +2867,28 @@
       align-items: center;
     }
 
+    /* Warna kategori pada form Tambah Transaksi */
+    #addTxKategori {
+      font-weight: 800;
+      transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    #addTxKategori.category-income {
+      color: #047857;
+      background-color: #ecfdf5;
+      border-color: #6ee7b7;
+      box-shadow: 0 0 0 1px rgba(16,185,129,.08);
+    }
+    #addTxKategori.category-expense {
+      color: #be123c;
+      background-color: #fff1f2;
+      border-color: #fda4af;
+      box-shadow: 0 0 0 1px rgba(244,63,94,.07);
+    }
+    #addTxKategori option[value="PEMASUKAN"] { color: #047857; background: #ecfdf5; }
+    #addTxKategori option[value="PENGELUARAN"] { color: #be123c; background: #fff1f2; }
+    body.dark-mode #addTxKategori.category-income { color: #6ee7b7; background-color: #12372f; border-color: #047857; }
+    body.dark-mode #addTxKategori.category-expense { color: #fda4af; background-color: #411827; border-color: #be123c; }
+
     /* ============================================================
        COLLAPSIBLE
        ============================================================ */
@@ -6334,7 +6356,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Kategori <span class="req">*</span></label>
-            <select id="addTxKategori" class="form-input">
+            <select id="addTxKategori" class="form-input category-expense" onchange="updateAddTxKategoriStyle()">
               <option value="PENGELUARAN">PENGELUARAN</option>
               <option value="PEMASUKAN">PEMASUKAN</option>
             </select>
@@ -7259,6 +7281,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260728-idle-session-refresh-v1"></script>
+<script src="./app.js?v=20260728-transaction-category-color-v1"></script>
 </body>
 </html>
