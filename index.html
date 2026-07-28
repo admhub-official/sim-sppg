@@ -3500,9 +3500,9 @@
         grid-template-areas:
           "kode tanggal"
           "item item"
+          "catatan catatan"
           "nominal nominal"
-          "badge1 badge2"
-          "aksi aksi" !important;
+          "badge1 badge2" !important;
         grid-template-columns: 1fr auto !important;
       }
       #transaksiTableBody tr td:nth-child(1) { display: none !important; } /* Hide No */
@@ -3515,15 +3515,8 @@
       #transaksiTableBody tr td:nth-child(7) { grid-area: nominal; text-align: left; font-size: 18px !important; font-weight: 800 !important; color: var(--primary) !important; margin: 4px 0; }
       body.dark-mode #transaksiTableBody tr td:nth-child(7) { color: #38bdf8 !important; }
       #transaksiTableBody tr td:nth-child(8) { grid-area: badge2; text-align: right; }
-      #transaksiTableBody tr td:nth-child(9) { 
-        grid-area: aksi; 
-        border-top: 1px solid var(--slate-100) !important; 
-        padding-top: 12px !important; 
-        display: flex !important; 
-        justify-content: flex-end !important; 
-        gap: 8px !important; 
-      }
-      body.dark-mode #transaksiTableBody tr td:nth-child(9) { border-top-color: #334155 !important; }
+      #transaksiTableBody tr td:nth-child(9) { grid-area: catatan; }
+      #transaksiTableBody tr td:nth-child(9).is-empty { display: none !important; }
 
       /* --- Master Bahan Table --- */
       #masterBBTableBody tr {
@@ -4206,6 +4199,19 @@
   #page-transaksi .transaction-row-clickable:hover { box-shadow: inset 4px 0 0 var(--primary); }
   #page-transaksi .transaction-row-clickable:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
   #page-transaksi .transaction-row-clickable td { vertical-align: middle; }
+  #page-transaksi .transaction-note-cell { max-width: 260px; }
+  #page-transaksi .transaction-note-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+    color: var(--slate-500);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  #page-transaksi .transaction-note-content i { flex: 0 0 auto; margin-top: 2px; color: var(--slate-400); font-size: 10px; }
+  #page-transaksi .transaction-note-content span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #page-transaksi .transaction-note-empty { color: var(--slate-300); }
   .approval-number-cell { text-align: center; color: var(--slate-400); font-size: 11px; font-weight: 800; }
   .approval-transaction-cell strong { display: block; max-width: 280px; overflow: hidden; color: var(--slate-900); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
   .approval-transaction-cell span { display: block; margin-top: 4px; color: var(--slate-500); font-size: 10px; }
@@ -4276,6 +4282,8 @@
   body.dark-mode .approval-data-table tbody td { background: #1e293b; border-color: #334155; color: #cbd5e1; }
   body.dark-mode #page-approval .approval-row-clickable:hover td { background: #243048; }
   body.dark-mode #page-transaksi .transaction-row-clickable:hover td { background: #243048; }
+  body.dark-mode #page-transaksi .transaction-note-content { color: #94a3b8; }
+  body.dark-mode #page-transaksi .transaction-note-content i { color: #64748b; }
   body.dark-mode .approval-transaction-cell strong,
   body.dark-mode .approval-nominal-cell,
   body.dark-mode .approval-card-title-wrap h3,
@@ -4324,6 +4332,19 @@
     #apprFilterBar .search-box { flex: 1 1 120px; width: auto; max-width: none; }
     #txFilterBar .search-box input,
     #apprFilterBar .search-box input { height: 42px; }
+    #page-transaksi .transaction-note-cell {
+      max-width: none;
+      padding-top: 7px !important;
+      border-top: 1px solid var(--slate-100) !important;
+    }
+    #page-transaksi .transaction-note-content { font-size: 12px; }
+    #page-transaksi .transaction-note-content span {
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    body.dark-mode #page-transaksi .transaction-note-cell { border-top-color: #334155 !important; }
     #page-approval .approval-download-wrap,
     #page-transaksi .transaction-download-wrap { width: 42px; }
     #page-approval .approval-download-trigger { width: 42px; }
@@ -5262,6 +5283,7 @@
                   <th>Item</th>
                   <th>Nominal</th>
                   <th>Metode</th>
+                  <th>Catatan</th>
                 </tr>
               </thead>
               <tbody id="transaksiTableBody"></tbody>
@@ -7223,6 +7245,6 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260727-paid-transaction-proof-v1"></script>
+<script src="./app.js?v=20260728-transaction-note-v1"></script>
 </body>
 </html>
