@@ -3349,7 +3349,7 @@ function renderTransaksiTable() {
   var count = filteredTransactions.length;
   if (!count) {
     var canAdd = currentUser && currentUser.role; // semua role yang punya akses halaman ini boleh tambah
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-inbox"></i></div><h4>Tidak Ada Transaksi</h4><p>Belum ada transaksi yang tercatat di sini.</p>' +
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-inbox"></i></div><h4>Tidak Ada Transaksi</h4><p>Belum ada transaksi yang tercatat di sini.</p>' +
       (canAdd ? '<button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openAddTransaksiModal()"><i class="fas fa-plus"></i> Tambah Transaksi Pertama</button>' : '') +
       '</div></td></tr>';
     $('txPagination').innerHTML = ''; return;
@@ -3364,6 +3364,8 @@ function renderTransaksiTable() {
     var metode = String(tx.metodeTransaksi || '').trim().toUpperCase();
     var isPaid = metode === 'SUDAH_DIBAYAR';
     var rowClass = isPaid ? 'row-paid' : '';
+    var catatan = String(tx.catatan || '').trim();
+    var hasCatatan = !!catatan && catatan !== '-';
     var rowLabel = 'Lihat detail transaksi ' + (tx.kode || tx.item || tx.id || '');
     html += '<tr class="transaction-row-clickable ' + rowClass + '" data-id="' + esc(tx.id) + '" tabindex="0" role="button" aria-label="' + esc(rowLabel) + '" onclick="handleTransactionRowClick(event,this.dataset.id)" onkeydown="handleTransactionRowKeydown(event,this.dataset.id)">' +
       '<td style="text-align:center;color:var(--slate-400);font-weight:600;">' + no + '</td>' +
@@ -3374,6 +3376,11 @@ function renderTransaksiTable() {
       '<td><strong style="color:var(--slate-700);">' + esc(tx.item || '-') + '</strong></td>' +
       '<td><strong style="color:var(--slate-800);">' + formatRupiah(tx.nominal) + '</strong></td>' +
       '<td>' + getMetodeBadge(tx.metodeTransaksi) + '</td>' +
+      '<td class="transaction-note-cell' + (hasCatatan ? '' : ' is-empty') + '">' +
+        (hasCatatan
+          ? '<span class="transaction-note-content" title="' + esc(catatan) + '"><i class="fas fa-comment-alt" aria-hidden="true"></i><span>' + esc(catatan) + '</span></span>'
+          : '<span class="transaction-note-empty">-</span>') +
+      '</td>' +
       '</tr>';
   });
   tbody.innerHTML = html;
@@ -3393,7 +3400,7 @@ function applyTransactionFiltersLocal() {
   var dateEnd = hasLocalDateRange ? localDateEnd : (globalDateFilter.end || '');
   filteredTransactions = allTransactions.filter(function(tx) {
     if (search) {
-      var text = ((tx.kode || '') + ' ' + (tx.item || '') + ' ' + (tx.user || '') + ' ' + (tx.sppg || '')).toLowerCase();
+      var text = ((tx.kode || '') + ' ' + (tx.item || '') + ' ' + (tx.user || '') + ' ' + (tx.sppg || '') + ' ' + (tx.catatan || '')).toLowerCase();
       if (text.indexOf(search) === -1) return false;
     }
     if (sppg !== 'ALL' && tx.sppg !== sppg) return false;
