@@ -113,7 +113,7 @@ var API_BASE_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/';
 var API_ROUTES = {
   'transaction-action': {
     addTransaction:1, editTransaction:1, sendCatatanApproval:1, getTransactionSuggestions:1,
-    uploadTxFile:1, deleteTransaction:1
+    getTransactionSummary:1, uploadTxFile:1, deleteTransaction:1
   },
   'approval-payment-action': {
     getTransactions:1, getTransactionDetail:1, approveTransaction:1,
@@ -267,7 +267,7 @@ var transactionSuggestionHistory = {
 
 // Pagination state
 var txPage = 1, usersPage = 1, bbPage = 1, supplierPage = 1;
-var txServerTotal = 0, txServerPaged = false, txFilterTimer = null;
+var txServerTotal = 0, txServerPaged = false, txFilterTimer = null, txKpiRequestId = 0;
 var usersServerTotal = 0, usersServerPaged = false, usersFilterTimer = null;
 var bbServerTotal = 0, bbServerPaged = false, bbFilterTimer = null;
 var supplierServerTotal = 0, supplierServerPaged = false, supplierFilterTimer = null;
@@ -1554,6 +1554,7 @@ function stopIdleLogoutWatcher() {
 
 function sendPresenceHeartbeat() {
   if (!currentUser || document.visibilityState === 'hidden') return;
+  resetIdleLogoutTimer();
   callApi('updatePresence', [], function(result) {
     if (result && result.success && currentUser) {
       currentUser.lastSeenAt = result.lastSeenAt;
@@ -3499,6 +3500,7 @@ function loadTransactions(page, forceAll, silent) {
     if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
   }
   if (!forceAll) { filters.page=page; filters.pageSize=ITEMS_PER_PAGE; }
+  loadTransactionKpis(filters);
 
   callApi('getTransactions', [filters], function(result) {
     if (!silent) showLoading(false);
@@ -3521,6 +3523,51 @@ function loadTransactions(page, forceAll, silent) {
     if (!silent) showLoading(false);
     showToast('error', 'Gagal', 'Tidak dapat memuat transaksi: ' + (err.message || ''));
     allTransactions=[]; filteredTransactions=[]; txServerTotal=0; txServerPaged=false; renderTransaksiTable();
+  });
+}
+
+function setTransactionKpiLoading(loading) {
+  ['txKpiPemasukan', 'txKpiPengeluaran'].forEach(function(id) {
+    var el = $(id);
+    if (!el) return;
+    el.classList.toggle('is-loading', !!loading);
+    if (loading) el.textContent = 'Memuat...';
+  });
+}
+
+function loadTransactionKpis(baseFilters) {
+  if (!currentUser) return;
+  var filters = Object.assign({}, baseFilters || {});
+  delete filters.page;
+  delete filters.pageSize;
+  var search = $('txSearchInput') ? $('txSearchInput').value.trim() : '';
+  var status = $('txFilterStatus') ? $('txFilterStatus').value : 'ALL';
+  if (search) filters.search = search;
+  if (status && status !== 'ALL') filters.status = status;
+
+  var requestId = ++txKpiRequestId;
+  setTransactionKpiLoading(true);
+  callApi('getTransactionSummary', [filters], function(result) {
+    if (requestId !== txKpiRequestId) return;
+    var pemasukan = $('txKpiPemasukan');
+    var pengeluaran = $('txKpiPengeluaran');
+    if (pemasukan) {
+      pemasukan.classList.remove('is-loading');
+      pemasukan.textContent = formatRupiah(Number(result && result.totalPemasukan) || 0);
+    }
+    if (pengeluaran) {
+      pengeluaran.classList.remove('is-loading');
+      pengeluaran.textContent = formatRupiah(Number(result && result.totalPengeluaran) || 0);
+    }
+  }, function() {
+    if (requestId !== txKpiRequestId) return;
+    ['txKpiPemasukan', 'txKpiPengeluaran'].forEach(function(id) {
+      var el = $(id);
+      if (el) {
+        el.classList.remove('is-loading');
+        el.textContent = 'Tidak tersedia';
+      }
+    });
   });
 }
 
@@ -4432,6 +4479,7 @@ function loadApprovalData() {
 
 function renderApprovalTable() {
   var approvalData = filteredApprovalData;
+  renderApprovalKpi();
   var tbody = $('approvalTableBody');
   var mobileList = $('approvalMobileList');
   var pagination = $('approvalPagination');
@@ -4458,6 +4506,16 @@ function renderApprovalTable() {
   renderPagination('approvalPagination', approvalPage, totalPages, 'goApprovalPage');
   syncApprovalSelectionControls(approvalData, canSelect);
   updateApprovalBulkBar();
+}
+
+function renderApprovalKpi() {
+  var total = (filteredApprovalData || []).reduce(function(sum, tx) {
+    return sum + (Number(tx && tx.nominal) || 0);
+  }, 0);
+  var value = $('approvalKpiTotal');
+  var count = $('approvalKpiCount');
+  if (value) value.textContent = formatRupiah(total);
+  if (count) count.textContent = (filteredApprovalData || []).length + ' transaksi sesuai filter';
 }
 
 function getApprovalStatusRowClass(metode) {
