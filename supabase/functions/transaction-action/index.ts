@@ -20,6 +20,7 @@ const T = {
   D: 'TRANSAKSI_DOCUMENTS',
   DA: 'TRANSAKSI_DOCUMENTS_AVAILABLE',
   S: 'SPPG_DIRECTORY',
+  MS: 'MASTER_SUPPLIER',
   L: 'AUDIT LOG',
 };
 
@@ -42,7 +43,7 @@ const DT = {
 
 // List endpoints deliberately exclude legacy/base64-adjacent columns. Keeping the
 // projection here prevents new table columns from silently increasing API egress.
-const TRANSACTION_LIST_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi","APPROVED BY","WAKTU APPROVE",Catatan_1,"Catatan Approval"';
+const TRANSACTION_LIST_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi","SUPPLIER ID","NAMA SUPPLIER","NAMA BANK SUPPLIER","NO REKENING SUPPLIER","ATAS NAMA REKENING SUPPLIER","SUMBER SUPPLIER","APPROVED BY","WAKTU APPROVE",Catatan_1,"Catatan Approval"';
 const DOCUMENT_COLUMNS = 'transaksi_id,document_type,storage_bucket,storage_path,mime_type,original_file_name,created_at,updated_at';
 const PAYMENT_PROOF_COLUMNS = 'id,transaksi_id,payment_sequence,nominal,storage_bucket,storage_path,mime_type,original_file_name,submitted_by,submitted_at,status,verified_by,verified_at,verifier_signature_path,verification_notes';
 
@@ -153,6 +154,12 @@ function mapTransaction(row: any, docs: Map<string, Doc>) {
     user: row.User || '',
     item: row['Nama Item/ Bahan Baku'] || '',
     namaItem: row['Nama Item/ Bahan Baku'] || '',
+    supplierId: row['SUPPLIER ID'] || '',
+    supplierName: row['NAMA SUPPLIER'] || '',
+    supplierBankName: row['NAMA BANK SUPPLIER'] || '',
+    supplierAccountNumber: row['NO REKENING SUPPLIER'] || '',
+    supplierAccountHolder: row['ATAS NAMA REKENING SUPPLIER'] || '',
+    supplierSource: row['SUMBER SUPPLIER'] || '',
     metodeTransaksi: normalizeStatus(row['Metode Transaksi']),
     ttdVerifikator: docPath(docs, DT.ttdVerif),
     ttdUser: docPath(docs, DT.ttdUser),
@@ -246,6 +253,49 @@ async function resolveYayasan(sppg: unknown, requested: unknown, current: Caller
     .maybeSingle();
   if (directory.error) throw directory.error;
   return text(directory.data?.yayasan);
+}
+
+async function resolveSupplier(data: any, sppg: string, yayasan: string, category: unknown) {
+  if (text(category).toUpperCase() !== 'PENGELUARAN') {
+    return {
+      'SUPPLIER ID': null, 'NAMA SUPPLIER': null, 'NAMA BANK SUPPLIER': null,
+      'NO REKENING SUPPLIER': null, 'ATAS NAMA REKENING SUPPLIER': null,
+      'SUMBER SUPPLIER': null,
+    };
+  }
+
+  const supplierId = text(data.supplierId ?? data['SUPPLIER ID']);
+  const manualName = text(data.supplierName ?? data['Nama Supplier'] ?? data['NAMA SUPPLIER']);
+  if (supplierId) {
+    const query = await sb.from(T.MS)
+      .select('ID,"NAMA SUPPLIER","NAMA BANK","NO REKENING","ATAS NAMA REKENING",STATUS,SPPG,YAYASAN')
+      .eq('ID', supplierId)
+      .maybeSingle();
+    if (query.error) throw query.error;
+    if (!query.data) throw new Error('Supplier yang dipilih tidak ditemukan.');
+    if (text(query.data.STATUS || 'Aktif') !== 'Aktif') throw new Error('Supplier yang dipilih tidak aktif.');
+    if (!sameText(query.data.SPPG, sppg) || !sameText(query.data.YAYASAN, yayasan)) {
+      throw new Error('Supplier tidak terdaftar untuk SPPG dan Yayasan transaksi ini.');
+    }
+    return {
+      'SUPPLIER ID': text(query.data.ID),
+      'NAMA SUPPLIER': text(query.data['NAMA SUPPLIER']),
+      'NAMA BANK SUPPLIER': text(query.data['NAMA BANK']),
+      'NO REKENING SUPPLIER': text(query.data['NO REKENING']),
+      'ATAS NAMA REKENING SUPPLIER': text(query.data['ATAS NAMA REKENING']),
+      'SUMBER SUPPLIER': 'MASTER',
+    };
+  }
+
+  if (!manualName) throw new Error('Supplier atau penjual wajib diisi untuk transaksi pengeluaran.');
+  return {
+    'SUPPLIER ID': null,
+    'NAMA SUPPLIER': manualName,
+    'NAMA BANK SUPPLIER': text(data.supplierBankName ?? data['Nama Bank Supplier']),
+    'NO REKENING SUPPLIER': text(data.supplierAccountNumber ?? data['No Rekening Supplier']),
+    'ATAS NAMA REKENING SUPPLIER': text(data.supplierAccountHolder ?? data['Atas Nama Rekening Supplier']),
+    'SUMBER SUPPLIER': 'MANUAL',
+  };
 }
 
 async function canAccess(current: Caller, row: any) {
@@ -401,6 +451,7 @@ function rowMatchesTransactionFilters(row: any, filters: any) {
       row.SPPG,
       row.YAYASAN,
       row.Catatan,
+      row['NAMA SUPPLIER'],
     ].map(lower).join(' ');
     if (!haystack.includes(search)) return false;
   }
@@ -414,7 +465,7 @@ function rowMatchesTransactionFilters(row: any, filters: any) {
 
 async function getTransactionSummary(filters: any, current: Caller) {
   let query = sb.from(T.X)
-    .select('ID,"Kode Pemasukan",Tanggal,Kategori,SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi"');
+    .select('ID,"Kode Pemasukan",Tanggal,Kategori,SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi","NAMA SUPPLIER"');
   if (filters?.sppg && filters.sppg !== 'ALL') query = query.eq('SPPG', filters.sppg);
   if (filters?.yayasan && filters.yayasan !== 'ALL') query = query.eq('YAYASAN', filters.yayasan);
   if (filters?.kategori && filters.kategori !== 'ALL') query = query.eq('Kategori', filters.kategori);
@@ -601,6 +652,7 @@ async function addTransaction(data: any, current: Caller) {
     'Catatan Approval': paidDirectly ? 'Pembayaran langsung telah dilengkapi saat transaksi dibuat.' : '',
     Deskripsi: '',
   };
+  Object.assign(core, await resolveSupplier(data, sppg, yayasan, core.Kategori));
   const documents = inputDocs(data, id);
   const missing = missingCreateDocs(documents, method);
   if (missing.length) throw new Error(`Upload wajib belum lengkap atau gagal: ${missing.join(', ')}.`);
@@ -639,7 +691,11 @@ async function addTransaction(data: any, current: Caller) {
       if (proofInsert.error) throw proofInsert.error;
     }
     const normalized = (await docsFor([id])).get(id) || documents;
-    await audit(id, 'ADD', current, { sppg, yayasan, method, paidDirectly, documentWrite: 'normalized-atomic' });
+    await audit(id, 'ADD', current, {
+      sppg, yayasan, method, paidDirectly,
+      supplierId: core['SUPPLIER ID'], supplierName: core['NAMA SUPPLIER'],
+      documentWrite: 'normalized-atomic',
+    });
     await notify({
       mode: 'pair',
       sppg,
@@ -711,6 +767,25 @@ async function editTransaction(id: string, fields: any, current: Caller) {
     delete patch.SPPG;
     delete patch.YAYASAN;
     delete patch['Metode Transaksi'];
+  }
+  const supplierInputKeys = [
+    'Supplier ID', 'Nama Supplier', 'Nama Bank Supplier',
+    'No Rekening Supplier', 'Atas Nama Rekening Supplier',
+  ];
+  const supplierChanged = supplierInputKeys.some((key) =>
+    Object.prototype.hasOwnProperty.call(fields || {}, key)
+  );
+  const targetCategory = text(patch.Kategori ?? old.Kategori);
+  if (supplierChanged || targetCategory.toUpperCase() !== text(old.Kategori).toUpperCase()) {
+    Object.assign(patch, await resolveSupplier({
+      supplierId: fields?.['Supplier ID'],
+      supplierName: fields?.['Nama Supplier'],
+      supplierBankName: fields?.['Nama Bank Supplier'],
+      supplierAccountNumber: fields?.['No Rekening Supplier'],
+      supplierAccountHolder: fields?.['Atas Nama Rekening Supplier'],
+    }, sppg, yayasan, targetCategory));
+  } else if (targetCategory.toUpperCase() === 'PENGELUARAN' && !text(old['NAMA SUPPLIER'])) {
+    throw new Error('Supplier atau penjual wajib diisi untuk transaksi pengeluaran.');
   }
   const proofState = await sb.from(T.P).select('nominal,status').eq('transaksi_id', id);
   if (proofState.error) throw proofState.error;
