@@ -61,7 +61,9 @@ function actionLabel(action:string) {
 
 async function getNotifications(caller:any) {
   const actors = await visibleActors(caller);
-  const { data, error } = await admin.from('AUDIT LOG').select('*').in('ACTION_TYPE',actionTypes).in('TABLE_NAME',tables).order('TIMESTAMP',{ascending:false}).limit(100);
+  // Notification cards do not use verbose audit old/new values; projecting only
+  // rendered fields keeps polling payloads small.
+  const { data, error } = await admin.from('AUDIT LOG').select('LOG_ID,TIMESTAMP,USER_EMAIL,ACTION_TYPE,TABLE_NAME,RECORD_ID,DESCRIPTION').in('ACTION_TYPE',actionTypes).in('TABLE_NAME',tables).order('TIMESTAMP',{ascending:false}).limit(100);
   if(error)throw error;
   let rows=data||[]; if(actors)rows=rows.filter((r:any)=>actors.has(String(r.USER_EMAIL||'').toLowerCase())); rows=rows.slice(0,50);
   const ids=rows.map((r:any)=>r.LOG_ID).filter(Boolean); let reads:any[]=[];
@@ -91,7 +93,19 @@ Deno.serve(async(req)=>{
     const body=await req.json(),fn=body.function,params=Array.isArray(body.parameters)?body.parameters:[];let result;
     if(fn==='getNotifications')result=await getNotifications(caller);
     else if(fn==='markNotificationRead')result=await markRead(String(params[0]||''),caller);
-    else if(fn==='markAllNotificationsRead'){const visible=await getNotifications(caller);for(const n of visible.data||[])if(!n.isRead)await markRead(n.logId,caller);result={success:true};}
+    else if(fn==='markAllNotificationsRead'){
+      const visible=await getNotifications(caller);
+      const ids=(visible.data||[]).filter((n:any)=>!n.isRead).map((n:any)=>String(n.logId||'')).filter(Boolean);
+      if(ids.length){
+        // One read + one batch insert replaces the previous write query per notification.
+        const current=await admin.from('NOTIFICATION_READS').select('log_id').eq('admin_email',caller.email).in('log_id',ids);
+        if(current.error)throw current.error;
+        const existing=new Set((current.data||[]).map((row:any)=>String(row.log_id)));
+        const rows=ids.filter((id:string)=>!existing.has(id)).map((id:string)=>({admin_email:caller.email,log_id:id,read_at:new Date().toISOString()}));
+        if(rows.length){const inserted=await admin.from('NOTIFICATION_READS').insert(rows);if(inserted.error)throw inserted.error;}
+      }
+      result={success:true,count:ids.length};
+    }
     else return response({error:'Fungsi tidak dikenali.'},404);
     return response({result});
   }catch(e){console.error(e);return response({error:e instanceof Error?e.message:String(e)},500);}

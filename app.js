@@ -173,6 +173,34 @@ function getJwtToken() {
   try { return localStorage.getItem('sppg_jwt') || ''; } catch(e) { return ''; }
 }
 
+// Short-lived, memory-only cache for idempotent reads. It is scoped by the
+// current token and cleared after mutations, reducing duplicate Edge Function
+// responses without persisting authenticated payloads in browser storage.
+var API_READ_CACHE_TTL = {
+  getAppConfig:300000, getDropdownOptions:300000,
+  getMasterBahanBaku:30000, getMasterSupplier:30000,
+  getTransactions:10000, getAllUsers:15000,
+  getPendingPayments:15000, getSurveiBahanBaku:15000,
+  getSerahTerima:15000, getMenuHarian:15000,
+  getDashboardKPI:15000, getChartData:15000, getSPPGData:15000,
+  getRekapHarian:15000, getFilterOptions:30000, getAuditLog:10000,
+  getNotifications:5000, getUploadBuktiMode:30000,
+  getTransactionEditMode:30000, getMyMenuVisibility:30000,
+  getMyAnnouncements:30000, getSettingsHub:15000
+};
+var apiReadCache = Object.create(null);
+
+function apiReadCacheKey(fnName, params, token) {
+  // A short token suffix separates sessions without retaining the full JWT.
+  var scope = token ? token.slice(-24) : 'public';
+  return scope + '|' + fnName + '|' + JSON.stringify(Array.isArray(params) ? params : []);
+}
+
+function clearApiReadCache() {
+  apiReadCache = Object.create(null);
+}
+window.clearApiReadCache = clearApiReadCache;
+
 function callApi(fnName, params, onSuccess, onFailure) {
   var slug = API_ROUTE_BY_FUNCTION[fnName];
   if (!slug) {
@@ -186,6 +214,17 @@ function callApi(fnName, params, onSuccess, onFailure) {
   var authorizationToken = token || window._supabaseKey || '';
   if (authorizationToken) headers.Authorization = 'Bearer ' + authorizationToken;
   if (window._supabaseKey) headers.apikey = window._supabaseKey;
+
+  var cacheTtl = Number(API_READ_CACHE_TTL[fnName]) || 0;
+  var cacheKey = cacheTtl ? apiReadCacheKey(fnName, params, token) : '';
+  var cached = cacheKey && apiReadCache[cacheKey];
+  if (cached && cached.expiresAt > Date.now()) {
+    // Clone cached JSON so table renderers can safely mutate their local copy.
+    var cachedResult = JSON.parse(cached.json);
+    setTimeout(function() { if (onSuccess) onSuccess(cachedResult); }, 0);
+    return;
+  }
+  if (cached) delete apiReadCache[cacheKey];
 
   var requestUrl = API_BASE_URL + slug;
   var TIMEOUT_MS = 20000;
@@ -209,8 +248,16 @@ function callApi(fnName, params, onSuccess, onFailure) {
       });
     }).then(function(result) {
       if (fnName === 'loginUser' && result && result.success && result.token) {
+        clearApiReadCache();
         try { localStorage.setItem('sppg_jwt', result.token); } catch(e) {}
         window._supabaseToken = result.token;
+      }
+      if (cacheKey) {
+        try { apiReadCache[cacheKey] = { json: JSON.stringify(result), expiresAt: Date.now() + cacheTtl }; }
+        catch(e) { /* A non-serializable response simply bypasses the cache. */ }
+      } else if (fnName !== 'updatePresence') {
+        // Mutations may change any paged/read model; invalidate before refresh.
+        clearApiReadCache();
       }
       if (onSuccess) onSuccess(result);
       schedulePagedMutationRefresh(fnName, result);

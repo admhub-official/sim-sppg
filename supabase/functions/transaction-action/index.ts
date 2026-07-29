@@ -40,6 +40,12 @@ const DT = {
   ttdVerif: 'TTD_VERIFIKATOR_LEGACY',
 };
 
+// List endpoints deliberately exclude legacy/base64-adjacent columns. Keeping the
+// projection here prevents new table columns from silently increasing API egress.
+const TRANSACTION_LIST_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi","APPROVED BY","WAKTU APPROVE",Catatan_1,"Catatan Approval"';
+const DOCUMENT_COLUMNS = 'transaksi_id,document_type,storage_bucket,storage_path,mime_type,original_file_name,created_at,updated_at';
+const PAYMENT_PROOF_COLUMNS = 'id,transaksi_id,payment_sequence,nominal,storage_bucket,storage_path,mime_type,original_file_name,submitted_by,submitted_at,status,verified_by,verified_at,verifier_signature_path,verification_notes';
+
 type Caller = { id: string; email: string; role: string; sppg: string; yayasan: string; nama: string };
 type Doc = {
   transaksi_id: string;
@@ -166,7 +172,7 @@ async function docsFor(ids: string[]) {
   const uniqueIds = [...new Set(ids.map(text).filter(Boolean))];
   if (!uniqueIds.length) return output;
   const query = await sb.from(T.DA)
-    .select('*')
+    .select(DOCUMENT_COLUMNS)
     .in('transaksi_id', uniqueIds)
     .order('updated_at', { ascending: true });
   if (query.error) throw query.error;
@@ -249,7 +255,7 @@ async function canAccess(current: Caller, row: any) {
 }
 
 async function getTransaction(current: Caller, id: string) {
-  const query = await sb.from(T.X).select('*').eq('ID', id).maybeSingle();
+  const query = await sb.from(T.X).select(TRANSACTION_LIST_COLUMNS).eq('ID', id).maybeSingle();
   if (query.error) throw query.error;
   if (!query.data) throw new Error('Transaksi tidak ditemukan.');
   if (!(await canAccess(current, query.data))) throw new Error('Akses transaksi ditolak.');
@@ -268,7 +274,13 @@ async function upload(kind: keyof typeof B, base64: string, mime: string, name: 
   if (!rules[kind].test(text(mime))) throw new Error('Tipe MIME file tidak diizinkan.');
   if (!base64 || !name) throw new Error('Data file tidak lengkap.');
   const path = `${prefix}_${Date.now()}_${crypto.randomUUID()}_${text(name).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  const query = await sb.storage.from(B[kind]).upload(path, decodeBase64(base64), { contentType: mime, upsert: false });
+  // Paths are immutable and unique, so a browser/CDN TTL avoids repeated origin
+  // downloads without risking a stale replacement.
+  const query = await sb.storage.from(B[kind]).upload(path, decodeBase64(base64), {
+    contentType: mime,
+    cacheControl: '3600',
+    upsert: false,
+  });
   if (query.error) throw new Error(`Upload gagal: ${query.error.message}`);
   return path;
 }
@@ -329,26 +341,53 @@ function pageSpec(value: any) {
 }
 
 async function listTransactions(filters: any, current: Caller) {
-  let query = sb.from(T.X).select('*').order('Tanggal', { ascending: false });
+  const page = pageSpec(filters);
+  const pairs = current.role === 'ADMIN' ? await assignedPairs(current) : [];
+  let query = page && current.role !== 'ADMIN'
+    ? sb.from(T.X).select(TRANSACTION_LIST_COLUMNS, { count: 'exact' })
+    : sb.from(T.X).select(TRANSACTION_LIST_COLUMNS);
+
+  // Push authorization and pagination into PostgREST whenever the access model can
+  // be expressed safely. Unauthorized/off-page rows then never leave the database.
+  if (current.role === 'USER') query = query.ilike('User', current.email);
+  if (current.role === 'ADMIN') {
+    const sppg = [...new Set(pairs.map(([value]) => value).filter(Boolean))];
+    if (!sppg.length) return page
+      ? { data: [], page: page.page, pageSize: page.pageSize, total: 0, hasMore: false }
+      : [];
+    query = query.in('SPPG', sppg);
+  }
   if (filters?.sppg && filters.sppg !== 'ALL') query = query.eq('SPPG', filters.sppg);
   if (filters?.yayasan && filters.yayasan !== 'ALL') query = query.eq('YAYASAN', filters.yayasan);
   if (filters?.kategori && filters.kategori !== 'ALL') query = query.eq('Kategori', filters.kategori);
   if (filters?.dateStart) query = query.gte('Tanggal', normalizeDate(filters.dateStart));
   if (filters?.dateEnd) query = query.lte('Tanggal', normalizeDate(filters.dateEnd));
+  query = query.order('Tanggal', { ascending: false }).order('ID', { ascending: false });
+  if (page && current.role !== 'ADMIN') query = query.range(page.from, page.to);
+
   const result = await query;
   if (result.error) throw result.error;
-  const rows = [];
-  for (const row of result.data || []) if (await canAccess(current, row)) rows.push(row);
+  let rows = result.data || [];
+  let total = result.count ?? rows.length;
+  if (current.role === 'ADMIN') {
+    rows = rows.filter((row: any) => pairs.some(
+      ([sppg, yayasan]) => sppg === text(row.SPPG) && yayasan === text(row.YAYASAN),
+    ));
+    total = rows.length;
+    if (page) rows = rows.slice(page.from, page.to + 1);
+  }
+
+  // Related documents are loaded only for the visible page, not for every
+  // transaction matching the filter.
   const documents = await docsFor(rows.map((row: any) => text(row.ID)));
   const data = rows.map((row: any) => mapTransaction(row, documents.get(text(row.ID)) || new Map()));
-  const page = pageSpec(filters);
   if (!page) return data;
   return {
-    data: data.slice(page.from, page.to + 1),
+    data,
     page: page.page,
     pageSize: page.pageSize,
-    total: data.length,
-    hasMore: page.to + 1 < data.length,
+    total,
+    hasMore: page.to + 1 < total,
   };
 }
 
@@ -456,7 +495,7 @@ async function getTransactionSuggestions(current: Caller) {
 async function transactionDetail(id: string, current: Caller) {
   const row = await getTransaction(current, id);
   const documents = (await docsFor([id])).get(id) || new Map<string, Doc>();
-  const proofQuery = await sb.from(T.P).select('*').eq('transaksi_id', id).order('payment_sequence', { ascending: true });
+  const proofQuery = await sb.from(T.P).select(PAYMENT_PROOF_COLUMNS).eq('transaksi_id', id).order('payment_sequence', { ascending: true });
   if (proofQuery.error) throw proofQuery.error;
   const paymentProofs: any[] = [];
   for (const proof of proofQuery.data || []) {

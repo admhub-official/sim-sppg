@@ -34,6 +34,29 @@ function changedFiles(table:string,old:any,patch:any){const map=STORAGE_FILES[ta
 function pageSpec(v:any){const requested=Number(v?.page)>0||Number(v?.pageSize)>0;if(!requested)return null;const page=Math.max(1,Math.floor(Number(v?.page)||1));const pageSize=Math.min(100,Math.max(1,Math.floor(Number(v?.pageSize)||25)));return{page,pageSize,from:(page-1)*pageSize,to:page*pageSize-1}}
 function paged(data:any[],v:any){const x=pageSpec(v);if(!x)return null;const total=data.length;return{data:data.slice(x.from,x.to+1),page:x.page,pageSize:x.pageSize,total,hasMore:x.to+1<total}}
 
+// Per-module projections prevent SELECT * from transferring unused columns and
+// make future schema additions egress-neutral for list screens.
+const LIST_COLUMNS:Record<string,string>={
+  'Pending Payment':'ID,Timestamp,User,Transaksi,Deskripsi,"Tanggal Pending","Tanggal Payment",Status,"Tanggal Lunas","Bukti Pembayaran",Catatan',
+  SURVEI_BB:'ID,"KODE BAHAN BAKU","WAKTU SURVEI","KATEGORI BAHAN BAKU","NAMA BAHAN BAKU","HARGA RAB","HARGA PASAR","ALAMAT SURVEI","LOKASI SURVEI","FOTO BAHAN BAKU","LINK FOTO BAHAN BAKU",USER,TIMESTAMP,YAYASAN',
+  SERAH_TERIMA:'ID,"KODE BAHAN BAKU","KATEGORI BAHAN BAKU","NAMA BAHAN BAKU","FOTO BARANG DATANG","LINK FOTO BARANG DATANG","FOTO SURAT JALAN","LINK FOTO SURAT JALAN",PENERIMA,"TTD PENERIMA","LINK TTD PENERIMA",SUPPLIER,"TTD SUPPLIER","LINK TTD SUPPLIER","KONDISI BAHAN BAKU",CATATAN,LOKASI,USER,TIMESTAMP,YAYASAN',
+  MENU_HARIAN:'ID,TANGGAL,"JUMLAH KPM",MENU,USER,TIMESTAMP,YAYASAN'
+};
+
+async function visibleOwnerValues(c:Caller){
+  if(c.role==='SUPER_ADMIN')return null;
+  if(c.role==='USER')return[c.email,c.username].filter(Boolean);
+  if(c.role!=='ADMIN')return[];
+  const pairs=await assignments(c);
+  if(!pairs.length)return[];
+  // One batched user lookup replaces the previous ownerOK query per result row.
+  const q=await sb.from('USERS').select('EMAIL,USERNAME,SPPG,"NAMA YAYASAN"');
+  if(q.error)throw q.error;
+  return[...new Set((q.data||[])
+    .filter((u:any)=>pairs.some(([sp,ya])=>sp===s(u.SPPG)&&ya===s(u['NAMA YAYASAN'])))
+    .flatMap((u:any)=>[s(u.EMAIL),s(u.USERNAME)]).filter(Boolean))];
+}
+
 async function getAllUsers(c:Caller,opt:any={}) {
   if(!['ADMIN','SUPER_ADMIN'].includes(c.role)) throw new Error('Akses ditolak.');
   const q=await sb.from('USERS')
@@ -167,13 +190,42 @@ async function getUploadBuktiMode(_c:Caller){return{success:true,enabled:await g
 async function setUploadBuktiMode(enabled:boolean,c:Caller){return setBooleanSetting('ALLOW_USER_UPLOAD_BUKTI',enabled,c)}
 async function getTransactionEditMode(_c:Caller){return{success:true,enabled:await getBooleanSetting('ALLOW_USER_EDIT_TRANSACTION',true)}}
 async function setTransactionEditMode(enabled:boolean,c:Caller){return setBooleanSetting('ALLOW_USER_EDIT_TRANSACTION',enabled,c)}
-async function listOwned(table:string,c:Caller,orderCol='TIMESTAMP'){const q=await sb.from(table).select('*').order(orderCol,{ascending:false});if(q.error)throw q.error;const out=[];for(const r of q.data||[])if(await ownerOK(c,r.USER))out.push(r);return out;}
-function ownedResult(data:any[],opt:any={}){const pg=paged(data,opt);return pg?{success:true,...pg}:{success:true,data}}
-async function getPending(c:Caller,opt:any={}){return ownedResult(await listOwned('Pending Payment',c,'Timestamp'),opt);}
+async function listOwned(table:string,c:Caller,orderCol='TIMESTAMP',opt:any={}){
+  const page=pageSpec(opt),owners=await visibleOwnerValues(c),columns=LIST_COLUMNS[table];
+  if(!columns)throw new Error(`Proyeksi daftar belum tersedia untuk ${table}.`);
+  if(Array.isArray(owners)&&!owners.length)return page
+    ?{data:[],page:page.page,pageSize:page.pageSize,total:0,hasMore:false}:{data:[]};
+  let q=page?sb.from(table).select(columns,{count:'exact'}):sb.from(table).select(columns);
+  if(Array.isArray(owners))q=q.in('USER',owners);
+  if(table==='MENU_HARIAN'&&opt?.dateStart)q=q.gte('TANGGAL',s(opt.dateStart));
+  if(table==='MENU_HARIAN'&&opt?.dateEnd)q=q.lte('TANGGAL',s(opt.dateEnd));
+  q=q.order(orderCol,{ascending:false}).order('ID',{ascending:false});
+  // Range is executed by PostgREST; off-page rows never cross the database edge.
+  if(page)q=q.range(page.from,page.to);
+  const result=await q;if(result.error)throw result.error;
+  const data=result.data||[];
+  if(!page)return{data};
+  const total=result.count??data.length;
+  return{data,page:page.page,pageSize:page.pageSize,total,hasMore:page.to+1<total};
+}
+function ownedResult(result:any){return{success:true,...result}}
+async function getPending(c:Caller,opt:any={}){return ownedResult(await listOwned('Pending Payment',c,'Timestamp',opt));}
 async function updatePending(id:string,data:any,c:Caller){await requireRecord(c,'Pending Payment',id,'User');if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat memperbarui.');const p:any={};if(data.status!==undefined)p.Status=data.status;if(data.tanggalLunas!==undefined)p['Tanggal Lunas']=data.tanggalLunas||null;if(data.buktiPembayaran!==undefined)p['Bukti Pembayaran']=data.buktiPembayaran;if(data.catatan!==undefined)p.Catatan=data.catatan;const q=await sb.from('Pending Payment').update(p).eq('ID',id);if(q.error)throw q.error;await audit(c,'Pending Payment',id,'EDIT',Object.keys(p));return{success:true,message:'Pending Payment diperbarui.'};}
 async function delRecord(table:string,id:string,c:Caller,ownerCol='USER'){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat menghapus.');const old=await requireRecord(c,table,id,ownerCol);const files=recordFiles(table,old);const q=await sb.from(table).delete().eq('ID',id);if(q.error)throw q.error;if(files.length)await removeStorageFiles(files).catch(e=>console.error('cleanup deleted record files',table,id,e));await audit(c,table,id,'DELETE',{storageFiles:files.length});return{success:true,message:'Data berhasil dihapus.'};}
 async function updateRecord(table:string,id:string,fields:any,c:Caller,allowed:string[],ownerCol='USER'){if(!['ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Hanya ADMIN yang dapat mengubah.');const old=await requireRecord(c,table,id,ownerCol);const p:any={};for(const k of allowed)if(Object.prototype.hasOwnProperty.call(fields||{},k))p[k]=fields[k];if(!Object.keys(p).length)throw new Error('Tidak ada field yang dapat diperbarui.');const files=changedFiles(table,old,p);const q=await sb.from(table).update(p).eq('ID',id);if(q.error){if(files.fresh.length)await removeStorageFiles(files.fresh).catch(e=>console.error('cleanup update orphan',table,id,e));throw q.error;}if(files.obsolete.length)await removeStorageFiles(files.obsolete).catch(e=>console.error('cleanup replaced files',table,id,e));await audit(c,table,id,'EDIT',{fields:Object.keys(p),oldFilesDeleted:files.obsolete.length});return{success:true,message:'Data berhasil diperbarui.'};}
-async function getMenu(c:Caller,filters:any){const menus=await listOwned('MENU_HARIAN',c,'TIMESTAMP');let out=menus;if(filters?.dateStart)out=out.filter((r:any)=>s(r.TANGGAL)>=s(filters.dateStart));if(filters?.dateEnd)out=out.filter((r:any)=>s(r.TANGGAL)<=s(filters.dateEnd));const total=out.length,ps=pageSpec(filters),selected=ps?out.slice(ps.from,ps.to+1):out;const ids=selected.map((r:any)=>r.ID);let details:any[]=[];if(ids.length){const q=await sb.from('DETAIL_MENU_HARIAN').select('*').in('MENU_ID',ids);if(q.error)throw q.error;details=q.data||[];}const data=selected.map((r:any)=>({id:r.ID,tanggal:r.TANGGAL,jumlahKpm:r['JUMLAH KPM']||0,menu:r.MENU||'',user:r.USER||'',detail:details.filter((d:any)=>d.MENU_ID===r.ID).map((d:any)=>({namaItem:d['Nama Item']||'',jumlah:d.Jumlah||0,satuan:d.Satuan||'',hargaSatuan:d['Harga Satuan']||0,totalHarga:d['Total Harga']||0}))}));return ps?{success:true,data,page:ps.page,pageSize:ps.pageSize,total,hasMore:ps.to+1<total}:{success:true,data};}
+async function getMenu(c:Caller,filters:any){
+  const result=await listOwned('MENU_HARIAN',c,'TIMESTAMP',filters);
+  const ids=result.data.map((r:any)=>r.ID);let details:any[]=[];
+  if(ids.length){
+    // Details are batched for the current page and projected to rendered fields.
+    const q=await sb.from('DETAIL_MENU_HARIAN')
+      .select('MENU_ID,"Nama Item",Jumlah,Satuan,"Harga Satuan","Total Harga"')
+      .in('MENU_ID',ids);
+    if(q.error)throw q.error;details=q.data||[];
+  }
+  const data=result.data.map((r:any)=>({id:r.ID,tanggal:r.TANGGAL,jumlahKpm:r['JUMLAH KPM']||0,menu:r.MENU||'',user:r.USER||'',detail:details.filter((d:any)=>d.MENU_ID===r.ID).map((d:any)=>({namaItem:d['Nama Item']||'',jumlah:d.Jumlah||0,satuan:d.Satuan||'',hargaSatuan:d['Harga Satuan']||0,totalHarga:d['Total Harga']||0}))}));
+  return{success:true,...result,data};
+}
 
 const SURVEI_FIELDS=['KODE BAHAN BAKU','KATEGORI BAHAN BAKU','NAMA BAHAN BAKU','HARGA RAB','HARGA PASAR','ALAMAT SURVEI','LOKASI SURVEI','FOTO BAHAN BAKU','LINK FOTO BAHAN BAKU'];
 const SERAH_FIELDS=['KODE BAHAN BAKU','KATEGORI BAHAN BAKU','NAMA BAHAN BAKU','FOTO BARANG DATANG','LINK FOTO BARANG DATANG','FOTO SURAT JALAN','LINK FOTO SURAT JALAN','PENERIMA','TTD PENERIMA','LINK TTD PENERIMA','SUPPLIER','TTD SUPPLIER','LINK TTD SUPPLIER','KONDISI BAHAN BAKU','CATATAN','LOKASI'];
@@ -185,8 +237,8 @@ const H:any={
  addPendingPayment:(p:any[],c:Caller)=>addPending(p[0]||{},c),addSurveiBahanBaku:(p:any[],c:Caller)=>addSurvei(p[0]||{},c),addSerahTerima:(p:any[],c:Caller)=>addSerahTerima(p[0]||{},c),addMenuHarian:(p:any[],c:Caller)=>addMenu(p[0]||{},c),
  getAdminAssignments:(p:any[],c:Caller)=>getAdminAssignments(s(p[0]),c),addAdminAssignment:(p:any[],c:Caller)=>addAdminAssignment(s(p[0]),s(p[1]),s(p[2]),c),updateAdminAssignment:(p:any[],c:Caller)=>updateAdminAssignment(s(p[0]),s(p[1]),s(p[2]),c),deleteAdminAssignment:(p:any[],c:Caller)=>deleteAdminAssignment(s(p[0]),c),
  getPendingPayments:(p:any[],c:Caller)=>getPending(c,p[0]||{}),updatePendingPayment:(p:any[],c:Caller)=>updatePending(s(p[0]),p[1]||{},c),deletePendingPayment:(p:any[],c:Caller)=>delRecord('Pending Payment',s(p[0]),c,'User'),
- getSurveiBahanBaku:async(p:any[],c:Caller)=>ownedResult(await listOwned('SURVEI_BB',c),p[0]||{}),updateSurvei:(p:any[],c:Caller)=>updateRecord('SURVEI_BB',s(p[0]),p[1]||{},c,SURVEI_FIELDS),deleteSurvei:(p:any[],c:Caller)=>delRecord('SURVEI_BB',s(p[0]),c),
- getSerahTerima:async(p:any[],c:Caller)=>ownedResult(await listOwned('SERAH_TERIMA',c),p[0]||{}),updateSerahTerima:(p:any[],c:Caller)=>updateRecord('SERAH_TERIMA',s(p[0]),p[1]||{},c,SERAH_FIELDS),deleteSerahTerima:(p:any[],c:Caller)=>delRecord('SERAH_TERIMA',s(p[0]),c),
+ getSurveiBahanBaku:async(p:any[],c:Caller)=>ownedResult(await listOwned('SURVEI_BB',c,'TIMESTAMP',p[0]||{})),updateSurvei:(p:any[],c:Caller)=>updateRecord('SURVEI_BB',s(p[0]),p[1]||{},c,SURVEI_FIELDS),deleteSurvei:(p:any[],c:Caller)=>delRecord('SURVEI_BB',s(p[0]),c),
+ getSerahTerima:async(p:any[],c:Caller)=>ownedResult(await listOwned('SERAH_TERIMA',c,'TIMESTAMP',p[0]||{})),updateSerahTerima:(p:any[],c:Caller)=>updateRecord('SERAH_TERIMA',s(p[0]),p[1]||{},c,SERAH_FIELDS),deleteSerahTerima:(p:any[],c:Caller)=>delRecord('SERAH_TERIMA',s(p[0]),c),
  getMenuHarian:(p:any[],c:Caller)=>getMenu(c,p[0]||{}),updateMenuMBG:(p:any[],c:Caller)=>updateMenuAtomic(s(p[0]),p[1]||{},c),deleteMenuMBG:(p:any[],c:Caller)=>delRecord('MENU_HARIAN',s(p[0]),c)
 };
 Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method==='GET')return j({status:'ok',service:'operations-action',version:8});if(req.method!=='POST')return j({error:'Method tidak didukung.'},405);try{const c=await caller(req),b=await req.json(),fn=H[b?.function];if(!fn)return j({error:`Fungsi tidak diizinkan: ${b?.function||''}`},404);return j({result:await fn(Array.isArray(b.parameters)?b.parameters:[],c)})}catch(e){const message=e instanceof Error?e.message:String(e);const denied=/akses|token|hanya admin|super_admin|assignment|ditolak/i.test(message);console.error(message);return j({error:message,result:{success:false,message}},denied?403:400)}});

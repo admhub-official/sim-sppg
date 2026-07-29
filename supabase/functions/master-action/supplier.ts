@@ -1,4 +1,5 @@
 import {sb,s,low,Caller,requireAdmin,audit,rid,B,removeFiles,upload,exactPairs} from './core.ts';
+const SUPPLIER_COLUMNS='ID,"NAMA SUPPLIER","NO WHATSAPP",EMAIL,"ALAMAT TOKO","FOTO SUPPLIER","LINK FOTO SUPPLIER","TTD SUPPLIER","FILE MOU","LINK FILE MOU",STATUS,SPPG,YAYASAN,USER';
 
 async function canAccessSupplier(c:Caller,row:any){
   if(c.role==='SUPER_ADMIN')return true;
@@ -9,10 +10,26 @@ async function canAccessSupplier(c:Caller,row:any){
 }
 
 export async function getSupplier(c:Caller,opt:any={}){
-  const q=await sb.from('MASTER_SUPPLIER').select('*').order('ID',{ascending:false});
-  if(q.error)throw q.error;
-  const rows=q.data||[];
-  let data:any[]=[];if(c.role==='SUPER_ADMIN')data=rows;else if(c.role==='USER')data=rows.filter((r:any)=>low(r.USER)===c.email||low(r.USER)===low(c.username));else if(c.role==='ADMIN'){const pairs=await exactPairs(c);data=rows.filter((r:any)=>pairs?.some(([sp,ya])=>sp===s(r.SPPG)&&ya===s(r.YAYASAN)))}const requested=Number(opt?.page)>0||Number(opt?.pageSize)>0;if(!requested)return{success:true,data};const page=Math.max(1,Math.floor(Number(opt.page)||1)),pageSize=Math.min(100,Math.max(1,Math.floor(Number(opt.pageSize)||25))),from=(page-1)*pageSize,total=data.length;return{success:true,data:data.slice(from,from+pageSize),page,pageSize,total,hasMore:from+pageSize<total};
+  const requested=Number(opt?.page)>0||Number(opt?.pageSize)>0;
+  const page=Math.max(1,Math.floor(Number(opt.page)||1)),pageSize=Math.min(100,Math.max(1,Math.floor(Number(opt.pageSize)||25))),from=(page-1)*pageSize,to=from+pageSize-1;
+  const pairs=c.role==='ADMIN'?await exactPairs(c):null;
+  let q=requested&&c.role!=='ADMIN'
+    ?sb.from('MASTER_SUPPLIER').select(SUPPLIER_COLUMNS,{count:'exact'})
+    :sb.from('MASTER_SUPPLIER').select(SUPPLIER_COLUMNS);
+  if(c.role==='USER')q=q.in('USER',[c.email,c.username].filter(Boolean));
+  if(c.role==='ADMIN'){
+    const sppg=[...new Set((pairs||[]).map(([sp])=>sp).filter(Boolean))];
+    if(!sppg.length)return requested?{success:true,data:[],page,pageSize,total:0,hasMore:false}:{success:true,data:[]};
+    q=q.in('SPPG',sppg);
+  }
+  q=q.order('ID',{ascending:false});
+  // ADMIN keeps its pair check in memory; other roles are filtered and ranged in PostgREST.
+  if(requested&&c.role!=='ADMIN')q=q.range(from,to);
+  const result=await q;if(result.error)throw result.error;
+  let data=result.data||[];let total=result.count??data.length;
+  if(c.role==='ADMIN'){data=data.filter((r:any)=>pairs?.some(([sp,ya])=>sp===s(r.SPPG)&&ya===s(r.YAYASAN)));total=data.length;if(requested)data=data.slice(from,to+1)}
+  if(!requested)return{success:true,data};
+  return{success:true,data,page,pageSize,total,hasMore:to+1<total};
 }
 
 export async function addSupplier(d:any,c:Caller){
@@ -38,7 +55,7 @@ export async function addSupplier(d:any,c:Caller){
 
 export async function updateSupplier(id:string,f:any,c:Caller){
   requireAdmin(c);
-  const old=await sb.from('MASTER_SUPPLIER').select('*').eq('ID',id).maybeSingle();
+  const old=await sb.from('MASTER_SUPPLIER').select(SUPPLIER_COLUMNS).eq('ID',id).maybeSingle();
   if(old.error||!old.data)throw new Error('Supplier tidak ditemukan.');
   if(!await canAccessSupplier(c,old.data))throw new Error('Akses supplier ditolak.');
   const allow=['NAMA SUPPLIER','NO WHATSAPP','EMAIL','ALAMAT TOKO','FOTO SUPPLIER','TTD SUPPLIER','FILE MOU','STATUS'];
@@ -60,7 +77,7 @@ export async function updateSupplier(id:string,f:any,c:Caller){
 
 export async function deleteSupplier(id:string,c:Caller){
   requireAdmin(c);
-  const old=await sb.from('MASTER_SUPPLIER').select('*').eq('ID',id).maybeSingle();
+  const old=await sb.from('MASTER_SUPPLIER').select('ID,"FOTO SUPPLIER","TTD SUPPLIER","FILE MOU",SPPG,YAYASAN,USER').eq('ID',id).maybeSingle();
   if(old.error||!old.data)throw new Error('Supplier tidak ditemukan.');
   if(!await canAccessSupplier(c,old.data))throw new Error('Akses supplier ditolak.');
   const files=[{bucket:B.supplierFoto,path:old.data['FOTO SUPPLIER']},{bucket:B.supplierTtd,path:old.data['TTD SUPPLIER']},{bucket:B.supplierMou,path:old.data['FILE MOU']}];

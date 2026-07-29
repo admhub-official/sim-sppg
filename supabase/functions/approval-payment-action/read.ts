@@ -11,6 +11,11 @@ const DOC: Record<string, string> = {
   approval: 'BUKTI_APPROVAL_LEGACY',
 };
 
+// Explicit projections keep high-traffic approval lists independent from future
+// wide columns added to TRANSAKSI or the document compatibility view.
+const TRANSACTION_LIST_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi","APPROVED BY","WAKTU APPROVE",Catatan_1,"Catatan Approval"';
+const DOCUMENT_COLUMNS = 'transaksi_id,document_type,storage_bucket,storage_path,mime_type,original_file_name,updated_at';
+
 function documentState(docs: Map<string, any>) {
   const hasFoto = !!text(docs.get(DOC.foto)?.storage_path);
   const hasFile = !!text(docs.get(DOC.file)?.storage_path);
@@ -64,7 +69,7 @@ async function docsFor(ids: string[]) {
   const out = new Map<string, Map<string, any>>();
   if (!ids.length) return out;
   const q = await sb.from(TABLE.docsAvailable)
-    .select('*')
+    .select(DOCUMENT_COLUMNS)
     .in('transaksi_id', ids)
     .order('updated_at', { ascending: true });
   if (q.error) throw q.error;
@@ -97,8 +102,19 @@ function pageSpec(value: any) {
 
 export async function getTransactions(parameters: any[], current: Caller) {
   const filters = parameters[0] || {};
-  let query = sb.from(TABLE.tx).select('*').order('Tanggal', { ascending: false });
+  const page = pageSpec(filters);
+  let query = page
+    ? sb.from(TABLE.tx).select(TRANSACTION_LIST_COLUMNS, { count: 'exact' })
+    : sb.from(TABLE.tx).select(TRANSACTION_LIST_COLUMNS);
   const approvalOnly = filters.approvalOnly === true;
+  if (current.role === 'USER') query = query.ilike('User', current.email);
+  if (current.role === 'ADMIN') {
+    const scope = [...await assignedSppg(current)];
+    if (!scope.length) return page
+      ? { data: [], page: page.page, pageSize: page.pageSize, total: 0, hasMore: false }
+      : [];
+    query = query.in('SPPG', scope);
+  }
   if (filters.sppg && filters.sppg !== 'ALL') query = query.eq('SPPG', filters.sppg);
   if (filters.yayasan && filters.yayasan !== 'ALL') query = query.eq('YAYASAN', filters.yayasan);
   if (approvalOnly) {
@@ -110,17 +126,14 @@ export async function getTransactions(parameters: any[], current: Caller) {
   }
   if (filters.dateStart) query = query.gte('Tanggal', text(filters.dateStart).slice(0, 10));
   if (filters.dateEnd) query = query.lte('Tanggal', text(filters.dateEnd).slice(0, 10));
+  query = query.order('Tanggal', { ascending: false }).order('ID', { ascending: false });
+  // Pagination happens in Postgres so only the displayed transactions consume
+  // Data API egress and trigger related document/proof queries.
+  if (page) query = query.range(page.from, page.to);
 
   const result = await query;
   if (result.error) throw result.error;
-  let rows: any[] = [];
-  if (current.role === 'SUPER_ADMIN') rows = result.data || [];
-  else if (current.role === 'ADMIN') {
-    const scope = await assignedSppg(current);
-    rows = (result.data || []).filter((row: any) => scope.has(norm(row.SPPG)));
-  } else {
-    rows = (result.data || []).filter((row: any) => String(row.User || '').toLowerCase() === current.email);
-  }
+  let rows: any[] = result.data || [];
   if (approvalOnly) {
     rows = rows.filter((row: any) => norm(row.Kategori) === 'PENGELUARAN' && normalizeStatus(row['Metode Transaksi']) !== 'SUDAH_DIBAYAR');
   }
@@ -138,17 +151,17 @@ export async function getTransactions(parameters: any[], current: Caller) {
     mapped(row, docs.get(text(row.ID)) || new Map(), users.get(text(row.User).toLowerCase())),
     summarize(grouped.get(text(row.ID)) || []),
   ));
-  const page = pageSpec(filters);
   if (!page) return data;
+  const total = result.count ?? data.length;
   return {
-    data: data.slice(page.from, page.to + 1), page: page.page, pageSize: page.pageSize,
-    total: data.length, hasMore: page.to + 1 < data.length,
+    data, page: page.page, pageSize: page.pageSize,
+    total, hasMore: page.to + 1 < total,
   };
 }
 
 export async function getTransactionDetail(parameters: any[], current: Caller) {
   const id = text(parameters[0]);
-  const q = await sb.from(TABLE.tx).select('*').eq('ID', id).maybeSingle();
+  const q = await sb.from(TABLE.tx).select(TRANSACTION_LIST_COLUMNS).eq('ID', id).maybeSingle();
   if (q.error) throw q.error;
   if (!q.data) throw new Error('Transaksi tidak ditemukan.');
   if (!(await canAccess(current, q.data))) throw new Error('Akses transaksi ditolak.');
