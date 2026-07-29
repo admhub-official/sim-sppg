@@ -15,7 +15,13 @@ export async function upload(bucket: string, base64: string, mimeType: string, f
   const bytes = decodeBase64(base64);
   if (bytes.byteLength > 10 * 1024 * 1024) throw new Error('Ukuran file maksimal 10 MB.');
   const path = `${prefix}_${Date.now()}_${crypto.randomUUID()}_${text(fileName).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  const q = await sb.storage.from(bucket).upload(path, bytes, { contentType: mimeType, upsert: false });
+  // Upload paths are content-unique; cache metadata lets repeat previews hit the
+  // browser/CDN instead of Supabase Storage origin.
+  const q = await sb.storage.from(bucket).upload(path, bytes, {
+    contentType: mimeType,
+    cacheControl: '3600',
+    upsert: false,
+  });
   if (q.error) throw new Error(`Upload gagal: ${q.error.message}`);
   return path;
 }

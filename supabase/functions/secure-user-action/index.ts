@@ -36,7 +36,9 @@ Deno.serve(async request=>{
       if(!base64)throw new Error('Data foto kosong.');if(!['image/jpeg','image/png','image/webp'].includes(mime))throw new Error('Format foto harus JPG, PNG, atau WebP.');
       const bytes=decodeBase64(base64);if(bytes.byteLength>5*1024*1024)throw new Error('Ukuran foto maksimal 5 MB.');
       const path=`PROFIL_${username}_${crypto.randomUUID()}_${name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-      const upload=await supabase.storage.from('foto-profil').upload(path,bytes,{contentType:mime,upsert:false});if(upload.error)throw upload.error;
+      // Profile updates use a new unique path, so cached reads cannot serve an
+      // overwritten object and repeated views avoid Storage origin egress.
+      const upload=await supabase.storage.from('foto-profil').upload(path,bytes,{contentType:mime,cacheControl:'3600',upsert:false});if(upload.error)throw upload.error;
       try{const rpc=await supabase.rpc('secure_update_user_profile',{p_caller_id:caller.ID,p_target_username:username,p_update:{'FOTO PROFIL':path},p_admin_mode:false});if(rpc.error)throw rpc.error;}catch(e){await removeProfile(path);throw e;}
       if(text(oldPhoto)!==path)await removeProfile(oldPhoto);
       const signed=await supabase.storage.from('foto-profil').createSignedUrl(path,3600);
