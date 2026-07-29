@@ -352,6 +352,65 @@ async function listTransactions(filters: any, current: Caller) {
   };
 }
 
+function rowMatchesTransactionFilters(row: any, filters: any) {
+  const search = lower(filters?.search);
+  if (search) {
+    const haystack = [
+      row['Kode Pemasukan'],
+      row['Nama Item/ Bahan Baku'],
+      row.User,
+      row.SPPG,
+      row.YAYASAN,
+      row.Catatan,
+    ].map(lower).join(' ');
+    if (!haystack.includes(search)) return false;
+  }
+
+  const status = text(filters?.status).toUpperCase();
+  const method = normalizeStatus(row['Metode Transaksi']);
+  if (status === 'PENDING' && method === 'SUDAH_DIBAYAR') return false;
+  if (status === 'SUDAH_DIBAYAR' && method !== 'SUDAH_DIBAYAR') return false;
+  return true;
+}
+
+async function getTransactionSummary(filters: any, current: Caller) {
+  let query = sb.from(T.X)
+    .select('ID,"Kode Pemasukan",Tanggal,Kategori,SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi"');
+  if (filters?.sppg && filters.sppg !== 'ALL') query = query.eq('SPPG', filters.sppg);
+  if (filters?.yayasan && filters.yayasan !== 'ALL') query = query.eq('YAYASAN', filters.yayasan);
+  if (filters?.kategori && filters.kategori !== 'ALL') query = query.eq('Kategori', filters.kategori);
+  if (filters?.dateStart) query = query.gte('Tanggal', normalizeDate(filters.dateStart));
+  if (filters?.dateEnd) query = query.lte('Tanggal', normalizeDate(filters.dateEnd));
+  const result = await query;
+  if (result.error) throw result.error;
+
+  let accessibleRows = result.data || [];
+  if (current.role === 'USER') {
+    accessibleRows = accessibleRows.filter((row: any) => lower(row.User) === current.email);
+  } else if (current.role === 'ADMIN') {
+    const allowed = new Set(
+      (await assignedPairs(current)).map(([sppg, yayasan]) =>
+        `${text(sppg).toUpperCase()}\u0000${text(yayasan).toUpperCase()}`),
+    );
+    accessibleRows = accessibleRows.filter((row: any) =>
+      allowed.has(`${text(row.SPPG).toUpperCase()}\u0000${text(row.YAYASAN).toUpperCase()}`));
+  }
+
+  let totalPemasukan = 0;
+  let totalPengeluaran = 0;
+  let totalTransaksi = 0;
+  for (const row of accessibleRows) {
+    if (!rowMatchesTransactionFilters(row, filters)) continue;
+    const nominal = Number(row.Nominal) || 0;
+    const kategori = text(row.Kategori).toUpperCase();
+    if (kategori === 'PEMASUKAN') totalPemasukan += nominal;
+    if (kategori === 'PENGELUARAN') totalPengeluaran += nominal;
+    totalTransaksi++;
+  }
+
+  return { success: true, totalPemasukan, totalPengeluaran, totalTransaksi };
+}
+
 function uniqueSuggestionValues(rows: any[], key: string, limit: number) {
   const seen = new Set<string>();
   const values: string[] = [];
@@ -725,6 +784,7 @@ async function deleteTransaction(id: string, current: Caller) {
 
 const HANDLERS: Record<string, (parameters: any[], current: Caller) => Promise<any>> = {
   getTransactions: (parameters, current) => listTransactions(parameters[0] || {}, current),
+  getTransactionSummary: (parameters, current) => getTransactionSummary(parameters[0] || {}, current),
   getTransactionSuggestions: (_parameters, current) => getTransactionSuggestions(current),
   getTransactionDetail: (parameters, current) => transactionDetail(text(parameters[0]), current),
   addTransaction: (parameters, current) => addTransaction(parameters[0] || {}, current),
@@ -739,11 +799,12 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') return json({
     status: 'ok',
     service: 'transaction-action',
-    version: 10,
+    version: 11,
     documentReadSource: T.DA,
     yayasanResolutionSource: T.S,
     writeMode: 'normalized-atomic',
     suggestionMode: 'authenticated-role-scoped',
+    summaryMode: 'authenticated-role-scoped-filtered',
   });
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
   try {
