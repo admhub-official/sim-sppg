@@ -19,7 +19,10 @@ function requireMatch(condition, message) {
 const submitStart = app.indexOf('function submitVerifikasiPembayaran()');
 const submitEnd = app.indexOf('function doSubmitVerifikasiPembayaran()', submitStart);
 const doSubmitStart = submitEnd;
-const doSubmitEnd = app.indexOf('// ============================================================\n// 12. MASTER BAHAN BAKU', doSubmitStart);
+const masterSectionMarker = /\/\/ ============================================================\r?\n\/\/ 12\. MASTER BAHAN BAKU/g;
+masterSectionMarker.lastIndex = doSubmitStart;
+const masterSectionMatch = masterSectionMarker.exec(app);
+const doSubmitEnd = masterSectionMatch ? masterSectionMatch.index : -1;
 
 requireMatch(submitStart >= 0 && submitEnd > submitStart, 'submitVerifikasiPembayaran block must exist');
 requireMatch(doSubmitStart >= 0 && doSubmitEnd > doSubmitStart, 'doSubmitVerifikasiPembayaran block must exist');

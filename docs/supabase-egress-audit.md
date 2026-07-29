@@ -29,9 +29,18 @@ dashboard reporting.
   pada halaman aktif.
 - Lookup pemilik per baris diganti satu lookup user terbatch.
 - Cache memory-only per sesi diterapkan dengan TTL 5–300 detik sesuai jenis data
-  dan dibersihkan setelah mutasi.
+  dan dibersihkan hanya setelah fungsi yang terdaftar sebagai mutasi.
 - Object Storage baru diberi `cacheControl: '3600'`; nama object bersifat unik
   sehingga cache tidak menyajikan replacement yang kedaluwarsa.
+
+### Follow-up Approval
+
+- Halaman Approval sekarang selalu mengirim `page` dan `pageSize`.
+- Edge Function mengambil kandidat antrean dengan proyeksi kolom tipis untuk
+  menghitung total, nominal KPI, opsi filter, dan ID halaman.
+- Detail transaksi, dokumen, dan payment proof hanya diambil untuk ID halaman
+  aktif. Pengambilan seluruh detail hanya diizinkan ketika pengguna secara
+  eksplisit menjalankan export.
 
 ## Pengukuran representatif
 
