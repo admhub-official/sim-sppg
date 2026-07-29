@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/public-gateway-smoke.mjs'
-      - 'uiux-fixes.js'
+      - 'app.js'
       - 'supabase/functions/auth-public-action/**'
       - 'supabase/functions/account-recovery-action/**'
       - 'supabase/functions/app-config-action/**'
@@ -24,10 +24,10 @@ jobs:
       - name: Validate router has no direct legacy mapping
         run: |
           set -euo pipefail
-          node --check uiux-fixes.js
-          ! grep -Fq "routeMap[fn]='dynamic-action'" uiux-fixes.js
-          grep -Fq "'auth-public-action'" uiux-fixes.js
-          grep -Fq "'account-recovery-action'" uiux-fixes.js
-          grep -Fq "'app-config-action'" uiux-fixes.js
+          node --check app.js
+          ! grep -Fq "'dynamic-action'" app.js
+          grep -Fq "'auth-public-action'" app.js
+          grep -Fq "'account-recovery-action'" app.js
+          grep -Fq "'app-config-action'" app.js
       - name: Run HTTP smoke
         run: node scripts/public-gateway-smoke.mjs
