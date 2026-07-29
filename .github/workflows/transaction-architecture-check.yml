@@ -42,7 +42,10 @@ jobs:
           grep -q 'hasMore' "$TX"
           grep -q 'documentReadSource' "$TX"
           grep -Eq "writeMode:[[:space:]]*'normalized-atomic'" "$TX"
-          grep -q 'version: 11' "$TX"
+          # Keep the PR gate aligned with the production deployment gate.
+          tx_version="$(sed -nE 's/.*version:[[:space:]]*([0-9]+).*/\1/p' "$TX" | tail -n 1)"
+          test -n "$tx_version"
+          test "$tx_version" -ge 11
           grep -q 'create_transaction_with_documents_atomic' "$TX"
           grep -q 'update_transaction_with_documents_atomic' "$TX"
           ! grep -q 'compatibilityWrite:true' "$TX"
