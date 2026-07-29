@@ -188,6 +188,27 @@ var API_READ_CACHE_TTL = {
   getTransactionEditMode:30000, getMyMenuVisibility:30000,
   getMyAnnouncements:30000, getSettingsHub:15000
 };
+// Only successful writes invalidate cached reads. Read endpoints that are not
+// cached (for example getTransactionDetail/getFileUrl) must not evict list and
+// dashboard entries, otherwise opening a modal causes avoidable Supabase fetches.
+var API_MUTATION_FUNCTIONS = {
+  addTransaction:1, editTransaction:1, sendCatatanApproval:1, uploadTxFile:1, deleteTransaction:1,
+  approveTransaction:1, submitUserBuktiPembayaran:1, submitUserBulkBuktiPembayaran:1,
+  verifyUserPayment:1, approveTransactionsBulk:1,
+  deleteUser:1, addPendingPayment:1, addSurveiBahanBaku:1, addSerahTerima:1, addMenuHarian:1,
+  addAdminAssignment:1, updateAdminAssignment:1, deleteAdminAssignment:1,
+  updatePendingPayment:1, deletePendingPayment:1, updateSurvei:1, deleteSurvei:1,
+  updateSerahTerima:1, deleteSerahTerima:1, updateMenuMBG:1, deleteMenuMBG:1,
+  addMasterBahanBaku:1, updateMasterBahanBaku:1, deleteMasterBahanBaku:1,
+  addMasterSupplier:1, updateMasterSupplier:1, deleteSupplier:1,
+  uploadSupplierFile:1, uploadFotoSurvei:1, uploadSerahTerimaFile:1,
+  markNotificationRead:1, markAllNotificationsRead:1,
+  updateUserProfile:1, uploadFotoProfil:1,
+  savePushSubscription:1, deletePushSubscription:1,
+  registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
+  recoverPassword:1, updateFeatureSettings:1, updateMenuVisibility:1,
+  createAnnouncement:1, setAnnouncementActive:1, dispatchNotification:1
+};
 var apiReadCache = Object.create(null);
 
 function apiReadCacheKey(fnName, params, token) {
@@ -255,7 +276,7 @@ function callApi(fnName, params, onSuccess, onFailure) {
       if (cacheKey) {
         try { apiReadCache[cacheKey] = { json: JSON.stringify(result), expiresAt: Date.now() + cacheTtl }; }
         catch(e) { /* A non-serializable response simply bypasses the cache. */ }
-      } else if (fnName !== 'updatePresence') {
+      } else if (API_MUTATION_FUNCTIONS[fnName]) {
         // Mutations may change any paged/read model; invalidate before refresh.
         clearApiReadCache();
       }
@@ -325,11 +346,17 @@ var pendingServerTotal = 0, pendingServerPaged = false;
 var auditServerTotal = 0, auditServerPaged = false, auditFilterTimer = null;
 var menuServerTotal = 0, menuServerPaged = false;
 var approvalPage = 1;
+var approvalServerTotal = 0;
+var approvalServerNominal = 0;
+var approvalServerPaged = false;
+var approvalFilterTimer = null;
+var approvalFilterOptions = { sppg: [], jenisKategori: [] };
 var filteredApprovalData = [];
 var selectedApprovalIds = new Set();
 var approvalLoadState = {
   inFlight: false,
   queued: false,
+  queuedPage: 1,
   requestId: 0,
   watchdog: null,
   hasLoaded: false
@@ -4371,10 +4398,27 @@ function renderFilePreview(fileInfo, title, iconClass, hideMissing) {
 function normalizeApprovalApiResponse(result) {
   var current = result;
   for (var depth = 0; depth < 4; depth++) {
-    if (Array.isArray(current)) return { valid: true, rows: current };
+    if (Array.isArray(current)) return {
+      valid: true, rows: current, page: 1, pageSize: current.length,
+      total: current.length, summary: null, filterOptions: null
+    };
     if (!current || typeof current !== 'object') break;
-    if (Array.isArray(current.data)) return { valid: true, rows: current.data };
-    if (Array.isArray(current.rows)) return { valid: true, rows: current.rows };
+    if (Array.isArray(current.data)) return {
+      valid: true, rows: current.data,
+      page: Number(current.page) || 1,
+      pageSize: Number(current.pageSize) || current.data.length,
+      total: Number(current.total) >= 0 ? Number(current.total) : current.data.length,
+      summary: current.summary || null,
+      filterOptions: current.filterOptions || null
+    };
+    if (Array.isArray(current.rows)) return {
+      valid: true, rows: current.rows,
+      page: Number(current.page) || 1,
+      pageSize: Number(current.pageSize) || current.rows.length,
+      total: Number(current.total) >= 0 ? Number(current.total) : current.rows.length,
+      summary: current.summary || null,
+      filterOptions: current.filterOptions || null
+    };
     if (Object.prototype.hasOwnProperty.call(current, 'result')) {
       current = current.result;
       continue;
@@ -4382,6 +4426,29 @@ function normalizeApprovalApiResponse(result) {
     break;
   }
   return { valid: false, rows: [] };
+}
+
+function approvalRequestFilters(page, exportAll) {
+  var filters = {
+    kategori: 'PENGELUARAN',
+    approvalOnly: true,
+    page: Math.max(1, Number(page) || 1),
+    pageSize: exportAll ? 100 : ITEMS_PER_PAGE
+  };
+  var search = $('apprSearchInput') ? $('apprSearchInput').value.trim() : '';
+  var sppg = $('apprFilterSPPG') ? $('apprFilterSPPG').value : 'ALL';
+  var jenisKat = $('apprFilterJenisKat') ? $('apprFilterJenisKat').value : 'ALL';
+  var kelengkapan = $('apprFilterKelengkapan') ? $('apprFilterKelengkapan').value : 'ALL';
+  var localStart = $('apprFilterTglStart') ? $('apprFilterTglStart').value : '';
+  var localEnd = $('apprFilterTglEnd') ? $('apprFilterTglEnd').value : '';
+  if (search) filters.search = search;
+  if (sppg && sppg !== 'ALL') filters.sppg = sppg;
+  if (jenisKat && jenisKat !== 'ALL') filters.jenisKategori = jenisKat;
+  if (kelengkapan && kelengkapan !== 'ALL') filters.kelengkapan = kelengkapan;
+  if (localStart || globalDateFilter.start) filters.dateStart = localStart || globalDateFilter.start;
+  if (localEnd || globalDateFilter.end) filters.dateEnd = localEnd || globalDateFilter.end;
+  if (exportAll) filters.exportAll = true;
+  return filters;
 }
 
 function normalizeApprovalTransaction(tx) {
@@ -4456,8 +4523,14 @@ function clearApprovalWatchdog() {
   }
 }
 
-function loadApprovalData() {
-  if (!currentUser || approvalLoadState.inFlight) return;
+function loadApprovalData(page) {
+  if (!currentUser) return;
+  page = Math.max(1, Number(page) || approvalPage || 1);
+  if (approvalLoadState.inFlight) {
+    approvalLoadState.queued = true;
+    approvalLoadState.queuedPage = page;
+    return;
+  }
 
   approvalLoadState.inFlight = true;
   approvalLoadState.queued = false;
@@ -4467,9 +4540,9 @@ function loadApprovalData() {
   if (!approvalLoadState.hasLoaded) renderApprovalLoadingState();
   else setApprovalRefreshing(true);
 
-  var filters = { kategori: 'PENGELUARAN' };
-  if (globalDateFilter.start) filters.dateStart = globalDateFilter.start;
-  if (globalDateFilter.end) filters.dateEnd = globalDateFilter.end;
+  // Approval uses the paged backend contract. Only the current page receives
+  // full transaction/document/proof data; KPI and filter metadata stay narrow.
+  var filters = approvalRequestFilters(page, false);
 
   clearApprovalWatchdog();
   approvalLoadState.watchdog = setTimeout(function() {
@@ -4488,6 +4561,7 @@ function loadApprovalData() {
     }
     clearApprovalWatchdog();
     approvalLoadState.inFlight = false;
+    var queuedPage = approvalLoadState.queued ? approvalLoadState.queuedPage : 0;
     approvalLoadState.queued = false;
     setApprovalRefreshing(false);
 
@@ -4498,11 +4572,19 @@ function loadApprovalData() {
       allTransactions = normalizedResponse.rows
         .map(normalizeApprovalTransaction)
         .filter(function(tx) { return tx && isApprovalQueueTransaction(tx); });
+      filteredApprovalData = allTransactions.slice();
+      approvalServerPaged = Number(normalizedResponse.page) > 0;
+      approvalServerTotal = approvalServerPaged ? Number(normalizedResponse.total || 0) : allTransactions.length;
+      approvalPage = approvalServerPaged ? Number(normalizedResponse.page || page) : 1;
+      approvalServerNominal = normalizedResponse.summary
+        ? Number(normalizedResponse.summary.nominal || 0)
+        : filteredApprovalData.reduce(function(sum, tx) { return sum + (Number(tx.nominal) || 0); }, 0);
+      if (normalizedResponse.filterOptions) approvalFilterOptions = normalizedResponse.filterOptions;
 
       approvalLoadState.hasLoaded = true;
-      approvalPage = 1;
-      populateApprovalFilters();
-      filterApproval();
+      populateApprovalFilters(approvalFilterOptions);
+      renderApprovalTable();
+      if (queuedPage) setTimeout(function() { loadApprovalData(queuedPage); }, 0);
     } catch (renderError) {
       console.error('Approval render failure:', renderError, result);
       renderApprovalLoadError(renderError && renderError.message ? renderError.message : 'Data Approval gagal ditampilkan.');
@@ -4543,10 +4625,11 @@ function renderApprovalTable() {
     return;
   }
 
-  var totalPages = Math.ceil(approvalData.length / ITEMS_PER_PAGE);
+  var totalRows = approvalServerPaged ? approvalServerTotal : approvalData.length;
+  var totalPages = Math.max(1, Math.ceil(totalRows / ITEMS_PER_PAGE));
   if (approvalPage > totalPages) approvalPage = totalPages;
-  var start = (approvalPage - 1) * ITEMS_PER_PAGE;
-  var pageData = approvalData.slice(start, start + ITEMS_PER_PAGE);
+  var start = approvalServerPaged ? (approvalPage - 1) * ITEMS_PER_PAGE : 0;
+  var pageData = approvalServerPaged ? approvalData : approvalData.slice(start, start + ITEMS_PER_PAGE);
 
   if (tbody) tbody.innerHTML = renderApprovalDesktopRows(pageData, start, canSelect);
   if (mobileList) mobileList.innerHTML = renderApprovalMobileCards(pageData, start, canSelect);
@@ -4556,13 +4639,16 @@ function renderApprovalTable() {
 }
 
 function renderApprovalKpi() {
-  var total = (filteredApprovalData || []).reduce(function(sum, tx) {
-    return sum + (Number(tx && tx.nominal) || 0);
-  }, 0);
+  var total = approvalServerPaged
+    ? approvalServerNominal
+    : (filteredApprovalData || []).reduce(function(sum, tx) {
+      return sum + (Number(tx && tx.nominal) || 0);
+    }, 0);
+  var totalRows = approvalServerPaged ? approvalServerTotal : (filteredApprovalData || []).length;
   var value = $('approvalKpiTotal');
   var count = $('approvalKpiCount');
   if (value) value.textContent = formatRupiah(total);
-  if (count) count.textContent = (filteredApprovalData || []).length + ' transaksi sesuai filter';
+  if (count) count.textContent = totalRows + ' transaksi sesuai filter';
 }
 
 function getApprovalStatusRowClass(metode) {
@@ -4652,7 +4738,10 @@ function syncApprovalSelectionControls(approvalData, canSelect) {
   });
 }
 
-function goApprovalPage(p) { approvalPage = p; renderApprovalTable(); }
+function goApprovalPage(p) {
+  approvalPage = Math.max(1, Number(p) || 1);
+  loadApprovalData(approvalPage);
+}
 
 
 function isApprovalInteractiveTarget(target) {
@@ -4862,68 +4951,43 @@ function printSelectedApprovalData() {
   exportApprovalReportPDF(data, 'Approval Transaksi Terpilih');
 }
 
-function populateApprovalFilters() {
-  var base = allTransactions.filter(isApprovalQueueTransaction);
-  var sppgSet = {}, jenisSet = {};
-  base.forEach(function(t) {
-    if (t.sppg) sppgSet[t.sppg] = true;
-    if (t.jenisKategori) jenisSet[t.jenisKategori] = true;
-  });
+function populateApprovalFilters(options) {
+  options = options || approvalFilterOptions || {};
+  var sppgValues = Array.isArray(options.sppg) ? options.sppg : [];
+  var jenisValues = Array.isArray(options.jenisKategori) ? options.jenisKategori : [];
   var selSppg = $('apprFilterSPPG');
   if (selSppg) {
     var prevSppg = selSppg.value || 'ALL';
     var html = '<option value="ALL">Semua SPPG</option>';
-    Object.keys(sppgSet).sort().forEach(function(s) { html += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
+    sppgValues.forEach(function(s) { html += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
     selSppg.innerHTML = html;
-    if (Object.keys(sppgSet).indexOf(prevSppg) > -1 || prevSppg === 'ALL') selSppg.value = prevSppg;
+    if (sppgValues.indexOf(prevSppg) > -1 || prevSppg === 'ALL') selSppg.value = prevSppg;
   }
   var selJenis = $('apprFilterJenisKat');
   if (selJenis) {
     var prevJenis = selJenis.value || 'ALL';
     var html2 = '<option value="ALL">Semua Jenis Kategori</option>';
-    Object.keys(jenisSet).sort().forEach(function(s) { html2 += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
+    jenisValues.forEach(function(s) { html2 += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
     selJenis.innerHTML = html2;
-    if (Object.keys(jenisSet).indexOf(prevJenis) > -1 || prevJenis === 'ALL') selJenis.value = prevJenis;
+    if (jenisValues.indexOf(prevJenis) > -1 || prevJenis === 'ALL') selJenis.value = prevJenis;
   }
 }
 
 function filterApproval() {
-  var search = $('apprSearchInput') ? $('apprSearchInput').value.toLowerCase().trim() : '';
-  var sppg = $('apprFilterSPPG') ? $('apprFilterSPPG').value : 'ALL';
-  var jenisKat = $('apprFilterJenisKat') ? $('apprFilterJenisKat').value : 'ALL';
-  var kelengkapan = $('apprFilterKelengkapan') ? $('apprFilterKelengkapan').value : 'ALL';
-  var dateStart = $('apprFilterTglStart') ? $('apprFilterTglStart').value : '';
-  var dateEnd = $('apprFilterTglEnd') ? $('apprFilterTglEnd').value : '';
-
-  var approvalBase = allTransactions.filter(isApprovalQueueTransaction);
-
-  filteredApprovalData = approvalBase.filter(function(tx) {
-    if (search) {
-      var s = ((tx.kode || '') + ' ' + (tx.item || '') + ' ' + (tx.user || '') + ' ' + (tx.sppg || '')).toLowerCase();
-      if (s.indexOf(search) === -1) return false;
-    }
-    if (sppg !== 'ALL' && tx.sppg !== sppg) return false;
-    if (jenisKat !== 'ALL' && tx.jenisKategori !== jenisKat) return false;
-    if (kelengkapan !== 'ALL' && _approvalDocStatus(tx).status !== kelengkapan) return false;
-    if (dateStart || dateEnd) {
-      var parts = (tx.tanggal || '').split('/');
-      if (parts.length === 3) {
-        var txDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-        if (dateStart) {
-          var ds = new Date(dateStart); ds.setHours(0,0,0,0);
-          if (txDate < ds) return false;
-        }
-        if (dateEnd) {
-          var de = new Date(dateEnd); de.setHours(23,59,59,999);
-          if (txDate > de) return false;
-        }
-      }
-    }
-    return true;
-  });
-
   approvalPage = 1;
-  renderApprovalTable();
+  selectedApprovalIds.clear();
+  if (approvalFilterTimer) clearTimeout(approvalFilterTimer);
+  // Debounce both search and dropdown/date filters to coalesce rapid UI events
+  // into one paged Edge Function request.
+  approvalFilterTimer = setTimeout(function() {
+    approvalFilterTimer = null;
+    if (approvalLoadState.inFlight) {
+      approvalLoadState.queued = true;
+      approvalLoadState.queuedPage = 1;
+      return;
+    }
+    loadApprovalData(1);
+  }, 250);
 }
 
 function resetApprovalFilter() {
@@ -4940,21 +5004,35 @@ function resetApprovalFilter() {
 // EXPORT APPROVAL — PDF, CSV, XLSX & ODS
 // ============================================================
 function exportApproval(format) {
-  var approvalData = filteredApprovalData;
-  if (!approvalData.length) {
-    showToast('warning', 'Tidak Ada Data', 'Tidak ada transaksi yang menunggu approval.');
-    return;
-  }
   closeApprovalDownloadMenu();
-  if (format === 'csv') {
-    exportApprovalReportCSV(approvalData);
-  } else if (format === 'pdf') {
-    exportApprovalReportPDF(approvalData);
-  } else if (format === 'xlsx' || format === 'ods') {
-    exportApprovalSpreadsheet(approvalData, format);
-  } else {
-    showToast('warning', 'Format Tidak Dikenal', 'Silakan pilih format file yang tersedia.');
-  }
+  showLoading(true);
+  // Full data is fetched only for an explicit export. Normal Approval browsing
+  // remains server-paged and transfers details for the visible page only.
+  callApi('getTransactions', [approvalRequestFilters(1, true)], function(result) {
+    showLoading(false);
+    var normalized = normalizeApprovalApiResponse(result);
+    var approvalData = normalized.valid
+      ? normalized.rows.map(normalizeApprovalTransaction).filter(function(tx) {
+        return tx && isApprovalQueueTransaction(tx);
+      })
+      : [];
+    if (!approvalData.length) {
+      showToast('warning', 'Tidak Ada Data', 'Tidak ada transaksi yang menunggu approval.');
+      return;
+    }
+    if (format === 'csv') {
+      exportApprovalReportCSV(approvalData);
+    } else if (format === 'pdf') {
+      exportApprovalReportPDF(approvalData);
+    } else if (format === 'xlsx' || format === 'ods') {
+      exportApprovalSpreadsheet(approvalData, format);
+    } else {
+      showToast('warning', 'Format Tidak Dikenal', 'Silakan pilih format file yang tersedia.');
+    }
+  }, function(err) {
+    showLoading(false);
+    showToast('error', 'Gagal', err && err.message ? err.message : 'Data export Approval tidak dapat dimuat.');
+  });
 }
 
 function toggleApprovalDownloadMenu(event) {
@@ -7925,18 +8003,9 @@ function refreshData() {
     );
 
   } else if (currentPage === 'approval') {
-    var filters = {};
     selectedApprovalIds.clear();
-    callApi('getTransactions', [filters], function(data) {
-        allTransactions = data || [];
-                populateApprovalFilters();
-                filterApproval();
-                checkDone();
-      },
-      function(err) {
-        checkDone();
-      }
-    );
+    loadApprovalData(1);
+    checkDone();
 
   } else if (currentPage === 'master-bahan') {
     callApi('getMasterBahanBaku', [], function(result) {

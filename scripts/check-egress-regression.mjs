@@ -17,8 +17,11 @@ const reporting = read('supabase/functions/reporting-action/core.ts');
 
 assert(app.includes('API_READ_CACHE_TTL'), 'client read cache must remain enabled');
 assert(app.includes('clearApiReadCache()'), 'mutations must invalidate client read cache');
+assert(app.includes('API_MUTATION_FUNCTIONS[fnName]'), 'only explicit mutations may invalidate cached reads');
 assert(transactions.includes('.range(page.from, page.to)'), 'transaction pagination must run in PostgREST');
-assert(approvals.includes('.range(page.from, page.to)'), 'approval pagination must run in PostgREST');
+assert(approvals.includes('APPROVAL_CANDIDATE_COLUMNS'), 'Approval filtering must use a narrow candidate projection');
+assert(approvals.includes('candidates.rows.slice(page.from, page.to + 1)'), 'Approval detail loading must be limited to page IDs');
+assert(approvals.includes('const selectedIds = selected.map'), 'Approval documents and proofs must be scoped to selected page IDs');
 assert(operations.includes('q=q.range(page.from,page.to)'), 'operational lists must use database ranges');
 assert(masterBb.includes('q=q.range(from,to)'), 'master material pagination must use a database range');
 assert(reporting.includes("select('Tanggal,Kategori,SPPG,YAYASAN,Nominal,User"), 'reporting must keep its narrow transaction projection');

@@ -14,6 +14,7 @@ const DOC: Record<string, string> = {
 // Explicit projections keep high-traffic approval lists independent from future
 // wide columns added to TRANSAKSI or the document compatibility view.
 const TRANSACTION_LIST_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi","APPROVED BY","WAKTU APPROVE",Catatan_1,"Catatan Approval"';
+const APPROVAL_CANDIDATE_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,Nominal,User,"Nama Item/ Bahan Baku","Metode Transaksi"';
 const DOCUMENT_COLUMNS = 'transaksi_id,document_type,storage_bucket,storage_path,mime_type,original_file_name,updated_at';
 
 function documentState(docs: Map<string, any>) {
@@ -100,28 +101,157 @@ function pageSpec(value: any) {
   return { page, pageSize, from: (page - 1) * pageSize, to: page * pageSize - 1 };
 }
 
+function approvalDocumentStatus(docs: Map<string, any>, payment: ReturnType<typeof summarize>) {
+  const hasProof = !!text(docs.get(DOC.foto)?.storage_path) ||
+    !!text(docs.get(DOC.file)?.storage_path) ||
+    payment.proofCount > 0;
+  const hasNota = !!text(docs.get(DOC.nota)?.storage_path);
+  if (hasProof && hasNota) return 'Lengkap';
+  if (hasProof) return 'Tidak ada Nota';
+  if (hasNota) return 'Tidak ada bukti Pembayaran';
+  return 'Tidak Lengkap';
+}
+
+function matchesApprovalFilters(row: any, filters: any) {
+  const search = text(filters.search).toLowerCase();
+  if (search) {
+    const haystack = [
+      row['Kode Pemasukan'], row['Nama Item/ Bahan Baku'], row.User, row.SPPG,
+    ].map((value) => text(value).toLowerCase()).join(' ');
+    if (!haystack.includes(search)) return false;
+  }
+  if (filters.sppg && filters.sppg !== 'ALL' && norm(row.SPPG) !== norm(filters.sppg)) return false;
+  if (filters.jenisKategori && filters.jenisKategori !== 'ALL' &&
+      text(row['Jenis Kategori']) !== text(filters.jenisKategori)) return false;
+  return true;
+}
+
+async function approvalCandidates(filters: any, current: Caller, scope: string[]) {
+  // Candidate rows intentionally use a narrow projection. This lets the Edge
+  // Function calculate filters/KPI before paging without transferring document
+  // metadata and payment proof payloads for every Approval row.
+  const rows: any[] = [];
+  const chunkSize = 1000;
+  for (let from = 0; ; from += chunkSize) {
+    let query = sb.from(TABLE.tx)
+      .select(APPROVAL_CANDIDATE_COLUMNS)
+      .eq('Kategori', 'PENGELUARAN')
+      .neq('Metode Transaksi', 'SUDAH_DIBAYAR')
+      .neq('Metode Transaksi', 'LUNAS')
+      .order('Tanggal', { ascending: false })
+      .order('ID', { ascending: false })
+      .range(from, from + chunkSize - 1);
+    if (current.role === 'USER') query = query.ilike('User', current.email);
+    if (current.role === 'ADMIN') query = query.in('SPPG', scope);
+    if (filters.dateStart) query = query.gte('Tanggal', text(filters.dateStart).slice(0, 10));
+    if (filters.dateEnd) query = query.lte('Tanggal', text(filters.dateEnd).slice(0, 10));
+    const result = await query;
+    if (result.error) throw result.error;
+    const batch = result.data || [];
+    rows.push(...batch);
+    if (batch.length < chunkSize) break;
+  }
+
+  const queueRows = rows.filter((row: any) => {
+    const status = normalizeStatus(row['Metode Transaksi']);
+    return norm(row.Kategori) === 'PENGELUARAN' &&
+      status !== 'SUDAH_DIBAYAR' && status !== 'LUNAS';
+  });
+  const filterOptions = {
+    sppg: [...new Set(queueRows.map((row: any) => text(row.SPPG)).filter(Boolean))].sort(),
+    jenisKategori: [...new Set(queueRows.map((row: any) => text(row['Jenis Kategori'])).filter(Boolean))].sort(),
+  };
+  let filtered = queueRows.filter((row: any) => matchesApprovalFilters(row, filters));
+
+  const completeness = text(filters.kelengkapan);
+  if (completeness && completeness !== 'ALL' && filtered.length) {
+    const ids = filtered.map((row: any) => text(row.ID));
+    const docs = await docsFor(ids);
+    const proofs = await proofRows(ids);
+    const grouped = new Map<string, any[]>();
+    for (const proof of proofs) {
+      const id = text(proof.transaksi_id);
+      const list = grouped.get(id) || [];
+      list.push(proof);
+      grouped.set(id, list);
+    }
+    filtered = filtered.filter((row: any) => {
+      const id = text(row.ID);
+      return approvalDocumentStatus(
+        docs.get(id) || new Map(),
+        summarize(grouped.get(id) || []),
+      ) === completeness;
+    });
+  }
+  return { rows: filtered, filterOptions };
+}
+
 export async function getTransactions(parameters: any[], current: Caller) {
   const filters = parameters[0] || {};
   const page = pageSpec(filters);
+  const approvalOnly = filters.approvalOnly === true;
+  const scope = current.role === 'ADMIN' ? [...await assignedSppg(current)] : [];
+  if (current.role === 'ADMIN' && !scope.length) return page
+    ? {
+      data: [], page: page.page, pageSize: page.pageSize, total: 0, hasMore: false,
+      summary: { total: 0, nominal: 0 },
+      filterOptions: { sppg: [], jenisKategori: [] },
+    }
+    : [];
+
+  if (approvalOnly) {
+    const candidates = await approvalCandidates(filters, current, scope);
+    const total = candidates.rows.length;
+    const nominal = candidates.rows.reduce((sum: number, row: any) => sum + (Number(row.Nominal) || 0), 0);
+    const selected = page && filters.exportAll !== true
+      ? candidates.rows.slice(page.from, page.to + 1)
+      : candidates.rows;
+    const selectedIds = selected.map((row: any) => text(row.ID));
+    if (!selectedIds.length) return page
+      ? {
+        data: [], page: page.page, pageSize: page.pageSize, total, hasMore: false,
+        summary: { total, nominal }, filterOptions: candidates.filterOptions,
+      }
+      : [];
+
+    const result = await sb.from(TABLE.tx)
+      .select(TRANSACTION_LIST_COLUMNS)
+      .in('ID', selectedIds)
+      .order('Tanggal', { ascending: false })
+      .order('ID', { ascending: false });
+    if (result.error) throw result.error;
+    const rows: any[] = result.data || [];
+    const docs = await docsFor(selectedIds);
+    const users = await usersFor(rows);
+    const proofs = await proofRows(selectedIds);
+    const grouped = new Map<string, any[]>();
+    for (const proof of proofs) {
+      const list = grouped.get(text(proof.transaksi_id)) || [];
+      list.push(proof);
+      grouped.set(text(proof.transaksi_id), list);
+    }
+    const data = rows.map((row: any) => enrich(
+      mapped(row, docs.get(text(row.ID)) || new Map(), users.get(text(row.User).toLowerCase())),
+      summarize(grouped.get(text(row.ID)) || []),
+    ));
+    if (!page || filters.exportAll === true) return data;
+    return {
+      data, page: page.page, pageSize: page.pageSize,
+      total, hasMore: page.to + 1 < total,
+      summary: { total, nominal }, filterOptions: candidates.filterOptions,
+    };
+  }
+
   let query = page
     ? sb.from(TABLE.tx).select(TRANSACTION_LIST_COLUMNS, { count: 'exact' })
     : sb.from(TABLE.tx).select(TRANSACTION_LIST_COLUMNS);
-  const approvalOnly = filters.approvalOnly === true;
   if (current.role === 'USER') query = query.ilike('User', current.email);
   if (current.role === 'ADMIN') {
-    const scope = [...await assignedSppg(current)];
-    if (!scope.length) return page
-      ? { data: [], page: page.page, pageSize: page.pageSize, total: 0, hasMore: false }
-      : [];
     query = query.in('SPPG', scope);
   }
   if (filters.sppg && filters.sppg !== 'ALL') query = query.eq('SPPG', filters.sppg);
   if (filters.yayasan && filters.yayasan !== 'ALL') query = query.eq('YAYASAN', filters.yayasan);
-  if (approvalOnly) {
-    query = query.eq('Kategori', 'PENGELUARAN')
-      .neq('Metode Transaksi', 'SUDAH_DIBAYAR')
-      .neq('Metode Transaksi', 'LUNAS');
-  } else if (filters.kategori && filters.kategori !== 'ALL') {
+  if (filters.kategori && filters.kategori !== 'ALL') {
     query = query.eq('Kategori', filters.kategori);
   }
   if (filters.dateStart) query = query.gte('Tanggal', text(filters.dateStart).slice(0, 10));
@@ -133,10 +263,7 @@ export async function getTransactions(parameters: any[], current: Caller) {
 
   const result = await query;
   if (result.error) throw result.error;
-  let rows: any[] = result.data || [];
-  if (approvalOnly) {
-    rows = rows.filter((row: any) => norm(row.Kategori) === 'PENGELUARAN' && normalizeStatus(row['Metode Transaksi']) !== 'SUDAH_DIBAYAR');
-  }
+  const rows: any[] = result.data || [];
 
   const docs = await docsFor(rows.map((row: any) => text(row.ID)));
   const users = await usersFor(rows);

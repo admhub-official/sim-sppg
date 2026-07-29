@@ -33,9 +33,10 @@ jobs:
           grep -Fq "var API_BASE_URL" app.js
           grep -Fq "var API_ROUTES" app.js
           grep -Fq "Fungsi API tidak terdaftar" app.js
-          grep -Fq "function loadApprovalData()" app.js
-          grep -Fq "if (!currentUser || approvalLoadState.inFlight) return;" app.js
-          grep -Fq "var filters = { kategori: 'PENGELUARAN' };" app.js
+          grep -Fq "function loadApprovalData(page)" app.js
+          grep -Fq "if (approvalLoadState.inFlight) {" app.js
+          grep -Fq "var filters = approvalRequestFilters(page, false);" app.js
+          grep -Fq "approvalOnly: true" app.js
           grep -Fq "var normalizedResponse = normalizeApprovalApiResponse(result);" app.js
           grep -Fq "Approval render failure:" app.js
           worker_version="$(sed -n "s/.*const version = '\([^']*\)'.*/\1/p" _worker.js | head -n 1)"
@@ -51,15 +52,14 @@ jobs:
           grep -Fq "pageKey()==='approval'" app.js
           if grep -Fq 'class="auth-card-brand"' index.html; then exit 1; fi
           grep -Fq "margin-top: -14px;" index.html
-          test "$(grep -Fc 'function loadApprovalData()' app.js)" -eq 1
-          if grep -Fq "var filters = { kategori: 'PENGELUARAN', approvalOnly: true };" app.js; then exit 1; fi
+          test "$(grep -Fc 'function loadApprovalData(page)' app.js)" -eq 1
           if grep -Fq 'function runQueuedApprovalReload()' app.js; then exit 1; fi
           if grep -Fq 'approvalRuntime' _worker.js; then exit 1; fi
           if grep -Fq '<script src="./approval-transaction-loader.js' _worker.js; then exit 1; fi
           if grep -Fq 'networkFirstAppWithCompatibility' sw.js; then exit 1; fi
       - name: Validate pagination integrations
         run: |
-          for token in txServerPaged usersServerPaged bbServerPaged supplierServerPaged surveiServerPaged stServerPaged menuServerPaged pendingServerPaged auditServerPaged notifServerPaged; do
+          for token in txServerPaged approvalServerPaged usersServerPaged bbServerPaged supplierServerPaged surveiServerPaged stServerPaged menuServerPaged pendingServerPaged auditServerPaged notifServerPaged; do
             grep -Fq "$token" app.js || exit 1
           done
       - name: Check accidental credential literals
