@@ -350,7 +350,8 @@ var approvalServerTotal = 0;
 var approvalServerNominal = 0;
 var approvalServerPaged = false;
 var approvalFilterTimer = null;
-var approvalFilterOptions = { sppg: [], jenisKategori: [] };
+var approvalFilterOptions = { sppg: [], jenisKategori: [], supplier: [] };
+var approvalSupplierGroups = [];
 var filteredApprovalData = [];
 var selectedApprovalIds = new Set();
 var approvalLoadState = {
@@ -757,6 +758,8 @@ function handleItemAutocomplete(input) {
   var val = input.value.trim().toLowerCase();
   var jenisKat = $('addTxJenisKat') ? $('addTxJenisKat').value.trim().toUpperCase() : '';
   var isBelanjaBB = (jenisKat === 'BELANJA BAHAN BAKU');
+  var selectedSupplier = findTransactionSupplier($('addTxSupplier') ? $('addTxSupplier').value : '');
+  var supplierItems = selectedSupplier && Array.isArray(selectedSupplier.items) ? selectedSupplier.items : [];
 
   // Tampilkan dropdown bahkan saat val kosong jika BELANJA BAHAN BAKU (langsung tampil saat fokus)
   if (!val && !isBelanjaBB) { setTransactionAutocompleteOpen(dropdown, input, false); return; }
@@ -766,6 +769,15 @@ function handleItemAutocomplete(input) {
   if (isBelanjaBB) {
     // Mode: ref ke Master Bahan Baku — format "Nama - KodeBahan"
     var bb = dropdownOptions.bahanBaku || [];
+    if (supplierItems.length) {
+      var supplierItemLookup = supplierItems.map(function(item) { return String(item).trim().toLowerCase(); });
+      bb = bb.filter(function(b) {
+        var name = String(b.nama || '').trim().toLowerCase();
+        return supplierItemLookup.some(function(item) {
+          return name === item || name.indexOf(item) > -1 || item.indexOf(name) > -1;
+        });
+      });
+    }
     var matches = val
       ? bb.filter(function(b) {
           var haystack = ((b.nama || '') + ' ' + (b.kode || '') + ' ' + (b.kategori || '')).toLowerCase();
@@ -812,6 +824,7 @@ function handleItemAutocomplete(input) {
     var masterItems = (dropdownOptions.bahanBaku || []).map(function(b) { return b.nama; });
     var sources = uniqueAutocompleteValues([
       transactionSuggestionHistory.items,
+      supplierItems,
       pageItems,
       masterItems
     ]);
@@ -2770,6 +2783,56 @@ function populateSupplierSelects() {
     suppliers.forEach(function(s) { html += '<option value="' + esc(s.nama) + '">' + esc(s.nama) + '</option>'; });
     sel.innerHTML = html;
   });
+  populateTransactionSupplierDatalist();
+}
+
+function transactionSupplierChoices(mode) {
+  var sppgInput = mode === 'edit' ? $('editTxSPPG') : $('addTxSPPG');
+  var targetSppg = sppgInput ? String(sppgInput.value || '').trim().toLowerCase() : '';
+  var suppliers = dropdownOptions.suppliers || [];
+  if (!targetSppg) return suppliers;
+  return suppliers.filter(function(s) {
+    return String(s.sppg || '').trim().toLowerCase() === targetSppg;
+  });
+}
+
+function populateTransactionSupplierDatalist(mode) {
+  var datalist = $('txSupplierDatalist');
+  if (datalist) {
+    datalist.innerHTML = transactionSupplierChoices(mode).map(function(s) {
+      return '<option value="' + esc(s.nama) + '">' + esc((s.items || []).join(', ')) + '</option>';
+    }).join('');
+  }
+}
+
+function findTransactionSupplier(name, mode) {
+  var normalized = String(name || '').trim().toLowerCase();
+  return transactionSupplierChoices(mode).find(function(s) {
+    return String(s.nama || '').trim().toLowerCase() === normalized;
+  }) || null;
+}
+
+function handleTransactionSupplierInput(mode) {
+  var prefix = mode === 'edit' ? 'editTx' : 'addTx';
+  var input = $(prefix + 'Supplier');
+  var idInput = $(prefix + 'SupplierId');
+  var hint = $(prefix + 'SupplierHint');
+  if (!input || !idInput) return;
+  var supplier = findTransactionSupplier(input.value, mode);
+  idInput.value = supplier ? supplier.id : '';
+  if (hint) {
+    hint.innerHTML = supplier
+      ? '<i class="fas fa-check-circle" style="color:var(--emerald)"></i> Supplier master dipilih. Data rekening akan disalin otomatis saat disimpan.'
+      : 'Penjual manual. Isi rekening di bawah bila pembayaran melalui transfer.';
+  }
+  var bankFields = $(prefix + 'ManualBankFields');
+  var holderField = $(prefix + 'ManualAccountHolderField');
+  if (bankFields) bankFields.style.display = supplier ? 'none' : '';
+  if (holderField) holderField.style.display = supplier ? 'none' : '';
+  if (supplier && mode === 'add') {
+    var itemInput = $('addTxItem');
+    if (itemInput && !itemInput.value && supplier.items && supplier.items.length === 1) itemInput.value = supplier.items[0];
+  }
 }
 
 function populateKategoriFilters() {
@@ -3665,7 +3728,7 @@ function renderTransaksiTable() {
   var count = filteredTransactions.length;
   if (!count) {
     var canAdd = currentUser && currentUser.role; // semua role yang punya akses halaman ini boleh tambah
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-inbox"></i></div><h4>Tidak Ada Transaksi</h4><p>Belum ada transaksi yang tercatat di sini.</p>' +
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-inbox"></i></div><h4>Tidak Ada Transaksi</h4><p>Belum ada transaksi yang tercatat di sini.</p>' +
       (canAdd ? '<button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openAddTransaksiModal()"><i class="fas fa-plus"></i> Tambah Transaksi Pertama</button>' : '') +
       '</div></td></tr>';
     $('txPagination').innerHTML = ''; return;
@@ -3690,6 +3753,7 @@ function renderTransaksiTable() {
       '<td><span class="badge ' + (tx.kategori === 'PENGELUARAN' ? 'badge-red' : 'badge-green') + '">' + esc(tx.kategori || '-') + '</span></td>' +
       '<td><span class="badge badge-outline">' + esc(tx.sppg || '-') + '</span></td>' +
       '<td><strong style="color:var(--slate-700);">' + esc(tx.item || '-') + '</strong></td>' +
+      '<td><span style="font-weight:600;">' + esc(tx.supplierName || '-') + '</span></td>' +
       '<td><strong style="color:var(--slate-800);">' + formatRupiah(tx.nominal) + '</strong></td>' +
       '<td>' + getMetodeBadge(tx.metodeTransaksi) + '</td>' +
       '<td class="transaction-note-cell' + (hasCatatan ? '' : ' is-empty') + '">' +
@@ -3716,7 +3780,7 @@ function applyTransactionFiltersLocal() {
   var dateEnd = hasLocalDateRange ? localDateEnd : (globalDateFilter.end || '');
   filteredTransactions = allTransactions.filter(function(tx) {
     if (search) {
-      var text = ((tx.kode || '') + ' ' + (tx.item || '') + ' ' + (tx.user || '') + ' ' + (tx.sppg || '') + ' ' + (tx.catatan || '')).toLowerCase();
+      var text = ((tx.kode || '') + ' ' + (tx.item || '') + ' ' + (tx.supplierName || '') + ' ' + (tx.user || '') + ' ' + (tx.sppg || '') + ' ' + (tx.catatan || '')).toLowerCase();
       if (text.indexOf(search) === -1) return false;
     }
     if (sppg !== 'ALL' && tx.sppg !== sppg) return false;
@@ -3778,6 +3842,14 @@ function openEditTransaksi(id) {
       $('editTxNominal').value = tx.nominal || '';
       $('editTxCatatan').value = tx.catatan || '';
       $('editTxMetode').value = tx.metodeTransaksi || 'BELUM_BAYAR';
+      $('editTxSupplier').value = tx.supplierName || '';
+      $('editTxSupplierId').value = tx.supplierId || '';
+      $('editTxSupplierBank').value = tx.supplierBankName || '';
+      $('editTxSupplierAccount').value = tx.supplierAccountNumber || '';
+      $('editTxSupplierAccountHolder').value = tx.supplierAccountHolder || '';
+      populateTransactionSupplierDatalist('edit');
+      handleTransactionSupplierInput('edit');
+      updateEditTxSupplierVisibility();
 
       editTxExistingFiles = {
         uploadFoto: tx.uploadFoto || '',
@@ -3824,6 +3896,17 @@ function saveEditTransaksi() {
     'Catatan': $('editTxCatatan').value,
     'Metode Transaksi': $('editTxMetode').value
   };
+  if (fields.Kategori === 'PENGELUARAN') {
+    fields['Supplier ID'] = $('editTxSupplierId').value;
+    fields['Nama Supplier'] = $('editTxSupplier').value.trim();
+    fields['Nama Bank Supplier'] = $('editTxSupplierBank').value.trim();
+    fields['No Rekening Supplier'] = $('editTxSupplierAccount').value.trim();
+    fields['Atas Nama Rekening Supplier'] = $('editTxSupplierAccountHolder').value.trim();
+    if (!fields['Nama Supplier']) {
+      showToast('error', 'Validasi', 'Supplier atau penjual wajib diisi untuk transaksi pengeluaran.');
+      return;
+    }
+  }
   showLoading(true);
 
   var fotoFile = $('editTxFoto') ? $('editTxFoto').files[0] : null;
@@ -3916,6 +3999,7 @@ function getMetodeBadge(m) {
 
 function openAddTransaksiModal() {
   $('addTxTanggal').value = formatDateInput();
+  populateTransactionSupplierDatalist('add');
   loadTransactionSuggestions();
 
   // Pastikan data bahan baku sudah dimuat sebelum modal dibuka
@@ -3957,7 +4041,14 @@ function openAddTransaksiModal() {
       }
     }
   })();
+  populateTransactionSupplierDatalist('add');
   $('addTxItem').value = '';
+  $('addTxSupplier').value = '';
+  $('addTxSupplierId').value = '';
+  $('addTxSupplierBank').value = '';
+  $('addTxSupplierAccount').value = '';
+  $('addTxSupplierAccountHolder').value = '';
+  handleTransactionSupplierInput('add');
   $('addTxCatatan').value = '';
   $('addTxMetodeTransaksi').value = 'BELUM_BAYAR';
   updateAddTxMetodeStyle();
@@ -3979,6 +4070,14 @@ function updateAddTxKategoriStyle() {
   select.classList.toggle('category-income', isPemasukan);
   select.classList.toggle('category-expense', !isPemasukan);
   select.setAttribute('aria-label', isPemasukan ? 'Kategori Pemasukan' : 'Kategori Pengeluaran');
+  var supplierSection = $('addTxSupplierSection');
+  if (supplierSection) supplierSection.style.display = isPemasukan ? 'none' : '';
+}
+
+function updateEditTxSupplierVisibility() {
+  var category = $('editTxKategori');
+  var section = $('editTxSupplierSection');
+  if (section) section.style.display = category && category.value === 'PEMASUKAN' ? 'none' : '';
 }
 
 function updateAddTxMetodeStyle() {
@@ -4016,8 +4115,19 @@ function saveAddTransaksi() {
     catatan: $('addTxCatatan').value,
     metodeTransaksi: $('addTxMetodeTransaksi').value,
     };
+  if (data.kategori === 'PENGELUARAN') {
+    data.supplierId = $('addTxSupplierId').value;
+    data.supplierName = $('addTxSupplier').value.trim();
+    data.supplierBankName = $('addTxSupplierBank').value.trim();
+    data.supplierAccountNumber = $('addTxSupplierAccount').value.trim();
+    data.supplierAccountHolder = $('addTxSupplierAccountHolder').value.trim();
+  }
   if (!data.tanggal || !data.sppg || !data.namaItem || !data.nominal) {
     showToast('error', 'Validasi', 'Tanggal, SPPG, Nama Item, dan Nominal wajib diisi'); return;
+  }
+  if (data.kategori === 'PENGELUARAN' && !data.supplierName) {
+    showToast('error', 'Supplier Wajib', 'Pilih supplier dari saran atau ketik nama penjual secara manual.');
+    return;
   }
   var fotoFile = $('addTxFoto').files[0];
   var notaFile = $('addTxNota') ? $('addTxNota').files[0] : null;
@@ -4248,6 +4358,10 @@ function openDetailSupplier(rowNum) {
   var email   = s['EMAIL']          || s['Email']         || '-';
   var alamat  = s['ALAMAT TOKO']    || s['Alamat']        || '-';
   var status  = s['STATUS']         || s['Status']        || '-';
+  var bank    = s['NAMA BANK']      || '-';
+  var noRek   = s['NO REKENING']    || '-';
+  var atasNama= s['ATAS NAMA REKENING'] || '-';
+  var items   = Array.isArray(s['ITEM YANG DIJUAL']) ? s['ITEM YANG DIJUAL'] : [];
   var statusBadge = status === 'Aktif' ? 'badge-green' : status === 'Suspend' ? 'badge-red' : 'badge-amber';
   var html =
     '<div class="info-card">' +
@@ -4257,6 +4371,12 @@ function openDetailSupplier(rowNum) {
         : '-') +
       infoRow('Email', esc(email)) +
       infoRow('Alamat Toko', esc(alamat)) +
+      infoRow('Bank', esc(bank)) +
+      infoRow('Nomor Rekening', '<span style="font-family:monospace;">' + esc(noRek) + '</span>') +
+      infoRow('Atas Nama Rekening', esc(atasNama)) +
+      infoRow('Item yang Dijual', items.length ? items.map(function(item) {
+        return '<span class="badge badge-outline" style="margin:2px;">' + esc(item) + '</span>';
+      }).join('') : '-') +
       infoRow('Status', '<span class="badge ' + statusBadge + '">' + esc(status) + '</span>') +
     '</div>';
   $('detailBody').innerHTML = '<div style="margin-bottom:8px;"><div class="detail-section-title"><i class="fas fa-truck" style="margin-right:6px;"></i>Informasi Supplier</div></div>' + html;
@@ -4292,10 +4412,20 @@ function renderDetailTransaksi(tx, options) {
         infoRow('Jenis', esc(tx.jenisKategori || '-')) +
         infoRow('SPPG', '<span class="badge badge-outline">' + esc(tx.sppg || '-') + '</span>') +
         infoRow('Item', '<strong style="font-size:14px;color:var(--slate-800);">' + esc(tx.item || '-') + '</strong>') +
+        (tx.kategori === 'PENGELUARAN' ? infoRow('Supplier / Penjual', '<strong>' + esc(tx.supplierName || 'Belum tercatat') + '</strong>') : '') +
         infoRow('Nominal', '<strong style="font-size:18px;">' + formatRupiah(tx.nominal) + '</strong>') +
         infoRow('Metode', getMetodeBadge(tx.metodeTransaksi)) +
         (tx.catatan && tx.catatan !== '-' ? infoRow('Catatan', '<span style="color:var(--slate-600);font-style:italic;">' + esc(tx.catatan) + '</span>') : '') +
       '</div></div>' +
+    (tx.kategori === 'PENGELUARAN' ? '<div style="margin-bottom:20px;">' +
+      '<div class="detail-section-title"><i class="fas fa-university" style="margin-right:6px;"></i>Tujuan Pembayaran</div>' +
+      '<div class="info-card">' +
+        infoRow('Nama Supplier', esc(tx.supplierName || 'Belum tercatat')) +
+        infoRow('Bank', esc(tx.supplierBankName || '-')) +
+        infoRow('Nomor Rekening', '<span style="font-family:monospace;">' + esc(tx.supplierAccountNumber || '-') + '</span>') +
+        infoRow('Atas Nama', esc(tx.supplierAccountHolder || '-')) +
+        infoRow('Sumber Data', esc(tx.supplierSource === 'MASTER' ? 'Master Supplier' : tx.supplierSource === 'MANUAL' ? 'Input Manual' : 'Data Lama')) +
+      '</div></div>' : '') +
     '<div style="margin-bottom:20px;">' +
       '<div class="detail-section-title"><i class="fas fa-clipboard-check" style="margin-right:6px;"></i>Status Dokumen</div>' +
       '<div class="detail-doc-item ' + (isLengkap ? 'doc-ok' : 'doc-missing') + '">' +
@@ -4400,7 +4530,8 @@ function normalizeApprovalApiResponse(result) {
   for (var depth = 0; depth < 4; depth++) {
     if (Array.isArray(current)) return {
       valid: true, rows: current, page: 1, pageSize: current.length,
-      total: current.length, summary: null, filterOptions: null
+      total: current.length, summary: null, filterOptions: null,
+      supplierGroups: []
     };
     if (!current || typeof current !== 'object') break;
     if (Array.isArray(current.data)) return {
@@ -4409,7 +4540,8 @@ function normalizeApprovalApiResponse(result) {
       pageSize: Number(current.pageSize) || current.data.length,
       total: Number(current.total) >= 0 ? Number(current.total) : current.data.length,
       summary: current.summary || null,
-      filterOptions: current.filterOptions || null
+      filterOptions: current.filterOptions || null,
+      supplierGroups: Array.isArray(current.supplierGroups) ? current.supplierGroups : []
     };
     if (Array.isArray(current.rows)) return {
       valid: true, rows: current.rows,
@@ -4417,7 +4549,8 @@ function normalizeApprovalApiResponse(result) {
       pageSize: Number(current.pageSize) || current.rows.length,
       total: Number(current.total) >= 0 ? Number(current.total) : current.rows.length,
       summary: current.summary || null,
-      filterOptions: current.filterOptions || null
+      filterOptions: current.filterOptions || null,
+      supplierGroups: Array.isArray(current.supplierGroups) ? current.supplierGroups : []
     };
     if (Object.prototype.hasOwnProperty.call(current, 'result')) {
       current = current.result;
@@ -4438,12 +4571,14 @@ function approvalRequestFilters(page, exportAll) {
   var search = $('apprSearchInput') ? $('apprSearchInput').value.trim() : '';
   var sppg = $('apprFilterSPPG') ? $('apprFilterSPPG').value : 'ALL';
   var jenisKat = $('apprFilterJenisKat') ? $('apprFilterJenisKat').value : 'ALL';
+  var supplier = $('apprFilterSupplier') ? $('apprFilterSupplier').value : 'ALL';
   var kelengkapan = $('apprFilterKelengkapan') ? $('apprFilterKelengkapan').value : 'ALL';
   var localStart = $('apprFilterTglStart') ? $('apprFilterTglStart').value : '';
   var localEnd = $('apprFilterTglEnd') ? $('apprFilterTglEnd').value : '';
   if (search) filters.search = search;
   if (sppg && sppg !== 'ALL') filters.sppg = sppg;
   if (jenisKat && jenisKat !== 'ALL') filters.jenisKategori = jenisKat;
+  if (supplier && supplier !== 'ALL') filters.supplier = supplier;
   if (kelengkapan && kelengkapan !== 'ALL') filters.kelengkapan = kelengkapan;
   if (localStart || globalDateFilter.start) filters.dateStart = localStart || globalDateFilter.start;
   if (localEnd || globalDateFilter.end) filters.dateEnd = localEnd || globalDateFilter.end;
@@ -4466,6 +4601,12 @@ function normalizeApprovalTransaction(tx) {
   normalized.userEmail = tx.userEmail || tx.emailPenginput || normalized.user;
   normalized.userName = tx.userName || tx.namaPenginput || normalized.userEmail || '-';
   normalized.item = tx.item || tx.namaItem || tx['Nama Item/ Bahan Baku'] || '';
+  normalized.supplierId = tx.supplierId || tx['SUPPLIER ID'] || '';
+  normalized.supplierName = tx.supplierName || tx['NAMA SUPPLIER'] || '';
+  normalized.supplierBankName = tx.supplierBankName || tx['NAMA BANK SUPPLIER'] || '';
+  normalized.supplierAccountNumber = tx.supplierAccountNumber || tx['NO REKENING SUPPLIER'] || '';
+  normalized.supplierAccountHolder = tx.supplierAccountHolder || tx['ATAS NAMA REKENING SUPPLIER'] || '';
+  normalized.supplierSource = tx.supplierSource || tx['SUMBER SUPPLIER'] || '';
   normalized.uploadFoto = tx.uploadFoto || tx['UPLOUD FOTO'] || '';
   normalized.uploadFile = tx.uploadFile || tx['UPLOUD FILE'] || '';
   normalized.notaPembelian = tx.notaPembelian || tx['NOTA PEMBELIAN'] || '';
@@ -4492,6 +4633,8 @@ function renderApprovalLoadError(message) {
   if (mobileList) mobileList.innerHTML = html;
   if (pagination) pagination.innerHTML = '';
   filteredApprovalData = [];
+  approvalSupplierGroups = [];
+  if ($('approvalSupplierSummary')) $('approvalSupplierSummary').innerHTML = '';
   selectedApprovalIds.clear();
   updateApprovalBulkBar();
 }
@@ -4580,6 +4723,7 @@ function loadApprovalData(page) {
         ? Number(normalizedResponse.summary.nominal || 0)
         : filteredApprovalData.reduce(function(sum, tx) { return sum + (Number(tx.nominal) || 0); }, 0);
       if (normalizedResponse.filterOptions) approvalFilterOptions = normalizedResponse.filterOptions;
+      approvalSupplierGroups = normalizedResponse.supplierGroups || [];
 
       approvalLoadState.hasLoaded = true;
       populateApprovalFilters(approvalFilterOptions);
@@ -4609,6 +4753,7 @@ function loadApprovalData(page) {
 function renderApprovalTable() {
   var approvalData = filteredApprovalData;
   renderApprovalKpi();
+  renderApprovalSupplierSummary();
   var tbody = $('approvalTableBody');
   var mobileList = $('approvalMobileList');
   var pagination = $('approvalPagination');
@@ -4636,6 +4781,44 @@ function renderApprovalTable() {
   renderPagination('approvalPagination', approvalPage, totalPages, 'goApprovalPage');
   syncApprovalSelectionControls(approvalData, canSelect);
   updateApprovalBulkBar();
+}
+
+function renderApprovalSupplierSummary() {
+  var container = $('approvalSupplierSummary');
+  if (!container) return;
+  var groups = approvalSupplierGroups || [];
+  if (!groups.length) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML =
+    '<div class="detail-section-title"><i class="fas fa-university" style="margin-right:6px;"></i>Ringkasan Pembayaran per Supplier</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:10px;">' +
+    groups.map(function(group) {
+      var txLabels = (group.transactions || []).map(function(tx) {
+        return esc(tx.kode || tx.id || '-') + ' · ' + esc(tx.item || '-') + ' · ' + formatRupiah(tx.nominal);
+      }).join('<br>') + (group.hasMoreTransactions ? '<br><em>Klik untuk melihat seluruh transaksi supplier ini.</em>' : '');
+      return '<button type="button" class="info-card" data-supplier="' + esc(group.supplierName || '') + '" style="text-align:left;cursor:pointer;width:100%;border:1px solid var(--slate-200);" onclick="filterApprovalBySupplier(this.dataset.supplier)">' +
+        '<strong style="display:block;margin-bottom:5px;">' + esc(group.supplierName || 'Supplier belum tercatat') + '</strong>' +
+        '<span style="display:block;font-size:12px;color:var(--slate-500);">' +
+          esc(group.supplierBankName || 'Bank belum diisi') + ' · ' +
+          esc(group.supplierAccountNumber || 'No. rekening belum diisi') + '</span>' +
+        '<span style="display:block;font-size:12px;color:var(--slate-500);">a.n. ' + esc(group.supplierAccountHolder || '-') + '</span>' +
+        '<strong style="display:block;margin-top:7px;color:var(--primary);">' + formatRupiah(group.nominal) + ' · ' + Number(group.transactionCount || 0) + ' transaksi</strong>' +
+        '<span style="display:block;font-size:11px;line-height:1.5;margin-top:6px;color:var(--slate-500);">' + txLabels + '</span>' +
+      '</button>';
+    }).join('') + '</div>';
+}
+
+function filterApprovalBySupplier(name) {
+  var select = $('apprFilterSupplier');
+  if (!select) return;
+  var value = String(name || '');
+  if (![...select.options].some(function(option) { return option.value === value; })) {
+    select.insertAdjacentHTML('beforeend', '<option value="' + esc(value) + '">' + esc(value) + '</option>');
+  }
+  select.value = value;
+  filterApproval();
 }
 
 function renderApprovalKpi() {
@@ -4687,7 +4870,7 @@ function renderApprovalDesktopRows(pageData, start, canSelect) {
         (canSelect && isApprovalBulkSelectable(tx) ? '<input type="checkbox" class="appr-checkbox" data-id="' + esc(tx.id) + '" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()" onchange="toggleApprovalSelect(this)" ' + (checked ? 'checked' : '') + ' aria-label="Pilih transaksi ' + esc(tx.kode || tx.id) + '">' : '') +
       '</td>' +
       '<td class="approval-number-cell">' + (start + idx + 1) + '</td>' +
-      '<td class="approval-transaction-cell"><strong>' + esc(tx.item || '-') + '</strong><span>' + esc(tx.kode || tx.id || '-') + ' &bull; ' + esc(tx.tanggal || '-') + '</span></td>' +
+      '<td class="approval-transaction-cell"><strong>' + esc(tx.item || '-') + '</strong><span>' + esc(tx.kode || tx.id || '-') + ' &bull; ' + esc(tx.tanggal || '-') + '</span><span><i class="fas fa-truck"></i> ' + esc(tx.supplierName || 'Supplier belum tercatat') + '</span></td>' +
       '<td><span class="approval-sppg-label"><i class="fas fa-building"></i>' + esc(tx.sppg || '-') + '</span></td>' +
       '<td class="approval-nominal-cell">' + formatRupiah(tx.nominal) + '</td>' +
       '<td>' + getMetodeBadge(tx.metodeTransaksi) + '</td>' +
@@ -4709,7 +4892,7 @@ function renderApprovalMobileCards(pageData, start, canSelect) {
     return '<article class="approval-mobile-card ' + esc(statusClass) + '" data-id="' + esc(tx.id) + '" tabindex="0" role="button" aria-label="' + esc(rowLabel) + '" onclick="handleApprovalRowClick(event,this.dataset.id)" onkeydown="handleApprovalRowKeydown(event,this.dataset.id)">' +
       '<div class="approval-card-top">' + selection + '<span class="approval-card-number">#' + (start + idx + 1) + '</span><div class="approval-card-status">' + getMetodeBadge(tx.metodeTransaksi) + '</div><i class="fas fa-chevron-right approval-card-chevron"></i></div>' +
       '<div class="approval-card-main"><div class="approval-card-title-wrap"><span class="approval-card-code">' + esc(tx.kode || tx.id || '-') + '</span><h3>' + esc(tx.item || '-') + '</h3><span class="approval-card-date"><i class="far fa-calendar-alt"></i>' + esc(tx.tanggal || '-') + '</span></div><div class="approval-card-amount"><span>Nominal</span><strong>' + formatRupiah(tx.nominal) + '</strong></div></div>' +
-      '<div class="approval-card-meta"><span><i class="fas fa-building"></i>' + esc(tx.sppg || '-') + '</span><span><i class="fas fa-user"></i>' + esc(tx.user || '-') + '</span></div>' +
+      '<div class="approval-card-meta"><span><i class="fas fa-building"></i>' + esc(tx.sppg || '-') + '</span><span><i class="fas fa-truck"></i>' + esc(tx.supplierName || 'Supplier belum tercatat') + '</span><span><i class="fas fa-user"></i>' + esc(tx.user || '-') + '</span></div>' +
       '<div class="approval-card-docs">' + getApprovalDocumentBadge(tx) + '</div>' + note +
       '<div class="approval-card-open"><span>Ketuk untuk melihat detail</span><i class="fas fa-arrow-right"></i></div>' +
       '</article>';
@@ -4955,6 +5138,7 @@ function populateApprovalFilters(options) {
   options = options || approvalFilterOptions || {};
   var sppgValues = Array.isArray(options.sppg) ? options.sppg : [];
   var jenisValues = Array.isArray(options.jenisKategori) ? options.jenisKategori : [];
+  var supplierValues = Array.isArray(options.supplier) ? options.supplier : [];
   var selSppg = $('apprFilterSPPG');
   if (selSppg) {
     var prevSppg = selSppg.value || 'ALL';
@@ -4970,6 +5154,14 @@ function populateApprovalFilters(options) {
     jenisValues.forEach(function(s) { html2 += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
     selJenis.innerHTML = html2;
     if (jenisValues.indexOf(prevJenis) > -1 || prevJenis === 'ALL') selJenis.value = prevJenis;
+  }
+  var selSupplier = $('apprFilterSupplier');
+  if (selSupplier) {
+    var prevSupplier = selSupplier.value || 'ALL';
+    var html3 = '<option value="ALL">Semua Supplier</option>';
+    supplierValues.forEach(function(s) { html3 += '<option value="' + esc(s) + '">' + esc(s) + '</option>'; });
+    selSupplier.innerHTML = html3;
+    if (supplierValues.indexOf(prevSupplier) > -1 || prevSupplier === 'ALL') selSupplier.value = prevSupplier;
   }
 }
 
@@ -4994,6 +5186,7 @@ function resetApprovalFilter() {
   if ($('apprSearchInput')) $('apprSearchInput').value = '';
   if ($('apprFilterSPPG')) $('apprFilterSPPG').value = 'ALL';
   if ($('apprFilterJenisKat')) $('apprFilterJenisKat').value = 'ALL';
+  if ($('apprFilterSupplier')) $('apprFilterSupplier').value = 'ALL';
   if ($('apprFilterKelengkapan')) $('apprFilterKelengkapan').value = 'ALL';
   if ($('apprFilterTglStart')) $('apprFilterTglStart').value = '';
   if ($('apprFilterTglEnd')) $('apprFilterTglEnd').value = '';
@@ -5186,6 +5379,7 @@ function _transactionReportModel(data) {
       kategori: String(tx.kategori || '-'),
       jenis: String(tx.jenisKategori || '-'),
       item: String(tx.item || tx.namaItem || '-'),
+      supplier: String(tx.supplierName || '-'),
       catatan: String(tx.catatan || '-'),
       nominal: Number(tx.nominal) || 0,
       approval: _transactionApprovalStatus(tx),
@@ -5210,12 +5404,12 @@ function _transactionReportModel(data) {
 
 function _transactionReportHeaders() {
   return ['No', 'Tanggal Transaksi', 'Kode Transaksi', 'SPPG', 'Nama Penginput', 'Email Penginput',
-    'Kategori', 'Jenis Kategori', 'Item', 'Catatan', 'Nominal (Rp)', 'Status Approval', 'Status Bukti'];
+    'Kategori', 'Jenis Kategori', 'Item', 'Supplier / Penjual', 'Catatan', 'Nominal (Rp)', 'Status Approval', 'Status Bukti'];
 }
 
 function _transactionReportValues(row) {
   return [row.no, row.tanggal, row.kode, row.sppg, row.penginput, row.email, row.kategori,
-    row.jenis, row.item, row.catatan, Math.round(row.nominal), row.approval, row.dokumen];
+    row.jenis, row.item, row.supplier, row.catatan, Math.round(row.nominal), row.approval, row.dokumen];
 }
 
 function _downloadTransactionCSV(report) {
@@ -5254,7 +5448,7 @@ function _downloadTransactionSpreadsheet(report, format) {
     ];
     report.rows.forEach(function(row) { rows.push(_transactionReportValues(row)); });
     _appendApprovalSheet(workbook, 'Transaksi', rows,
-      [6, 16, 20, 18, 23, 30, 15, 22, 30, 38, 18, 20, 22], 7);
+      [6, 16, 20, 18, 23, 30, 15, 22, 30, 26, 38, 18, 20, 22], 7);
     var extension = format === 'ods' ? 'ods' : 'xlsx';
     window.XLSX.writeFile(workbook,
       'Laporan_Transaksi_SIM-SPPG_' + new Date().toISOString().slice(0, 10) + '.' + extension,
@@ -5265,7 +5459,7 @@ function _downloadTransactionSpreadsheet(report, format) {
 function _transactionReportHTML(report) {
   var createdBy = currentUser ? (currentUser.namaLengkap || currentUser.email || '-') : '-';
   var printHeaders = ['No', 'Tanggal', 'Kode', 'SPPG', 'Penginput', 'Kategori',
-    'Jenis Kategori', 'Item', 'Catatan', 'Nominal', 'Status Approval', 'Status Bukti'];
+    'Jenis Kategori', 'Item', 'Supplier', 'Catatan', 'Nominal', 'Status Approval', 'Status Bukti'];
   var bodyRows = report.rows.map(function(row) {
     var statusClass = row.dokumen === 'Lengkap' ? 'ok' : (row.dokumen === 'Tidak Lengkap' ? 'bad' : 'warn');
     var approvalClass = row.approval === 'Sudah Diapprove' ? 'ok' : 'warn';
@@ -5274,7 +5468,7 @@ function _transactionReportHTML(report) {
       '<td class="code">' + esc(row.kode) + '</td><td>' + esc(row.sppg) + '</td>' +
       '<td><strong>' + esc(row.penginput) + '</strong><small>' + esc(row.email) + '</small></td>' +
       '<td>' + esc(row.kategori) + '</td><td>' + esc(row.jenis) + '</td>' +
-      '<td>' + esc(row.item) + '</td><td>' + esc(row.catatan) + '</td>' +
+      '<td>' + esc(row.item) + '</td><td>' + esc(row.supplier) + '</td><td>' + esc(row.catatan) + '</td>' +
       '<td class="money">Rp ' + Math.round(row.nominal).toLocaleString('id-ID') + '</td>' +
       '<td><span class="status ' + approvalClass + '">' + esc(row.approval) + '</span></td>' +
       '<td><span class="status ' + statusClass + '">' + esc(row.dokumen) + '</span></td></tr>';
@@ -5726,6 +5920,10 @@ function _approvalReportModel(data) {
       email: email,
       jenis: String(tx.jenisKategori || 'Lainnya'),
       item: String(tx.item || '-'),
+      supplier: String(tx.supplierName || 'Belum tercatat'),
+      bank: String(tx.supplierBankName || '-'),
+      rekening: String(tx.supplierAccountNumber || '-'),
+      atasNama: String(tx.supplierAccountHolder || '-'),
       nominal: Number(tx.nominal) || 0,
       metode: methodLabel,
       kelengkapan: doc.status,
@@ -5810,10 +6008,12 @@ function exportApprovalReportCSV(data) {
 
   add(['DETAIL TRANSAKSI']);
   add(['No', 'Tanggal Transaksi', 'Kode Transaksi', 'SPPG', 'Nama Penginput', 'Email Penginput',
-    'Jenis Kategori', 'Nama Item', 'Nominal (Rp)', 'Status Approval/Pembayaran',
+    'Jenis Kategori', 'Nama Item', 'Supplier / Penjual', 'Bank', 'Nomor Rekening', 'Atas Nama Rekening',
+    'Nominal (Rp)', 'Status Approval/Pembayaran',
     'Status Kelengkapan', 'Indikator Warna', 'Bukti Pembayaran', 'Nota', 'TTD User']);
   report.rows.forEach(function(row) {
     add([row.no, row.tanggal, row.kode, row.sppg, row.nama, row.email, row.jenis, row.item,
+      row.supplier, row.bank, row.rekening, row.atasNama,
       Math.round(row.nominal), row.metode, row.kelengkapan, row.indikator, row.bukti, row.nota, row.ttd]);
   });
   lines.push('');
@@ -6656,6 +6856,10 @@ function openEditSupplierModal(rowNum) {
   $('editSupEmailEdit').value = s['EMAIL'] || s['Email'] || '';
   $('editSupStatusEdit').value= s['STATUS'] || s['Status'] || 'Aktif';
   $('editSupAlamatEdit').value= s['ALAMAT TOKO'] || s['Alamat'] || '';
+  $('editSupBank').value      = s['NAMA BANK'] || '';
+  $('editSupNoRek').value     = s['NO REKENING'] || '';
+  $('editSupAtasNama').value  = s['ATAS NAMA REKENING'] || '';
+  $('editSupItems').value     = Array.isArray(s['ITEM YANG DIJUAL']) ? s['ITEM YANG DIJUAL'].join(', ') : '';
   openModal('modalEditSupplier');
 }
 function saveEditSupplier() {
@@ -6665,7 +6869,11 @@ function saveEditSupplier() {
     'NO WHATSAPP':   $('editSupWAEdit').value.trim(),
     'EMAIL':         $('editSupEmailEdit').value.trim(),
     'STATUS':        $('editSupStatusEdit').value,
-    'ALAMAT TOKO':   $('editSupAlamatEdit').value.trim()
+    'ALAMAT TOKO':   $('editSupAlamatEdit').value.trim(),
+    'NAMA BANK':     $('editSupBank').value.trim(),
+    'NO REKENING':   $('editSupNoRek').value.trim(),
+    'ATAS NAMA REKENING': $('editSupAtasNama').value.trim(),
+    'ITEM YANG DIJUAL': $('editSupItems').value.split(/[\n,;]/).map(function(v){return v.trim();}).filter(Boolean)
   };
   if (!fields['NAMA SUPPLIER']) { showToast('error','Validasi','Nama Supplier wajib diisi'); return; }
   showLoading(true);
@@ -6673,7 +6881,7 @@ function saveEditSupplier() {
       rowNum,
       fields
     ], function(r) {
-        showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditSupplier');loadSuppliers();}else{showToast('error','Gagal',r.message);}
+        showLoading(false); if(r.success){showToast('success','Sukses',r.message);closeModal('modalEditSupplier');loadSuppliers();loadDropdownOptions();}else{showToast('error','Gagal',r.message);}
       },
       function(err) {
         showLoading(false); showToast('error','Gagal','Terjadi kesalahan');
@@ -6811,34 +7019,6 @@ function renderSupplierTable() {
   var tbody = $('supplierTableBody');
   var btnAddSupplier = $('btnAddSupplier');
   if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
-  var btnAddSupplier = $('btnAddSupplier');
-  if (btnAddSupplier) btnAddSupplier.style.display = (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) ? '' : 'none';
   if (!filteredSuppliers.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-truck"></i></div><h4>Tidak Ada Supplier</h4></div></td></tr>'; $('supplierPagination').innerHTML = ''; return; }
   var totalPages = Math.ceil((supplierServerPaged ? supplierServerTotal : filteredSuppliers.length) / ITEMS_PER_PAGE);
   if (supplierPage > totalPages) supplierPage = totalPages;
@@ -6868,7 +7048,7 @@ function renderSupplierTable() {
 function applySupplierFiltersLocal(){
   var search=$('supplierSearchInput')?$('supplierSearchInput').value.toLowerCase().trim():'';
   var status=$('supplierFilterStatus')?$('supplierFilterStatus').value:'ALL';
-  filteredSuppliers=allSuppliers.filter(function(x){var teks=(x['NAMA SUPPLIER']||x['Nama Supplier']||'')+' '+(x['NO WHATSAPP']||x['No WhatsApp']||'')+' '+(x['EMAIL']||x['Email']||'');if(search&&teks.toLowerCase().indexOf(search)===-1)return false;if(status!=='ALL'&&(x['STATUS']||x['Status'])!==status)return false;return true;});
+  filteredSuppliers=allSuppliers.filter(function(x){var teks=(x['NAMA SUPPLIER']||x['Nama Supplier']||'')+' '+(x['NO WHATSAPP']||x['No WhatsApp']||'')+' '+(x['EMAIL']||x['Email']||'')+' '+(x['NAMA BANK']||'')+' '+(x['NO REKENING']||'')+' '+(Array.isArray(x['ITEM YANG DIJUAL'])?x['ITEM YANG DIJUAL'].join(' '):'');if(search&&teks.toLowerCase().indexOf(search)===-1)return false;if(status!=='ALL'&&(x['STATUS']||x['Status'])!==status)return false;return true;});
 }
 function filterSupplier(){var search=$('supplierSearchInput')?$('supplierSearchInput').value.trim():'';var status=$('supplierFilterStatus')?$('supplierFilterStatus').value:'ALL';var full=!!search||status!=='ALL';clearTimeout(supplierFilterTimer);supplierFilterTimer=setTimeout(function(){supplierPage=1;loadSuppliers(false,1,full);},300);}
 
@@ -6984,6 +7164,10 @@ function exportSupplier(format) {
       {key:'NO WHATSAPP', label:'No WhatsApp'},
       {key:'EMAIL', label:'Email'},
       {key:'ALAMAT TOKO', label:'Alamat Toko'},
+      {key:'NAMA BANK', label:'Nama Bank'},
+      {key:'NO REKENING', label:'Nomor Rekening'},
+      {key:'ATAS NAMA REKENING', label:'Atas Nama Rekening'},
+      {key:'ITEM YANG DIJUAL', label:'Item yang Dijual'},
       {key:'STATUS', label:'Status'}
     ], 'Master_Supplier');
   } else {
@@ -7002,13 +7186,17 @@ function saveAddSupplier() {
     NO_WHATSAPP: $('addSupWA').value.trim(),
     EMAIL: $('addSupEmail').value.trim(),
     ALAMAT_TOKO: $('addSupAlamat').value.trim(),
-    STATUS: $('addSupStatus').value
+    STATUS: $('addSupStatus').value,
+    NAMA_BANK: $('addSupBank').value.trim(),
+    NO_REKENING: $('addSupNoRek').value.trim(),
+    ATAS_NAMA_REKENING: $('addSupAtasNama').value.trim(),
+    ITEM_YANG_DIJUAL: $('addSupItems').value.split(/[\n,;]/).map(function(v){return v.trim();}).filter(Boolean)
   };
   if (!data.NAMA_SUPPLIER || !data.ALAMAT_TOKO) { showToast('error', 'Validasi', 'Nama dan Alamat wajib diisi'); return; }
   // Handle foto, MOU, TTD uploads
   showLoading(true);
     callApi('addMasterSupplier', [data], function(result) {
-        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddSupplier'); loadSuppliers(); } else { showToast('error', 'Gagal', result.message); }
+        showLoading(false); if (result.success) { showToast('success', 'Sukses', result.message); closeModal('modalAddSupplier'); loadSuppliers(); loadDropdownOptions(); } else { showToast('error', 'Gagal', result.message); }
       },
       function(err) {
         showLoading(false); showToast('error', 'Gagal', 'Terjadi kesalahan');
@@ -8152,7 +8340,7 @@ function filterPrintRows(page, rows) {
     var status=val('txFilterStatus'), search=low(val('txSearchInput'));
     return rows.filter(function(x){
       if (status && status !== 'ALL' && String(x.statusPembayaran||x.status||'') !== status) return false;
-      if (search && low((x.kode||'')+' '+(x.item||'')+' '+(x.user||'')+' '+(x.sppg||'')).indexOf(search)<0) return false;
+      if (search && low((x.kode||'')+' '+(x.item||'')+' '+(x.supplierName||'')+' '+(x.user||'')+' '+(x.sppg||'')).indexOf(search)<0) return false;
       return true;
     });
   }
@@ -8279,6 +8467,7 @@ function getActiveFilterInfo() {
   if (currentPage === 'approval') {
     if ($('apprFilterSPPG') && $('apprFilterSPPG').value !== 'ALL') info.push('SPPG=' + $('apprFilterSPPG').value);
     if ($('apprFilterJenisKat') && $('apprFilterJenisKat').value !== 'ALL') info.push('Jenis Kategori=' + $('apprFilterJenisKat').value);
+    if ($('apprFilterSupplier') && $('apprFilterSupplier').value !== 'ALL') info.push('Supplier=' + $('apprFilterSupplier').value);
     if ($('apprFilterKelengkapan') && $('apprFilterKelengkapan').value !== 'ALL') info.push('Kelengkapan=' + $('apprFilterKelengkapan').value);
     if ($('apprFilterTglStart') && $('apprFilterTglStart').value) info.push('Dari=' + $('apprFilterTglStart').value);
     if ($('apprFilterTglEnd') && $('apprFilterTglEnd').value) info.push('Sampai=' + $('apprFilterTglEnd').value);
@@ -8292,9 +8481,9 @@ function buildPrintAllTable() {
   if (currentPage === 'transaksi') {
     var data = printData(filteredTransactions);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' transaksi</strong></div>';
-    html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>Kategori</th><th>SPPG</th><th>Item</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>Kategori</th><th>SPPG</th><th>Item</th><th>Supplier</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
     data.forEach(function(tx, i) {
-      html += '<tr><td>' + (i+1) + '</td><td>' + esc(tx.kode||'-') + '</td><td>' + esc(tx.tanggal||'-') + '</td><td>' + esc(tx.kategori||'-') + '</td><td>' + esc(tx.sppg||'-') + '</td><td>' + esc(tx.item||'-') + '</td><td>' + formatRupiah(tx.nominal) + '</td><td>' + esc(tx.metodeTransaksi||'-') + '</td><td>' + esc(tx.user||'-') + '</td></tr>';
+      html += '<tr><td>' + (i+1) + '</td><td>' + esc(tx.kode||'-') + '</td><td>' + esc(tx.tanggal||'-') + '</td><td>' + esc(tx.kategori||'-') + '</td><td>' + esc(tx.sppg||'-') + '</td><td>' + esc(tx.item||'-') + '</td><td>' + esc(tx.supplierName||'-') + '</td><td>' + formatRupiah(tx.nominal) + '</td><td>' + esc(tx.metodeTransaksi||'-') + '</td><td>' + esc(tx.user||'-') + '</td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -8310,9 +8499,9 @@ function buildPrintAllTable() {
   else if (currentPage === 'master-supplier') {
     var data = printData(allSuppliers);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' supplier</strong></div>';
-    html += '<table><thead><tr><th>No</th><th>Nama</th><th>WA</th><th>Email</th><th>Alamat</th><th>Status</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>No</th><th>Nama</th><th>WA</th><th>Email</th><th>Alamat</th><th>Bank</th><th>No. Rekening</th><th>Atas Nama</th><th>Item</th><th>Status</th></tr></thead><tbody>';
     data.forEach(function(s, i) {
-      html += '<tr><td>' + (i+1) + '</td><td>' + esc(s['NAMA SUPPLIER']||s['Nama Supplier']||'-') + '</td><td>' + esc(s['NO WHATSAPP']||s['No WhatsApp']||'-') + '</td><td>' + esc(s['EMAIL']||s['Email']||'-') + '</td><td>' + esc(s['ALAMAT TOKO']||s['Alamat']||'-') + '</td><td>' + esc(s['STATUS']||s['Status']||'-') + '</td></tr>';
+      html += '<tr><td>' + (i+1) + '</td><td>' + esc(s['NAMA SUPPLIER']||s['Nama Supplier']||'-') + '</td><td>' + esc(s['NO WHATSAPP']||s['No WhatsApp']||'-') + '</td><td>' + esc(s['EMAIL']||s['Email']||'-') + '</td><td>' + esc(s['ALAMAT TOKO']||s['Alamat']||'-') + '</td><td>' + esc(s['NAMA BANK']||'-') + '</td><td>' + esc(s['NO REKENING']||'-') + '</td><td>' + esc(s['ATAS NAMA REKENING']||'-') + '</td><td>' + esc(Array.isArray(s['ITEM YANG DIJUAL'])?s['ITEM YANG DIJUAL'].join(', '):'-') + '</td><td>' + esc(s['STATUS']||s['Status']||'-') + '</td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -8365,9 +8554,9 @@ function buildPrintAllTable() {
   else if (currentPage === 'approval') {
     var data = filteredApprovalData || [];
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' menunggu approval</strong></div>';
-    html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>SPPG</th><th>Item</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>SPPG</th><th>Item</th><th>Supplier</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
     data.forEach(function(tx, i) {
-      html += '<tr><td>' + (i+1) + '</td><td>' + esc(tx.kode||'-') + '</td><td>' + esc(tx.tanggal||'-') + '</td><td>' + esc(tx.sppg||'-') + '</td><td>' + esc(tx.item||'-') + '</td><td>' + formatRupiah(tx.nominal) + '</td><td>' + esc(tx.metodeTransaksi||'-') + '</td><td>' + esc(tx.user||'-') + '</td></tr>';
+      html += '<tr><td>' + (i+1) + '</td><td>' + esc(tx.kode||'-') + '</td><td>' + esc(tx.tanggal||'-') + '</td><td>' + esc(tx.sppg||'-') + '</td><td>' + esc(tx.item||'-') + '</td><td>' + esc(tx.supplierName||'-') + '</td><td>' + formatRupiah(tx.nominal) + '</td><td>' + esc(tx.metodeTransaksi||'-') + '</td><td>' + esc(tx.user||'-') + '</td></tr>';
     });
     html += '</tbody></table>';
   }

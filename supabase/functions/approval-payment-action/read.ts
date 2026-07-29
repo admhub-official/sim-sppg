@@ -13,8 +13,8 @@ const DOC: Record<string, string> = {
 
 // Explicit projections keep high-traffic approval lists independent from future
 // wide columns added to TRANSAKSI or the document compatibility view.
-const TRANSACTION_LIST_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi","APPROVED BY","WAKTU APPROVE",Catatan_1,"Catatan Approval"';
-const APPROVAL_CANDIDATE_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,Nominal,User,"Nama Item/ Bahan Baku","Metode Transaksi"';
+const TRANSACTION_LIST_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,YAYASAN,Nominal,Catatan,User,"Nama Item/ Bahan Baku","Metode Transaksi","SUPPLIER ID","NAMA SUPPLIER","NAMA BANK SUPPLIER","NO REKENING SUPPLIER","ATAS NAMA REKENING SUPPLIER","SUMBER SUPPLIER","APPROVED BY","WAKTU APPROVE",Catatan_1,"Catatan Approval"';
+const APPROVAL_CANDIDATE_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,Nominal,User,"Nama Item/ Bahan Baku","Metode Transaksi","SUPPLIER ID","NAMA SUPPLIER","NAMA BANK SUPPLIER","NO REKENING SUPPLIER","ATAS NAMA REKENING SUPPLIER","SUMBER SUPPLIER"';
 const DOCUMENT_COLUMNS = 'transaksi_id,document_type,storage_bucket,storage_path,mime_type,original_file_name,updated_at';
 
 function documentState(docs: Map<string, any>) {
@@ -47,6 +47,12 @@ function mapped(row: any, docs: Map<string, any>, user: any = null) {
     userName: text(user?.['NAMA LENGKAP']) || email || '-',
     item: row['Nama Item/ Bahan Baku'] || '',
     namaItem: row['Nama Item/ Bahan Baku'] || '',
+    supplierId: row['SUPPLIER ID'] || '',
+    supplierName: row['NAMA SUPPLIER'] || '',
+    supplierBankName: row['NAMA BANK SUPPLIER'] || '',
+    supplierAccountNumber: row['NO REKENING SUPPLIER'] || '',
+    supplierAccountHolder: row['ATAS NAMA REKENING SUPPLIER'] || '',
+    supplierSource: row['SUMBER SUPPLIER'] || '',
     metodeTransaksi: normalizeStatus(row['Metode Transaksi']),
     ttdVerifikator: path(DOC.ttdVerif), ttdUser: path(DOC.ttdUser),
     notaPembelian: path(DOC.nota), approvedBy: row['APPROVED BY'] || '',
@@ -117,13 +123,47 @@ function matchesApprovalFilters(row: any, filters: any) {
   if (search) {
     const haystack = [
       row['Kode Pemasukan'], row['Nama Item/ Bahan Baku'], row.User, row.SPPG,
+      row['NAMA SUPPLIER'], row['NO REKENING SUPPLIER'],
     ].map((value) => text(value).toLowerCase()).join(' ');
     if (!haystack.includes(search)) return false;
   }
   if (filters.sppg && filters.sppg !== 'ALL' && norm(row.SPPG) !== norm(filters.sppg)) return false;
   if (filters.jenisKategori && filters.jenisKategori !== 'ALL' &&
       text(row['Jenis Kategori']) !== text(filters.jenisKategori)) return false;
+  if (filters.supplier && filters.supplier !== 'ALL' &&
+      norm(row['NAMA SUPPLIER']) !== norm(filters.supplier)) return false;
   return true;
+}
+
+function supplierGroups(rows: any[]) {
+  const groups = new Map<string, any>();
+  for (const row of rows) {
+    const name = text(row['NAMA SUPPLIER']) || 'Supplier belum tercatat';
+    const key = text(row['SUPPLIER ID']) || `manual:${norm(name) || 'legacy'}`;
+    const group = groups.get(key) || {
+      key, supplierId: text(row['SUPPLIER ID']), supplierName: name,
+      supplierBankName: text(row['NAMA BANK SUPPLIER']),
+      supplierAccountNumber: text(row['NO REKENING SUPPLIER']),
+      supplierAccountHolder: text(row['ATAS NAMA REKENING SUPPLIER']),
+      supplierSource: text(row['SUMBER SUPPLIER']) || 'LEGACY',
+      transactionCount: 0, nominal: 0, transactions: [],
+    };
+    group.transactionCount++;
+    group.nominal += Number(row.Nominal) || 0;
+    // Keep payment summaries compact. The group button applies a server-side
+    // supplier filter for the full paginated list, so only a short preview is
+    // returned here instead of duplicating every candidate row in the payload.
+    if (group.transactions.length < 10) {
+      group.transactions.push({
+        id: text(row.ID), kode: text(row['Kode Pemasukan']),
+        tanggal: text(row.Tanggal), item: text(row['Nama Item/ Bahan Baku']),
+        nominal: Number(row.Nominal) || 0,
+      });
+    }
+    group.hasMoreTransactions = group.transactionCount > group.transactions.length;
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) => b.nominal - a.nominal);
 }
 
 async function approvalCandidates(filters: any, current: Caller, scope: string[]) {
@@ -160,6 +200,7 @@ async function approvalCandidates(filters: any, current: Caller, scope: string[]
   const filterOptions = {
     sppg: [...new Set(queueRows.map((row: any) => text(row.SPPG)).filter(Boolean))].sort(),
     jenisKategori: [...new Set(queueRows.map((row: any) => text(row['Jenis Kategori'])).filter(Boolean))].sort(),
+    supplier: [...new Set(queueRows.map((row: any) => text(row['NAMA SUPPLIER'])).filter(Boolean))].sort(),
   };
   let filtered = queueRows.filter((row: any) => matchesApprovalFilters(row, filters));
 
@@ -183,7 +224,7 @@ async function approvalCandidates(filters: any, current: Caller, scope: string[]
       ) === completeness;
     });
   }
-  return { rows: filtered, filterOptions };
+  return { rows: filtered, filterOptions, supplierGroups: supplierGroups(filtered) };
 }
 
 export async function getTransactions(parameters: any[], current: Caller) {
@@ -195,7 +236,7 @@ export async function getTransactions(parameters: any[], current: Caller) {
     ? {
       data: [], page: page.page, pageSize: page.pageSize, total: 0, hasMore: false,
       summary: { total: 0, nominal: 0 },
-      filterOptions: { sppg: [], jenisKategori: [] },
+      filterOptions: { sppg: [], jenisKategori: [], supplier: [] }, supplierGroups: [],
     }
     : [];
 
@@ -211,6 +252,7 @@ export async function getTransactions(parameters: any[], current: Caller) {
       ? {
         data: [], page: page.page, pageSize: page.pageSize, total, hasMore: false,
         summary: { total, nominal }, filterOptions: candidates.filterOptions,
+        supplierGroups: candidates.supplierGroups,
       }
       : [];
 
@@ -239,6 +281,7 @@ export async function getTransactions(parameters: any[], current: Caller) {
       data, page: page.page, pageSize: page.pageSize,
       total, hasMore: page.to + 1 < total,
       summary: { total, nominal }, filterOptions: candidates.filterOptions,
+      supplierGroups: candidates.supplierGroups,
     };
   }
 

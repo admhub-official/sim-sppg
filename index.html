@@ -5315,7 +5315,7 @@
           </div>
           <div class="search-box">
             <i class="fas fa-search"></i>
-            <input type="text" id="txSearchInput" placeholder="Cari kode, item, user..." oninput="filterTransaksi()">
+            <input type="text" id="txSearchInput" placeholder="Cari kode, item, supplier, user..." oninput="filterTransaksi()">
           </div>
           <div class="filter-collapsible" style="display:flex;gap:10px;flex-wrap:wrap;width:100%;">
             <select id="txFilterSPPG" class="form-input" onchange="filterTransaksi()">
@@ -5355,6 +5355,7 @@
                   <th>Kategori</th>
                   <th>SPPG</th>
                   <th>Item</th>
+                  <th>Supplier / Penjual</th>
                   <th>Nominal</th>
                   <th>Metode</th>
                   <th>Catatan</th>
@@ -5423,6 +5424,9 @@
             <select id="apprFilterJenisKat" class="form-input" onchange="filterApproval()">
               <option value="ALL">Semua Jenis Kategori</option>
             </select>
+            <select id="apprFilterSupplier" class="form-input" onchange="filterApproval()">
+              <option value="ALL">Semua Supplier</option>
+            </select>
             <select id="apprFilterKelengkapan" class="form-input" onchange="filterApproval()">
               <option value="ALL">Semua Kelengkapan</option>
               <option value="Lengkap">Lengkap (Bukti + Nota)</option>
@@ -5437,6 +5441,7 @@
             </button>
           </div>
         </div>
+        <div id="approvalSupplierSummary" style="margin-bottom:12px;"></div>
         <div id="apprBulkBar" class="hidden" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--primary-light);border:1px solid #bae6fd;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;">
           <span style="font-size:13px;font-weight:600;color:var(--primary-dark);">
             <i class="fas fa-check-square"></i> <span id="apprBulkCount">0</span> transaksi dipilih
@@ -5559,7 +5564,7 @@
           <div class="filter-collapsible" style="display:contents;">
             <div class="search-box">
               <i class="fas fa-search"></i>
-              <input type="text" id="supplierSearchInput" placeholder="Cari nama, WhatsApp, email..." oninput="filterSupplier()">
+              <input type="text" id="supplierSearchInput" placeholder="Cari nama, bank, rekening, item..." oninput="filterSupplier()">
             </div>
             <select id="supplierFilterStatus" class="form-input" onchange="filterSupplier()">
               <option value="ALL">Semua Status</option>
@@ -6429,7 +6434,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">SPPG <span class="req">*</span></label>
-            <input type="text" id="addTxSPPG" class="form-input" placeholder="Ketik atau pilih SPPG..." list="sppgDatalist" autocomplete="off">
+            <input type="text" id="addTxSPPG" class="form-input" placeholder="Ketik atau pilih SPPG..." list="sppgDatalist" autocomplete="off" oninput="populateTransactionSupplierDatalist()">
             <datalist id="sppgDatalist"></datalist>
           </div>
         </div>
@@ -6449,6 +6454,34 @@
             <label class="form-label">Nominal (Rp) <span class="req">*</span></label>
             <input type="text" id="addTxNominal" class="form-input" placeholder="Ketik nominal..." oninput="handleNominalInput(this)" onfocus="if(this.value==='0')this.value='';" onblur="formatNominalOnBlur(this)" data-raw="0">
             <p class="form-hint" id="addTxNominalConfirm" style="font-weight:600;color:var(--primary);"></p>
+          </div>
+        </div>
+
+        <div id="addTxSupplierSection">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Supplier / Penjual <span class="req">*</span></label>
+              <input type="text" id="addTxSupplier" class="form-input" list="txSupplierDatalist"
+                placeholder="Ketik nama supplier atau penjual..." autocomplete="off"
+                oninput="handleTransactionSupplierInput('add')">
+              <input type="hidden" id="addTxSupplierId">
+              <datalist id="txSupplierDatalist"></datalist>
+              <p class="form-hint" id="addTxSupplierHint">Pilih saran yang tersedia atau ketik nama penjual secara manual.</p>
+            </div>
+          </div>
+          <div class="form-row" id="addTxManualBankFields">
+            <div class="form-group">
+              <label class="form-label">Nama Bank Penjual</label>
+              <input type="text" id="addTxSupplierBank" class="form-input" placeholder="Opsional untuk penjual manual">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nomor Rekening Penjual</label>
+              <input type="text" id="addTxSupplierAccount" class="form-input" inputmode="numeric">
+            </div>
+          </div>
+          <div class="form-group" id="addTxManualAccountHolderField">
+            <label class="form-label">Atas Nama Rekening</label>
+            <input type="text" id="addTxSupplierAccountHolder" class="form-input">
           </div>
         </div>
 
@@ -6620,6 +6653,26 @@
               <option value="Non-Aktif">Non-Aktif</option>
               <option value="Suspend">Suspend</option>
             </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nama Bank</label>
+            <input type="text" id="addSupBank" class="form-input" placeholder="Contoh: BRI">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nomor Rekening</label>
+            <input type="text" id="addSupNoRek" class="form-input" inputmode="numeric" placeholder="Nomor rekening supplier">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Atas Nama Rekening</label>
+            <input type="text" id="addSupAtasNama" class="form-input" placeholder="Nama pemilik rekening">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Item yang Dijual</label>
+            <textarea id="addSupItems" class="form-input" rows="2" placeholder="Beras, telur, minyak (pisahkan dengan koma)"></textarea>
           </div>
         </div>
         <div class="form-group">
@@ -6939,7 +6992,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Kategori <span class="req">*</span></label>
-            <select id="editTxKategori" class="form-input">
+            <select id="editTxKategori" class="form-input" onchange="updateEditTxSupplierVisibility()">
               <option value="PENGELUARAN">PENGELUARAN</option>
               <option value="PEMASUKAN">PEMASUKAN</option>
             </select>
@@ -6952,7 +7005,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">SPPG <span class="req">*</span></label>
-            <select id="editTxSPPG" class="form-input">
+            <select id="editTxSPPG" class="form-input" onchange="populateTransactionSupplierDatalist('edit');handleTransactionSupplierInput('edit')">
               <option value="DARMARAJA">DARMARAJA</option>
               <option value="CIAMIS">CIAMIS</option>
               <option value="TANJUNG MEDAR">TANJUNG MEDAR</option>
@@ -6970,6 +7023,29 @@
           <div class="form-group">
             <label class="form-label">Nominal (Rp) <span class="req">*</span></label>
             <input type="number" id="editTxNominal" class="form-input" placeholder="0">
+          </div>
+        </div>
+        <div id="editTxSupplierSection">
+          <div class="form-group">
+            <label class="form-label">Supplier / Penjual <span class="req">*</span></label>
+            <input type="text" id="editTxSupplier" class="form-input" list="txSupplierDatalist"
+              autocomplete="off" oninput="handleTransactionSupplierInput('edit')">
+            <input type="hidden" id="editTxSupplierId">
+            <p class="form-hint" id="editTxSupplierHint">Pilih supplier master atau ketik penjual manual.</p>
+          </div>
+          <div class="form-row" id="editTxManualBankFields">
+            <div class="form-group">
+              <label class="form-label">Nama Bank Penjual</label>
+              <input type="text" id="editTxSupplierBank" class="form-input">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nomor Rekening Penjual</label>
+              <input type="text" id="editTxSupplierAccount" class="form-input" inputmode="numeric">
+            </div>
+          </div>
+          <div class="form-group" id="editTxManualAccountHolderField">
+            <label class="form-label">Atas Nama Rekening</label>
+            <input type="text" id="editTxSupplierAccountHolder" class="form-input">
           </div>
         </div>
         <div class="form-row">
@@ -7121,6 +7197,26 @@
         <div class="form-group">
           <label class="form-label">Alamat Toko</label>
           <textarea id="editSupAlamatEdit" class="form-input"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nama Bank</label>
+            <input type="text" id="editSupBank" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nomor Rekening</label>
+            <input type="text" id="editSupNoRek" class="form-input" inputmode="numeric">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Atas Nama Rekening</label>
+            <input type="text" id="editSupAtasNama" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Item yang Dijual</label>
+            <textarea id="editSupItems" class="form-input" rows="2" placeholder="Pisahkan dengan koma"></textarea>
+          </div>
         </div>
       </div>
       <div class="modal-footer">

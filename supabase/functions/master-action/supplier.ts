@@ -1,5 +1,10 @@
 import {sb,s,low,Caller,requireAdmin,audit,rid,B,removeFiles,upload,exactPairs} from './core.ts';
-const SUPPLIER_COLUMNS='ID,"NAMA SUPPLIER","NO WHATSAPP",EMAIL,"ALAMAT TOKO","FOTO SUPPLIER","LINK FOTO SUPPLIER","TTD SUPPLIER","FILE MOU","LINK FILE MOU",STATUS,SPPG,YAYASAN,USER';
+const SUPPLIER_COLUMNS='ID,"NAMA SUPPLIER","NO WHATSAPP",EMAIL,"ALAMAT TOKO","NAMA BANK","NO REKENING","ATAS NAMA REKENING","ITEM YANG DIJUAL","FOTO SUPPLIER","LINK FOTO SUPPLIER","TTD SUPPLIER","FILE MOU","LINK FILE MOU",STATUS,SPPG,YAYASAN,USER';
+const itemList=(value:any)=>[...new Set(
+  (Array.isArray(value)?value:String(value??'').split(/[\n,;]/))
+    .map((item:any)=>s(item))
+    .filter(Boolean)
+)].slice(0,100);
 
 async function canAccessSupplier(c:Caller,row:any){
   if(c.role==='SUPER_ADMIN')return true;
@@ -43,6 +48,8 @@ export async function addSupplier(d:any,c:Caller){
   const row:any={
     ID:id,'NAMA SUPPLIER':s(d.NAMA_SUPPLIER),'NO WHATSAPP':s(d.NO_WHATSAPP),EMAIL:low(d.EMAIL),
     'ALAMAT TOKO':s(d.ALAMAT_TOKO),'FOTO SUPPLIER':s(d.FOTO_SUPPLIER),'LINK FOTO SUPPLIER':'',
+    'NAMA BANK':s(d.NAMA_BANK),'NO REKENING':s(d.NO_REKENING),
+    'ATAS NAMA REKENING':s(d.ATAS_NAMA_REKENING),'ITEM YANG DIJUAL':itemList(d.ITEM_YANG_DIJUAL),
     'TTD SUPPLIER':s(d.TTD_SUPPLIER),'FILE MOU':s(d.FILE_MOU),'LINK FILE MOU':'',STATUS:s(d.STATUS||'Aktif'),
     USER:c.email,SPPG:c.sppg,YAYASAN:c.yayasan
   };
@@ -58,8 +65,9 @@ export async function updateSupplier(id:string,f:any,c:Caller){
   const old=await sb.from('MASTER_SUPPLIER').select(SUPPLIER_COLUMNS).eq('ID',id).maybeSingle();
   if(old.error||!old.data)throw new Error('Supplier tidak ditemukan.');
   if(!await canAccessSupplier(c,old.data))throw new Error('Akses supplier ditolak.');
-  const allow=['NAMA SUPPLIER','NO WHATSAPP','EMAIL','ALAMAT TOKO','FOTO SUPPLIER','TTD SUPPLIER','FILE MOU','STATUS'];
+  const allow=['NAMA SUPPLIER','NO WHATSAPP','EMAIL','ALAMAT TOKO','NAMA BANK','NO REKENING','ATAS NAMA REKENING','ITEM YANG DIJUAL','FOTO SUPPLIER','TTD SUPPLIER','FILE MOU','STATUS'];
   const patch:any={};for(const k of allow)if(f[k]!==undefined)patch[k]=f[k];
+  if(patch['ITEM YANG DIJUAL']!==undefined)patch['ITEM YANG DIJUAL']=itemList(patch['ITEM YANG DIJUAL']);
   const fresh:any[]=[];
   if(patch['FOTO SUPPLIER']!==undefined&&s(patch['FOTO SUPPLIER'])!==s(old.data['FOTO SUPPLIER']))fresh.push({bucket:B.supplierFoto,path:patch['FOTO SUPPLIER']});
   if(patch['TTD SUPPLIER']!==undefined&&s(patch['TTD SUPPLIER'])!==s(old.data['TTD SUPPLIER']))fresh.push({bucket:B.supplierTtd,path:patch['TTD SUPPLIER']});

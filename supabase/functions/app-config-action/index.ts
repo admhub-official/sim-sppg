@@ -21,7 +21,9 @@ function getAppConfig(){
 async function getDropdownOptions(){
   const [bb,supplier,tx,user]=await Promise.all([
     sb.from('MASTER_BB').select('ID,"KODE BAHAN","KATEGORI BAHAN BAKU","NAMA BAHAN BAKU","HARGA BAHAN BAKU",SATUAN'),
-    sb.from('MASTER_SUPPLIER').select('ID,"NAMA SUPPLIER"'),
+    // Only autocomplete-safe supplier fields are sent to the browser. Bank
+    // account data is resolved server-side and never added to this shared cache.
+    sb.from('MASTER_SUPPLIER').select('ID,"NAMA SUPPLIER","ITEM YANG DIJUAL",STATUS,SPPG,YAYASAN'),
     sb.from('TRANSAKSI').select('Kategori,"Jenis Kategori"'),
     sb.from('USERS').select('"NAMA YAYASAN"')
   ]);
@@ -32,7 +34,12 @@ async function getDropdownOptions(){
     success:true,
     kategori:uniq(bbRows.map((r:any)=>clean(r['KATEGORI BAHAN BAKU']))),
     bahanBaku:bbRows.filter((r:any)=>clean(r['NAMA BAHAN BAKU'])).map((r:any)=>({id:r.ID,kode:r['KODE BAHAN'],nama:r['NAMA BAHAN BAKU'],kategori:r['KATEGORI BAHAN BAKU'],harga:Number(r['HARGA BAHAN BAKU'])||0,satuan:r.SATUAN||''})),
-    suppliers:supplierRows.filter((r:any)=>clean(r['NAMA SUPPLIER'])).map((r:any)=>({id:r.ID,nama:r['NAMA SUPPLIER']})),
+    suppliers:supplierRows
+      .filter((r:any)=>clean(r['NAMA SUPPLIER'])&&clean(r.STATUS||'Aktif')==='Aktif')
+      .map((r:any)=>({
+        id:r.ID,nama:r['NAMA SUPPLIER'],sppg:r.SPPG||'',yayasan:r.YAYASAN||'',
+        items:Array.isArray(r['ITEM YANG DIJUAL'])?r['ITEM YANG DIJUAL'].map(clean).filter(Boolean):[]
+      })),
     satuan:SATUAN,kondisi:KONDISI,statusSupplier:STATUS_SUPPLIER,sppgList:SPPG_LIST,jabatan:JABATAN,
     txKategori:uniq(txRows.map((r:any)=>clean(r.Kategori))),
     txJenisKategori:uniq(txRows.map((r:any)=>clean(r['Jenis Kategori']))),
