@@ -3,7 +3,14 @@
  * Backend and Supabase requests are never cached.
  */
 const CACHE_VERSION = 'sim-sppg-v20260729-optimize-supabase-egress-hotfix-v1';
-const APP_SHELL = ['./index.html', './app.js', './manifest.json', './professional-report-v1.js'];
+const APP_SHELL = [
+  './index.html',
+  './app.js',
+  './manifest.json',
+  './transaction-category-supplier-rules.js',
+  './supplier-inline-create.js',
+  './professional-report-v1.js'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -44,20 +51,16 @@ function networkFirst(request, cacheKey) {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
-
   const url = new URL(request.url);
   if (isBackendRequest(url)) return;
-
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request, './index.html'));
     return;
   }
-
   if (url.origin === self.location.origin && /\.(?:js|html)$/.test(url.pathname)) {
     event.respondWith(networkFirst(request));
     return;
   }
-
   event.respondWith(
     caches.match(request).then((cached) => {
       const network = fetch(request)
@@ -75,11 +78,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 function normalizeNotificationPayload(event) {
-  const fallback = {
-    title: 'Pengumuman SIM-SPPG',
-    body: 'Ada pengumuman baru untuk Anda.',
-    url: '#dashboard'
-  };
+  const fallback = { title: 'Pengumuman SIM-SPPG', body: 'Ada pengumuman baru untuk Anda.', url: '#dashboard' };
   if (!event.data) return fallback;
   try {
     const parsed = event.data.json();
