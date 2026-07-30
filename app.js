@@ -3346,6 +3346,12 @@ function doUpdateProfil(updateData) {
 // ============================================================
 // 9. USERS (ADMIN)
 // ============================================================
+
+// Cache URL foto profil per sesi browser — mencegah download ulang foto
+// (~1 MB/user) setiap kali tabel di-render ulang oleh heartbeat presence 30 detik.
+// Key: fotoProfil id (fileId), Value: signed URL yang sudah didapat.
+var _avatarUrlCache = {};
+
 function loadUsers(silent, page, forceAll) {
   return new Promise(function(resolve) {
     if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPER_ADMIN')) { resolve(); return; }
