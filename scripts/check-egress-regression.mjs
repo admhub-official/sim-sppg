@@ -11,6 +11,9 @@ const assert = (condition, message) => {
 const app = read('app.js');
 const transactions = read('supabase/functions/transaction-action/index.ts');
 const approvals = read('supabase/functions/approval-payment-action/read.ts');
+const approvalQuery = read('supabase/functions/approval-query-action/index.ts');
+const transactionSummary = read('supabase/functions/transaction-summary-action/index.ts');
+const stageRouter = read('stage-d-api-router.js');
 const operations = read('supabase/functions/operations-action/index.ts');
 const masterBb = read('supabase/functions/master-action/master-bb.ts');
 const reporting = read('supabase/functions/reporting-action/core.ts');
@@ -18,10 +21,17 @@ const reporting = read('supabase/functions/reporting-action/core.ts');
 assert(app.includes('API_READ_CACHE_TTL'), 'client read cache must remain enabled');
 assert(app.includes('clearApiReadCache()'), 'mutations must invalidate client read cache');
 assert(app.includes('API_MUTATION_FUNCTIONS[fnName]'), 'only explicit mutations may invalidate cached reads');
-assert(transactions.includes('.range(page.from, page.to)'), 'transaction pagination must run in PostgREST');
-assert(approvals.includes('APPROVAL_CANDIDATE_COLUMNS'), 'Approval filtering must use a narrow candidate projection');
-assert(approvals.includes('candidates.rows.slice(page.from, page.to + 1)'), 'Approval detail loading must be limited to page IDs');
-assert(approvals.includes('const selectedIds = selected.map'), 'Approval documents and proofs must be scoped to selected page IDs');
+assert(
+  transactions.includes('.range(page.from, page.to)') ||
+    transactions.includes('.range((page - 1) * pageSize, page * pageSize - 1)'),
+  'transaction pagination must run in PostgREST',
+);
+assert(approvals.includes('APPROVAL_CANDIDATE_COLUMNS'), 'legacy Approval filtering must keep a narrow candidate projection');
+assert(approvalQuery.includes("get_approval_queue_stage_d_v2"), 'Approval pagination and KPI must use the full-scope SQL RPC');
+assert(approvalQuery.includes('p_filters:f'), 'Approval filters must be applied before KPI aggregation');
+assert(transactionSummary.includes("get_transaction_kpi_v2"), 'transaction KPI must use the full role-scope SQL RPC');
+assert(stageRouter.includes("getTransactionSummary"), 'client router must send transaction KPI requests to the summary endpoint');
+assert(stageRouter.includes("transaction-summary-action"), 'transaction KPI route must target transaction-summary-action');
 assert(operations.includes('q=q.range(page.from,page.to)'), 'operational lists must use database ranges');
 assert(masterBb.includes('q=q.range(from,to)'), 'master material pagination must use a database range');
 assert(reporting.includes("select('Tanggal,Kategori,SPPG,YAYASAN,Nominal,User"), 'reporting must keep its narrow transaction projection');
