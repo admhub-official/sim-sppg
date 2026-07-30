@@ -3542,12 +3542,19 @@ function openUserDetailModal(userKey) {
   openModal('modalUserDetail');
 
   if (user.fotoProfil && String(user.fotoProfil).trim() !== '' && user.fotoProfil !== '-') {
-    callApi('getFileUrl', ['FOTO_PROFIL', user.fotoProfil], function(res) {
-      var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
-      if (fotoUrl && currentDetailUserRow === getManagedUserKey(user) && avatar) avatar.src = fotoUrl;
-    }, null);
+    var cachedDetailUrl = _avatarUrlCache[user.fotoProfil];
+    if (cachedDetailUrl) {
+      if (avatar) avatar.src = cachedDetailUrl;
+    } else {
+      callApi('getFileUrl', ['FOTO_PROFIL', user.fotoProfil], function(res) {
+        var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
+        if (fotoUrl) {
+          _avatarUrlCache[user.fotoProfil] = fotoUrl;
+          if (fotoUrl && currentDetailUserRow === getManagedUserKey(user) && avatar) avatar.src = fotoUrl;
+        }
+      }, null);
+    }
   }
-}
 
 function editUserFromDetail() {
   var userKey = currentDetailUserRow;
