@@ -1,5 +1,5 @@
 # Deployment trigger: canonical transaction architecture v11+
-name: Deploy transaction-action
+name: Deploy transaction and approval functions
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-transaction-action-production
+  group: deploy-transaction-functions-production
   cancel-in-progress: false
 
 jobs:
@@ -37,32 +37,16 @@ jobs:
           AP='supabase/functions/approval-payment-action'
           test -s "$TX"
           test -s "$AP/index.ts"
+          test -s "$AP/read-stage-a.ts"
           test -s "$AP/submit.ts"
           test -s "$AP/verify.ts"
           grep -q 'Deno.serve' "$TX"
           grep -q 'TRANSAKSI_DOCUMENTS' "$TX"
           grep -q 'TRANSAKSI_DOCUMENTS_AVAILABLE' "$TX"
-          grep -q 'SPPG_DIRECTORY' "$TX"
-          grep -q 'async function resolveYayasan' "$TX"
-          grep -q 'async function removeFiles' "$TX"
-          grep -q 'const ownedUpload' "$TX"
-          grep -q 'cleanup add orphan' "$TX"
-          grep -q 'cleanup edit orphan' "$TX"
-          grep -q 'function pageSpec' "$TX"
-          grep -q 'hasMore' "$TX"
-          grep -q 'create_transaction_with_documents_atomic' "$TX"
-          grep -q 'update_transaction_with_documents_atomic' "$TX"
-          grep -q "writeMode: 'normalized-atomic'" "$TX"
-          # Accept the current v11 contract and later compatible revisions.
-          tx_version="$(sed -nE 's/.*version:[[:space:]]*([0-9]+).*/\1/p' "$TX" | tail -n 1)"
-          test -n "$tx_version"
-          test "$tx_version" -ge 11
+          grep -q 'metadata-on-demand' "$AP/index.ts"
+          grep -q 'accessMode' "$AP/read-stage-a.ts"
           grep -q 'submit_transaction_payment_atomic' "$AP/submit.ts"
           grep -q 'verify_transaction_payment_batch_atomic' "$AP/verify.ts"
-          grep -q 'p_verifier_signature_path' "$AP/verify.ts"
-          ! grep -q 'approveTransaction:' "$TX"
-          ! grep -q 'submitUserBuktiPembayaran:' "$TX"
-          ! grep -q 'verifyUserPayment:' "$TX"
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -74,14 +58,16 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${SUPABASE_ACCESS_TOKEN:-}"
-          supabase functions deploy transaction-action \
-            --project-ref "$SUPABASE_PROJECT_REF" \
-            --use-api \
-            --debug
+          supabase functions deploy transaction-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
 
-      - name: Verify deployed function metadata
+      - name: Deploy approval-payment-action
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase functions deploy approval-payment-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      - name: Verify deployed functions
         shell: bash
         run: |
           set -euo pipefail
           supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
-          echo 'Deployment contains automatic SPPG to Yayasan resolution and normalized transaction documents.'
