@@ -10,6 +10,7 @@
     document.head.appendChild(script);
   }
 
+  loadScript('./stage-d-api-router.js?v=20260730-stage-d-v1', 'data-stage-d-api-router');
   loadScript('./app-dropdowns.js?v=20260730-stability-fix-v1', 'data-app-dropdowns');
   loadScript('./edit-transaction-ui.js?v=20260730-edit-form-v1', 'data-edit-transaction-ui');
   loadScript('./supplier-actions-fix.js?v=20260730-supplier-actions-v1', 'data-supplier-actions-fix');
