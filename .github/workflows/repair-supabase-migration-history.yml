@@ -2,6 +2,10 @@ name: Repair Supabase Migration History
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/repair-supabase-migration-history.yml
 
 permissions:
   contents: write
