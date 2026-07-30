@@ -65,6 +65,48 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 });
 const text = (value: unknown) => String(value ?? '').trim();
 const lower = (value: unknown) => text(value).toLowerCase();
+
+const TRANSACTION_CATEGORY_TYPES = {
+  PEMASUKAN: [
+    'Anggaran Bahan Baku',
+    'Anggaran Sewa Mobil',
+    'Anggaran Insentif Fasilitas',
+  ],
+  SUPPLIER_REQUIRED: [
+    'Belanja Bahan Baku',
+    'Material Bangunan',
+    'Gas LPG',
+    'Sewa & Utilitas (AC/WIFI)',
+    'IPAL',
+    'Inventaris Kantor',
+    'Cetak & Promosi',
+  ],
+  SUPPLIER_OPTIONAL: [
+    'Gaji/Upah Karyawan',
+    'Operasional Perjalanan',
+    'Konsumsi',
+    'Dana Talangan',
+    'Cicilan',
+    'Fee Yayasan',
+    'Administrasi & Lainnya',
+  ],
+} as const;
+const normalizeCategoryValue = (value: unknown) => text(value).replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
+const categoryIncludes = (values: readonly string[], value: unknown) => values.some((item) => normalizeCategoryValue(item) === normalizeCategoryValue(value));
+const supplierRequiredFor = (category: unknown, type: unknown) => text(category).toUpperCase() === 'PENGELUARAN' && categoryIncludes(TRANSACTION_CATEGORY_TYPES.SUPPLIER_REQUIRED, type);
+function validateTransactionCategory(category: unknown, type: unknown) {
+  const normalizedCategory = text(category).toUpperCase();
+  const normalizedType = text(type);
+  const allowed = normalizedCategory === 'PEMASUKAN'
+    ? TRANSACTION_CATEGORY_TYPES.PEMASUKAN
+    : normalizedCategory === 'PENGELUARAN'
+      ? [...TRANSACTION_CATEGORY_TYPES.SUPPLIER_REQUIRED, ...TRANSACTION_CATEGORY_TYPES.SUPPLIER_OPTIONAL]
+      : [];
+  if (!allowed.length) throw new Error('Kategori transaksi hanya boleh PEMASUKAN atau PENGELUARAN.');
+  if (!categoryIncludes(allowed, normalizedType)) throw new Error('Jenis kategori wajib dipilih dari daftar kategori resmi.');
+  return allowed.find((item) => categoryIncludes([item], normalizedType)) || normalizedType;
+}
+
 const normalizeStatus = (value: unknown) => {
   const normalized = text(value).toUpperCase().replace(/\s+/g, '_');
   return normalized === 'LUNAS' ? 'SUDAH_DIBAYAR' : (normalized || 'BELUM_BAYAR');
@@ -255,8 +297,9 @@ async function resolveYayasan(sppg: unknown, requested: unknown, current: Caller
   return text(directory.data?.yayasan);
 }
 
-async function resolveSupplier(data: any, sppg: string, yayasan: string, category: unknown) {
-  if (text(category).toUpperCase() !== 'PENGELUARAN') {
+async function resolveSupplier(data: any, sppg: string, yayasan: string, category: unknown, type: unknown) {
+  const required = supplierRequiredFor(category, type);
+  if (!required) {
     return {
       'SUPPLIER ID': null, 'NAMA SUPPLIER': null, 'NAMA BANK SUPPLIER': null,
       'NO REKENING SUPPLIER': null, 'ATAS NAMA REKENING SUPPLIER': null,
@@ -265,36 +308,27 @@ async function resolveSupplier(data: any, sppg: string, yayasan: string, categor
   }
 
   const supplierId = text(data.supplierId ?? data['SUPPLIER ID']);
-  const manualName = text(data.supplierName ?? data['Nama Supplier'] ?? data['NAMA SUPPLIER']);
-  if (supplierId) {
-    const query = await sb.from(T.MS)
-      .select('ID,"NAMA SUPPLIER","NAMA BANK","NO REKENING","ATAS NAMA REKENING",STATUS,SPPG,YAYASAN')
-      .eq('ID', supplierId)
-      .maybeSingle();
-    if (query.error) throw query.error;
-    if (!query.data) throw new Error('Supplier yang dipilih tidak ditemukan.');
-    if (text(query.data.STATUS || 'Aktif') !== 'Aktif') throw new Error('Supplier yang dipilih tidak aktif.');
-    if (!sameText(query.data.SPPG, sppg) || !sameText(query.data.YAYASAN, yayasan)) {
-      throw new Error('Supplier tidak terdaftar untuk SPPG dan Yayasan transaksi ini.');
-    }
-    return {
-      'SUPPLIER ID': text(query.data.ID),
-      'NAMA SUPPLIER': text(query.data['NAMA SUPPLIER']),
-      'NAMA BANK SUPPLIER': text(query.data['NAMA BANK']),
-      'NO REKENING SUPPLIER': text(query.data['NO REKENING']),
-      'ATAS NAMA REKENING SUPPLIER': text(query.data['ATAS NAMA REKENING']),
-      'SUMBER SUPPLIER': 'MASTER',
-    };
+  if (!supplierId) {
+    throw new Error('Supplier wajib dipilih dari Data Supplier. Jika belum tersedia, buat data supplier baru terlebih dahulu.');
   }
 
-  if (!manualName) throw new Error('Supplier atau penjual wajib diisi untuk transaksi pengeluaran.');
+  const query = await sb.from(T.MS)
+    .select('ID,"NAMA SUPPLIER","NAMA BANK","NO REKENING","ATAS NAMA REKENING",STATUS,SPPG,YAYASAN')
+    .eq('ID', supplierId)
+    .maybeSingle();
+  if (query.error) throw query.error;
+  if (!query.data) throw new Error('Supplier yang dipilih tidak ditemukan di Data Supplier.');
+  if (text(query.data.STATUS || 'Aktif') !== 'Aktif') throw new Error('Supplier yang dipilih tidak aktif.');
+  if (!sameText(query.data.SPPG, sppg) || !sameText(query.data.YAYASAN, yayasan)) {
+    throw new Error('Supplier tidak terdaftar untuk SPPG dan Yayasan transaksi ini.');
+  }
   return {
-    'SUPPLIER ID': null,
-    'NAMA SUPPLIER': manualName,
-    'NAMA BANK SUPPLIER': text(data.supplierBankName ?? data['Nama Bank Supplier']),
-    'NO REKENING SUPPLIER': text(data.supplierAccountNumber ?? data['No Rekening Supplier']),
-    'ATAS NAMA REKENING SUPPLIER': text(data.supplierAccountHolder ?? data['Atas Nama Rekening Supplier']),
-    'SUMBER SUPPLIER': 'MANUAL',
+    'SUPPLIER ID': text(query.data.ID),
+    'NAMA SUPPLIER': text(query.data['NAMA SUPPLIER']),
+    'NAMA BANK SUPPLIER': text(query.data['NAMA BANK']),
+    'NO REKENING SUPPLIER': text(query.data['NO REKENING']),
+    'ATAS NAMA REKENING SUPPLIER': text(query.data['ATAS NAMA REKENING']),
+    'SUMBER SUPPLIER': 'MASTER',
   };
 }
 
@@ -537,7 +571,7 @@ async function getTransactionSuggestions(current: Caller) {
 
   return {
     success: true,
-    jenisKategori: uniqueSuggestionValues(rows, 'Jenis Kategori', 100),
+    jenisKategori: [...TRANSACTION_CATEGORY_TYPES.PEMASUKAN, ...TRANSACTION_CATEGORY_TYPES.SUPPLIER_REQUIRED, ...TRANSACTION_CATEGORY_TYPES.SUPPLIER_OPTIONAL],
     items: uniqueSuggestionValues(rows, 'Nama Item/ Bahan Baku', 300),
     catatan: uniqueSuggestionValues(rows, 'Catatan', 300),
   };
@@ -628,6 +662,7 @@ async function addTransaction(data: any, current: Caller) {
   if (!yayasan) throw new Error(`Yayasan untuk SPPG ${sppg} belum terdaftar di database.`);
   if (current.role === 'ADMIN' && !(await pairAllowed(current, sppg, yayasan))) throw new Error('Pasangan SPPG + YAYASAN tidak di-assign.');
   if (!(Number(data.nominal) > 0)) throw new Error('Nominal transaksi harus lebih dari 0.');
+  data.jenisKategori = validateTransactionCategory(data.kategori, data.jenisKategori);
   const method = normalizeStatus(data.metodeTransaksi);
   const paidDirectly = method === 'SUDAH_DIBAYAR';
   const createdAt = new Date().toISOString();
@@ -652,7 +687,7 @@ async function addTransaction(data: any, current: Caller) {
     'Catatan Approval': paidDirectly ? 'Pembayaran langsung telah dilengkapi saat transaksi dibuat.' : '',
     Deskripsi: '',
   };
-  Object.assign(core, await resolveSupplier(data, sppg, yayasan, core.Kategori));
+  Object.assign(core, await resolveSupplier(data, sppg, yayasan, core.Kategori, core['Jenis Kategori']));
   const documents = inputDocs(data, id);
   const missing = missingCreateDocs(documents, method);
   if (missing.length) throw new Error(`Upload wajib belum lengkap atau gagal: ${missing.join(', ')}.`);
@@ -776,6 +811,8 @@ async function editTransaction(id: string, fields: any, current: Caller) {
     Object.prototype.hasOwnProperty.call(fields || {}, key)
   );
   const targetCategory = text(patch.Kategori ?? old.Kategori);
+  const targetType = validateTransactionCategory(targetCategory, patch['Jenis Kategori'] ?? old['Jenis Kategori']);
+  patch['Jenis Kategori'] = targetType;
   if (supplierChanged || targetCategory.toUpperCase() !== text(old.Kategori).toUpperCase()) {
     Object.assign(patch, await resolveSupplier({
       supplierId: fields?.['Supplier ID'],
@@ -783,9 +820,11 @@ async function editTransaction(id: string, fields: any, current: Caller) {
       supplierBankName: fields?.['Nama Bank Supplier'],
       supplierAccountNumber: fields?.['No Rekening Supplier'],
       supplierAccountHolder: fields?.['Atas Nama Rekening Supplier'],
-    }, sppg, yayasan, targetCategory));
-  } else if (targetCategory.toUpperCase() === 'PENGELUARAN' && !text(old['NAMA SUPPLIER'])) {
-    throw new Error('Supplier atau penjual wajib diisi untuk transaksi pengeluaran.');
+    }, sppg, yayasan, targetCategory, targetType));
+  } else if (supplierRequiredFor(targetCategory, targetType) && !text(old['SUPPLIER ID'])) {
+    throw new Error('Supplier wajib dipilih dari Data Supplier. Jika belum tersedia, buat data supplier baru terlebih dahulu.');
+  } else if (!supplierRequiredFor(targetCategory, targetType)) {
+    Object.assign(patch, await resolveSupplier({}, sppg, yayasan, targetCategory, targetType));
   }
   const proofState = await sb.from(T.P).select('nominal,status').eq('transaksi_id', id);
   if (proofState.error) throw proofState.error;
@@ -913,7 +952,7 @@ Deno.serve(async (req) => {
   if (req.method === 'GET') return json({
     status: 'ok',
     service: 'transaction-action',
-    version: 11,
+    version: 12,
     documentReadSource: T.DA,
     yayasanResolutionSource: T.S,
     writeMode: 'normalized-atomic',
