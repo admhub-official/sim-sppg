@@ -27,11 +27,9 @@
       mimeType: file.mimeType || file.mime_type || ''
     };
   }
-  function cacheKey(meta) { return String(meta.bucket || '') + '|' + String(meta.path || ''); }
-  function readCached(meta) {
-    var key = cacheKey(meta);
-    var now = Date.now();
-    var memory = urlCache.get(key);
+  function cacheKey(meta, variant) { return String(meta.bucket || '') + '|' + String(meta.path || '') + '|' + String(variant || 'full'); }
+  function readCached(meta, variant) {
+    var key = cacheKey(meta, variant), now = Date.now(), memory = urlCache.get(key);
     if (memory && memory.expiresAt > now + 120000) return memory.url;
     try {
       var raw = sessionStorage.getItem('sppg:file-url:' + key);
@@ -43,33 +41,59 @@
     } catch (_) {}
     return '';
   }
-  function storeCached(meta, url, seconds) {
-    var key = cacheKey(meta);
+  function storeCached(meta, variant, url, seconds) {
+    var key = cacheKey(meta, variant);
     var value = { url: url, expiresAt: Date.now() + Math.max(300, Number(seconds) || 3600) * 1000 };
     urlCache.set(key, value);
     try { sessionStorage.setItem('sppg:file-url:' + key, JSON.stringify(value)); } catch (_) {}
   }
-  function requestUrl(meta) {
-    if (meta.url) return Promise.resolve(meta.url);
-    var cached = readCached(meta);
+  function requestUrl(meta, variant) {
+    variant = variant || 'full';
+    if (meta.url && variant === 'full') return Promise.resolve(meta.url);
+    var cached = readCached(meta, variant);
     if (cached) return Promise.resolve(cached);
     if (!meta.bucket || !meta.path) return Promise.reject(new Error('Metadata file tidak lengkap.'));
     return new Promise(function (resolve, reject) {
       if (typeof window.callApi !== 'function') { reject(new Error('API file tidak tersedia.')); return; }
-      window.callApi('getFileUrl', [{ bucket: meta.bucket, path: meta.path }], function (result) {
+      window.callApi('getFileUrl', [{ bucket: meta.bucket, path: meta.path, variant: variant }], function (result) {
         var data = result && result.data ? result.data : result;
         var url = data && data.url ? data.url : '';
         if (!url) { reject(new Error('URL file tidak tersedia.')); return; }
-        storeCached(meta, url, data.expiresIn || 3600);
+        storeCached(meta, variant, url, data.expiresIn || 3600);
         resolve(url);
       }, function (error) { reject(error instanceof Error ? error : new Error('Gagal membuka file.')); });
     });
   }
 
+  function isImageMeta(meta) {
+    var clean = String(meta.path || meta.url || '').split('?')[0].toLowerCase();
+    return /^image\//i.test(meta.mimeType || '') || /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(clean);
+  }
+
+  var viewportObserver = 'IntersectionObserver' in window ? new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      viewportObserver.unobserve(entry.target);
+      var raw = entry.target.getAttribute('data-egress-meta') || '';
+      var meta; try { meta = JSON.parse(decodeURIComponent(raw)); } catch (_) { return; }
+      requestUrl(meta, 'thumbnail').then(function (url) {
+        entry.target.src = url;
+        entry.target.removeAttribute('data-egress-meta');
+      }).catch(function () { entry.target.alt = 'Preview tidak tersedia'; });
+    });
+  }, { rootMargin: '180px 0px' }) : null;
+
+  window.renderStorageImage = function (file, alt, className) {
+    var meta = fileMeta(file);
+    if (!meta || (!meta.url && !meta.path)) return '';
+    var payload = encodeURIComponent(JSON.stringify(meta));
+    return '<img data-egress-meta="' + esc(payload) + '" alt="' + esc(alt || meta.name || 'Gambar') + '" class="' + esc(className || '') + '" loading="lazy" decoding="async">';
+  };
+
   window.renderFilePreview = function (file, label, icon) {
     var meta = fileMeta(file);
     if (!meta || (!meta.url && !meta.path)) return '';
-    var payload = encodeURIComponent(JSON.stringify({ url: meta.url, path: meta.path, bucket: meta.bucket, name: meta.name, mimeType: meta.mimeType }));
+    var payload = encodeURIComponent(JSON.stringify(meta));
     return '<div class="file-preview-card egress-lazy-preview" style="padding:12px;border:1px solid var(--slate-200);border-radius:10px;margin-bottom:10px">' +
       '<div style="display:flex;align-items:center;gap:10px">' +
         '<i class="fas ' + esc(icon || 'fa-file') + '" style="color:var(--primary)"></i>' +
@@ -83,6 +107,14 @@
     if (saveButton && pendingCompression > 0) {
       event.preventDefault(); event.stopImmediatePropagation();
       toast('warning', 'Sedang Memproses Gambar', 'Tunggu kompresi gambar selesai sebelum menyimpan.');
+      return;
+    }
+    var fullButton = event.target.closest('[data-egress-full]');
+    if (fullButton) {
+      var fullMeta; try { fullMeta = JSON.parse(decodeURIComponent(fullButton.getAttribute('data-egress-full') || '')); } catch (_) { return; }
+      fullButton.disabled = true;
+      requestUrl(fullMeta, 'full').then(function (url) { window.open(url, '_blank', 'noopener'); fullButton.disabled = false; })
+        .catch(function (error) { fullButton.disabled = false; toast('error', 'Gagal Membuka File', error.message || 'File tidak dapat dibuka.'); });
       return;
     }
     var button = event.target.closest('[data-egress-file]');
@@ -99,18 +131,26 @@
     try { meta = JSON.parse(decodeURIComponent(button.getAttribute('data-egress-file') || '')); }
     catch (_) { toast('error', 'Gagal', 'Metadata file tidak valid.'); return; }
     button.disabled = true; button.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Membuka...';
-    requestUrl(meta).then(function (url) {
-      var clean = String(meta.path || url).split('?')[0].toLowerCase();
-      var isImage = /^image\//i.test(meta.mimeType || '') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(clean);
-      target.innerHTML = isImage
-        ? '<img src="' + esc(url) + '" loading="lazy" decoding="async" style="display:block;max-width:100%;max-height:70vh;margin:auto;border-radius:8px" alt="Preview file">'
-        : '<iframe src="' + esc(url) + '" loading="lazy" style="width:100%;height:65vh;border:0;border-radius:8px" title="Preview file"></iframe>';
+    var image = isImageMeta(meta);
+    if (image) {
+      var payload = encodeURIComponent(JSON.stringify(meta));
+      target.innerHTML = '<div style="min-height:160px;display:flex;align-items:center;justify-content:center;background:var(--slate-50);border-radius:8px">' +
+        '<img data-egress-meta="' + esc(payload) + '" loading="lazy" decoding="async" style="display:block;max-width:100%;max-height:55vh;margin:auto;border-radius:8px" alt="Preview file"></div>' +
+        '<div style="margin-top:8px;text-align:right"><button type="button" class="btn btn-outline btn-sm" data-egress-full="' + esc(payload) + '"><i class="fas fa-external-link-alt"></i> Buka Ukuran Penuh</button></div>';
+      var img = target.querySelector('[data-egress-meta]');
+      if (viewportObserver) viewportObserver.observe(img); else requestUrl(meta, 'thumbnail').then(function (url) { img.src = url; });
       target.dataset.loaded = '1'; target.style.display = '';
       button.disabled = false; button.innerHTML = '<i class="fas fa-eye-slash"></i> Tutup File';
-    }).catch(function (error) {
-      button.disabled = false; button.innerHTML = '<i class="fas fa-eye"></i> Lihat File';
-      toast('error', 'Gagal Membuka File', error && error.message ? error.message : 'File tidak dapat dibuka.');
-    });
+    } else {
+      requestUrl(meta, 'full').then(function (url) {
+        target.innerHTML = '<iframe src="' + esc(url) + '" loading="lazy" style="width:100%;height:65vh;border:0;border-radius:8px" title="Preview file"></iframe>';
+        target.dataset.loaded = '1'; target.style.display = '';
+        button.disabled = false; button.innerHTML = '<i class="fas fa-eye-slash"></i> Tutup File';
+      }).catch(function (error) {
+        button.disabled = false; button.innerHTML = '<i class="fas fa-eye"></i> Lihat File';
+        toast('error', 'Gagal Membuka File', error && error.message ? error.message : 'File tidak dapat dibuka.');
+      });
+    }
   }, true);
 
   function imageToBlob(file) {
@@ -145,18 +185,13 @@
 
   FileReader.prototype.readAsDataURL = function (blob) {
     var reader = this;
-    if (!(blob instanceof File) || !/^image\//i.test(blob.type) || /gif|svg/i.test(blob.type) || blob.size < MIN_COMPRESS_BYTES) {
-      return originalReadAsDataURL.call(reader, blob);
-    }
+    if (!(blob instanceof File) || !/^image\//i.test(blob.type) || /gif|svg/i.test(blob.type) || blob.size < MIN_COMPRESS_BYTES) return originalReadAsDataURL.call(reader, blob);
     pendingCompression++;
     imageToBlob(blob).then(function (processed) {
       if (processed.size > MAX_BYTES) toast('warning', 'Ukuran Gambar Besar', 'Gambar masih lebih dari 1 MB setelah kompresi. Gunakan gambar yang lebih kecil bila upload gagal.');
       reader.addEventListener('loadend', function done() { pendingCompression = Math.max(0, pendingCompression - 1); reader.removeEventListener('loadend', done); }, { once: true });
       originalReadAsDataURL.call(reader, processed);
-    }).catch(function () {
-      pendingCompression = Math.max(0, pendingCompression - 1);
-      originalReadAsDataURL.call(reader, blob);
-    });
+    }).catch(function () { pendingCompression = Math.max(0, pendingCompression - 1); originalReadAsDataURL.call(reader, blob); });
   };
 
   window.SPPGFileAccess = { requestUrl: requestUrl, clearCache: function () { urlCache.clear(); } };
