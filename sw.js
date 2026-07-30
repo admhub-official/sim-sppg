@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260730-supplier-ui-consolidation-v2';
+const CACHE_VERSION = 'sim-sppg-v20260730-inline-supplier-form-v1';
 const APP_SHELL = [
   './index.html',
   './app.js',
