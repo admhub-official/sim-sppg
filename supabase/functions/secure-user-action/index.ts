@@ -34,15 +34,12 @@ Deno.serve(async request=>{
       const username=text(params[0]).toLowerCase(),base64=text(params[1]),mime=text(params[2]).toLowerCase(),name=text(params[3]||'profile.png');
       const authorization=await targetAllowed(caller,username),oldPhoto=authorization.target['FOTO PROFIL'];
       if(!base64)throw new Error('Data foto kosong.');if(!['image/jpeg','image/png','image/webp'].includes(mime))throw new Error('Format foto harus JPG, PNG, atau WebP.');
-      const bytes=decodeBase64(base64);if(bytes.byteLength>5*1024*1024)throw new Error('Ukuran foto maksimal 5 MB.');
+      const bytes=decodeBase64(base64);if(bytes.byteLength>1024*1024)throw new Error('Ukuran foto profil maksimal 1 MB setelah kompresi.');
       const path=`PROFIL_${username}_${crypto.randomUUID()}_${name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-      // Profile updates use a new unique path, so cached reads cannot serve an
-      // overwritten object and repeated views avoid Storage origin egress.
-      const upload=await supabase.storage.from('foto-profil').upload(path,bytes,{contentType:mime,cacheControl:'3600',upsert:false});if(upload.error)throw upload.error;
+      const upload=await supabase.storage.from('foto-profil').upload(path,bytes,{contentType:mime,cacheControl:'31536000',upsert:false});if(upload.error)throw upload.error;
       try{const rpc=await supabase.rpc('secure_update_user_profile',{p_caller_id:caller.ID,p_target_username:username,p_update:{'FOTO PROFIL':path},p_admin_mode:false});if(rpc.error)throw rpc.error;}catch(e){await removeProfile(path);throw e;}
       if(text(oldPhoto)!==path)await removeProfile(oldPhoto);
-      const signed=await supabase.storage.from('foto-profil').createSignedUrl(path,3600);
-      return response({result:{success:true,fileId:path,filePath:path,fileUrl:signed.data?.signedUrl||''}});
+      return response({result:{success:true,fileId:path,filePath:path,fileUrl:''}});
     }
     return response({error:'Fungsi tidak didukung.'},404);
   }catch(error){return response({result:{success:false,message:error instanceof Error?error.message:String(error)}},400);}
