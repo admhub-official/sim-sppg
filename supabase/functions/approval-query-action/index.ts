@@ -1,8 +1,73 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-const sb=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
-const CORS={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS'};
+
+const sb=createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  {auth:{persistSession:false,autoRefreshToken:false}},
+);
+const CORS={
+  'Access-Control-Allow-Origin':'*',
+  'Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods':'POST, OPTIONS',
+};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...CORS,'Content-Type':'application/json'}});
 const text=(v:unknown)=>String(v??'').trim();
 const norm=(v:unknown)=>text(v).toUpperCase().replace(/\s+/g,'_');
-function map(r:any){const nominal=Number(r.Nominal)||0,submitted=Number(r.submitted)||0,verified=Number(r.verified)||0;return{id:text(r.ID),kode:text(r['Kode Pemasukan']),tanggal:text(r.Tanggal),kategori:text(r.Kategori),jenisKategori:text(r['Jenis Kategori']),sppg:text(r.SPPG),yayasan:text(r.YAYASAN),nominal,catatan:text(r.Catatan),user:text(r.User),userEmail:text(r.User),userName:text(r.User),item:text(r['Nama Item/ Bahan Baku']),namaItem:text(r['Nama Item/ Bahan Baku']),metodeTransaksi:norm(r['Metode Transaksi']),supplierId:text(r['SUPPLIER ID']),supplierName:text(r['NAMA SUPPLIER']),supplierBankName:text(r['NAMA BANK SUPPLIER']),supplierAccountNumber:text(r['NO REKENING SUPPLIER']),supplierAccountHolder:text(r['ATAS NAMA REKENING SUPPLIER']),supplierSource:text(r['SUMBER SUPPLIER']),uploadFoto:text(r['UPLOUD FOTO']),uploadFile:text(r['UPLOUD FILE']),ttdUser:text(r['TTD USER']),notaPembelian:text(r['NOTA PEMBELIAN']),approvedBy:text(r['APPROVED BY']),waktuApprove:text(r['WAKTU APPROVE']),catatanApproval:text(r['Catatan Approval']||r.Catatan_1),hasBuktiTransaksi:!!r.has_bukti,hasNotaPembelian:!!r.has_nota,hasTtdUser:!!r.has_ttd,statusDokumen:text(r.document_status||r['STATUS DOKUMEN']),nominalDibayar:submitted,nominalTerverifikasi:verified,nominalMenungguVerifikasi:Math.max(0,submitted-verified),sisaPembayaran:Math.max(0,nominal-submitted),jumlahBuktiPembayaran:Number(r.proof_count)||0,jumlahBuktiMenunggu:Number(r.pending_count)||0,canVerify:submitted>=nominal&&Number(r.pending_count)>0};}
-Deno.serve(async req=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({error:'Method tidak didukung.'},405);try{const h=req.headers.get('Authorization')||'',token=h.startsWith('Bearer ')?h.slice(7):'';if(!token)throw new Error('Token tidak ditemukan.');const auth=await sb.auth.getUser(token);if(auth.error||!auth.data.user)throw new Error('Token tidak valid atau kedaluwarsa.');const profile=await sb.from('USERS').select('EMAIL,ROLE').eq('ID',auth.data.user.id).maybeSingle();if(profile.error||!profile.data)throw new Error('Profil user tidak ditemukan.');const body=await req.json();if(body?.function!=='getTransactions')return json({error:'Fungsi tidak diizinkan.'},404);const f=Array.isArray(body.parameters)?(body.parameters[0]||{}):{};if(f.approvalOnly!==true)throw new Error('Endpoint ini hanya untuk antrean approval.');const q=await sb.rpc('get_approval_queue_stage_d',{p_email:text(profile.data.EMAIL||auth.data.user.email).toLowerCase(),p_role:text(profile.data.ROLE).toUpperCase(),p_page:Number(f.page)||1,p_page_size:Number(f.pageSize)||15});if(q.error)throw q.error;const result=q.data||{};result.data=Array.isArray(result.data)?result.data.map(map):[];result.filterOptions=result.filterOptions||{sppg:[],jenisKategori:[],supplier:[]};result.supplierGroups=result.supplierGroups||[];return json({result});}catch(error){const m=error instanceof Error?error.message:String(error);return json({error:m,result:{success:false,message:m}},/token|akses/i.test(m)?403:400);}});
+
+function map(r:any){
+  const nominal=Number(r.Nominal)||0;
+  const submitted=Number(r.submitted)||0;
+  const verified=Number(r.verified)||0;
+  return {
+    id:text(r.ID),kode:text(r['Kode Pemasukan']),tanggal:text(r.Tanggal),kategori:text(r.Kategori),
+    jenisKategori:text(r['Jenis Kategori']),sppg:text(r.SPPG),yayasan:text(r.YAYASAN),nominal,
+    catatan:text(r.Catatan),user:text(r.User),userEmail:text(r.User),userName:text(r.User),
+    item:text(r['Nama Item/ Bahan Baku']),namaItem:text(r['Nama Item/ Bahan Baku']),
+    metodeTransaksi:norm(r['Metode Transaksi']),supplierId:text(r['SUPPLIER ID']),supplierName:text(r['NAMA SUPPLIER']),
+    supplierBankName:text(r['NAMA BANK SUPPLIER']),supplierAccountNumber:text(r['NO REKENING SUPPLIER']),
+    supplierAccountHolder:text(r['ATAS NAMA REKENING SUPPLIER']),supplierSource:text(r['SUMBER SUPPLIER']),
+    uploadFoto:text(r['UPLOUD FOTO']),uploadFile:text(r['UPLOUD FILE']),ttdUser:text(r['TTD USER']),
+    notaPembelian:text(r['NOTA PEMBELIAN']),approvedBy:text(r['APPROVED BY']),waktuApprove:text(r['WAKTU APPROVE']),
+    catatanApproval:text(r['Catatan Approval']||r.Catatan_1),hasBuktiTransaksi:!!r.has_bukti,
+    hasNotaPembelian:!!r.has_nota,hasTtdUser:!!r.has_ttd,statusDokumen:text(r.document_status||r['STATUS DOKUMEN']),
+    nominalDibayar:submitted,nominalTerverifikasi:verified,
+    nominalMenungguVerifikasi:Math.max(0,submitted-verified),sisaPembayaran:Math.max(0,nominal-submitted),
+    jumlahBuktiPembayaran:Number(r.proof_count)||0,jumlahBuktiMenunggu:Number(r.pending_count)||0,
+    canVerify:submitted>=nominal&&Number(r.pending_count)>0,
+  };
+}
+
+Deno.serve(async req=>{
+  if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});
+  if(req.method!=='POST')return json({error:'Method tidak didukung.'},405);
+  try{
+    const h=req.headers.get('Authorization')||'';
+    const token=h.startsWith('Bearer ')?h.slice(7):'';
+    if(!token)throw new Error('Token tidak ditemukan.');
+    const auth=await sb.auth.getUser(token);
+    if(auth.error||!auth.data.user)throw new Error('Token tidak valid atau kedaluwarsa.');
+    const profile=await sb.from('USERS').select('EMAIL,ROLE').eq('ID',auth.data.user.id).maybeSingle();
+    if(profile.error||!profile.data)throw new Error('Profil user tidak ditemukan.');
+    const body=await req.json();
+    if(body?.function!=='getTransactions')return json({error:'Fungsi tidak diizinkan.'},404);
+    const f=Array.isArray(body.parameters)?(body.parameters[0]||{}):{};
+    if(f.approvalOnly!==true)throw new Error('Endpoint ini hanya untuk antrean approval.');
+    const q=await sb.rpc('get_approval_queue_stage_d_v2',{
+      p_email:text(profile.data.EMAIL||auth.data.user.email).toLowerCase(),
+      p_role:text(profile.data.ROLE).toUpperCase(),
+      p_page:Number(f.page)||1,
+      p_page_size:Number(f.pageSize)||15,
+      p_filters:f,
+    });
+    if(q.error)throw q.error;
+    const result=q.data||{};
+    result.data=Array.isArray(result.data)?result.data.map(map):[];
+    result.summary=result.summary||{total:0,nominal:0,submitted:0,verified:0,pendingNominal:0,outstanding:0};
+    result.filterOptions=result.filterOptions||{sppg:[],jenisKategori:[],supplier:[]};
+    result.supplierGroups=result.supplierGroups||[];
+    return json({result});
+  }catch(error){
+    const m=error instanceof Error?error.message:String(error);
+    return json({error:m,result:{success:false,message:m}},/token|akses/i.test(m)?403:400);
+  }
+});
