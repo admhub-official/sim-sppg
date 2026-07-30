@@ -663,6 +663,7 @@ async function addTransaction(data: any, current: Caller) {
   if (current.role === 'ADMIN' && !(await pairAllowed(current, sppg, yayasan))) throw new Error('Pasangan SPPG + YAYASAN tidak di-assign.');
   if (!(Number(data.nominal) > 0)) throw new Error('Nominal transaksi harus lebih dari 0.');
   data.jenisKategori = validateTransactionCategory(data.kategori, data.jenisKategori);
+  data.jenisKategori = validateTransactionCategory(data.kategori, data.jenisKategori);
   const method = normalizeStatus(data.metodeTransaksi);
   const paidDirectly = method === 'SUDAH_DIBAYAR';
   const createdAt = new Date().toISOString();
@@ -811,6 +812,8 @@ async function editTransaction(id: string, fields: any, current: Caller) {
     Object.prototype.hasOwnProperty.call(fields || {}, key)
   );
   const targetCategory = text(patch.Kategori ?? old.Kategori);
+  const targetType = validateTransactionCategory(targetCategory, patch['Jenis Kategori'] ?? old['Jenis Kategori']);
+  patch['Jenis Kategori'] = targetType;
   const targetType = validateTransactionCategory(targetCategory, patch['Jenis Kategori'] ?? old['Jenis Kategori']);
   patch['Jenis Kategori'] = targetType;
   if (supplierChanged || targetCategory.toUpperCase() !== text(old.Kategori).toUpperCase()) {

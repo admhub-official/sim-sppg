@@ -32,7 +32,7 @@ export default {
 
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
-      const version = '20260729-optimize-supabase-egress-hotfix-v1';
+      const version = '20260730-transaction-category-supplier-rules-v1';
       const scripts = [
         `<script src="./app.js?v=${version}"></script>`,
         `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`,
