@@ -34,6 +34,14 @@ async function genericAllowed(c:Caller,bucket:string,path:string){
  if(bucket==='foto-supplier'||bucket==='file-mou'||bucket==='ttd-supplier-inv'){const col=bucket==='foto-supplier'?'FOTO SUPPLIER':bucket==='file-mou'?'FILE MOU':'TTD SUPPLIER';const q=await sb.from('MASTER_SUPPLIER').select(`ID,SPPG,YAYASAN,USER,"${col}"`).eq(col,path).maybeSingle();if(q.error)throw q.error;if(!q.data)return false;if(c.role==='SUPER_ADMIN')return true;if(c.role==='USER')return lo(q.data.USER)===c.email||lo(q.data.USER)===c.username;const ps=await pairs(c);return ps.some(([sp,ya])=>sp===s(q.data.SPPG)&&ya===s(q.data.YAYASAN));}
  return false;
 }
+async function auditAccess(c:Caller,bucket:string,path:string,variant:string){
+ try{
+  const o=await sb.schema('storage').from('objects').select('metadata').eq('bucket_id',bucket).eq('name',path).maybeSingle();
+  const original=Number((o.data as any)?.metadata?.size)||0;
+  const estimated=variant==='thumbnail'&&original>0?Math.min(original,120*1024):original;
+  await sb.from('storage_access_audit').insert({user_id:c.id,user_email:c.email,user_role:c.role,bucket_id:bucket,object_name:path,variant,estimated_bytes:estimated,source:'file-access-action'});
+ }catch(error){console.error('storage access audit',error);}
+}
 
 export async function getFileUrl(bucketOrKey:any,pathArg:any,c:Caller){
  let bucket='',path='',variant='full';
@@ -45,12 +53,15 @@ export async function getFileUrl(bucketOrKey:any,pathArg:any,c:Caller){
  if(!bucket||!path)return{success:true,data:{url:''}};
  if(bucketOrKey&&typeof bucketOrKey==='object'&&!await genericAllowed(c,bucket,path))throw new Error('Akses file ditolak.');
  const thumbnail=variant==='thumbnail'&&IMAGE_EXT.test(path.split('?')[0]);
- let u:any;
+ let u:any,transformed=false;
  if(thumbnail){
    u=await sb.storage.from(bucket).createSignedUrl(path,3600,{transform:{width:480,height:480,resize:'contain',quality:65}});
-   if(u.error||!u.data?.signedUrl)u=await sb.storage.from(bucket).createSignedUrl(path,3600);
+   transformed=!u.error&&!!u.data?.signedUrl;
+   if(!transformed)u=await sb.storage.from(bucket).createSignedUrl(path,3600);
  }else u=await sb.storage.from(bucket).createSignedUrl(path,3600);
  if(u.error||!u.data?.signedUrl)throw new Error('File tidak ditemukan atau URL gagal dibuat.');
- return{success:true,data:{url:u.data.signedUrl,expiresIn:3600,bucket,path,variant:thumbnail?'thumbnail':'full',transformed:thumbnail&&!u.error}};
+ const effectiveVariant=thumbnail?'thumbnail':'full';
+ await auditAccess(c,bucket,path,effectiveVariant);
+ return{success:true,data:{url:u.data.signedUrl,expiresIn:3600,bucket,path,variant:effectiveVariant,transformed}};
 }
 export async function showCredentials(username:string,c:Caller){const u=await userProfileByIdentifier(username);if(!u)throw new Error('User tidak ditemukan.');if(!(await mayAccessUser(c,u)))throw new Error('Akses kredensial ditolak.');return{success:true,username:s(u.USERNAME)}}
