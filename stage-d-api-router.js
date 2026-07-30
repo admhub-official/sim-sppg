@@ -16,6 +16,7 @@
     function routed(fnName, params, onSuccess, onFailure) {
       if (fnName === 'getTransactionDetail') return request('approval-payment-action', fnName, params, onSuccess, onFailure);
       if (fnName === 'uploadTxFile') return request('transaction-file-upload-action', fnName, params, onSuccess, onFailure);
+      if (fnName === 'getTransactionSummary') return request('transaction-summary-action', fnName, params, onSuccess, onFailure);
       if (fnName === 'getTransactions' && params && params[0] && params[0].approvalOnly === true) return request('approval-query-action', fnName, params, onSuccess, onFailure);
       return original(fnName, params, onSuccess, onFailure);
     }
