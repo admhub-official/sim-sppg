@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Replace native supplier datalist with in-app dropdown
+      - name: Attach in-app supplier dropdown
         shell: bash
         run: |
           python3 - <<'PY'
@@ -22,230 +22,17 @@ jobs:
 
           index = Path('index.html')
           html = index.read_text(encoding='utf-8')
-
-          add_old = '''<input type="text" id="addTxSupplier" class="form-input" list="txSupplierDatalist"
-                placeholder="Ketik nama supplier atau penjual..." autocomplete="off"
-                oninput="handleTransactionSupplierInput('add')">
-              <input type="hidden" id="addTxSupplierId">
-              <datalist id="txSupplierDatalist"></datalist>'''
-          add_new = '''<div class="app-combobox" id="addTxSupplierCombobox">
-                <input type="text" id="addTxSupplier" class="form-input app-combobox-input"
-                  placeholder="Ketik atau pilih supplier / penjual..." autocomplete="off"
-                  role="combobox" aria-autocomplete="list" aria-expanded="false"
-                  aria-controls="addTxSupplierDropdown"
-                  onfocus="openTransactionSupplierDropdown('add')"
-                  oninput="handleTransactionSupplierInput('add');renderTransactionSupplierDropdown('add')"
-                  onkeydown="handleTransactionSupplierKeydown(event,'add')">
-                <button type="button" class="app-combobox-toggle" aria-label="Buka pilihan supplier"
-                  onclick="toggleTransactionSupplierDropdown('add')"><i class="fas fa-chevron-down"></i></button>
-                <div id="addTxSupplierDropdown" class="app-combobox-menu hidden" role="listbox"></div>
-              </div>
-              <input type="hidden" id="addTxSupplierId">'''
-
-          edit_old = '''<input type="text" id="editTxSupplier" class="form-input" list="txSupplierDatalist"
-              autocomplete="off" oninput="handleTransactionSupplierInput('edit')">
-            <input type="hidden" id="editTxSupplierId">'''
-          edit_new = '''<div class="app-combobox" id="editTxSupplierCombobox">
-              <input type="text" id="editTxSupplier" class="form-input app-combobox-input"
-                placeholder="Ketik atau pilih supplier / penjual..." autocomplete="off"
-                role="combobox" aria-autocomplete="list" aria-expanded="false"
-                aria-controls="editTxSupplierDropdown"
-                onfocus="openTransactionSupplierDropdown('edit')"
-                oninput="handleTransactionSupplierInput('edit');renderTransactionSupplierDropdown('edit')"
-                onkeydown="handleTransactionSupplierKeydown(event,'edit')">
-              <button type="button" class="app-combobox-toggle" aria-label="Buka pilihan supplier"
-                onclick="toggleTransactionSupplierDropdown('edit')"><i class="fas fa-chevron-down"></i></button>
-              <div id="editTxSupplierDropdown" class="app-combobox-menu hidden" role="listbox"></div>
-            </div>
-            <input type="hidden" id="editTxSupplierId">'''
-
-          if add_old not in html:
-              raise SystemExit('Markup supplier add tidak ditemukan')
-          if edit_old not in html:
-              raise SystemExit('Markup supplier edit tidak ditemukan')
-          html = html.replace(add_old, add_new, 1).replace(edit_old, edit_new, 1)
-
-          css = r'''
-
-    /* In-app searchable supplier dropdown */
-    .app-combobox { position: relative; width: 100%; }
-    .app-combobox-input { padding-right: 46px; }
-    .app-combobox-toggle {
-      position: absolute; top: 1px; right: 1px; bottom: 1px; width: 44px;
-      border: 0; border-left: 1px solid var(--slate-200); border-radius: 0 9px 9px 0;
-      background: var(--slate-50); color: var(--slate-600); cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .app-combobox-toggle:hover { background: var(--primary-light); color: var(--primary); }
-    .app-combobox-menu {
-      position: absolute; z-index: 12050; left: 0; right: 0; top: calc(100% + 6px);
-      max-height: 280px; overflow-y: auto; overscroll-behavior: contain;
-      padding: 6px; border: 1px solid var(--slate-200); border-radius: 12px;
-      background: var(--white); box-shadow: var(--shadow-xl);
-    }
-    .app-combobox-option {
-      width: 100%; border: 0; border-radius: 9px; padding: 10px 12px;
-      background: transparent; color: var(--slate-700); cursor: pointer;
-      display: flex; align-items: center; gap: 10px; text-align: left;
-      font-size: 13px; line-height: 1.35;
-    }
-    .app-combobox-option:hover, .app-combobox-option.is-active {
-      background: var(--primary-light); color: var(--primary-dark);
-    }
-    .app-combobox-option.is-create {
-      color: var(--primary); font-weight: 700; border-bottom: 1px solid var(--slate-100);
-      margin-bottom: 4px;
-    }
-    .app-combobox-option-main { min-width: 0; flex: 1; }
-    .app-combobox-option-title { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .app-combobox-option-meta { display: block; margin-top: 2px; color: var(--slate-500); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .app-combobox-empty { padding: 14px 12px; color: var(--slate-500); text-align: center; }
-    @media (max-width: 640px) {
-      .app-combobox-menu { max-height: min(45vh, 320px); }
-      .app-combobox-option { min-height: 46px; }
-    }
-'''
-          marker = '</style>'
-          if marker not in html:
-              raise SystemExit('Penutup style tidak ditemukan')
-          html = html.replace(marker, css + '\n  </style>', 1)
+          marker = '<script src="./app.js?v=20260729-optimize-supabase-egress-hotfix-v1"></script>'
+          script = '<script src="./supplier-dropdown.js?v=20260730-in-app-v1"></script>'
+          if script not in html:
+              if marker not in html:
+                  raise SystemExit('app.js marker tidak ditemukan')
+              html = html.replace(marker, marker + '\n' + script, 1)
           index.write_text(html, encoding='utf-8')
-
-          app = Path('app.js')
-          js = app.read_text(encoding='utf-8')
-          old = '''function populateTransactionSupplierDatalist(mode) {
-  var datalist = $('txSupplierDatalist');
-  if (datalist) {
-    datalist.innerHTML = transactionSupplierChoices(mode).map(function(s) {
-      return '<option value="' + esc(s.nama) + '">' + esc((s.items || []).join(', ')) + '</option>';
-    }).join('');
-  }
-}'''
-          new = r'''var transactionSupplierDropdownState = { add: -1, edit: -1 };
-
-function populateTransactionSupplierDatalist(mode) {
-  if (mode) renderTransactionSupplierDropdown(mode);
-  else {
-    renderTransactionSupplierDropdown('add');
-    renderTransactionSupplierDropdown('edit');
-  }
-}
-
-function transactionSupplierDropdownElements(mode) {
-  var prefix = mode === 'edit' ? 'editTx' : 'addTx';
-  return {
-    input: $(prefix + 'Supplier'),
-    menu: $(prefix + 'SupplierDropdown')
-  };
-}
-
-function filteredTransactionSupplierChoices(mode) {
-  var elements = transactionSupplierDropdownElements(mode);
-  var query = elements.input ? String(elements.input.value || '').trim().toLowerCase() : '';
-  return transactionSupplierChoices(mode).filter(function(s) {
-    var haystack = [s.nama, s.sppg].concat(s.items || []).join(' ').toLowerCase();
-    return !query || haystack.indexOf(query) !== -1;
-  });
-}
-
-function renderTransactionSupplierDropdown(mode) {
-  var elements = transactionSupplierDropdownElements(mode);
-  if (!elements.input || !elements.menu) return;
-  var choices = filteredTransactionSupplierChoices(mode);
-  transactionSupplierDropdownState[mode] = -1;
-  var html = '<button type="button" class="app-combobox-option is-create" role="option" data-action="create" onclick="selectTransactionSupplierOption(\'' + mode + '\',\'__CREATE__\')">' +
-    '<i class="fas fa-plus-circle"></i><span class="app-combobox-option-main"><span class="app-combobox-option-title">Tambah Supplier Baru</span><span class="app-combobox-option-meta">Buka form master supplier di dalam aplikasi</span></span></button>';
-  if (choices.length) {
-    html += choices.map(function(s, index) {
-      var meta = [s.sppg || '', (s.items || []).join(', ')].filter(Boolean).join(' • ');
-      return '<button type="button" class="app-combobox-option" role="option" data-index="' + index + '" onclick="selectTransactionSupplierOption(\'' + mode + '\',\'' + String(s.id || '').replace(/'/g, "\\'") + '\')">' +
-        '<i class="fas fa-store"></i><span class="app-combobox-option-main"><span class="app-combobox-option-title">' + esc(s.nama || '-') + '</span>' +
-        (meta ? '<span class="app-combobox-option-meta">' + esc(meta) + '</span>' : '') + '</span></button>';
-    }).join('');
-  } else {
-    html += '<div class="app-combobox-empty"><i class="fas fa-search"></i> Supplier tidak ditemukan. Tetap bisa mengetik nama penjual manual.</div>';
-  }
-  elements.menu.innerHTML = html;
-}
-
-function openTransactionSupplierDropdown(mode) {
-  var elements = transactionSupplierDropdownElements(mode);
-  if (!elements.menu || !elements.input) return;
-  renderTransactionSupplierDropdown(mode);
-  elements.menu.classList.remove('hidden');
-  elements.input.setAttribute('aria-expanded', 'true');
-}
-
-function closeTransactionSupplierDropdown(mode) {
-  var elements = transactionSupplierDropdownElements(mode);
-  if (!elements.menu || !elements.input) return;
-  elements.menu.classList.add('hidden');
-  elements.input.setAttribute('aria-expanded', 'false');
-  transactionSupplierDropdownState[mode] = -1;
-}
-
-function toggleTransactionSupplierDropdown(mode) {
-  var elements = transactionSupplierDropdownElements(mode);
-  if (!elements.menu) return;
-  if (elements.menu.classList.contains('hidden')) {
-    openTransactionSupplierDropdown(mode);
-    if (elements.input) elements.input.focus();
-  } else closeTransactionSupplierDropdown(mode);
-}
-
-function selectTransactionSupplierOption(mode, supplierId) {
-  if (supplierId === '__CREATE__') {
-    closeTransactionSupplierDropdown(mode);
-    if (typeof openAddSupplierModal === 'function') openAddSupplierModal();
-    else if (typeof openModal === 'function') openModal('modalAddSupplier');
-    return;
-  }
-  var supplier = transactionSupplierChoices(mode).find(function(s) { return String(s.id || '') === String(supplierId || ''); });
-  var elements = transactionSupplierDropdownElements(mode);
-  if (!supplier || !elements.input) return;
-  elements.input.value = supplier.nama || '';
-  handleTransactionSupplierInput(mode);
-  closeTransactionSupplierDropdown(mode);
-}
-
-function handleTransactionSupplierKeydown(event, mode) {
-  var elements = transactionSupplierDropdownElements(mode);
-  if (!elements.menu) return;
-  if (event.key === 'Escape') { closeTransactionSupplierDropdown(mode); return; }
-  if (event.key === 'ArrowDown' && elements.menu.classList.contains('hidden')) openTransactionSupplierDropdown(mode);
-  var options = Array.prototype.slice.call(elements.menu.querySelectorAll('.app-combobox-option'));
-  if (!options.length) return;
-  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-    event.preventDefault();
-    var step = event.key === 'ArrowDown' ? 1 : -1;
-    var next = transactionSupplierDropdownState[mode] + step;
-    if (next < 0) next = options.length - 1;
-    if (next >= options.length) next = 0;
-    transactionSupplierDropdownState[mode] = next;
-    options.forEach(function(option, index) { option.classList.toggle('is-active', index === next); });
-    options[next].scrollIntoView({ block: 'nearest' });
-  } else if (event.key === 'Enter' && transactionSupplierDropdownState[mode] >= 0) {
-    event.preventDefault();
-    options[transactionSupplierDropdownState[mode]].click();
-  }
-}
-
-document.addEventListener('click', function(event) {
-  ['add', 'edit'].forEach(function(mode) {
-    var prefix = mode === 'edit' ? 'editTx' : 'addTx';
-    var wrapper = $(prefix + 'SupplierCombobox');
-    if (wrapper && !wrapper.contains(event.target)) closeTransactionSupplierDropdown(mode);
-  });
-});'''
-          if old not in js:
-              raise SystemExit('Fungsi datalist supplier tidak ditemukan')
-          js = js.replace(old, new, 1)
-          app.write_text(js, encoding='utf-8')
           PY
-
           git rm .github/workflows/one-time-custom-supplier-dropdown.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html app.js
-          git commit -m 'fix: use in-app supplier dropdown'
+          git add index.html supplier-dropdown.js
+          git commit -m 'fix: use in-app supplier dropdown' || exit 0
           git push
