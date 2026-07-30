@@ -38,8 +38,20 @@ export async function getSupplier(c:Caller,opt:any={}){
 }
 
 export async function addSupplier(d:any,c:Caller){
-  requireAdmin(c);
+  if(!['USER','ADMIN','SUPER_ADMIN'].includes(c.role))throw new Error('Akses tambah supplier ditolak.');
   if(!c.sppg||!c.yayasan)throw new Error('SPPG dan Yayasan caller wajib tersedia.');
+  const required={
+    'Nama Supplier':s(d.NAMA_SUPPLIER),
+    'No. WhatsApp':s(d.NO_WHATSAPP),
+    'Alamat Toko':s(d.ALAMAT_TOKO),
+    'Nama Bank':s(d.NAMA_BANK),
+    'No. Rekening':s(d.NO_REKENING),
+    'Atas Nama Rekening':s(d.ATAS_NAMA_REKENING),
+    'Item yang Dijual':itemList(d.ITEM_YANG_DIJUAL).join(', '),
+  };
+  const missing=Object.entries(required).filter(([,value])=>!value).map(([key])=>key);
+  if(missing.length)throw new Error(`Data supplier belum lengkap: ${missing.join(', ')}.`);
+  if(!/^(?:\+62|62|0)8\d{7,12}$/.test(required['No. WhatsApp'].replace(/[\s-]/g,'')))throw new Error('Nomor WhatsApp supplier tidak valid.');
   if(c.role==='ADMIN'){
     const pairs=await exactPairs(c);
     if(!pairs?.some(([sp,ya])=>sp===c.sppg&&ya===c.yayasan))throw new Error('SPPG dan Yayasan caller tidak termasuk assignment ADMIN.');
