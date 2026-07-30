@@ -3420,9 +3420,16 @@ function renderUsersTable() {
 
   pageData.forEach(function(u) {
     if (u.fotoProfil && String(u.fotoProfil).trim() !== '' && u.fotoProfil !== '-') {
+      var cachedUrl = _avatarUrlCache[u.fotoProfil];
+      if (cachedUrl) {
+        var imgCached = document.getElementById('userAvatar_' + u.username);
+        if (imgCached) imgCached.src = cachedUrl;
+        return;
+      }
       callApi('getFileUrl', ['FOTO_PROFIL', u.fotoProfil], function(res) {
         var fotoUrl = (res && res.data && res.data.url) ? res.data.url : (res && res.url ? res.url : '');
         if (fotoUrl) {
+          _avatarUrlCache[u.fotoProfil] = fotoUrl;
           var img = document.getElementById('userAvatar_' + u.username);
           if (img) img.src = fotoUrl;
         }
