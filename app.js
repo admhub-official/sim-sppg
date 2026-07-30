@@ -3555,6 +3555,7 @@ function openUserDetailModal(userKey) {
       }, null);
     }
   }
+}
 
 function editUserFromDetail() {
   var userKey = currentDetailUserRow;
