@@ -1,0 +1,60 @@
+name: SIM-SPPG CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate application
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in app.js professional-report-v1.js _worker.js sw.js; do
+            if [[ -f "$file" ]]; then
+              node --check "$file"
+            fi
+          done
+
+      - name: Validate JSON files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "for (const f of ['package.json','manifest.json']) { if (require('fs').existsSync(f)) JSON.parse(require('fs').readFileSync(f, 'utf8')); }"
+
+      - name: Install development dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Run egress regression check
+        run: npm run check:egress
+
+      - name: Prevent committed secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -E '(^|/)(\.env($|\.)|.*\.(pem|key)$|credentials\.json$|service-account\.json$|secrets\.json$)'; then
+            echo 'Potential secret file is tracked by Git.' >&2
+            exit 1
+          fi

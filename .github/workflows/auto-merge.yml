@@ -1,0 +1,51 @@
+name: Guarded Auto Merge
+
+on:
+  workflow_run:
+    workflows: ["SIM-SPPG CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Merge eligible pull requests
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pulls = context.payload.workflow_run.pull_requests || [];
+
+            for (const pull of pulls) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pull.number,
+              });
+
+              const sameRepository = pr.head.repo?.full_name === `${context.repo.owner}/${context.repo.repo}`;
+              const hasAutoMergeLabel = pr.labels.some((label) => label.name === 'automerge');
+              const targetsMain = pr.base.ref === 'main';
+              const isReady = !pr.draft && pr.mergeable_state !== 'dirty';
+
+              if (!sameRepository || !hasAutoMergeLabel || !targetsMain || !isReady) {
+                core.info(`PR #${pr.number} is not eligible for automatic merge.`);
+                continue;
+              }
+
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                merge_method: 'squash',
+                sha: pr.head.sha,
+              });
+
+              core.info(`PR #${pr.number} merged automatically after CI passed.`);
+            }
