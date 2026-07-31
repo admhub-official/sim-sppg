@@ -127,6 +127,10 @@
         clearSummaryCache();
         return request('transaction-edit-action', fnName, params, onSuccess, onFailure);
       }
+      if (fnName === 'deleteSupplier') {
+        clearSummaryCache();
+        return request('supplier-delete-action', fnName, params, onSuccess, onFailure);
+      }
       if (fnName === 'uploadTxFile') {
         clearSummaryCache();
         return request('transaction-file-upload-action', fnName, params, onSuccess, onFailure);
