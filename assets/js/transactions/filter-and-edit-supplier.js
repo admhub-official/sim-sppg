@@ -5,6 +5,7 @@
   var SUPPLIER_CACHE_TTL = 60 * 1000;
   var sppgCache = { values: [], loadedAt: 0, promise: null };
   var supplierCache = { values: [], loadedAt: 0, promise: null };
+  var sessionFailureShown = false;
 
   function byId(id) {
     return document.getElementById(id);
@@ -21,9 +22,8 @@
   function uniqueSorted(values) {
     var seen = Object.create(null);
     return values.map(text).filter(function (value) {
-      if (!value) return false;
       var key = lower(value);
-      if (seen[key]) return false;
+      if (!value || seen[key]) return false;
       seen[key] = true;
       return true;
     }).sort(function (left, right) {
@@ -38,6 +38,84 @@
         return;
       }
       window.callApi(action, parameters || [], resolve, reject);
+    });
+  }
+
+  function isSessionError(error) {
+    return /sesi.*berakhir|session.*expired|unauthorized|jwt/i.test(text(error && error.message));
+  }
+
+  function localSppgFallback() {
+    var rows = Array.isArray(window.allTransactions) ? window.allTransactions : [];
+    return uniqueSorted(rows.map(function (row) {
+      return row && (row.sppg || row.SPPG || row.namaSppg || row['NAMA SPPG']);
+    }));
+  }
+
+  function unwrapFilterOptions(result) {
+    var current = result;
+    for (var depth = 0; depth < 5; depth += 1) {
+      if (!current || typeof current !== 'object') return [];
+      if (Array.isArray(current.sppg)) return uniqueSorted(current.sppg);
+      if (Object.prototype.hasOwnProperty.call(current, 'result')) {
+        current = current.result;
+        continue;
+      }
+      return [];
+    }
+    return [];
+  }
+
+  function fetchTransactionSppg(force) {
+    var now = Date.now();
+    if (!force && sppgCache.values.length && now - sppgCache.loadedAt < SPPG_CACHE_TTL) {
+      return Promise.resolve(sppgCache.values.slice());
+    }
+    if (sppgCache.promise) return sppgCache.promise;
+
+    sppgCache.promise = call('getFilterOptions', []).then(function (result) {
+      var values = unwrapFilterOptions(result);
+      if (!values.length) values = localSppgFallback();
+      sppgCache.values = values;
+      sppgCache.loadedAt = Date.now();
+      return values.slice();
+    }).catch(function (error) {
+      var fallback = localSppgFallback();
+      if (fallback.length) {
+        sppgCache.values = fallback;
+        sppgCache.loadedAt = Date.now();
+      }
+      if (!isSessionError(error)) {
+        console.warn('Gagal memuat daftar SPPG transaksi:', error);
+      } else if (!sessionFailureShown) {
+        sessionFailureShown = true;
+        console.info('Daftar SPPG memakai data lokal karena sesi API sudah berakhir.');
+      }
+      return fallback;
+    }).finally(function () {
+      sppgCache.promise = null;
+    });
+
+    return sppgCache.promise;
+  }
+
+  function renderSppgFilter(values) {
+    var select = byId('txFilterSPPG');
+    if (!select) return;
+    var selected = select.value || 'ALL';
+    select.innerHTML = '<option value="ALL">Semua SPPG</option>' + values.map(function (value) {
+      var option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      return option.outerHTML;
+    }).join('');
+    select.value = values.indexOf(selected) !== -1 ? selected : 'ALL';
+  }
+
+  function refreshTransactionSppgFilter(force) {
+    return fetchTransactionSppg(!!force).then(function (values) {
+      renderSppgFilter(values);
+      return values;
     });
   }
 
@@ -56,102 +134,6 @@
       return [];
     }
     return [];
-  }
-
-  function unwrapPage(result) {
-    var current = result;
-    for (var depth = 0; depth < 5; depth += 1) {
-      if (Array.isArray(current)) {
-        return { rows: current, total: current.length, hasMore: false };
-      }
-      if (!current || typeof current !== 'object') break;
-      if (Array.isArray(current.data) || Array.isArray(current.rows)) {
-        var rows = current.data || current.rows || [];
-        return {
-          rows: rows,
-          total: Number(current.total) || rows.length,
-          hasMore: current.hasMore === true
-        };
-      }
-      if (Object.prototype.hasOwnProperty.call(current, 'result')) {
-        current = current.result;
-        continue;
-      }
-      break;
-    }
-    return { rows: [], total: 0, hasMore: false };
-  }
-
-  function readSppg(row) {
-    return text(row && (row.sppg || row.SPPG || row.namaSppg || row['NAMA SPPG']));
-  }
-
-  function fetchAllTransactionSppg(force) {
-    var now = Date.now();
-    if (!force && sppgCache.values.length && now - sppgCache.loadedAt < SPPG_CACHE_TTL) {
-      return Promise.resolve(sppgCache.values.slice());
-    }
-    if (sppgCache.promise) return sppgCache.promise;
-
-    sppgCache.promise = new Promise(function (resolve, reject) {
-      var page = 1;
-      var pageSize = 100;
-      var values = [];
-
-      function next() {
-        call('getTransactions', [{ page: page, pageSize: pageSize }]).then(function (result) {
-          var parsed = unwrapPage(result);
-          parsed.rows.forEach(function (row) {
-            var sppg = readSppg(row);
-            if (sppg) values.push(sppg);
-          });
-
-          var loaded = page * pageSize;
-          var hasMore = parsed.hasMore || (parsed.total > loaded && parsed.rows.length > 0);
-          if (hasMore && page < 100) {
-            page += 1;
-            next();
-            return;
-          }
-
-          sppgCache.values = uniqueSorted(values);
-          sppgCache.loadedAt = Date.now();
-          resolve(sppgCache.values.slice());
-        }).catch(reject);
-      }
-
-      next();
-    }).finally(function () {
-      sppgCache.promise = null;
-    });
-
-    return sppgCache.promise;
-  }
-
-  function renderSppgFilter(values) {
-    var select = byId('txFilterSPPG');
-    if (!select) return;
-    var selected = select.value || 'ALL';
-    var options = ['<option value="ALL">Semua SPPG</option>'];
-    values.forEach(function (value) {
-      var option = document.createElement('option');
-      option.value = value;
-      option.textContent = value;
-      options.push(option.outerHTML);
-    });
-    select.innerHTML = options.join('');
-    select.value = values.some(function (value) { return value === selected; }) ? selected : 'ALL';
-    select.dispatchEvent(new Event('change', { bubbles: false }));
-  }
-
-  function refreshTransactionSppgFilter(force) {
-    return fetchAllTransactionSppg(!!force).then(function (values) {
-      renderSppgFilter(values);
-      return values;
-    }).catch(function (error) {
-      console.warn('Gagal memuat daftar lengkap SPPG transaksi:', error);
-      return [];
-    });
   }
 
   function first(row, keys) {
@@ -229,17 +211,16 @@
         window.handleTransactionSupplierInput('edit');
       }
       var input = byId('editTxSupplier');
-      if (input) {
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+      if (input) input.dispatchEvent(new Event('input', { bubbles: true }));
       return scopedSuppliers('edit');
     }).catch(function (error) {
-      console.warn('Gagal memuat Data Supplier untuk Edit Transaksi:', error);
-      if (typeof window.showToast === 'function') {
-        window.showToast('warning', 'Supplier Belum Dimuat', 'Data Supplier gagal dimuat. Silakan buka ulang form edit.');
+      if (!isSessionError(error)) {
+        console.warn('Gagal memuat Data Supplier untuk Edit Transaksi:', error);
+        if (typeof window.showToast === 'function') {
+          window.showToast('warning', 'Supplier Belum Dimuat', 'Data Supplier gagal dimuat. Silakan buka ulang form edit.');
+        }
       }
-      return [];
+      return scopedSuppliers('edit');
     });
   }
 
@@ -247,9 +228,8 @@
     if (typeof window.callApi !== 'function') return false;
 
     window.populateSPPGFilter = function () {
-      refreshTransactionSppgFilter(false);
+      return refreshTransactionSppgFilter(false);
     };
-
     window.transactionSupplierChoices = function (mode) {
       return scopedSuppliers(mode || 'add');
     };
@@ -259,21 +239,11 @@
       window.openModal = function (id) {
         var result = originalOpenModal.apply(this, arguments);
         if (id === 'modalEditTransaksi') {
-          setTimeout(function () { refreshEditSupplierOptions(true); }, 0);
+          setTimeout(function () { refreshEditSupplierOptions(false); }, 0);
         }
         return result;
       };
       window.openModal.__transactionDataSources = true;
-    }
-
-    if (typeof window.loadTransactions === 'function' && !window.loadTransactions.__transactionDataSources) {
-      var originalLoadTransactions = window.loadTransactions;
-      window.loadTransactions = function () {
-        var result = originalLoadTransactions.apply(this, arguments);
-        setTimeout(function () { refreshTransactionSppgFilter(false); }, 0);
-        return result;
-      };
-      window.loadTransactions.__transactionDataSources = true;
     }
 
     refreshTransactionSppgFilter(false);
