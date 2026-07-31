@@ -1,18 +1,21 @@
 (function () {
   'use strict';
 
-  function loadScript(src, marker) {
+  var MODULE_BASE = './assets/js/supplier/';
+
+  function loadScript(fileName, marker, version) {
     if (document.querySelector('script[' + marker + '="1"]')) return;
+
     var script = document.createElement('script');
-    script.src = src;
+    script.src = MODULE_BASE + fileName + '?v=' + version;
     script.defer = true;
     script.setAttribute(marker, '1');
     document.head.appendChild(script);
   }
 
-  loadScript('./stage-d-api-router.js?v=20260731-full-scope-kpi-v2', 'data-stage-d-api-router');
-  loadScript('./app-dropdowns.js?v=20260730-stability-fix-v1', 'data-app-dropdowns');
-  loadScript('./edit-transaction-ui.js?v=20260730-edit-form-v1', 'data-edit-transaction-ui');
-  loadScript('./supplier-actions-fix.js?v=20260730-supplier-actions-v1', 'data-supplier-actions-fix');
-  loadScript('./storage-egress-optimizer.js?v=20260730-stage-b-v1', 'data-storage-egress-optimizer');
+  loadScript('stage-d-api-router.js', 'data-stage-d-api-router', '20260731-full-scope-kpi-v2');
+  loadScript('app-dropdowns.js', 'data-app-dropdowns', '20260730-stability-fix-v1');
+  loadScript('edit-transaction-ui.js', 'data-edit-transaction-ui', '20260730-edit-form-v1');
+  loadScript('supplier-actions-fix.js', 'data-supplier-actions-fix', '20260730-supplier-actions-v1');
+  loadScript('storage-egress-optimizer.js', 'data-storage-egress-optimizer', '20260730-stage-b-v1');
 })();
