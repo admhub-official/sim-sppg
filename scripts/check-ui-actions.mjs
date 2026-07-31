@@ -13,9 +13,11 @@ function walk(directory) {
   });
 }
 
+const rootJavaScript = fs.readdirSync(root, { withFileTypes: true })
+  .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
+  .map((entry) => path.join(root, entry.name));
 const javascriptFiles = [
-  path.join(root, 'app.js'),
-  path.join(root, 'supplier-dropdown.js'),
+  ...rootJavaScript,
   ...walk(path.join(root, 'assets', 'js')).filter((file) => file.endsWith('.js')),
 ];
 const source = javascriptFiles.map((file) => fs.readFileSync(file, 'utf8')).join('\n');
@@ -77,4 +79,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Audit aksi UI lulus: ${handlers.size} handler inline dan target modal tervalidasi.`);
+console.log(`Audit aksi UI lulus: ${handlers.size} handler inline dan target modal tervalidasi dari ${javascriptFiles.length} modul.`);
