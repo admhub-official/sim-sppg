@@ -30,6 +30,7 @@
 
   loadScriptSequential([
     { base: MODULE_BASE, file: 'stage-d-api-router.js', marker: 'data-stage-d-api-router', version: '20260731-edit-route-v2' },
+    { base: TRANSACTION_BASE, file: 'add-save-reliability.js', marker: 'data-add-save-reliability', version: '20260731-create-route-v1' },
     { base: TRANSACTION_BASE, file: 'edit-supplier-options-fix.js', marker: 'data-edit-supplier-options-fix', version: '20260731-supplier-modal-v2' },
     { base: MODULE_BASE, file: 'app-dropdowns.js', marker: 'data-app-dropdowns', version: '20260730-stability-fix-v1' },
     { base: MODULE_BASE, file: 'transaction-add-supplier-fix.js', marker: 'data-transaction-add-supplier-fix', version: '20260731-modal-return-v1' },
