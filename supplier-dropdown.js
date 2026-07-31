@@ -15,7 +15,7 @@
     document.head.appendChild(script);
   }
 
-  loadScript(MODULE_BASE, 'stage-d-api-router.js', 'data-stage-d-api-router', '20260731-full-scope-kpi-v2');
+  loadScript(MODULE_BASE, 'stage-d-api-router.js', 'data-stage-d-api-router', '20260731-summary-dedupe-v1');
   loadScript(MODULE_BASE, 'app-dropdowns.js', 'data-app-dropdowns', '20260730-stability-fix-v1');
   loadScript(MODULE_BASE, 'edit-transaction-ui.js', 'data-edit-transaction-ui', '20260730-edit-form-v1');
   loadScript(MODULE_BASE, 'supplier-actions-fix.js', 'data-supplier-actions-fix', '20260730-supplier-actions-v1');
