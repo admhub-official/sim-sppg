@@ -153,7 +153,10 @@ jobs:
             20260730173722
           )
 
-          supabase migration repair "${remote_versions[@]}" --status reverted --password "$SUPABASE_DB_PASSWORD"
+          for v in "${remote_versions[@]}"; do
+            supabase migration repair "$v" --status reverted --password "$SUPABASE_DB_PASSWORD" \
+              || echo "Version $v already reconciled, skipping."
+          done
 
           find supabase/migrations -maxdepth 1 -type f -name '*.sql' -delete
           supabase db pull production_baseline --password "$SUPABASE_DB_PASSWORD" --yes
