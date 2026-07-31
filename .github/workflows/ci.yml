@@ -36,7 +36,12 @@ jobs:
           # app.js masih merupakan bundle legacy. Modul yang sudah dipisahkan
           # wajib tetap valid sebagai JavaScript mandiri.
           maintained_files=(
-            app-dropdowns.js
+            supplier-dropdown.js
+            assets/js/supplier/app-dropdowns.js
+            assets/js/supplier/edit-transaction-ui.js
+            assets/js/supplier/stage-d-api-router.js
+            assets/js/supplier/storage-egress-optimizer.js
+            assets/js/supplier/supplier-actions-fix.js
             professional-report-v1.js
             transaction-category-supplier-rules.js
             _worker.js
@@ -44,9 +49,7 @@ jobs:
           )
 
           for file in "${maintained_files[@]}" scripts/*.mjs; do
-            if [[ -f "$file" ]]; then
-              node --check "$file"
-            fi
+            node --check "$file"
           done
 
       - name: Validate JSON files
