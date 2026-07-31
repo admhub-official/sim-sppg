@@ -21,6 +21,8 @@ Frontend mengakses backend melalui Supabase Edge Functions modular sesuai hak ak
 4. Kolom teknis seperti path file, UUID internal, token, dan data mentah tidak boleh menjadi kolom utama laporan bisnis.
 5. Setelah mengubah asset utama, naikkan versi cache pada `_worker.js` dan `sw.js`.
 6. Jangan menyimpan `service_role`, password database, JWT secret, SMTP password, atau VAPID private key di repository.
+7. Perubahan permanen harus diedit langsung pada source aktif. Hindari menambah workflow `apply-*` yang mengubah source lalu melakukan commit otomatis ke `main`.
+8. Skrip migrasi atau patch satu kali harus dihapus setelah hasilnya sudah masuk ke source utama dan tervalidasi.
 
 ## Pemeriksaan sebelum rilis
 
