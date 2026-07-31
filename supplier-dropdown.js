@@ -37,7 +37,6 @@
     { base: TRANSACTION_BASE, file: 'filter-and-edit-supplier.js', marker: 'data-transaction-filter-supplier', version: '20260731-filter-only-v3' },
     { base: TRANSACTION_BASE, file: 'edit-save-reliability.js', marker: 'data-edit-save-reliability', version: '20260731-edit-save-v2' },
     { base: MODULE_BASE, file: 'storage-egress-optimizer.js', marker: 'data-storage-egress-optimizer', version: '20260730-stage-b-v1' },
-    { base: REPORT_BASE, file: 'approval-export-columns.js', marker: 'data-approval-export-columns', version: '20260731-supplier-account-v2' },
-    { base: REPORT_BASE, file: 'approval-supplier-summary.js', marker: 'data-approval-supplier-summary', version: '20260731-export-summary-v2' }
+    { base: REPORT_BASE, file: 'approval-export-columns.js', marker: 'data-approval-export-columns', version: '20260731-supplier-account-v2' }
   ], 0);
 })();
