@@ -8,7 +8,7 @@ const itemList=(value:any)=>[...new Set(
 
 async function canAccessSupplier(c:Caller,row:any){
   if(c.role==='SUPER_ADMIN')return true;
-  if(c.role==='USER')return low(row?.USER)===c.email||low(row?.USER)===low(c.username);
+  if(c.role==='USER')return !!c.sppg&&s(row?.SPPG)===s(c.sppg);
   if(c.role!=='ADMIN')return false;
   const pairs=await exactPairs(c);
   return !!pairs?.some(([sp,ya])=>sp===s(row?.SPPG)&&ya===s(row?.YAYASAN));
@@ -21,7 +21,10 @@ export async function getSupplier(c:Caller,opt:any={}){
   let q=requested&&c.role!=='ADMIN'
     ?sb.from('MASTER_SUPPLIER').select(SUPPLIER_COLUMNS,{count:'exact'})
     :sb.from('MASTER_SUPPLIER').select(SUPPLIER_COLUMNS);
-  if(c.role==='USER')q=q.in('USER',[c.email,c.username].filter(Boolean));
+  if(c.role==='USER'){
+    if(!c.sppg)return requested?{success:true,data:[],page,pageSize,total:0,hasMore:false}:{success:true,data:[]};
+    q=q.eq('SPPG',c.sppg);
+  }
   if(c.role==='ADMIN'){
     const sppg=[...new Set((pairs||[]).map(([sp])=>sp).filter(Boolean))];
     if(!sppg.length)return requested?{success:true,data:[],page,pageSize,total:0,hasMore:false}:{success:true,data:[]};
