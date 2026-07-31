@@ -1,22 +1,15 @@
-# Deployment trigger: canonical transaction architecture v11+
-name: Deploy transaction and approval functions
+# Manual recovery workflow. Automatic production deployment is handled only by
+# .github/workflows/supabase-auto-deploy.yml to avoid concurrent Supabase deploys.
+name: Deploy transaction and approval functions (manual)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'supabase/functions/transaction-action/**'
-      - 'supabase/functions/transaction-edit-action/**'
-      - 'supabase/functions/supplier-delete-action/**'
-      - 'supabase/functions/approval-payment-action/**'
-      - '.github/workflows/deploy-transaction-action.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: deploy-transaction-functions-production
+  group: supabase-production-deploy
   cancel-in-progress: false
 
 jobs:
@@ -72,24 +65,16 @@ jobs:
 
       - name: Deploy transaction-edit-action
         shell: bash
-        run: |
-          set -euo pipefail
-          supabase functions deploy transaction-edit-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
+        run: supabase functions deploy transaction-edit-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
 
       - name: Deploy supplier-delete-action
         shell: bash
-        run: |
-          set -euo pipefail
-          supabase functions deploy supplier-delete-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
+        run: supabase functions deploy supplier-delete-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
 
       - name: Deploy approval-payment-action
         shell: bash
-        run: |
-          set -euo pipefail
-          supabase functions deploy approval-payment-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
+        run: supabase functions deploy approval-payment-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
 
       - name: Verify deployed functions
         shell: bash
-        run: |
-          set -euo pipefail
-          supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
+        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"

@@ -1,15 +1,16 @@
-name: Deploy master-action
+# Manual recovery workflow. Automatic production deployment is handled only by
+# .github/workflows/supabase-auto-deploy.yml to avoid concurrent Supabase deploys.
+name: Deploy master-action (manual)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'supabase/functions/master-action/**'
-      - '.github/workflows/deploy-master-action.yml'
 
 permissions:
   contents: read
+
+concurrency:
+  group: supabase-production-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
