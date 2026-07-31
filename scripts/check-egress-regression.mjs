@@ -32,6 +32,9 @@ assert(approvalQuery.includes('p_filters:f'), 'Approval filters must be applied 
 assert(transactionSummary.includes("get_transaction_kpi_v2"), 'transaction KPI must use the full role-scope SQL RPC');
 assert(stageRouter.includes("getTransactionSummary"), 'client router must send transaction KPI requests to the summary endpoint');
 assert(stageRouter.includes("transaction-summary-action"), 'transaction KPI route must target transaction-summary-action');
+assert(stageRouter.includes('summaryPending'), 'identical transaction KPI requests must share one in-flight request');
+assert(stageRouter.includes('SUMMARY_CACHE_TTL_MS'), 'transaction KPI responses must use a short-lived client cache');
+assert(stageRouter.includes('AbortController'), 'transaction KPI requests must have a timeout path');
 assert(operations.includes('q=q.range(page.from,page.to)'), 'operational lists must use database ranges');
 assert(masterBb.includes('q=q.range(from,to)'), 'master material pagination must use a database range');
 assert(reporting.includes("select('Tanggal,Kategori,SPPG,YAYASAN,Nominal,User"), 'reporting must keep its narrow transaction projection');
