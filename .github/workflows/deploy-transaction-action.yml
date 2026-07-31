@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/transaction-action/**'
+      - 'supabase/functions/transaction-edit-action/**'
       - 'supabase/functions/approval-payment-action/**'
       - '.github/workflows/deploy-transaction-action.yml'
 
@@ -34,13 +35,17 @@ jobs:
         run: |
           set -euo pipefail
           TX='supabase/functions/transaction-action/index.ts'
+          EDIT='supabase/functions/transaction-edit-action/index.ts'
           AP='supabase/functions/approval-payment-action'
           test -s "$TX"
+          test -s "$EDIT"
           test -s "$AP/index.ts"
           test -s "$AP/read-stage-a.ts"
           test -s "$AP/submit.ts"
           test -s "$AP/verify.ts"
           grep -q 'Deno.serve' "$TX"
+          grep -q 'Deno.serve' "$EDIT"
+          grep -q 'update_transaction_with_documents_atomic' "$EDIT"
           grep -q 'TRANSAKSI_DOCUMENTS' "$TX"
           grep -q 'TRANSAKSI_DOCUMENTS_AVAILABLE' "$TX"
           grep -q 'metadata-on-demand' "$AP/index.ts"
@@ -59,6 +64,12 @@ jobs:
           set -euo pipefail
           test -n "${SUPABASE_ACCESS_TOKEN:-}"
           supabase functions deploy transaction-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      - name: Deploy transaction-edit-action
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase functions deploy transaction-edit-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
 
       - name: Deploy approval-payment-action
         shell: bash
