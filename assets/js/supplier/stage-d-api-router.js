@@ -2,7 +2,9 @@
   'use strict';
 
   var BASE = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/';
-  var REQUEST_TIMEOUT_MS = 15000;
+  var REQUEST_TIMEOUT_MS = 30000;
+  var UPLOAD_TIMEOUT_MS = 60000;
+  var MAX_RETRY = 2;
   var SUMMARY_CACHE_TTL_MS = 15000;
   var summaryCache = Object.create(null);
   var summaryPending = Object.create(null);
@@ -36,13 +38,15 @@
     summaryCache = Object.create(null);
   }
 
-  function request(slug, fnName, params, ok, fail) {
+  function request(slug, fnName, params, ok, fail, attempt) {
+    attempt = attempt || 0;
+    var timeoutMs = fnName === 'uploadTxFile' ? UPLOAD_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
     var headers = { 'Content-Type': 'application/json' };
     var jwt = token();
     var controller = typeof AbortController === 'function' ? new AbortController() : null;
     var timeout = setTimeout(function () {
       if (controller) controller.abort();
-    }, REQUEST_TIMEOUT_MS);
+    }, timeoutMs);
 
     if (jwt) headers.Authorization = 'Bearer ' + jwt;
 
@@ -75,6 +79,13 @@
       })
       .catch(function (error) {
         clearTimeout(timeout);
+        var isNet = error && (error.name === 'AbortError' || error.name === 'TypeError');
+        if (isNet && attempt < MAX_RETRY) {
+          setTimeout(function () {
+            request(slug, fnName, params, ok, fail, attempt + 1);
+          }, 800 * (attempt + 1));
+          return;
+        }
         var message = error && error.name === 'AbortError'
           ? new Error('Permintaan melewati batas waktu. Silakan coba kembali.')
           : error;
