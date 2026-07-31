@@ -3,6 +3,20 @@
 
   function byId(id) { return document.getElementById(id); }
   function value(id) { var el = byId(id); return el ? String(el.value || '').trim() : ''; }
+  function errorMessage(error, fallback) {
+    if (!error) return fallback;
+    if (typeof error === 'string') return error === '[object Object]' ? fallback : error;
+    if (typeof error.message === 'string' && error.message && error.message !== '[object Object]') return error.message;
+    if (typeof error.error === 'string' && error.error && error.error !== '[object Object]') return error.error;
+    if (error.error && typeof error.error.message === 'string') return error.error.message;
+    if (typeof error.details === 'string' && error.details) return error.details;
+    try {
+      var serialized = JSON.stringify(error);
+      return serialized && serialized !== '{}' ? serialized : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
   function api(name, params) {
     return new Promise(function (resolve, reject) {
       if (typeof window.callApi !== 'function') return reject(new Error('API aplikasi belum siap.'));
@@ -98,7 +112,7 @@
       await Promise.all(uploads);
       var result = await api('editTransaction', [id, fields]);
       if (!result || result.success !== true) {
-        throw new Error((result && result.message) || 'Perubahan transaksi gagal disimpan.');
+        throw new Error(errorMessage(result, 'Perubahan transaksi gagal disimpan.'));
       }
 
       window.showToast('success', 'Berhasil', result.message || 'Perubahan transaksi berhasil disimpan.');
@@ -107,8 +121,7 @@
       if (typeof window.loadDashboardData === 'function') window.loadDashboardData();
       if (typeof window.updateChart === 'function') window.updateChart();
     } catch (error) {
-      var message = error && error.message ? error.message : 'Perubahan transaksi gagal disimpan.';
-      window.showToast('error', 'Gagal Menyimpan', message);
+      window.showToast('error', 'Gagal Menyimpan', errorMessage(error, 'Perubahan transaksi gagal disimpan.'));
     } finally {
       if (typeof window.showLoading === 'function') window.showLoading(false);
       setButtonLoading(button, false);
