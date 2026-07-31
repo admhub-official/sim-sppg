@@ -76,7 +76,7 @@
       .catch(function (error) {
         clearTimeout(timeout);
         var message = error && error.name === 'AbortError'
-          ? new Error('Permintaan ringkasan transaksi melewati batas waktu.')
+          ? new Error('Permintaan melewati batas waktu. Silakan coba kembali.')
           : error;
         if (typeof fail === 'function') safeCallback(fail, message);
         else console.error('Stage D API route failed:', message);
@@ -122,6 +122,10 @@
     function routed(fnName, params, onSuccess, onFailure) {
       if (fnName === 'getTransactionDetail') {
         return request('approval-payment-action', fnName, params, onSuccess, onFailure);
+      }
+      if (fnName === 'editTransaction') {
+        clearSummaryCache();
+        return request('transaction-edit-action', fnName, params, onSuccess, onFailure);
       }
       if (fnName === 'uploadTxFile') {
         clearSummaryCache();

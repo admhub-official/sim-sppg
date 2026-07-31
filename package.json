@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "description": "Local development and synchronization tooling for SIM-SPPG",
   "scripts": {
-    "check": "npm run check:structure && npm run check:egress",
+    "check": "npm run check:structure && npm run check:egress && npm run check:ui-actions",
     "check:structure": "node scripts/check-source-structure.mjs",
     "check:egress": "node scripts/check-egress-regression.mjs",
+    "check:ui-actions": "node scripts/check-ui-actions.mjs",
     "sync:setup": "powershell -ExecutionPolicy Bypass -File tools/sync/Setup-SimSppgSync.ps1",
     "sync:watch": "powershell -ExecutionPolicy Bypass -File tools/sync/Watch-SimSppgSync.ps1",
     "sync:pull": "powershell -ExecutionPolicy Bypass -File tools/sync/Sync-FromRemote.ps1",
