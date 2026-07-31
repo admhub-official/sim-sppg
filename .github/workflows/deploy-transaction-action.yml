@@ -8,6 +8,7 @@ on:
     paths:
       - 'supabase/functions/transaction-action/**'
       - 'supabase/functions/transaction-edit-action/**'
+      - 'supabase/functions/supplier-delete-action/**'
       - 'supabase/functions/approval-payment-action/**'
       - '.github/workflows/deploy-transaction-action.yml'
 
@@ -36,16 +37,20 @@ jobs:
           set -euo pipefail
           TX='supabase/functions/transaction-action/index.ts'
           EDIT='supabase/functions/transaction-edit-action/index.ts'
+          DELETE_SUPPLIER='supabase/functions/supplier-delete-action/index.ts'
           AP='supabase/functions/approval-payment-action'
           test -s "$TX"
           test -s "$EDIT"
+          test -s "$DELETE_SUPPLIER"
           test -s "$AP/index.ts"
           test -s "$AP/read-stage-a.ts"
           test -s "$AP/submit.ts"
           test -s "$AP/verify.ts"
           grep -q 'Deno.serve' "$TX"
           grep -q 'Deno.serve' "$EDIT"
+          grep -q 'Deno.serve' "$DELETE_SUPPLIER"
           grep -q 'update_transaction_with_documents_atomic' "$EDIT"
+          grep -q "'SUPPLIER ID': null" "$DELETE_SUPPLIER"
           grep -q 'TRANSAKSI_DOCUMENTS' "$TX"
           grep -q 'TRANSAKSI_DOCUMENTS_AVAILABLE' "$TX"
           grep -q 'metadata-on-demand' "$AP/index.ts"
@@ -70,6 +75,12 @@ jobs:
         run: |
           set -euo pipefail
           supabase functions deploy transaction-edit-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
+
+      - name: Deploy supplier-delete-action
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase functions deploy supplier-delete-action --project-ref "$SUPABASE_PROJECT_REF" --use-api
 
       - name: Deploy approval-payment-action
         shell: bash
