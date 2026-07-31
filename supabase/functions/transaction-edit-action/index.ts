@@ -76,12 +76,12 @@ async function canAccess(caller: Caller, transaction: any) {
     .eq('admin_email', caller.email);
   if (assignments.error) throw assignments.error;
   return (assignments.data || []).some((row: any) =>
-    text(row.sppg) === text(transaction.SPPG) &&
-    (!text(row.yayasan) || text(row.yayasan) === text(transaction.YAYASAN))
+    text(row.sppg).toUpperCase() === text(transaction.SPPG).toUpperCase() &&
+    (!text(row.yayasan) || !text(transaction.YAYASAN) || text(row.yayasan).toUpperCase() === text(transaction.YAYASAN).toUpperCase())
   );
 }
 
-async function resolveSupplier(fields: any, sppg: string, yayasan: string) {
+async function resolveSupplier(fields: any) {
   const supplierId = text(fields['Supplier ID'] || fields.supplierId);
   const manualName = text(fields['Nama Supplier'] || fields.supplierName);
   if (!supplierId) {
@@ -96,18 +96,13 @@ async function resolveSupplier(fields: any, sppg: string, yayasan: string) {
   }
 
   const supplier = await sb.from('MASTER_SUPPLIER')
-    .select('ID,"NAMA SUPPLIER","NAMA BANK","NO REKENING","ATAS NAMA REKENING",STATUS,SPPG,YAYASAN')
+    .select('ID,"NAMA SUPPLIER","NAMA BANK","NO REKENING","ATAS NAMA REKENING",STATUS')
     .eq('ID', supplierId)
     .maybeSingle();
   if (supplier.error) throw supplier.error;
-  if (!supplier.data) throw new Error('Supplier yang dipilih tidak ditemukan.');
+  if (!supplier.data) throw new Error('Supplier yang dipilih tidak ditemukan atau sudah dihapus.');
   if (lower(supplier.data.STATUS || 'Aktif') !== 'aktif') throw new Error('Supplier yang dipilih tidak aktif.');
-  if (text(supplier.data.SPPG) && text(supplier.data.SPPG) !== sppg) {
-    throw new Error('Supplier tidak sesuai dengan SPPG transaksi.');
-  }
-  if (text(supplier.data.YAYASAN) && yayasan && text(supplier.data.YAYASAN) !== yayasan) {
-    throw new Error('Supplier tidak sesuai dengan Yayasan transaksi.');
-  }
+
   return {
     'SUPPLIER ID': text(supplier.data.ID),
     'NAMA SUPPLIER': text(supplier.data['NAMA SUPPLIER']),
@@ -145,10 +140,8 @@ async function editTransaction(id: string, fields: any, caller: Caller) {
     throw new Error('Nominal transaksi harus lebih dari 0.');
   }
 
-  const sppg = text(patch.SPPG || current.data.SPPG);
-  const yayasan = text(patch.YAYASAN || current.data.YAYASAN);
   if (text(patch.Kategori || current.data.Kategori).toUpperCase() === 'PENGELUARAN') {
-    Object.assign(patch, await resolveSupplier(fields, sppg, yayasan));
+    Object.assign(patch, await resolveSupplier(fields));
   } else {
     Object.assign(patch, {
       'SUPPLIER ID': null,
@@ -209,7 +202,7 @@ async function editTransaction(id: string, fields: any, caller: Caller) {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method === 'GET') return json({ status: 'ok', service: 'transaction-edit-action', version: 1 });
+  if (req.method === 'GET') return json({ status: 'ok', service: 'transaction-edit-action', version: 2 });
   if (req.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
   try {
     const caller = await getCaller(req);
