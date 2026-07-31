@@ -58,6 +58,8 @@ for (const file of walk(path.join(ROOT, '.github', 'workflows')).filter((item) =
 const maintainedJavaScript = [
   'supplier-dropdown.js',
   'assets/js/reports/approval-export-columns.js',
+  'assets/js/reports/approval-supplier-summary.js',
+  'assets/js/transactions/filter-and-edit-supplier.js',
   'assets/js/supplier/app-dropdowns.js',
   'assets/js/supplier/edit-transaction-ui.js',
   'assets/js/supplier/stage-d-api-router.js',
