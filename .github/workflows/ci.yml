@@ -32,9 +32,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # app.js masih memuat bundle legacy yang telah lama tidak lolos node --check.
-          # Runtime utama dan modul baru tetap diperiksa secara ketat.
-          for file in professional-report-v1.js _worker.js sw.js transaction-category-supplier-rules.js scripts/*.mjs; do
+
+          # app.js masih merupakan bundle legacy. Modul yang sudah dipisahkan
+          # wajib tetap valid sebagai JavaScript mandiri.
+          maintained_files=(
+            app-dropdowns.js
+            professional-report-v1.js
+            transaction-category-supplier-rules.js
+            _worker.js
+            sw.js
+          )
+
+          for file in "${maintained_files[@]}" scripts/*.mjs; do
             if [[ -f "$file" ]]; then
               node --check "$file"
             fi
@@ -48,6 +57,9 @@ jobs:
 
       - name: Install development dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Validate source structure
+        run: npm run check:structure
 
       - name: Run egress regression check
         run: npm run check:egress
