@@ -1,7 +1,0 @@
--- Production migration history baseline.
---
--- This migration version already exists on the linked Supabase production project.
--- The repository only records the version locally so Supabase Preview can reconcile
--- remote and local migration history without replaying production schema changes.
---
--- Intentionally no-op.
