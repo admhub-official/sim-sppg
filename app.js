@@ -5945,6 +5945,7 @@ function _approvalReportModel(data) {
       bank: String(tx.supplierBankName || '-'),
       rekening: String(tx.supplierAccountNumber || '-'),
       atasNama: String(tx.supplierAccountHolder || '-'),
+      rekeningPenerima: String((tx.supplierBankName || '-') + ' - ' + (tx.supplierAccountNumber || '-') + ' a.n ' + (tx.supplierAccountHolder || '-')),
       nominal: Number(tx.nominal) || 0,
       metode: methodLabel,
       kelengkapan: doc.status,
@@ -6029,12 +6030,12 @@ function exportApprovalReportCSV(data) {
 
   add(['DETAIL TRANSAKSI']);
   add(['No', 'Tanggal Transaksi', 'Kode Transaksi', 'SPPG', 'Nama Penginput', 'Email Penginput',
-    'Jenis Kategori', 'Nama Item', 'Supplier / Penjual', 'Bank', 'Nomor Rekening', 'Atas Nama Rekening',
+    'Jenis Kategori', 'Nama Item', 'Supplier / Penjual', 'Rekening Penerima', 'Bank', 'Nomor Rekening', 'Atas Nama Rekening',
     'Nominal (Rp)', 'Status Approval/Pembayaran',
     'Status Kelengkapan', 'Indikator Warna', 'Bukti Pembayaran', 'Nota', 'TTD User']);
   report.rows.forEach(function(row) {
     add([row.no, row.tanggal, row.kode, row.sppg, row.nama, row.email, row.jenis, row.item,
-      row.supplier, row.bank, row.rekening, row.atasNama,
+      row.supplier, row.rekeningPenerima, row.bank, row.rekening, row.atasNama,
       Math.round(row.nominal), row.metode, row.kelengkapan, row.indikator, row.bukti, row.nota, row.ttd]);
   });
   lines.push('');
@@ -8390,6 +8391,7 @@ function filterPrintRows(page, rows) {
 
 function preparePrintDataset(done) {
   var map={
+    'approval':['getTransactions',[{approvalOnly:true,exportAll:true,search:$('apprSearchInput')?$('apprSearchInput').value.trim():'',sppg:($('apprFilterSPPG')&&$('apprFilterSPPG').value!=='ALL')?$('apprFilterSPPG').value:'',jenisKategori:($('apprFilterJenisKat')&&$('apprFilterJenisKat').value!=='ALL')?$('apprFilterJenisKat').value:'',supplier:($('apprFilterSupplier')&&$('apprFilterSupplier').value!=='ALL')?$('apprFilterSupplier').value:'',kelengkapan:($('apprFilterKelengkapan')&&$('apprFilterKelengkapan').value!=='ALL')?$('apprFilterKelengkapan').value:'',dateStart:$('apprFilterTglStart')?$('apprFilterTglStart').value:'',dateEnd:$('apprFilterTglEnd')?$('apprFilterTglEnd').value:''}]],
     'transaksi':['getTransactions',[{sppgFilter:($('txFilterSPPG')&&$('txFilterSPPG').value!=='ALL')?$('txFilterSPPG').value:'',kategoriFilter:($('txFilterKategori')&&$('txFilterKategori').value!=='ALL')?$('txFilterKategori').value:'',dateStart:$('txFilterTglStart')?$('txFilterTglStart').value:'',dateEnd:$('txFilterTglEnd')?$('txFilterTglEnd').value:''}]],
     'master-bahan':['getMasterBahanBaku',[]],
     'master-supplier':['getMasterSupplier',[]],
@@ -8416,7 +8418,10 @@ function printCurrentPage() {
     return;
   }
   if (currentPage === 'approval') {
-    exportApprovalReportPDF(filteredApprovalData || [], 'Laporan Approval Transaksi');
+    preparePrintDataset(function(rows) {
+      if (rows === null) return;
+      exportApprovalReportPDF(rows, 'Laporan Approval Transaksi');
+    });
     return;
   }
   var runPrint = function() {
@@ -8502,9 +8507,9 @@ function buildPrintAllTable() {
   if (currentPage === 'transaksi') {
     var data = printData(filteredTransactions);
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' transaksi</strong></div>';
-    html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>Kategori</th><th>SPPG</th><th>Item</th><th>Supplier</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>Kategori</th><th>SPPG</th><th>Item</th><th>Supplier / Penjual</th><th>Rekening Penerima</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
     data.forEach(function(tx, i) {
-      html += '<tr><td>' + (i+1) + '</td><td>' + esc(tx.kode||'-') + '</td><td>' + esc(tx.tanggal||'-') + '</td><td>' + esc(tx.kategori||'-') + '</td><td>' + esc(tx.sppg||'-') + '</td><td>' + esc(tx.item||'-') + '</td><td>' + esc(tx.supplierName||'-') + '</td><td>' + formatRupiah(tx.nominal) + '</td><td>' + esc(tx.metodeTransaksi||'-') + '</td><td>' + esc(tx.user||'-') + '</td></tr>';
+      html += '<tr><td>' + (i+1) + '</td><td>' + esc(tx.kode||'-') + '</td><td>' + esc(tx.tanggal||'-') + '</td><td>' + esc(tx.kategori||'-') + '</td><td>' + esc(tx.sppg||'-') + '</td><td>' + esc(tx.item||'-') + '</td><td>' + esc(tx.supplierName||'-') + '</td><td>' + esc(((tx.supplierBankName||'-') + ' - ' + (tx.supplierAccountNumber||'-') + ' a.n ' + (tx.supplierAccountHolder||'-'))) + '</td><td>' + formatRupiah(tx.nominal) + '</td><td>' + esc(tx.metodeTransaksi||'-') + '</td><td>' + esc(tx.user||'-') + '</td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -8575,9 +8580,9 @@ function buildPrintAllTable() {
   else if (currentPage === 'approval') {
     var data = filteredApprovalData || [];
     html += '<div style="margin-bottom:12px;font-size:11px;"><strong>Total Data: ' + data.length + ' menunggu approval</strong></div>';
-    html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>SPPG</th><th>Item</th><th>Supplier</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>No</th><th>Kode</th><th>Tanggal</th><th>SPPG</th><th>Item</th><th>Supplier / Penjual</th><th>Rekening Penerima</th><th>Nominal</th><th>Metode</th><th>Penginput</th></tr></thead><tbody>';
     data.forEach(function(tx, i) {
-      html += '<tr><td>' + (i+1) + '</td><td>' + esc(tx.kode||'-') + '</td><td>' + esc(tx.tanggal||'-') + '</td><td>' + esc(tx.sppg||'-') + '</td><td>' + esc(tx.item||'-') + '</td><td>' + esc(tx.supplierName||'-') + '</td><td>' + formatRupiah(tx.nominal) + '</td><td>' + esc(tx.metodeTransaksi||'-') + '</td><td>' + esc(tx.user||'-') + '</td></tr>';
+      html += '<tr><td>' + (i+1) + '</td><td>' + esc(tx.kode||'-') + '</td><td>' + esc(tx.tanggal||'-') + '</td><td>' + esc(tx.sppg||'-') + '</td><td>' + esc(tx.item||'-') + '</td><td>' + esc(tx.supplierName||'-') + '</td><td>' + esc(((tx.supplierBankName||'-') + ' - ' + (tx.supplierAccountNumber||'-') + ' a.n ' + (tx.supplierAccountHolder||'-'))) + '</td><td>' + formatRupiah(tx.nominal) + '</td><td>' + esc(tx.metodeTransaksi||'-') + '</td><td>' + esc(tx.user||'-') + '</td></tr>';
     });
     html += '</tbody></table>';
   }
