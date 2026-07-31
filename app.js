@@ -2,7 +2,7 @@
  * Seluruh logika lokal aplikasi dipusatkan dalam file ini.
  * UI, UX, markup, dan CSS berada di index.html.
  */
-
+ 
 /* ===== INLINE MODULE 1 ===== */
 (function() {
   function iconsConverted() {
