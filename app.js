@@ -4161,8 +4161,12 @@ function saveAddTransaksi() {
     showToast('error', 'Nota Wajib', 'Upload nota pembelian sebelum menyimpan transaksi.');
     return;
   }
-  showLoading(true);
   var ttdCanvas = $('addTxTtdCanvas');
+  if (!ttdCanvas || isCanvasBlank('addTxTtdCanvas')) {
+    showToast('error', 'Tanda Tangan Wajib', 'Tanda tangan digital (TTD) wajib diisi sebelum menyimpan transaksi.');
+    return;
+  }
+  showLoading(true);
   var uploadsPending = 0;
   var uploadErrors = [];
 
@@ -4249,8 +4253,12 @@ function saveAddTransaksi() {
         clearTimeout(timeoutHandle);
                 showLoading(false);
                 if (btnSave) { btnSave.disabled = false; btnSave.innerHTML = '<i class="fas fa-save"></i> Simpan Transaksi'; }
-                var errDetail = err && err.message ? err.message : 'Periksa koneksi internet Anda.';
-                showToast('error', 'Koneksi Gagal', errDetail + ' — Coba tekan Simpan lagi.');
+                var isNetworkIssue = !err || !err.message || /timeout|failed to fetch|network|abort/i.test(err.message);
+                if (isNetworkIssue) {
+                  showToast('error', 'Koneksi Gagal', (err && err.message ? err.message : 'Periksa koneksi internet Anda.') + ' — Coba tekan Simpan lagi.');
+                } else {
+                  showToast('error', 'Gagal Menyimpan', err.message);
+                }
       }
     );
   }
@@ -4292,7 +4300,7 @@ function saveAddTransaksi() {
     };
     r3.readAsDataURL(notaFile);
   }
-  if (ttdCanvas && !isCanvasBlank('addTxTtdCanvas')) {
+  if (!isCanvasBlank('addTxTtdCanvas')) {
     var ttdDataUrl = ttdCanvas.toDataURL('image/png');
     var ttdBase64 = ttdDataUrl.split(',')[1];
     uploadsPending++;
