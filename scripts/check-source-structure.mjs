@@ -56,7 +56,12 @@ for (const file of walk(path.join(ROOT, '.github', 'workflows')).filter((item) =
 }
 
 const maintainedJavaScript = [
-  'app-dropdowns.js',
+  'supplier-dropdown.js',
+  'assets/js/supplier/app-dropdowns.js',
+  'assets/js/supplier/edit-transaction-ui.js',
+  'assets/js/supplier/stage-d-api-router.js',
+  'assets/js/supplier/storage-egress-optimizer.js',
+  'assets/js/supplier/supplier-actions-fix.js',
   'professional-report-v1.js',
   'transaction-category-supplier-rules.js',
   '_worker.js',
