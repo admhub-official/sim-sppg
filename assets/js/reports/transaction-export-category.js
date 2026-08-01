@@ -1,61 +1,51 @@
 (function(){
 'use strict';
-function patchTransactionReport(){
+function addCategoryToReport(){
   if(window.__categoryTransactionReportFixed)return;
   window.__categoryTransactionReportFixed=true;
 
-  if(typeof window._transactionReportHeaders==='function'){
-    var oldHeaders=window._transactionReportHeaders;
-    window._transactionReportHeaders=function(){
-      var h=oldHeaders();
-      if(h.indexOf('Kategori')<0){
-        h.splice(6,0,'Kategori');
-      }
-      return h;
-    };
-  }
-
-  if(typeof window._transactionReportValues==='function'){
-    var oldValues=window._transactionReportValues;
+  var originalValues=window._transactionReportValues;
+  if(typeof originalValues==='function'){
     window._transactionReportValues=function(row){
-      var v=oldValues(row);
-      if(v.length===14){
-        v.splice(6,0,row.kategori||'-');
+      var values=originalValues(row);
+      if(values.length===14){
+        values.splice(6,0,row.kategori||'-');
       }
-      return v;
+      return values;
     };
   }
 
-  if(typeof window._transactionReportHTML==='function'){
-    var oldHtml=window._transactionReportHTML;
-    window._transactionReportHTML=function(report){
-      return oldHtml(report).replace(
-        '<th>Jenis Kategori</th>',
-        '<th>Kategori</th><th>Jenis Kategori</th>'
-      ).replace(
-        '<td>' + esc(row.jenis) + '</td>',
-        '<td>' + esc(row.kategori || '-') + '</td><td>' + esc(row.jenis) + '</td>'
-      );
+  var originalHeaders=window._transactionReportHeaders;
+  if(typeof originalHeaders==='function'){
+    window._transactionReportHeaders=function(){
+      var headers=originalHeaders();
+      if(headers.indexOf('Kategori')<0){
+        headers.splice(6,0,'Kategori');
+      }
+      return headers;
     };
   }
 }
 
-function patchPrintAll(){
-  var old=window.buildPrintAllTable;
-  if(typeof old!=='function'||window.__categoryPrintFixed)return;
-  window.__categoryPrintFixed=true;
+function patchPrintTemplate(){
+  if(window.__categoryTransactionPrintFixed)return;
+  var fn=window.buildPrintAllTable;
+  if(typeof fn!=='function')return;
+  window.__categoryTransactionPrintFixed=true;
   window.buildPrintAllTable=function(){
-    var html=old.apply(this,arguments);
+    var html=fn.apply(this,arguments);
     if(window.currentPage==='transaksi'){
-      html=html.replace('<th>Item</th>','<th>Kategori</th><th>Item</th>')
-        .replace(/<td>'+esc\(tx\.item\|\|'-'\)<\/td>/,'<td>'+esc(tx.kategori||'-')+'</td><td>'+esc(tx.item||'-')+'</td>');
+      html=html.replace('<th>Item</th>','<th>Kategori</th><th>Item</th>');
+      html=html.replace(/<td>(.*?)<\/td><td><strong style="color:var\(--slate-700\);">/g,function(all,a){
+        return all;
+      });
     }
     return html;
   };
 }
 
 setTimeout(function(){
-  patchTransactionReport();
-  patchPrintAll();
-},800);
+  addCategoryToReport();
+  patchPrintTemplate();
+},1200);
 })();
