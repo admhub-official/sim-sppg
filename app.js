@@ -212,7 +212,7 @@ var API_MUTATION_FUNCTIONS = {
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
   recoverPassword:1, updateFeatureSettings:1, updateMenuVisibility:1,
   createAnnouncement:1, setAnnouncementActive:1, dispatchNotification:1,
-  updateMyTrx:1, deleteMyTrx:1
+  confirmChatTrx:1, updateMyTrx:1, deleteMyTrx:1
 };
 var apiReadCache = Object.create(null);
 

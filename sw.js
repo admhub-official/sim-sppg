@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260811-mytrx-v1';
+const CACHE_VERSION = 'sim-sppg-v20260811-mytrx-v2';
 const APP_SHELL = [
   './index.html',
   './app.js',
