@@ -115,6 +115,9 @@ var API_ROUTES = {
     addTransaction:1, editTransaction:1, sendCatatanApproval:1, getTransactionSuggestions:1,
     getTransactionSummary:1, uploadTxFile:1, deleteTransaction:1
   },
+  'chattrx-message-action': { sendChatTrxMessage:1 },
+  'chattrx-suggest-action': { getChatTrxSuggestions:1 },
+  'chattrx-confirm-action': { confirmChatTrx:1 },
   'approval-payment-action': {
     getTransactions:1, getTransactionDetail:1, approveTransaction:1,
     submitUserBuktiPembayaran:1, submitUserBulkBuktiPembayaran:1,
@@ -1956,6 +1959,7 @@ var MENU_CONFIG = {
     { label: 'MENU UTAMA', isHeader: true },
     { page: 'settings', label: 'Pengaturan', icon: 'fa-sliders-h' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
+    { page: 'chattrx', label: 'ChatTrx', icon: 'fa-comments-dollar' },
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
     { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
@@ -1976,6 +1980,7 @@ var MENU_CONFIG = {
     { label: 'MENU UTAMA', isHeader: true },
     { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
+    { page: 'chattrx', label: 'ChatTrx', icon: 'fa-comments-dollar' },
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
     { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
@@ -2071,6 +2076,7 @@ function getLastPageStorageKey() {
 }
 
 function isMenuPageVisibleForRole(page, role) {
+  if (page === 'chattrx') return role === 'SUPER_ADMIN' || role === 'ADMIN';
   var configured = menuVisibilityByRole[role];
   if (!Array.isArray(configured) || !configured.length) return true;
   return configured.indexOf(page) !== -1;
@@ -2459,7 +2465,7 @@ function switchPage(page, el) {
   // Update title
   var titles = {
     'dashboard': 'Dashboard', 'profil': 'Profil', 'users': 'Manajemen Users', 'laporan': 'Laporan',
-    'transaksi': currentUser && currentUser.role === 'ADMIN' ? 'Semua Transaksi' : 'Transaksi Saya',
+    'transaksi': currentUser && currentUser.role === 'ADMIN' ? 'Semua Transaksi' : 'Transaksi Saya', 'chattrx':'ChatTrx',
     'approval': 'Approval',
     'pending-payment': 'Pending Payment', 'master-bahan': 'Master Bahan Baku',
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
@@ -2480,6 +2486,7 @@ function switchPage(page, el) {
   if (page === 'settings' && currentUser.role === 'SUPER_ADMIN') { initializeSettingsHubLayout(); loadSettingsHub(); }
   if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers(true);
   if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(undefined, undefined, true); restoreFilterBarState('txFilterBar'); }
+  if (page === 'chattrx' && window.initChatTrx) window.initChatTrx();
   if (page === 'approval') { loadFeatureModes(true); loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
   if (page === 'master-bahan') { loadMasterBB(undefined, undefined, true); restoreFilterBarState('bbFilterBar'); }
