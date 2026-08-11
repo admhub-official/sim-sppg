@@ -5057,6 +5057,18 @@
         </div>
       </div>
 
+      <!-- ==================== MYTRX (ADMIN / SUPER_ADMIN) ==================== -->
+      <div id="page-mytrx" class="page-section hidden">
+        <div class="mytrx-page">
+          <div class="mytrx-toolbar">
+            <div><h2><i class="fas fa-list-alt"></i> MyTrx</h2><p>Riwayat transaksi yang berhasil ditambahkan melalui ChatTrx.</p></div>
+            <div class="mytrx-filters"><select id="mytrxJenis" onchange="loadMyTrx(1)"><option value="">Semua jenis</option><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select><input id="mytrxSearch" type="search" placeholder="Cari kategori, item, keterangan..." onkeydown="if(event.key==='Enter')loadMyTrx(1)"><button class="btn btn-primary" onclick="loadMyTrx(1)"><i class="fas fa-search"></i> Cari</button></div>
+          </div>
+          <div class="mytrx-table-wrap"><table class="mytrx-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Item / Keterangan</th><th>Nominal</th><th>Pembayaran</th><th>Bukti</th><th>Aksi</th></tr></thead><tbody id="mytrxRows"></tbody></table><div id="mytrxEmpty" class="mytrx-empty hidden"><i class="fas fa-inbox"></i><p>Belum ada transaksi ChatTrx.</p></div></div>
+          <div id="mytrxPager" class="mytrx-pager"></div>
+        </div>
+      </div>
+
       <!-- ==================== SETTINGS HUB (SUPER_ADMIN) ==================== -->
       <div id="page-settings" class="page-section hidden">
         <div class="page-header">
@@ -7444,9 +7456,20 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260811-chattrx-v1"></script>
-<script src="./assets/js/chattrx.js?v=20260811-v3"></script>
-<link rel="stylesheet" href="./assets/css/chattrx.css?v=20260811-v3">
+<div id="modalMyTrxEdit" class="hidden" role="dialog" aria-modal="true" aria-labelledby="mytrxEditTitle">
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal('modalMyTrxEdit')">
+    <div class="modal-box">
+      <div class="modal-header"><div><h3 id="mytrxEditTitle"><i class="fas fa-edit"></i> Edit MyTrx</h3><p>Perbarui data transaksi yang dicatat ChatTrx.</p></div><button onclick="closeModal('modalMyTrxEdit')" class="modal-close"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body"><form id="mytrxEditForm" class="mytrx-form" onsubmit="event.preventDefault();saveMyTrxEdit()"><input id="mytrxEditId" type="hidden"><label>Jenis transaksi<select id="mytrxEditJenis" required><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select></label><label>Kategori<input id="mytrxEditKategori" required></label><label>Nama item<input id="mytrxEditItem" required></label><label>Keterangan<textarea id="mytrxEditKeterangan" rows="3"></textarea></label><label>Nominal<input id="mytrxEditNominal" type="number" min="1" step="1" required></label><label>Status pembayaran<select id="mytrxEditStatus" required><option value="sudah_dibayar">Sudah Dibayar/Lunas</option><option value="belum_dibayar">Belum Dibayar</option></select></label></form></div>
+      <div class="modal-footer"><button onclick="closeModal('modalMyTrxEdit')" class="btn btn-outline">Batal</button><button onclick="saveMyTrxEdit()" class="btn btn-primary" id="mytrxSaveBtn"><i class="fas fa-save"></i> Simpan</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="./app.js?v=20260811-mytrx-v1"></script>
+<script src="./assets/js/chattrx.js?v=20260811-v4"></script>
+<script src="./assets/js/mytrx.js?v=20260811-v1"></script>
+<link rel="stylesheet" href="./assets/css/chattrx.css?v=20260811-v4">
 <script src="./supplier-dropdown.js?v=20260730-in-app-v1"></script>
 </body>
 </html>

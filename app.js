@@ -118,6 +118,7 @@ var API_ROUTES = {
   'chattrx-message-action': { sendChatTrxMessage:1 },
   'chattrx-suggest-action': { getChatTrxSuggestions:1 },
   'chattrx-confirm-action': { confirmChatTrx:1 },
+  'chattrx-records-action': { listMyTrx:1, updateMyTrx:1, deleteMyTrx:1 },
   'approval-payment-action': {
     getTransactions:1, getTransactionDetail:1, approveTransaction:1,
     submitUserBuktiPembayaran:1, submitUserBulkBuktiPembayaran:1,
@@ -189,7 +190,7 @@ var API_READ_CACHE_TTL = {
   getRekapHarian:15000, getFilterOptions:30000, getAuditLog:10000,
   getNotifications:5000, getUploadBuktiMode:30000,
   getTransactionEditMode:30000, getMyMenuVisibility:30000,
-  getMyAnnouncements:30000, getSettingsHub:15000
+  getMyAnnouncements:30000, getSettingsHub:15000, listMyTrx:10000
 };
 // Only successful writes invalidate cached reads. Read endpoints that are not
 // cached (for example getTransactionDetail/getFileUrl) must not evict list and
@@ -210,7 +211,8 @@ var API_MUTATION_FUNCTIONS = {
   savePushSubscription:1, deletePushSubscription:1,
   registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
   recoverPassword:1, updateFeatureSettings:1, updateMenuVisibility:1,
-  createAnnouncement:1, setAnnouncementActive:1, dispatchNotification:1
+  createAnnouncement:1, setAnnouncementActive:1, dispatchNotification:1,
+  updateMyTrx:1, deleteMyTrx:1
 };
 var apiReadCache = Object.create(null);
 
@@ -1960,6 +1962,7 @@ var MENU_CONFIG = {
     { page: 'settings', label: 'Pengaturan', icon: 'fa-sliders-h' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
     { page: 'chattrx', label: 'ChatTrx', icon: 'fa-comments-dollar' },
+    { page: 'mytrx', label: 'MyTrx', icon: 'fa-list-alt' },
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
     { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
@@ -1981,6 +1984,7 @@ var MENU_CONFIG = {
     { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
     { page: 'chattrx', label: 'ChatTrx', icon: 'fa-comments-dollar' },
+    { page: 'mytrx', label: 'MyTrx', icon: 'fa-list-alt' },
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
     { page: 'pending-payment', label: 'Pending Payment', icon: 'fa-hand-holding-usd' },
     { page: 'audit-log', label: 'Riwayat Aktivitas', icon: 'fa-history' },
@@ -2076,7 +2080,7 @@ function getLastPageStorageKey() {
 }
 
 function isMenuPageVisibleForRole(page, role) {
-  if (page === 'chattrx') return role === 'SUPER_ADMIN' || role === 'ADMIN';
+  if (page === 'chattrx' || page === 'mytrx') return role === 'SUPER_ADMIN' || role === 'ADMIN';
   var configured = menuVisibilityByRole[role];
   if (!Array.isArray(configured) || !configured.length) return true;
   return configured.indexOf(page) !== -1;
@@ -2461,11 +2465,12 @@ function switchPage(page, el) {
     if (menuItem) menuItem.classList.add('active');
   }
   currentPage = page;
+  document.body.classList.toggle('chattrx-fullscreen', page === 'chattrx');
   rememberCurrentPage(page);
   // Update title
   var titles = {
     'dashboard': 'Dashboard', 'profil': 'Profil', 'users': 'Manajemen Users', 'laporan': 'Laporan',
-    'transaksi': currentUser && currentUser.role === 'ADMIN' ? 'Semua Transaksi' : 'Transaksi Saya', 'chattrx':'ChatTrx',
+    'transaksi': currentUser && currentUser.role === 'ADMIN' ? 'Semua Transaksi' : 'Transaksi Saya', 'chattrx':'ChatTrx', 'mytrx':'MyTrx',
     'approval': 'Approval',
     'pending-payment': 'Pending Payment', 'master-bahan': 'Master Bahan Baku',
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
@@ -2487,6 +2492,7 @@ function switchPage(page, el) {
   if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers(true);
   if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(undefined, undefined, true); restoreFilterBarState('txFilterBar'); }
   if (page === 'chattrx' && window.initChatTrx) window.initChatTrx();
+  if (page === 'mytrx' && window.initMyTrx) window.initMyTrx();
   if (page === 'approval') { loadFeatureModes(true); loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
   if (page === 'master-bahan') { loadMasterBB(undefined, undefined, true); restoreFilterBarState('bbFilterBar'); }
