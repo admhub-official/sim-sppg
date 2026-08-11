@@ -5044,6 +5044,19 @@
 
       </div>
 
+      <!-- ==================== CHATTRX (ADMIN / SUPER_ADMIN) ==================== -->
+      <div id="page-chattrx" class="page-section hidden">
+        <div class="chattrx-shell">
+          <div class="chattrx-head"><div><strong><i class="fas fa-comments-dollar"></i> ChatTrx</strong><small>Asisten pencatatan transaksi</small></div><button class="btn btn-outline btn-sm" onclick="resetChatTrx()"><i class="fas fa-plus"></i> Baru</button></div>
+          <div id="chattrxMessages" class="chattrx-messages" aria-live="polite"></div>
+          <div id="chattrxTyping" class="chattrx-typing hidden"><span></span><span></span><span></span> AI sedang memproses...</div>
+          <div id="chattrxChips" class="chattrx-chips"></div>
+          <div id="chattrxPreview" class="chattrx-preview"></div>
+          <div id="chattrxSummary" class="chattrx-summary hidden"></div>
+          <div class="chattrx-compose"><label class="chattrx-attach" title="Lampirkan nota/bukti"><i class="fas fa-paperclip"></i><input id="chattrxFiles" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple onchange="previewChatTrxFiles(this.files)"></label><textarea id="chattrxInput" rows="1" placeholder="Tulis transaksi Anda..." onkeydown="chatTrxKeydown(event)"></textarea><button onclick="sendChatTrx()" aria-label="Kirim"><i class="fas fa-paper-plane"></i></button></div>
+        </div>
+      </div>
+
       <!-- ==================== SETTINGS HUB (SUPER_ADMIN) ==================== -->
       <div id="page-settings" class="page-section hidden">
         <div class="page-header">
@@ -7431,7 +7444,9 @@
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
 
-<script src="./app.js?v=20260729-optimize-supabase-egress-hotfix-v1"></script>
+<script src="./app.js?v=20260811-chattrx-v1"></script>
+<script src="./assets/js/chattrx.js?v=20260811-v1"></script>
+<link rel="stylesheet" href="./assets/css/chattrx.css?v=20260811-v1">
 <script src="./supplier-dropdown.js?v=20260730-in-app-v1"></script>
 </body>
 </html>
