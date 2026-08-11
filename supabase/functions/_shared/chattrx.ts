@@ -29,4 +29,4 @@ export async function applyRoleFilter(query:any,c:Caller,columns={owner:'user_id
   return query.or(clauses.join(','));
 }
 
-export function handlerError(error:unknown){const message=error instanceof Error?error.message:String(error);console.error(message);return json({error:message,result:{success:false,message}},/akses|token/i.test(message)?403:400)}
+export function handlerError(error:unknown){const e=error as any;const message=text(error instanceof Error?error.message:e?.message||e?.details||e?.hint||e?.code)||'Terjadi kesalahan pada layanan ChatTrx.';console.error(message,e?.code||'');return json({error:message,result:{success:false,message}},/akses|token/i.test(message)?403:400)}
