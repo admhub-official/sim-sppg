@@ -1,11 +1,11 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-07-31T17:49:06.412Z.
+Generated automatically from `app.js` at 2026-08-11T11:32:16.767Z.
 
 ## Summary
 
 - Literal API calls found: **72**
-- Functions declared in `API_ROUTES`: **86**
+- Functions declared in `API_ROUTES`: **89**
 - Routed literal API calls: **72**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
@@ -98,9 +98,11 @@ Generated automatically from `app.js` at 2026-07-31T17:49:06.412Z.
 | Function | Route group |
 |---|---|
 | `checkSession` | `auth-public-action` |
+| `confirmChatTrx` | `chattrx-confirm-action` |
 | `deletePushSubscription` | `push-action` |
 | `dispatchNotification` | `notification-dispatch-action` |
 | `getAppConfig` | `app-config-action` |
+| `getChatTrxSuggestions` | `chattrx-suggest-action` |
 | `getFilterOptions` | `reporting-action` |
 | `getRekapHarian` | `reporting-action` |
 | `recoverPassword` | `account-recovery-action` |
@@ -108,6 +110,7 @@ Generated automatically from `app.js` at 2026-07-31T17:49:06.412Z.
 | `recoverUsername` | `account-recovery-action` |
 | `refreshSession` | `auth-public-action` |
 | `sendCatatanApproval` | `transaction-action` |
+| `sendChatTrxMessage` | `chattrx-message-action` |
 | `showCredentials` | `file-access-action` |
 | `uploadSerahTerimaFile` | `master-action` |
 | `uploadSupplierFile` | `master-action` |
