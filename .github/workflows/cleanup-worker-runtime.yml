@@ -54,3 +54,5 @@ jobs:
           git commit -m 'Remove stale edge runtime source rewrites'
           git pull --rebase origin main
           git push origin main
+
+# One-time cleanup; remove after successful source commit.
