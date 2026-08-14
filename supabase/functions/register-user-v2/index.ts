@@ -82,8 +82,6 @@ async function createUserBySuperAdmin(request: Request, data: any) {
 
   let authUserId = '';
   try {
-    // Invite dipakai agar Supabase mengirim email konfirmasi/undangan melalui
-    // template Auth resmi. Password tetap ditentukan oleh SUPER_ADMIN.
     const invited = await supabase.auth.admin.inviteUserByEmail(email, {
       data: {
         created_by: actor.email,
@@ -113,7 +111,6 @@ async function createUserBySuperAdmin(request: Request, data: any) {
     });
     if (inserted.error) throw inserted.error;
 
-    // Audit dibuat best-effort agar kegagalan tabel log tidak menggagalkan akun.
     try {
       await supabase.from('AUDIT LOG').insert({
         TIMESTAMP: new Date().toISOString(),
@@ -159,12 +156,6 @@ Deno.serve(async (request) => {
     const fn = clean(body?.function);
     const data = Array.isArray(body?.parameters) ? (body.parameters[0] || {}) : (body?.data || {});
 
-    if (fn === 'registerUser') {
-      return response({
-        error: 'Registrasi publik sudah dinonaktifkan.',
-        result: { success: false, message: 'Registrasi publik sudah dinonaktifkan. Akun hanya dapat dibuat oleh SUPER_ADMIN.' }
-      }, 410);
-    }
     if (fn !== 'createUserBySuperAdmin') {
       return response({ error: 'Fungsi tidak didukung.' }, 404);
     }
