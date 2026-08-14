@@ -2,10 +2,8 @@ from pathlib import Path
 
 app_path = Path('app.js')
 loader_path = Path('supplier-dropdown.js')
-ci_path = Path('.github/workflows/ci.yml')
 app = app_path.read_text(encoding='utf-8')
 loader = loader_path.read_text(encoding='utf-8')
-ci = ci_path.read_text(encoding='utf-8')
 
 old_tx = """  'transaction-action': {\n    addTransaction:1, editTransaction:1, sendCatatanApproval:1, getTransactionSuggestions:1,\n    getTransactionSummary:1, uploadTxFile:1, deleteTransaction:1\n  },\n"""
 new_tx = """  'transaction-action': { sendCatatanApproval:1, getTransactionSuggestions:1, deleteTransaction:1 },\n  'transaction-create-action': { addTransaction:1 },\n  'transaction-edit-action': { editTransaction:1 },\n  'transaction-file-upload-action': { uploadTxFile:1 },\n  'transaction-summary-action': { getTransactionSummary:1 },\n"""
@@ -46,8 +44,6 @@ for line, label in [(stage_line, 'stage-d loader entry'), (add_line, 'add reliab
         raise SystemExit(f'{label} missing')
     loader = loader.replace(line, '', 1)
 
-ci = ci.replace("            assets/js/supplier/stage-d-api-router.js\n", '')
-
 required_app = [
     "'transaction-create-action': { addTransaction:1 }",
     "'transaction-edit-action': { editTransaction:1 }",
@@ -69,7 +65,6 @@ for retired in ['stage-d-api-router.js', 'add-save-reliability.js']:
 
 app_path.write_text(app, encoding='utf-8')
 loader_path.write_text(loader, encoding='utf-8')
-ci_path.write_text(ci, encoding='utf-8')
 
 for path in [
     Path('assets/js/supplier/stage-d-api-router.js'),
