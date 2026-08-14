@@ -33,7 +33,7 @@ jobs:
             case "$FN" in
               _shared)
                 continue ;;
-              dynamic-action|register-user-v2|auth-public-action|account-recovery-action|app-config-action|push-public-action)
+              dynamic-action|auth-public-action|account-recovery-action|app-config-action|push-public-action)
                 supabase functions deploy "$FN" --project-ref dmjsgtichrfxhyywstrt --no-verify-jwt ;;
               *)
                 supabase functions deploy "$FN" --project-ref dmjsgtichrfxhyywstrt ;;
