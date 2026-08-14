@@ -67,6 +67,9 @@ jobs:
       - name: Validate source structure
         run: npm run check:structure
 
+      - name: Run consolidated hardening audit
+        run: node scripts/final-hardening-audit.mjs
+
       - name: Run egress regression check
         run: npm run check:egress
 
