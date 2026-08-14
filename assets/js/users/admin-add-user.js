@@ -54,7 +54,7 @@
     if (loginForm) {
       var footer = loginForm.querySelector('.auth-footer');
       if (footer) {
-        footer.innerHTML = '<span><i class="fas fa-user-shield" style="margin-right:6px;"></i>Akun baru hanya dibuat oleh Super Admin.</span>';
+        footer.innerHTML = '<span><i class="fas fa-user-shield" style="margin-right:6px;"></i>Akun baru hanya dibuat oleh Admin.</span>';
       }
     }
 
