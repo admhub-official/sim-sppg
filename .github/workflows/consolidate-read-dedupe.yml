@@ -1,0 +1,45 @@
+name: Consolidate read dedupe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/consolidate-read-dedupe.py'
+      - '.github/workflows/consolidate-read-dedupe.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/consolidate-read-dedupe.py
+      - name: Validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check scripts/check-egress-regression.mjs
+          node scripts/check-egress-regression.mjs
+          grep -Fq 'apiReadInFlight[cacheKey].push' app.js
+          ! grep -Fq 'stage-d-api-router.js' scripts/check-egress-regression.mjs
+          git diff --check
+      - name: Commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js scripts/check-egress-regression.mjs
+          git commit -m 'Centralize in-flight read deduplication'
+          git pull --rebase origin main
+          git push origin main
