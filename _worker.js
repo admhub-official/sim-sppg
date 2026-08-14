@@ -6,30 +6,6 @@ export default {
 
     if (!response || !response.ok || request.method !== 'GET') return response;
 
-    if (url.pathname.endsWith('/app.js')) {
-      let source = await response.text();
-      source = source
-        .replace('function installReportCenter() {', 'function installLegacyReportCenterDisabled() {')
-        .replace('    installReportCenter();', '    /* Legacy raw-table report center disabled. professional-report-v1.js owns menu Laporan. */');
-
-      const runtimeState = [
-        "if (typeof currentTrxId === 'undefined') var currentTrxId = null;",
-        "if (typeof pendingConfirmNominal === 'undefined') var pendingConfirmNominal = 0;",
-        ''
-      ].join('\n');
-
-      const headers = new Headers(response.headers);
-      headers.set('content-type', 'application/javascript; charset=UTF-8');
-      headers.set('cache-control', 'no-cache, no-store, must-revalidate');
-      headers.delete('content-length');
-      headers.delete('content-encoding');
-      return new Response(runtimeState + source, {
-        status: response.status,
-        statusText: response.statusText,
-        headers
-      });
-    }
-
     if (url.pathname === '/' || url.pathname.endsWith('/index.html')) {
       let html = await response.text();
       const version = '20260811-mytrx-v2';
@@ -37,9 +13,7 @@ export default {
         `<script src="./app.js?v=${version}"></script>`,
         `<script src="./yayasan-dropdown-hotfix.js?v=${version}"></script>`,
         `<script src="./transaction-category-supplier-rules.js?v=${version}"></script>`,
-        `<script src="./supplier-inline-create.js?v=${version}"></script>`,
-        `<script src="./sidebar-menu-structure.js?v=${version}"></script>`,
-        `<script src="./professional-report-v1.js?v=${version}"></script>`
+        `<script src="./sidebar-menu-structure.js?v=${version}"></script>`
       ].join('\n');
 
       html = html.replace(

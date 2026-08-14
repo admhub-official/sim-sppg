@@ -6487,6 +6487,7 @@ function renderVerifikasiForm(tx) {
     '</div>';
 }
 
+var currentTrxId = null;
 var pendingConfirmNominal = 0;
 
 function submitVerifikasiPembayaran() {
