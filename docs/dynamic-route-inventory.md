@@ -1,12 +1,12 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-08-11T13:15:37.364Z.
+Refreshed from `app.js` on 2026-08-14 after public-registration cleanup.
 
 ## Summary
 
-- Literal API calls found: **72**
-- Functions declared in `API_ROUTES`: **92**
-- Routed literal API calls: **72**
+- Literal API calls found: **70**
+- Functions declared in `API_ROUTES`: **90**
+- Routed literal API calls: **70**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
 
@@ -31,6 +31,7 @@ Generated automatically from `app.js` at 2026-08-11T13:15:37.364Z.
 | `approveTransaction` | `approval-payment-action` |
 | `approveTransactionsBulk` | `approval-payment-action` |
 | `createAnnouncement` | `settings-action` |
+| `createUserBySuperAdmin` | `register-user-v2` |
 | `deleteAdminAssignment` | `operations-action` |
 | `deleteMasterBahanBaku` | `master-action` |
 | `deleteMenuMBG` | `operations-action` |
@@ -70,8 +71,6 @@ Generated automatically from `app.js` at 2026-08-11T13:15:37.364Z.
 | `loginUser` | `auth-public-action` |
 | `markAllNotificationsRead` | `reporting-action` |
 | `markNotificationRead` | `reporting-action` |
-| `registerUser` | `register-user-v2` |
-| `resendRegistrationOtp` | `auth-public-action` |
 | `savePushSubscription` | `push-action` |
 | `setAnnouncementActive` | `settings-action` |
 | `submitUserBuktiPembayaran` | `approval-payment-action` |
@@ -90,7 +89,6 @@ Generated automatically from `app.js` at 2026-08-11T13:15:37.364Z.
 | `uploadFotoProfil` | `secure-user-action` |
 | `uploadFotoSurvei` | `master-action` |
 | `uploadTxFile` | `transaction-action` |
-| `verifyRegistrationOtp` | `auth-public-action` |
 | `verifyUserPayment` | `approval-payment-action` |
 
 ## Declared but Not Called Literally
