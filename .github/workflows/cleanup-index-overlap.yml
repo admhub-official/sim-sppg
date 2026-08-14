@@ -55,3 +55,5 @@ jobs:
           git commit -m 'Clean dead and overlapping frontend styles'
           git pull --rebase origin main
           git push origin main
+
+# Triggered after workflow registration; remove this one-time workflow after success.
