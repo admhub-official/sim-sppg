@@ -51,7 +51,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A app.js supplier-dropdown.js .github/workflows/ci.yml assets/js/supplier/stage-d-api-router.js assets/js/transactions/add-save-reliability.js
+          git add -A app.js supplier-dropdown.js assets/js/supplier/stage-d-api-router.js assets/js/transactions/add-save-reliability.js
           if git diff --cached --quiet; then
             echo 'Router already consolidated.'
             exit 0
@@ -60,4 +60,4 @@ jobs:
           git pull --rebase origin main
           git push origin main
 
-# One-time execution; delete this workflow after a successful run.
+# Source-only retry: CI workflow is synchronized separately via GitHub API.
