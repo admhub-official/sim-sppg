@@ -35,22 +35,27 @@ jobs:
 
           maintained_files=(
             supplier-dropdown.js
-            assets/js/reports/approval-export-columns.js
-            assets/js/reports/approval-supplier-summary.js
-            assets/js/transactions/filter-and-edit-supplier.js
+            assets/js/users/role-management.js
             assets/js/transactions/edit-supplier-options-fix.js
+            assets/js/transactions/filter-and-edit-supplier.js
             assets/js/transactions/edit-save-reliability.js
+            assets/js/transactions/supplier-label-update.js
             assets/js/supplier/app-dropdowns.js
+            assets/js/supplier/transaction-add-supplier-fix.js
             assets/js/supplier/edit-transaction-ui.js
-            assets/js/supplier/stage-d-api-router.js
             assets/js/supplier/storage-egress-optimizer.js
             assets/js/supplier/supplier-actions-fix.js
+            assets/js/reports/approval-export-columns.js
+            assets/js/reports/approval-supplier-summary.js
+            assets/js/reports/approval-print-all-pages.js
+            assets/js/reports/transaction-export-category.js
             transaction-category-supplier-rules.js
             _worker.js
             sw.js
           )
 
           for file in "${maintained_files[@]}" scripts/*.mjs; do
+            test -f "$file"
             node --check "$file"
           done
 
