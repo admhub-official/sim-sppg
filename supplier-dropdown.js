@@ -45,6 +45,7 @@
     { base: REPORT_BASE, file: 'approval-supplier-summary.js', marker: 'data-approval-supplier-summary', version: '20260814-category-recap-v3' },
     { base: REPORT_BASE, file: 'approval-print-all-pages.js', marker: 'data-approval-print-all-pages', version: '20260801-print-all-v1' },
     { base: REPORT_BASE, file: 'transaction-export-category.js', marker: 'data-transaction-export-category', version: '20260801-category-v1' },
-    { base: TRANSACTION_BASE, file: 'supplier-label-update.js', marker: 'data-supplier-label-update', version: '20260731-label-an-trx-v1' }
+    { base: TRANSACTION_BASE, file: 'supplier-label-update.js', marker: 'data-supplier-label-update', version: '20260731-label-an-trx-v1' },
+    { base: USER_BASE, file: 'admin-add-user.js', marker: 'data-admin-add-user', version: '20260814-admin-create-v1' }
   ], 0);
 })();
