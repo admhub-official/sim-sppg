@@ -42,7 +42,7 @@
     { base: TRANSACTION_BASE, file: 'edit-save-reliability.js', marker: 'data-edit-save-reliability', version: '20260731-edit-save-v2' },
     { base: MODULE_BASE, file: 'storage-egress-optimizer.js', marker: 'data-storage-egress-optimizer', version: '20260730-stage-b-v1' },
     { base: REPORT_BASE, file: 'approval-export-columns.js', marker: 'data-approval-export-columns', version: '20260731-supplier-account-v2' },
-    { base: REPORT_BASE, file: 'approval-supplier-summary.js', marker: 'data-approval-supplier-summary', version: '20260731-redesign-v2' },
+    { base: REPORT_BASE, file: 'approval-supplier-summary.js', marker: 'data-approval-supplier-summary', version: '20260814-category-recap-v3' },
     { base: REPORT_BASE, file: 'approval-print-all-pages.js', marker: 'data-approval-print-all-pages', version: '20260801-print-all-v1' },
     { base: REPORT_BASE, file: 'transaction-export-category.js', marker: 'data-transaction-export-category', version: '20260801-category-v1' },
     { base: TRANSACTION_BASE, file: 'supplier-label-update.js', marker: 'data-supplier-label-update', version: '20260731-label-an-trx-v1' }
