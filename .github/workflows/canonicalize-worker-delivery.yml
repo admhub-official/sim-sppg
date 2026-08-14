@@ -56,3 +56,5 @@ jobs:
           git commit -m 'Serve canonical frontend without runtime source patches'
           git pull --rebase origin main
           git push origin main
+
+# One-time source canonicalization; remove after successful run.
