@@ -41,7 +41,6 @@ jobs:
             assets/js/transactions/edit-save-reliability.js
             assets/js/transactions/supplier-label-update.js
             assets/js/supplier/app-dropdowns.js
-            assets/js/supplier/transaction-add-supplier-fix.js
             assets/js/supplier/edit-transaction-ui.js
             assets/js/supplier/storage-egress-optimizer.js
             assets/js/supplier/supplier-actions-fix.js
