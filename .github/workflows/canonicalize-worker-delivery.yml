@@ -1,0 +1,58 @@
+name: Canonicalize worker delivery
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/canonicalize-worker-delivery.py'
+      - '.github/workflows/canonicalize-worker-delivery.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: canonicalize-worker-delivery
+  cancel-in-progress: false
+
+jobs:
+  canonicalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Canonicalize delivery
+        run: python scripts/canonicalize-worker-delivery.py
+      - name: Validate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check _worker.js
+          grep -Fq 'src="./yayasan-dropdown-hotfix.js?' index.html
+          grep -Fq 'src="./transaction-category-supplier-rules.js?' index.html
+          grep -Fq 'src="./sidebar-menu-structure.js?' index.html
+          ! grep -Fq 'approvalCleanup' _worker.js
+          ! grep -Fq 'data-approval-missing-doc-cleanup' _worker.js
+          ! grep -Fq 'html.replace(' _worker.js
+          ! grep -Fq 'response.text()' _worker.js
+          git diff --check
+      - name: Commit canonical delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html _worker.js
+          if git diff --cached --quiet; then
+            echo 'Delivery already canonical.'
+            exit 0
+          fi
+          git commit -m 'Serve canonical frontend without runtime source patches'
+          git pull --rebase origin main
+          git push origin main
