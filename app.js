@@ -223,6 +223,7 @@ var API_MUTATION_FUNCTIONS = {
   confirmChatTrx:1, updateMyTrx:1, deleteMyTrx:1
 };
 var apiReadCache = Object.create(null);
+var apiReadInFlight = Object.create(null);
 
 function apiReadCacheKey(fnName, params, token) {
   // A short token suffix separates sessions without retaining the full JWT.
@@ -260,6 +261,35 @@ function callApi(fnName, params, onSuccess, onFailure) {
   }
   if (cached) delete apiReadCache[cacheKey];
 
+  // Coalesce identical cacheable reads that arrive before the first response.
+  // This keeps one network request per read key while preserving every caller callback.
+  if (cacheKey && apiReadInFlight[cacheKey]) {
+    apiReadInFlight[cacheKey].push({ onSuccess: onSuccess, onFailure: onFailure });
+    return;
+  }
+  if (cacheKey) apiReadInFlight[cacheKey] = [{ onSuccess: onSuccess, onFailure: onFailure }];
+
+  function resolveRead(result) {
+    if (!cacheKey) { if (onSuccess) onSuccess(result); return; }
+    var listeners = apiReadInFlight[cacheKey] || [];
+    delete apiReadInFlight[cacheKey];
+    listeners.forEach(function(listener) {
+      if (!listener.onSuccess) return;
+      try { listener.onSuccess(JSON.parse(JSON.stringify(result))); }
+      catch(e) { listener.onSuccess(result); }
+    });
+  }
+
+  function rejectRead(err) {
+    if (!cacheKey) { if (onFailure) onFailure(err); else console.error('callApi fetch failed (' + fnName + '):', err); return; }
+    var listeners = apiReadInFlight[cacheKey] || [];
+    delete apiReadInFlight[cacheKey];
+    listeners.forEach(function(listener) {
+      if (listener.onFailure) listener.onFailure(err);
+      else console.error('callApi fetch failed (' + fnName + '):', err);
+    });
+  }
+
   var requestUrl = API_BASE_URL + slug;
   var TIMEOUT_MS = fnName === 'uploadTxFile' ? 60000 : 20000;
   var MAX_RETRY = 2;
@@ -293,7 +323,7 @@ function callApi(fnName, params, onSuccess, onFailure) {
         // Mutations may change any paged/read model; invalidate before refresh.
         clearApiReadCache();
       }
-      if (onSuccess) onSuccess(result);
+      resolveRead(result);
       schedulePagedMutationRefresh(fnName, result);
     }).catch(function(err) {
       if (tid) clearTimeout(tid);
@@ -303,7 +333,7 @@ function callApi(fnName, params, onSuccess, onFailure) {
         return;
       }
       if (err && err.name === 'AbortError') err = new Error('Koneksi ke server timeout, silakan coba lagi.');
-      if (onFailure) onFailure(err); else console.error('callApi fetch failed (' + fnName + '):', err);
+      rejectRead(err);
     });
   }
   doFetch(0);
