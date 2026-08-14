@@ -111,10 +111,11 @@ window.__bulkSubmitApprovalPin=window.submitApprovalWithPin;
 // ============================================================
 var API_BASE_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/';
 var API_ROUTES = {
-  'transaction-action': {
-    addTransaction:1, editTransaction:1, sendCatatanApproval:1, getTransactionSuggestions:1,
-    getTransactionSummary:1, uploadTxFile:1, deleteTransaction:1
-  },
+  'transaction-action': { sendCatatanApproval:1, getTransactionSuggestions:1, deleteTransaction:1 },
+  'transaction-create-action': { addTransaction:1 },
+  'transaction-edit-action': { editTransaction:1 },
+  'transaction-file-upload-action': { uploadTxFile:1 },
+  'transaction-summary-action': { getTransactionSummary:1 },
   'chattrx-message-action': { sendChatTrxMessage:1 },
   'chattrx-suggest-action': { getChatTrxSuggestions:1 },
   'chattrx-confirm-action': { confirmChatTrx:1 },
@@ -141,9 +142,10 @@ var API_ROUTES = {
   },
   'master-action': {
     getMasterBahanBaku:1, addMasterBahanBaku:1, updateMasterBahanBaku:1, deleteMasterBahanBaku:1,
-    getMasterSupplier:1, addMasterSupplier:1, updateMasterSupplier:1, deleteSupplier:1,
+    getMasterSupplier:1, addMasterSupplier:1, updateMasterSupplier:1,
     uploadSupplierFile:1, uploadFotoSurvei:1, uploadSerahTerimaFile:1
   },
+  'supplier-delete-action': { deleteSupplier:1 },
   'file-access-action': { getFileUrl:1, showCredentials:1 },
   'secure-user-action': { updateUserProfile:1, uploadFotoProfil:1 },
   'push-action': { savePushSubscription:1, deletePushSubscription:1 },
@@ -169,6 +171,13 @@ Object.keys(API_ROUTES).forEach(function(slug) {
   Object.keys(API_ROUTES[slug]).forEach(function(fn) { API_ROUTE_BY_FUNCTION[fn] = slug; });
 });
 
+function resolveApiSlug(fnName, params) {
+  if (fnName === 'getTransactions' && Array.isArray(params) && params[0] && params[0].approvalOnly === true) {
+    return 'approval-query-action';
+  }
+  return API_ROUTE_BY_FUNCTION[fnName] || '';
+}
+
 // Publishable/anon key only; never place service-role credentials in the browser.
 window._supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtanNndGljaHJmeGh5eXdzdHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MTU2MTUsImV4cCI6MjA5ODM5MTYxNX0.D_ZJ286uSpLeZEsg_vSf3iEoG-SnokHV62X6hPXreHM';
 
@@ -180,7 +189,7 @@ function getJwtToken() {
 // current token and cleared after mutations, reducing duplicate Edge Function
 // responses without persisting authenticated payloads in browser storage.
 var API_READ_CACHE_TTL = {
-  getAppConfig:300000, getDropdownOptions:300000,
+  getAppConfig:300000, getDropdownOptions:300000, getTransactionSummary:15000,
   getMasterBahanBaku:30000, getMasterSupplier:30000,
   getTransactions:10000, getAllUsers:15000,
   getPendingPayments:15000, getSurveiBahanBaku:15000,
@@ -227,7 +236,7 @@ function clearApiReadCache() {
 window.clearApiReadCache = clearApiReadCache;
 
 function callApi(fnName, params, onSuccess, onFailure) {
-  var slug = API_ROUTE_BY_FUNCTION[fnName];
+  var slug = resolveApiSlug(fnName, params);
   if (!slug) {
     var unknown = new Error('Fungsi API tidak terdaftar: ' + String(fnName || ''));
     if (onFailure) onFailure(unknown); else console.error(unknown.message);
@@ -252,7 +261,7 @@ function callApi(fnName, params, onSuccess, onFailure) {
   if (cached) delete apiReadCache[cacheKey];
 
   var requestUrl = API_BASE_URL + slug;
-  var TIMEOUT_MS = 20000;
+  var TIMEOUT_MS = fnName === 'uploadTxFile' ? 60000 : 20000;
   var MAX_RETRY = 2;
 
   function doFetch(attempt) {
