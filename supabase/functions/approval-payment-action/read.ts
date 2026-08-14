@@ -17,14 +17,17 @@ const TRANSACTION_LIST_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Ka
 const APPROVAL_CANDIDATE_COLUMNS = 'ID,"Kode Pemasukan",Tanggal,Kategori,"Jenis Kategori",SPPG,Nominal,User,"Nama Item/ Bahan Baku","Metode Transaksi","SUPPLIER ID","NAMA SUPPLIER","NAMA BANK SUPPLIER","NO REKENING SUPPLIER","ATAS NAMA REKENING SUPPLIER","SUMBER SUPPLIER"';
 const DOCUMENT_COLUMNS = 'transaksi_id,document_type,storage_bucket,storage_path,mime_type,original_file_name,updated_at';
 
-function documentState(docs: Map<string, any>) {
+function documentState(docs: Map<string, any>, method: unknown) {
   const hasFoto = !!text(docs.get(DOC.foto)?.storage_path);
   const hasFile = !!text(docs.get(DOC.file)?.storage_path);
   const hasBuktiTransaksi = hasFoto || hasFile;
   const hasNotaPembelian = !!text(docs.get(DOC.nota)?.storage_path);
   const hasTtdUser = !!text(docs.get(DOC.ttdUser)?.storage_path);
+  const isBelumBayar = normalizeStatus(method) === 'BELUM_BAYAR';
   const missing: string[] = [];
-  if (!hasBuktiTransaksi) missing.push('Bukti Transaksi');
+  // BELUM_BAYAR belum membutuhkan bukti transaksi/pelunasan. Pada tahap ini
+  // dokumen wajibnya adalah Nota Pembelian dan TTD User.
+  if (!isBelumBayar && !hasBuktiTransaksi) missing.push('Bukti Transaksi');
   if (!hasNotaPembelian) missing.push('Nota Pembelian');
   if (!hasTtdUser) missing.push('TTD User');
   return {
@@ -58,7 +61,7 @@ function mapped(row: any, docs: Map<string, any>, user: any = null) {
     notaPembelian: path(DOC.nota), approvedBy: row['APPROVED BY'] || '',
     waktuApprove: row['WAKTU APPROVE'] || '',
     catatanApproval: row['Catatan Approval'] || row.Catatan_1 || '',
-    ...documentState(docs),
+    ...documentState(docs, row['Metode Transaksi']),
   };
 }
 
@@ -107,15 +110,20 @@ function pageSpec(value: any) {
   return { page, pageSize, from: (page - 1) * pageSize, to: page * pageSize - 1 };
 }
 
-function approvalDocumentStatus(docs: Map<string, any>, payment: ReturnType<typeof summarize>) {
+function approvalDocumentStatus(docs: Map<string, any>, payment: ReturnType<typeof summarize>, method: unknown) {
   const hasProof = !!text(docs.get(DOC.foto)?.storage_path) ||
     !!text(docs.get(DOC.file)?.storage_path) ||
     payment.proofCount > 0;
   const hasNota = !!text(docs.get(DOC.nota)?.storage_path);
-  if (hasProof && hasNota) return 'Lengkap';
-  if (hasProof) return 'Tidak ada Nota';
-  if (hasNota) return 'Tidak ada bukti Pembayaran';
-  return 'Tidak Lengkap';
+  const hasTtd = !!text(docs.get(DOC.ttdUser)?.storage_path);
+  const isBelumBayar = normalizeStatus(method) === 'BELUM_BAYAR';
+  const missing: string[] = [];
+  if (!isBelumBayar && !hasProof) missing.push('Bukti Pembayaran');
+  if (!hasNota) missing.push('Nota');
+  if (!hasTtd) missing.push('TTD');
+  if (!missing.length) return 'Lengkap';
+  if (missing.length > 1) return 'Tidak Lengkap';
+  return `Tidak ada ${missing[0]}`;
 }
 
 function matchesApprovalFilters(row: any, filters: any) {
@@ -221,6 +229,7 @@ async function approvalCandidates(filters: any, current: Caller, scope: string[]
       return approvalDocumentStatus(
         docs.get(id) || new Map(),
         summarize(grouped.get(id) || []),
+        row['Metode Transaksi'],
       ) === completeness;
     });
   }
