@@ -739,11 +739,6 @@
       align-items: center;
       justify-content: center;
     }
-    .strength-bar { display: flex; gap: 4px; margin-top: 6px; }
-    .strength-bar span { flex: 1; height: 3px; border-radius: 2px; background: var(--slate-200); transition:color 0.3s,background-color 0.3s,border-color 0.3s,box-shadow 0.3s,opacity 0.3s,transform 0.3s; }
-    .strength-bar span.weak { background: var(--rose); }
-    .strength-bar span.medium { background: var(--amber); }
-    .strength-bar span.strong { background: var(--emerald); }
 
     /* ============================================================
        SIDEBAR — Mobile-First
@@ -4038,47 +4033,8 @@
   line-height: 1.5;
 }
 .auth-security-note i { flex-shrink: 0; margin-top: 1px; color: #1972b5; }
-.auth-register-note {
-  grid-column: 1 / -1;
-  margin: 0 0 12px;
-  color: #667085;
-  font-size: 10px;
-  line-height: 1.5;
-}
-.auth-hidden-field { display: none !important; }
-#authOverlay[data-auth-mode="register"] .auth-card { width: min(100%, 760px); }
-#authOverlay[data-auth-mode="register"] .auth-form-panel { align-items: flex-start; padding-top: 28px; padding-bottom: 28px; }
-#registerForm { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 14px; }
-#registerForm > .form-row,
-#registerForm > #regError,
-#registerForm > #btnRegister,
-#registerForm > .auth-footer,
-#registerForm > .auth-register-note,
-#registerForm > .auth-hidden-field { grid-column: 1 / -1; }
-#registerForm .form-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
-.otp-destination {
-  padding: 10px 12px;
-  margin-bottom: 14px;
-  color: #475467;
-  background: #f8fafc;
-  border: 1px solid #e4e7ec;
-  border-radius: 9px;
-  font-size: 11px;
-  line-height: 1.5;
-  text-align: center;
-}
-.otp-destination strong { display: block; margin-top: 2px; color: #1972b5; font-size: 12px; }
-#otpCode.otp-code-input {
-  height: 55px !important;
-  text-align: center;
-  font-size: 22px !important;
-  font-weight: 800;
-  letter-spacing: 10px;
-  font-variant-numeric: tabular-nums;
-}
 @media (max-width: 820px) {
-  #authOverlay.auth-architecture,
-  #authOverlay.auth-architecture[data-auth-mode="register"] {
+  #authOverlay.auth-architecture {
     display: block !important;
     min-height: 100dvh;
     background: #f5f7fa !important;
@@ -4107,8 +4063,6 @@
   }
   .auth-architecture-heading { margin-bottom: 19px; }
   .auth-architecture-heading h2 { font-size: 25px; }
-  #registerForm, #registerForm .form-row { grid-template-columns: 1fr; gap: 0; }
-  #registerForm > * { grid-column: 1 !important; }
 }
 @media (max-width: 480px) {
   .auth-brand-panel { min-height: 150px; padding: 16px 15px 48px; }
@@ -4806,41 +4760,10 @@
 <a onclick="showRecoveryModal('username')">Lupa Username?</a>
         </div>
         <button id="btnLogin" class="btn btn-primary w-full" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i><span>Masuk</span></button>
-        <div class="auth-footer">Belum punya akun? <a onclick="showRegister()">Daftar sekarang</a></div>
+        <div class="auth-footer"><span><i class="fas fa-user-shield" style="margin-right:6px;"></i>Akun baru hanya dibuat oleh Admin.</span></div>
         <div class="auth-security-note"><i class="fas fa-shield-halved"></i><span><strong>Keamanan akses:</strong> sesi mengikuti masa berlaku token dan data ditampilkan sesuai peran pengguna.</span></div>
       </div>
 
-      <div id="registerForm" class="auth-container hidden">
-        <div class="form-row">
-<div class="form-group"><label class="form-label" for="regNama">Nama Lengkap <span class="req">*</span></label><input type="text" id="regNama" class="form-input" placeholder="Nama lengkap"></div>
-<div class="form-group"><label class="form-label" for="regEmail">Email <span class="req">*</span></label><input type="email" id="regEmail" class="form-input" placeholder="nama@gmail.com" autocomplete="email"></div>
-        </div>
-        <div class="form-row">
-<div class="form-group"><label class="form-label" for="regJabatan">Jabatan <span class="req">*</span></label><select id="regJabatan" class="form-input"><option value="">Pilih Jabatan</option><option value="ADMIN">ADMIN</option><option value="PIC">PIC</option><option value="ASISTEN LAPANGAN">ASISTEN LAPANGAN</option><option value="WAKIL ASISTEN LAPANGAN">WAKIL ASISTEN LAPANGAN</option><option value="AKUNTAN">AKUNTAN</option><option value="AHLI GIZI">AHLI GIZI</option></select></div>
-<div class="form-group"><label class="form-label" for="regSPPG">SPPG <span class="req">*</span></label><div class="sppg-autocomplete-wrap" style="position:relative"><input type="text" id="regSPPG" class="form-input" placeholder="Ketik atau pilih SPPG" autocomplete="off" oninput="showSppgSuggestions('regSPPG','regSppgList')" onblur="hideSppgSuggestions('regSppgList')" onfocus="showSppgSuggestions('regSPPG','regSppgList')"><ul id="regSppgList" class="sppg-suggestions hidden"></ul></div></div>
-        </div>
-        <div class="form-row">
-<div class="form-group"><label class="form-label" for="regYayasan">Nama Yayasan <span class="req">*</span></label><div class="sppg-autocomplete-wrap" style="position:relative"><input type="text" id="regYayasan" class="form-input" placeholder="Ketik atau pilih nama yayasan" autocomplete="off" oninput="showYayasanSuggestions('regYayasan','regYayasanList')" onblur="hideSppgSuggestions('regYayasanList')" onfocus="showYayasanSuggestions('regYayasan','regYayasanList')"><ul id="regYayasanList" class="sppg-suggestions hidden"></ul></div></div>
-<div class="form-group"><label class="form-label" for="regUsername">Username <span class="req">*</span></label><input type="text" id="regUsername" class="form-input" placeholder="huruf kecil, min. 6 karakter"><p class="form-hint">Minimal 6 karakter, huruf kecil semua.</p></div>
-        </div>
-        <div class="form-row">
-<div class="form-group"><label class="form-label" for="regPassword">Password <span class="req">*</span></label><div class="password-wrap"><input type="password" id="regPassword" class="form-input" placeholder="Password" autocomplete="new-password" oninput="checkPasswordStrength()"><button type="button" class="toggle-password" onclick="togglePw('regPassword',this)" aria-label="Tampilkan password"><i class="fas fa-eye"></i></button></div><div class="strength-bar" id="strengthBar"><span></span><span></span><span></span><span></span></div><p class="form-hint">Min. 1 huruf besar, 1 huruf kecil, dan 1 angka.</p></div>
-<div class="form-group"><label class="form-label" for="regPassword2">Konfirmasi Password <span class="req">*</span></label><div class="password-wrap"><input type="password" id="regPassword2" class="form-input" placeholder="Ulangi password" autocomplete="new-password"><button type="button" class="toggle-password" onclick="togglePw('regPassword2',this)" aria-label="Tampilkan password"><i class="fas fa-eye"></i></button></div></div>
-        </div>
-        <div class="auth-hidden-field"><input type="file" id="regFoto" accept="image/*"><span id="regFotoText"></span><div id="regFotoLabel"></div><img id="regFotoPreview" class="hidden" alt=""></div>
-        <div class="auth-register-note"><i class="fas fa-circle-info"></i> Foto profil dapat ditambahkan setelah akun aktif melalui menu <b>Profil</b>.</div>
-        <div id="regError" class="form-error" role="alert"><i class="fas fa-exclamation-circle"></i><span></span></div>
-        <button id="btnRegister" class="btn btn-primary w-full" onclick="doRegister()"><i class="fas fa-user-plus"></i><span>Daftar</span></button>
-        <div class="auth-footer">Sudah punya akun? <a onclick="showLogin()">Masuk di sini</a></div>
-      </div>
-
-      <div id="otpForm" class="auth-container hidden">
-        <div class="otp-destination">Kode OTP 6 digit telah dikirim ke<strong id="otpEmailLabel">-</strong></div>
-        <div class="form-group"><label class="form-label" for="otpCode">Kode OTP <span class="req">*</span></label><input type="text" id="otpCode" class="form-input otp-code-input" placeholder="••••••" maxlength="6" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" aria-describedby="otpHint" required><p class="form-hint" id="otpHint">Masukkan enam angka dari email. Periksa juga folder Spam atau Promosi.</p></div>
-        <div id="otpError" class="form-error" role="alert"><i class="fas fa-exclamation-circle"></i><span></span></div>
-        <button id="btnVerifyOtp" class="btn btn-primary w-full" onclick="doVerifyOtp()"><i class="fas fa-check-circle"></i><span>Verifikasi akun</span></button>
-        <div class="auth-footer">Tidak menerima kode? <a onclick="doResendOtp()">Kirim ulang OTP</a></div>
-      </div>
     </section>
   </main>
 </div><!-- /authOverlay -->
@@ -5228,6 +5151,41 @@
                 <i class="fas fa-edit"></i> Edit Profil
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== TAMBAH USER PAGE (SUPER ADMIN) ==================== -->
+      <div id="page-add-user" class="page-section hidden">
+        <div class="page-header">
+          <div class="page-header-info">
+            <div class="page-title"><i class="fas fa-user-plus" style="color:var(--primary);"></i> Tambah User</div>
+            <p class="page-desc">Khusus Super Admin untuk membuat akun login baru.</p>
+          </div>
+        </div>
+        <div class="table-container" style="max-width:680px;">
+          <div class="table-header"><h3><i class="fas fa-user-shield"></i> Daftarkan Akun User</h3></div>
+          <div style="padding:24px;">
+            <div class="info-card" style="margin-bottom:18px;background:var(--primary-light);border-color:#bae6fd;">
+              <div style="font-weight:700;color:var(--primary-dark);margin-bottom:5px;"><i class="fas fa-envelope-circle-check"></i> Konfirmasi Email</div>
+              <div style="font-size:12px;line-height:1.6;">Sistem mengirim email konfirmasi/undangan ke alamat yang didaftarkan. User menggunakan email dan password dari Admin setelah email dikonfirmasi. Data profil lain dapat dilengkapi kemudian melalui menu Profil.</div>
+            </div>
+            <form id="adminAddUserForm" onsubmit="event.preventDefault();submitAdminAddUser();">
+              <div class="form-group">
+                <label class="form-label" for="adminAddUserEmail">Email <span class="req">*</span></label>
+                <input type="email" id="adminAddUserEmail" class="form-input" placeholder="nama@email.com" autocomplete="off" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="adminAddUserPassword">Password <span class="req">*</span></label>
+                <div class="password-wrap">
+                  <input type="password" id="adminAddUserPassword" class="form-input" placeholder="Password awal user" autocomplete="new-password" required>
+                  <button type="button" class="toggle-password" onclick="togglePw('adminAddUserPassword',this)" aria-label="Tampilkan password"><i class="fas fa-eye"></i></button>
+                </div>
+                <p class="form-hint">Minimal 8 karakter, mengandung huruf besar, huruf kecil, dan angka. User dapat mengganti password sendiri setelah login.</p>
+              </div>
+              <div id="adminAddUserResult" class="hidden" style="margin:12px 0;padding:11px 13px;border-radius:8px;font-size:12px;"></div>
+              <button type="submit" id="btnAdminAddUser" class="btn btn-primary"><i class="fas fa-user-plus"></i><span> Tambahkan User</span></button>
+            </form>
           </div>
         </div>
       </div>

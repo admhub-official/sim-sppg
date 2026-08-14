@@ -149,8 +149,8 @@ var API_ROUTES = {
   'push-action': { savePushSubscription:1, deletePushSubscription:1 },
   'push-public-action': { getPushPublicKey:1 },
   'geocode-action': { geocodeAlamat:1 },
-  'register-user-v2': { registerUser:1 },
-  'auth-public-action': { verifyRegistrationOtp:1, resendRegistrationOtp:1, loginUser:1, refreshSession:1, checkSession:1 },
+  'register-user-v2': { createUserBySuperAdmin:1 },
+  'auth-public-action': { loginUser:1, refreshSession:1, checkSession:1 },
   'account-recovery-action': { recoverPassword:1, recoverUsername:1, recoverToken:1 },
   'app-config-action': { getAppConfig:1, getDropdownOptions:1 },
   'notification-dispatch-action': { dispatchNotification:1 },
@@ -161,7 +161,6 @@ var API_ROUTES = {
   }
 };
 var PUBLIC_FN = {
-  registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
   loginUser:1, refreshSession:1, checkSession:1, recoverPassword:1, recoverUsername:1,
   recoverToken:1, getAppConfig:1, getDropdownOptions:1, getPushPublicKey:1
 };
@@ -209,7 +208,7 @@ var API_MUTATION_FUNCTIONS = {
   markNotificationRead:1, markAllNotificationsRead:1,
   updateUserProfile:1, uploadFotoProfil:1,
   savePushSubscription:1, deletePushSubscription:1,
-  registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
+  createUserBySuperAdmin:1,
   recoverPassword:1, updateFeatureSettings:1, updateMenuVisibility:1,
   createAnnouncement:1, setAnnouncementActive:1, dispatchNotification:1,
   confirmChatTrx:1, updateMyTrx:1, deleteMyTrx:1
@@ -1102,21 +1101,11 @@ function showToast(type, title, message) {
 // ============================================================
 // 4. AUTHENTICATION
 // ============================================================
-function setAuthMode(mode) {
-  var forms = {
-    login: $('loginForm'),
-    register: $('registerForm'),
-    otp: $('otpForm')
-  };
-
-  Object.keys(forms).forEach(function(key) {
-    if (!forms[key]) return;
-    forms[key].classList.toggle('hidden', key !== mode);
-  });
-
+function setAuthMode() {
+  var login = $('loginForm');
+  if (login) login.classList.remove('hidden');
   var overlay = $('authOverlay');
-  if (overlay) overlay.dataset.authMode = mode;
-
+  if (overlay) overlay.dataset.authMode = 'login';
   if (typeof updateAuthHeading === 'function') updateAuthHeading();
 }
 
@@ -1131,16 +1120,6 @@ function showLogin() {
   });
 }
 
-function showRegister() {
-  setAuthMode('register');
-  $('regError').classList.remove('show');
-  loadYayasanMaster();
-
-  window.requestAnimationFrame(function() {
-    var nameInput = $('regNama');
-    if (nameInput) nameInput.focus();
-  });
-}
 function togglePw(fieldId, btn) {
   var input = $(fieldId);
   if (input.type === 'password') {
@@ -1149,28 +1128,6 @@ function togglePw(fieldId, btn) {
   } else {
     input.type = 'password';
     btn.innerHTML = '<i class="fas fa-eye"></i>';
-  }
-}
-function checkPasswordStrength() {
-  var pw = $('regPassword').value;
-  var bars = $('strengthBar').querySelectorAll('span');
-  bars.forEach(function(b) { b.className = ''; });
-  var score = 0;
-  if (pw.length >= 8) score++;
-  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  for (var i = 0; i < score && i < 4; i++) {
-    bars[i].className = score <= 2 ? 'weak' : score === 3 ? 'medium' : 'strong';
-  }
-}
-function previewRegFoto(input) {
-  var file = input.files[0];
-  if (file) {
-    $('regFotoText').textContent = file.name;
-    var reader = new FileReader();
-    reader.onload = function(e) { $('regFotoPreview').src = e.target.result; $('regFotoPreview').classList.remove('hidden'); };
-    reader.readAsDataURL(file);
   }
 }
 function previewEditFoto(input) {
@@ -1291,7 +1248,7 @@ var SPPG_MASTER = [
 ];
 
 // ============================================================
-// YAYASAN AUTOCOMPLETE — dipakai di form Daftar Akun
+// YAYASAN AUTOCOMPLETE — dipakai pada form profil, user, dan konfigurasi admin.
 // Data diambil dari getDropdownOptions() (daftar Nama Yayasan yang sudah pernah diinput).
 // ============================================================
 var YAYASAN_MASTER = [];
@@ -1381,146 +1338,11 @@ function selectSppg(inputId, listId, value) {
   if (list)  list.classList.add('hidden');
 }
 
-function doRegister() {
-  var nama     = $('regNama').value.trim();
-  var email    = $('regEmail').value.trim();
-  var jabatan  = $('regJabatan').value;
-  var sppg     = $('regSPPG').value.trim().toUpperCase();
-  var yayasan  = $('regYayasan').value.trim();
-  var username = $('regUsername').value.trim();
-  var password = $('regPassword').value;
-  var password2 = $('regPassword2').value;
-  var err = $('regError');
 
-  if (!nama || !email || !jabatan || !sppg || !username || !password) {
-    err.querySelector('span').textContent = 'Semua field wajib diisi (SPPG termasuk).'; err.classList.add('show'); return;
-  }
-  if (!email.toLowerCase().endsWith('@gmail.com')) {
-    err.querySelector('span').textContent = 'Email harus @gmail.com'; err.classList.add('show'); return;
-  }
-  if (username.length < 6 || username !== username.toLowerCase()) {
-    err.querySelector('span').textContent = 'Username min 6 karakter, huruf kecil.'; err.classList.add('show'); return;
-  }
-  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(password)) {
-    err.querySelector('span').textContent = 'Password harus ada huruf besar, kecil, dan angka.'; err.classList.add('show'); return;
-  }
-  if (password !== password2) {
-    err.querySelector('span').textContent = 'Password tidak cocok.'; err.classList.add('show'); return;
-  }
 
-  var data = { namaLengkap: nama, email: email, jabatan: jabatan, sppg: sppg, namaYayasan: yayasan, username: username, password: password, fotoProfil: '' };
 
-  // Handle foto profil upload
-  var fotoFile = $('regFoto').files[0];
-  if (fotoFile) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var base64 = e.target.result.split(',')[1];
-      data.fotoProfilBase64 = base64;
-      data.fotoMimeType = fotoFile.type;
-      data.fotoFileName = fotoFile.name;
-      submitRegister(data);
-    };
-    reader.readAsDataURL(fotoFile);
-  } else {
-    submitRegister(data);
-  }
-}
 
-function submitRegister(data) {
-  var btn = $('btnRegister');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Mendaftarkan...</span>';
 
-    callApi('registerUser', [data], function(result) {
-        btn.disabled = false;
-              btn.innerHTML = '<i class="fas fa-user-plus"></i><span>Daftar</span>';
-              if (result.success) {
-                showToast('success', 'Registrasi Berhasil', result.message);
-                pendingOtpEmail = data.email;
-                pendingOtpUsername = data.username;
-                showOtpVerification(data.email);
-              } else {
-                $('regError').querySelector('span').textContent = result.message || 'Registrasi gagal.';
-                $('regError').classList.add('show');
-              }
-      },
-      function(err) {
-        btn.disabled = false;
-              btn.innerHTML = '<i class="fas fa-user-plus"></i><span>Daftar</span>';
-              $('regError').querySelector('span').textContent = 'Terjadi kesalahan sistem.';
-              $('regError').classList.add('show');
-      }
-    );
-}
-
-var pendingOtpEmail = '';
-var pendingOtpUsername = '';
-
-function showOtpVerification(email) {
-  setAuthMode('otp');
-  $('otpEmailLabel').textContent = email || '-';
-  $('otpCode').value = '';
-  $('otpError').classList.remove('show');
-
-  window.requestAnimationFrame(function() {
-    var otpInput = $('otpCode');
-    if (otpInput) otpInput.focus();
-  });
-}
-
-function doVerifyOtp() {
-  var otp = $('otpCode').value.replace(/\D/g, '').slice(0, 6);
-  var btn = $('btnVerifyOtp');
-  var err = $('otpError');
-
-  if (!otp || otp.length !== 6) {
-    err.querySelector('span').textContent = 'Masukkan kode OTP 6 digit.';
-    err.classList.add('show');
-    return;
-  }
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Memverifikasi...</span>';
-
-    callApi('verifyRegistrationOtp', [
-      pendingOtpEmail,
-      otp
-    ], function(result) {
-        btn.disabled = false;
-              btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi akun</span>';
-              if (result.success) {
-                showToast('success', 'Verifikasi Berhasil', result.message);
-                $('otpForm').classList.add('hidden');
-                showLogin();
-                $('loginUsername').value = pendingOtpUsername;
-              } else {
-                err.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
-                err.classList.add('show');
-              }
-      },
-      function(e) {
-        btn.disabled = false;
-              btn.innerHTML = '<i class="fas fa-check-circle"></i><span>Verifikasi</span>';
-              err.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
-              err.classList.add('show');
-      }
-    );
-}
-
-function doResendOtp() {
-  if (!pendingOtpEmail) return;
-    callApi('resendRegistrationOtp', [pendingOtpEmail], function(result) {
-        if (result && result.success) {
-                showToast('success', 'Terkirim', result.message || 'Kode OTP baru telah dikirim ke email Anda.');
-              } else {
-                showToast('error', 'Gagal', (result && result.message) || 'Gagal mengirim ulang OTP.');
-              }
-      },
-      function(err) {
-        showToast('error', 'Gagal', 'Terjadi kesalahan sistem saat mengirim ulang OTP.');
-      }
-    );
-}
 
 function checkSession() {
   try {
@@ -1960,6 +1782,7 @@ var MENU_CONFIG = {
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
     { label: 'MENU UTAMA', isHeader: true },
     { page: 'settings', label: 'Pengaturan', icon: 'fa-sliders-h' },
+    { page: 'add-user', label: 'Tambah User', icon: 'fa-user-plus' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
     { page: 'chattrx', label: 'ChatTrx', icon: 'fa-comments-dollar' },
     { page: 'mytrx', label: 'MyTrx', icon: 'fa-list-alt' },
@@ -2080,6 +1903,7 @@ function getLastPageStorageKey() {
 }
 
 function isMenuPageVisibleForRole(page, role) {
+  if (page === 'add-user') return role === 'SUPER_ADMIN';
   if (page === 'chattrx' || page === 'mytrx') return role === 'SUPER_ADMIN' || role === 'ADMIN';
   var configured = menuVisibilityByRole[role];
   if (!Array.isArray(configured) || !configured.length) return true;
@@ -2476,7 +2300,7 @@ function switchPage(page, el) {
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
     'serah-terima': 'Serah Terima', 'menu-mbg': 'Data Menu MBG',
     'audit-log': 'Riwayat Aktivitas', 'admin-assignment': 'Konfigurasi Admin',
-    'settings': 'Pengaturan'
+    'settings': 'Pengaturan', 'add-user': 'Tambah User'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
   // R4: Update breadcrumb
@@ -3354,6 +3178,67 @@ function doUpdateProfil(updateData) {
               showToast('error', 'Gagal', 'Terjadi kesalahan');
       }
     );
+}
+
+// ============================================================
+// SUPER ADMIN — TAMBAH USER
+// ============================================================
+function setAdminAddUserResult(success, message) {
+  var box = $('adminAddUserResult');
+  if (!box) return;
+  box.classList.remove('hidden');
+  box.style.background = success ? '#ecfdf5' : '#fff1f2';
+  box.style.border = success ? '1px solid #a7f3d0' : '1px solid #fecdd3';
+  box.style.color = success ? '#047857' : '#be123c';
+  box.textContent = message || '';
+}
+
+function submitAdminAddUser() {
+  if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
+    showToast('error', 'Akses Ditolak', 'Hanya Super Admin yang dapat menambah user.');
+    return;
+  }
+
+  var emailInput = $('adminAddUserEmail');
+  var passwordInput = $('adminAddUserPassword');
+  var button = $('btnAdminAddUser');
+  var email = String(emailInput && emailInput.value || '').trim().toLowerCase();
+  var password = String(passwordInput && passwordInput.value || '');
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    setAdminAddUserResult(false, 'Alamat email tidak valid.');
+    return;
+  }
+  if (password.length < 8 || !/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(password)) {
+    setAdminAddUserResult(false, 'Password minimal 8 karakter dan harus mengandung huruf besar, huruf kecil, serta angka.');
+    return;
+  }
+
+  button.disabled = true;
+  button.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span> Membuat akun...</span>';
+  setAdminAddUserResult(true, 'Sedang membuat akun dan mengirim email konfirmasi...');
+
+  callApi('createUserBySuperAdmin', [{ email: email, password: password }], function(result) {
+    button.disabled = false;
+    button.innerHTML = '<i class="fas fa-user-plus"></i><span> Tambahkan User</span>';
+    if (result && result.success) {
+      setAdminAddUserResult(true, result.message || 'Akun berhasil dibuat dan email konfirmasi telah dikirim.');
+      showToast('success', 'User Berhasil Ditambahkan', result.message || 'Email konfirmasi telah dikirim.');
+      emailInput.value = '';
+      passwordInput.value = '';
+      if (typeof loadUsers === 'function') loadUsers(true);
+      return;
+    }
+    var message = result && result.message || 'Pembuatan akun gagal.';
+    setAdminAddUserResult(false, message);
+    showToast('error', 'Gagal', message);
+  }, function(error) {
+    button.disabled = false;
+    button.innerHTML = '<i class="fas fa-user-plus"></i><span> Tambahkan User</span>';
+    var message = error && error.message ? error.message : 'Pembuatan akun gagal.';
+    setAdminAddUserResult(false, message);
+    showToast('error', 'Gagal', message);
+  });
 }
 
 // ============================================================
@@ -9564,7 +9449,6 @@ if (dashboardObserverTarget) {
   window.__SIMSPPG_UNIFIED_RUNTIME__ = true;
 
   var CONFIG = {
-    registerUrl: 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/register-user-v2',
     tokenKey: 'sppg_jwt',
     refreshTokenKey: 'sppg_refresh_token',
     sessionKey: 'sppg_session',
@@ -9576,9 +9460,6 @@ if (dashboardObserverTarget) {
   };
 
   var PUBLIC_FUNCTIONS = {
-    registerUser: 1,
-    verifyRegistrationOtp: 1,
-    resendRegistrationOtp: 1,
     loginUser: 1,
     refreshSession: 1,
     checkSession: 1,
@@ -9871,8 +9752,6 @@ if (dashboardObserverTarget) {
   }
 
   function authMode() {
-    if (visible(byId('registerForm'))) return 'register';
-    if (visible(byId('otpForm'))) return 'otp';
     if (visible(byId('recoveryForm'))) return 'recovery';
     return 'login';
   }
@@ -9889,8 +9768,6 @@ if (dashboardObserverTarget) {
     var description = heading.querySelector('p');
     var content = {
       login: ['Selamat datang', 'Masuk ke SIM-SPPG', 'Gunakan email dan password akun Anda untuk melanjutkan.'],
-      register: ['Registrasi akun', 'Buat akun SIM-SPPG', 'Lengkapi data akun dan unit kerja Anda.'],
-      otp: ['Verifikasi akun', 'Masukkan kode OTP', 'Periksa email Anda lalu masukkan enam digit kode verifikasi.'],
       recovery: ['Pemulihan akun', 'Pulihkan akses SIM-SPPG', 'Ikuti langkah verifikasi untuk mendapatkan kembali akses akun.']
     }[mode];
     eyebrow.textContent = content[0];
@@ -9915,22 +9792,6 @@ if (dashboardObserverTarget) {
     if (loginPassword) {
       loginPassword.autocomplete = 'current-password';
       loginPassword.required = true;
-    }
-    var registerEmail = byId('regEmail');
-    if (registerEmail) {
-      registerEmail.autocomplete = 'email';
-      registerEmail.required = true;
-    }
-    var registerPassword = byId('regPassword');
-    if (registerPassword) registerPassword.autocomplete = 'new-password';
-    var registerPassword2 = byId('regPassword2');
-    if (registerPassword2) registerPassword2.autocomplete = 'new-password';
-
-    var photo = byId('regFoto');
-    if (photo) {
-      photo.setAttribute('accept', 'image/*');
-      var photoGroup = photo.closest('.form-group');
-      if (photoGroup) photoGroup.classList.add('auth-hidden-field');
     }
   }
 
@@ -9957,43 +9818,6 @@ updateAuthHeading();
       });
       authObserver.observe(overlay, { subtree:true, attributes:true, attributeFilter:['class','style','hidden'] });
     }
-    return true;
-  }
-
-  function installRegistrationRouting() {
-    if (typeof window.callApi !== 'function' || window.callApi.__registrationRouting) return false;
-    var original = window.callApi;
-    window.callApi = function (action, params, success, failure) {
-      if (action !== 'registerUser') return original.apply(this, arguments);
-      var data = Array.isArray(params) ? (params[0] || {}) : {};
-      if (!String(data.namaYayasan || '').trim()) {
-        var validationError = new Error('Nama Yayasan wajib diisi.');
-        if (typeof failure === 'function') failure(validationError);
-        else notify('error', 'Registrasi belum lengkap', validationError.message);
-        return;
-      }
-      data.fotoProfilBase64 = '';
-      data.fotoMimeType = '';
-      data.fotoFileName = '';
-      fetch(CONFIG.registerUrl, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', apikey: window._supabaseKey || '' },
-        body: JSON.stringify({ function:'registerUser', parameters:[data] })
-      }).then(function (response) {
-        return response.json().then(function (json) {
-          if (!response.ok) throw new Error(json.error || json.message || 'Registrasi gagal.');
-          return json;
-        });
-      }).then(function (json) {
-        if (json.error) throw new Error(json.error);
-        if (typeof success === 'function') success(Object.prototype.hasOwnProperty.call(json, 'result') ? json.result : json);
-      }).catch(function (error) {
-        if (typeof failure === 'function') failure(error);
-        else notify('error', 'Registrasi gagal', error.message);
-      });
-    };
-    window.callApi.__registrationRouting = true;
-    window.callApi.__original = original;
     return true;
   }
 
@@ -10366,7 +10190,6 @@ updateAuthHeading();
     installStyles();
     enhanceAuthentication();
     installSessionGuard();
-    installRegistrationRouting();
     ensureRoleMenus();
     hardenPrint();
     hideRestrictedUserWidgets();
