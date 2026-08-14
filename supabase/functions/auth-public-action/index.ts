@@ -108,7 +108,7 @@ Deno.serve(async req => {
     return out({
       status: 'ok',
       service: 'auth-public-action',
-      version: 6,
+      version: 7,
       publicRegistration: false,
       persistentRateLimit: true,
       refreshRotation: true,
@@ -129,9 +129,6 @@ Deno.serve(async req => {
     if (fn === 'checkSession') {
       const n = Number(p[0]);
       return out({ result: Number.isFinite(n) && Date.now() < n });
-    }
-    if (fn === 'verifyRegistrationOtp' || fn === 'resendRegistrationOtp') {
-      return out({ error: 'Registrasi publik sudah dinonaktifkan.' }, 410);
     }
     return out({ error: 'Fungsi tidak diizinkan.' }, 404);
   } catch (e) {
