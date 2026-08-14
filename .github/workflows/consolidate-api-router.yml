@@ -59,3 +59,5 @@ jobs:
           git commit -m 'Consolidate hardened API routing in app router'
           git pull --rebase origin main
           git push origin main
+
+# One-time execution; delete this workflow after a successful run.
