@@ -33,7 +33,6 @@
     { base: USER_BASE, file: 'role-management.js', marker: 'data-role-management', version: '20260731-super-admin-role-v1' },
     { base: TRANSACTION_BASE, file: 'edit-supplier-options-fix.js', marker: 'data-edit-supplier-options-fix', version: '20260731-supplier-modal-v2' },
     { base: MODULE_BASE, file: 'app-dropdowns.js', marker: 'data-app-dropdowns', version: '20260730-stability-fix-v1' },
-    { base: MODULE_BASE, file: 'transaction-add-supplier-fix.js', marker: 'data-transaction-add-supplier-fix', version: '20260731-modal-return-v1' },
     { base: MODULE_BASE, file: 'edit-transaction-ui.js', marker: 'data-edit-transaction-ui', version: '20260730-edit-form-v1' },
     { base: MODULE_BASE, file: 'supplier-actions-fix.js', marker: 'data-supplier-actions-fix', version: '20260730-supplier-actions-v1' },
     { base: TRANSACTION_BASE, file: 'filter-and-edit-supplier.js', marker: 'data-transaction-filter-supplier', version: '20260731-filter-only-v3' },
