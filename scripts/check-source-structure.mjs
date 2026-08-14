@@ -55,18 +55,26 @@ for (const file of walk(path.join(ROOT, '.github', 'workflows')).filter((item) =
   }
 }
 
+// Canonical frontend/runtime modules. Keep this list aligned with what index.html
+// and supplier-dropdown.js actually load; retired patch bundles must not be revived.
 const maintainedJavaScript = [
   'supplier-dropdown.js',
-  'assets/js/reports/approval-export-columns.js',
-  'assets/js/reports/approval-supplier-summary.js',
+  'yayasan-dropdown-hotfix.js',
+  'sidebar-menu-structure.js',
+  'transaction-category-supplier-rules.js',
+  'assets/js/users/role-management.js',
+  'assets/js/transactions/edit-supplier-options-fix.js',
   'assets/js/transactions/filter-and-edit-supplier.js',
+  'assets/js/transactions/edit-save-reliability.js',
+  'assets/js/transactions/supplier-label-update.js',
   'assets/js/supplier/app-dropdowns.js',
   'assets/js/supplier/edit-transaction-ui.js',
-  'assets/js/supplier/stage-d-api-router.js',
   'assets/js/supplier/storage-egress-optimizer.js',
   'assets/js/supplier/supplier-actions-fix.js',
-  'professional-report-v1.js',
-  'transaction-category-supplier-rules.js',
+  'assets/js/reports/approval-export-columns.js',
+  'assets/js/reports/approval-supplier-summary.js',
+  'assets/js/reports/approval-print-all-pages.js',
+  'assets/js/reports/transaction-export-category.js',
   '_worker.js',
   'sw.js',
 ];
