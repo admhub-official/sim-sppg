@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'scripts/cleanup-auth-registration.py'
+      - 'scripts/cleanup-auth-registration-v2.py'
       - '.github/workflows/cleanup-auth-registration.yml'
   workflow_dispatch:
 
@@ -33,7 +33,7 @@ jobs:
         run: git pull --rebase origin main
 
       - name: Apply cleanup
-        run: python scripts/cleanup-auth-registration.py
+        run: python scripts/cleanup-auth-registration-v2.py
 
       - name: Validate cleaned frontend
         shell: bash
