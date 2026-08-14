@@ -41,3 +41,5 @@ jobs:
           git commit -m 'Remove ineffective duplicate base tag'
           git pull --rebase origin main
           git push origin main
+
+# One-time cleanup; remove after success.
