@@ -2,7 +2,7 @@ from pathlib import Path
 
 path = Path('app.js')
 src = path.read_text(encoding='utf-8')
-start = src.index("var SUPABASE_FN_URL =")
+start = src.index("var API_BASE_URL =") if "var API_BASE_URL =" in src else src.index("var SUPABASE_FN_URL =")
 end = src.index("// ============================================================\n// 1. STATE MANAGEMENT", start)
 block = r'''var API_BASE_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/';
 var API_ROUTES = {
@@ -35,14 +35,13 @@ var API_ROUTES = {
   'push-action': { savePushSubscription:1, deletePushSubscription:1 },
   'push-public-action': { getPushPublicKey:1 },
   'geocode-action': { geocodeAlamat:1 },
-  'register-user-v2': { registerUser:1 },
-  'auth-public-action': { verifyRegistrationOtp:1, resendRegistrationOtp:1, loginUser:1, checkSession:1 },
+  'register-user-v2': { createUserBySuperAdmin:1 },
+  'auth-public-action': { loginUser:1, refreshSession:1, checkSession:1 },
   'account-recovery-action': { recoverPassword:1, recoverUsername:1, recoverToken:1 },
   'app-config-action': { getAppConfig:1, getDropdownOptions:1 }
 };
 var PUBLIC_FN = {
-  registerUser:1, verifyRegistrationOtp:1, resendRegistrationOtp:1,
-  loginUser:1, checkSession:1, recoverPassword:1, recoverUsername:1,
+  loginUser:1, refreshSession:1, checkSession:1, recoverPassword:1, recoverUsername:1,
   recoverToken:1, getAppConfig:1, getDropdownOptions:1, getPushPublicKey:1
 };
 var API_ROUTE_BY_FUNCTION = {};
@@ -114,4 +113,4 @@ function callApi(fnName, params, onSuccess, onFailure) {
 
 '''
 path.write_text(src[:start] + block + src[end:], encoding='utf-8')
-print('Patched app.js with native explicit API router')
+print('Patched app.js with native explicit API router (public registration disabled)')
