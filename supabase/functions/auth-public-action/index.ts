@@ -1,17 +1,141 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
-const url=Deno.env.get('SUPABASE_URL')!;
-const anon=Deno.env.get('SUPABASE_ANON_KEY')!;
-const auth=createClient(url,anon,{auth:{persistSession:false,autoRefreshToken:false}});
-const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
-const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json'};
-const out=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:C});
-const low=(v:unknown)=>String(v??'').trim().toLowerCase();
-const text=(v:unknown)=>String(v??'').trim();
-async function sha256(value:string){const bytes=new TextEncoder().encode(value);const digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function allow(action:string,ip:string,identity:string,limit:number,windowSeconds:number,blockSeconds=0){const key=await sha256(`${action}|${ip}|${identity}`);const q=await admin.rpc('consume_public_rate_limit',{p_key_hash:key,p_action:action,p_limit:limit,p_window_seconds:windowSeconds,p_block_seconds:blockSeconds});if(q.error){console.error('rate limit rpc',q.error.message);return false}return Boolean(q.data?.[0]?.allowed)}
-async function login(emailRaw:unknown,passwordRaw:unknown,ip:string){const email=low(emailRaw),password=String(passwordRaw??'');if(!email||email.length>254||!password||password.length>256)return{success:false,message:'Email atau password salah.'};if(!(await allow('login',ip,email,5,600,900)))return{success:false,message:'Terlalu banyak percobaan login. Coba lagi nanti.'};const a=await auth.auth.signInWithPassword({email,password});if(a.error||!a.data.session||!a.data.user)return{success:false,message:a.error?.message?.toLowerCase().includes('email not confirmed')?'Email belum diverifikasi.':'Email atau password salah.'};const q=await admin.from('USERS').select('ID,"NAMA LENGKAP",EMAIL,JABATAN,SPPG,ROLE,"FOTO PROFIL",USERNAME,"NAMA YAYASAN",TIMESTAMP').eq('ID',a.data.user.id).maybeSingle();if(q.error||!q.data)return{success:false,message:'Profil akun tidak ditemukan.'};const r:any=q.data;return{success:true,token:a.data.session.access_token,refreshToken:a.data.session.refresh_token,sessionExpiry:Date.now()+60*60*1000,user:{id:r.ID,namaLengkap:r['NAMA LENGKAP'],email:r.EMAIL,jabatan:r.JABATAN,sppg:r.SPPG,role:r.ROLE,fotoProfil:r['FOTO PROFIL']||'',username:r.USERNAME,namaYayasan:r['NAMA YAYASAN']||'',timestamp:r.TIMESTAMP||''}}}
-async function refreshSession(refreshRaw:unknown,ip:string){const refreshToken=text(refreshRaw);if(refreshToken.length<20||refreshToken.length>4096)return{success:false,message:'Sesi tidak dapat diperpanjang.'};if(!(await allow('refresh_session',ip,refreshToken,30,600,600)))return{success:false,message:'Terlalu banyak permintaan perpanjangan sesi.'};const q=await auth.auth.refreshSession({refresh_token:refreshToken});if(q.error||!q.data.session)return{success:false,message:'Sesi tidak dapat diperpanjang.'};return{success:true,token:q.data.session.access_token,refreshToken:q.data.session.refresh_token,expiresAt:q.data.session.expires_at||0}}
-async function verifyOtp(emailRaw:unknown,otpRaw:unknown,ip:string){const email=low(emailRaw),otp=text(otpRaw);if(!email||!/^[0-9]{6}$/.test(otp))return{success:false,message:'Kode OTP tidak valid.'};if(!(await allow('verify_otp',ip,email,8,900,900)))return{success:false,message:'Terlalu banyak percobaan OTP. Coba lagi nanti.'};const q=await auth.auth.verifyOtp({email,token:otp,type:'email'});if(q.error||!q.data.session)return{success:false,message:'Kode OTP salah atau sudah kedaluwarsa.'};return{success:true,message:'Verifikasi berhasil! Akun Anda sudah aktif, silakan login.'}}
-async function resend(emailRaw:unknown,ip:string){const email=low(emailRaw);const message='Jika akun tersedia, kode OTP baru akan dikirim.';if(!email||email.length>254)return{success:true,message};if(!(await allow('resend_otp',ip,email,3,900,1800)))return{success:true,message};const q=await auth.auth.signInWithOtp({email,options:{shouldCreateUser:false}});if(q.error)console.error('resend OTP',q.error.message);return{success:true,message}}
-Deno.serve(async req=>{if(req.method==='OPTIONS')return new Response('ok',{headers:C});if(req.method==='GET')return out({status:'ok',service:'auth-public-action',version:5,native:true,persistentRateLimit:true,refreshRotation:true,idlePolicy:'frontend-1-hour'});if(req.method!=='POST')return out({error:'Method tidak didukung.'},405);if(Number(req.headers.get('content-length')||0)>32000)return out({error:'Payload terlalu besar.'},413);try{const body=await req.json();const fn=String(body?.function||''),p=Array.isArray(body.parameters)?body.parameters:[],ip=req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'unknown';if(fn==='loginUser')return out({result:await login(p[0],p[1],ip)});if(fn==='refreshSession')return out({result:await refreshSession(p[0],ip)});if(fn==='verifyRegistrationOtp')return out({result:await verifyOtp(p[0],p[1],ip)});if(fn==='resendRegistrationOtp')return out({result:await resend(p[0],ip)});if(fn==='checkSession'){const n=Number(p[0]);return out({result:Number.isFinite(n)&&Date.now()<n})}return out({error:'Fungsi tidak diizinkan.'},404)}catch(e){console.error(e);return out({error:'Permintaan autentikasi tidak dapat diproses.'},400)}});
+const url = Deno.env.get('SUPABASE_URL')!;
+const anon = Deno.env.get('SUPABASE_ANON_KEY')!;
+const auth = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
+const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
+const C = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Content-Type': 'application/json'
+};
+const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: C });
+const low = (v: unknown) => String(v ?? '').trim().toLowerCase();
+const text = (v: unknown) => String(v ?? '').trim();
+
+async function sha256(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+async function allow(action: string, ip: string, identity: string, limit: number, windowSeconds: number, blockSeconds = 0) {
+  const key = await sha256(`${action}|${ip}|${identity}`);
+  const q = await admin.rpc('consume_public_rate_limit', {
+    p_key_hash: key,
+    p_action: action,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+    p_block_seconds: blockSeconds
+  });
+  if (q.error) {
+    console.error('rate limit rpc', q.error.message);
+    return false;
+  }
+  return Boolean(q.data?.[0]?.allowed);
+}
+
+async function login(emailRaw: unknown, passwordRaw: unknown, ip: string) {
+  const email = low(emailRaw);
+  const password = String(passwordRaw ?? '');
+  if (!email || email.length > 254 || !password || password.length > 256) {
+    return { success: false, message: 'Email atau password salah.' };
+  }
+  if (!(await allow('login', ip, email, 5, 600, 900))) {
+    return { success: false, message: 'Terlalu banyak percobaan login. Coba lagi nanti.' };
+  }
+
+  const a = await auth.auth.signInWithPassword({ email, password });
+  if (a.error || !a.data.session || !a.data.user) {
+    return {
+      success: false,
+      message: a.error?.message?.toLowerCase().includes('email not confirmed')
+        ? 'Email belum dikonfirmasi. Buka email konfirmasi yang dikirim saat akun dibuat.'
+        : 'Email atau password salah.'
+    };
+  }
+
+  const q = await admin
+    .from('USERS')
+    .select('ID,"NAMA LENGKAP",EMAIL,JABATAN,SPPG,ROLE,"FOTO PROFIL",USERNAME,"NAMA YAYASAN",TIMESTAMP')
+    .eq('ID', a.data.user.id)
+    .maybeSingle();
+  if (q.error || !q.data) return { success: false, message: 'Profil akun tidak ditemukan.' };
+
+  const r: any = q.data;
+  return {
+    success: true,
+    token: a.data.session.access_token,
+    refreshToken: a.data.session.refresh_token,
+    sessionExpiry: Date.now() + 60 * 60 * 1000,
+    user: {
+      id: r.ID,
+      namaLengkap: r['NAMA LENGKAP'],
+      email: r.EMAIL,
+      jabatan: r.JABATAN,
+      sppg: r.SPPG,
+      role: r.ROLE,
+      fotoProfil: r['FOTO PROFIL'] || '',
+      username: r.USERNAME,
+      namaYayasan: r['NAMA YAYASAN'] || '',
+      timestamp: r.TIMESTAMP || ''
+    }
+  };
+}
+
+async function refreshSession(refreshRaw: unknown, ip: string) {
+  const refreshToken = text(refreshRaw);
+  if (refreshToken.length < 20 || refreshToken.length > 4096) {
+    return { success: false, message: 'Sesi tidak dapat diperpanjang.' };
+  }
+  if (!(await allow('refresh_session', ip, refreshToken, 30, 600, 600))) {
+    return { success: false, message: 'Terlalu banyak permintaan perpanjangan sesi.' };
+  }
+  const q = await auth.auth.refreshSession({ refresh_token: refreshToken });
+  if (q.error || !q.data.session) return { success: false, message: 'Sesi tidak dapat diperpanjang.' };
+  return {
+    success: true,
+    token: q.data.session.access_token,
+    refreshToken: q.data.session.refresh_token,
+    expiresAt: q.data.session.expires_at || 0
+  };
+}
+
+Deno.serve(async req => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: C });
+  if (req.method === 'GET') {
+    return out({
+      status: 'ok',
+      service: 'auth-public-action',
+      version: 6,
+      publicRegistration: false,
+      persistentRateLimit: true,
+      refreshRotation: true,
+      idlePolicy: 'frontend-1-hour'
+    });
+  }
+  if (req.method !== 'POST') return out({ error: 'Method tidak didukung.' }, 405);
+  if (Number(req.headers.get('content-length') || 0) > 32000) return out({ error: 'Payload terlalu besar.' }, 413);
+
+  try {
+    const body = await req.json();
+    const fn = String(body?.function || '');
+    const p = Array.isArray(body.parameters) ? body.parameters : [];
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+
+    if (fn === 'loginUser') return out({ result: await login(p[0], p[1], ip) });
+    if (fn === 'refreshSession') return out({ result: await refreshSession(p[0], ip) });
+    if (fn === 'checkSession') {
+      const n = Number(p[0]);
+      return out({ result: Number.isFinite(n) && Date.now() < n });
+    }
+    if (fn === 'verifyRegistrationOtp' || fn === 'resendRegistrationOtp') {
+      return out({ error: 'Registrasi publik sudah dinonaktifkan.' }, 410);
+    }
+    return out({ error: 'Fungsi tidak diizinkan.' }, 404);
+  } catch (e) {
+    console.error(e);
+    return out({ error: 'Permintaan autentikasi tidak dapat diproses.' }, 400);
+  }
+});
