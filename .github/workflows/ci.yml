@@ -45,7 +45,6 @@ jobs:
             assets/js/supplier/stage-d-api-router.js
             assets/js/supplier/storage-egress-optimizer.js
             assets/js/supplier/supplier-actions-fix.js
-            professional-report-v1.js
             transaction-category-supplier-rules.js
             _worker.js
             sw.js
