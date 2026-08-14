@@ -16,14 +16,21 @@ function metadata(row:any, fallbackBucket='') {
 
 function mapTx(row:any, docs:Map<string,any>, user:any) {
   const path=(type:string)=>text(docs.get(type)?.storage_path);
+  const method=normalizeStatus(row['Metode Transaksi']);
+  const isBelumBayar=method==='BELUM_BAYAR';
   const hasBukti=!!(path(DOC.foto)||path(DOC.file));
   const hasNota=!!path(DOC.nota), hasTtd=!!path(DOC.ttdUser);
-  const missing=[] as string[]; if(!hasBukti)missing.push('Bukti Transaksi');if(!hasNota)missing.push('Nota Pembelian');if(!hasTtd)missing.push('TTD User');
+  const missing=[] as string[];
+  // BELUM_BAYAR memang belum memiliki bukti pembayaran/transaksi pada tahap ini.
+  // Dokumen wajibnya hanya Nota Pembelian + TTD User.
+  if(!isBelumBayar&&!hasBukti)missing.push('Bukti Transaksi');
+  if(!hasNota)missing.push('Nota Pembelian');
+  if(!hasTtd)missing.push('TTD User');
   return {
     id:text(row.ID),kode:text(row['Kode Pemasukan']),tanggal:text(row.Tanggal),kategori:text(row.Kategori),jenisKategori:text(row['Jenis Kategori']),sppg:text(row.SPPG),yayasan:text(row.YAYASAN),nominal:Number(row.Nominal)||0,
     uploadFoto:path(DOC.foto),uploadFile:path(DOC.file),catatan:text(row.Catatan),user:text(user?.EMAIL||row.User),userEmail:text(user?.EMAIL||row.User),userName:text(user?.['NAMA LENGKAP'])||text(row.User)||'-',item:text(row['Nama Item/ Bahan Baku']),namaItem:text(row['Nama Item/ Bahan Baku']),
     supplierId:text(row['SUPPLIER ID']),supplierName:text(row['NAMA SUPPLIER']),supplierBankName:text(row['NAMA BANK SUPPLIER']),supplierAccountNumber:text(row['NO REKENING SUPPLIER']),supplierAccountHolder:text(row['ATAS NAMA REKENING SUPPLIER']),supplierSource:text(row['SUMBER SUPPLIER']),
-    metodeTransaksi:normalizeStatus(row['Metode Transaksi']),ttdVerifikator:path(DOC.ttdVerif),ttdUser:path(DOC.ttdUser),notaPembelian:path(DOC.nota),approvedBy:text(row['APPROVED BY']),waktuApprove:text(row['WAKTU APPROVE']),catatanApproval:text(row['Catatan Approval']||row.Catatan_1),
+    metodeTransaksi:method,ttdVerifikator:path(DOC.ttdVerif),ttdUser:path(DOC.ttdUser),notaPembelian:path(DOC.nota),approvedBy:text(row['APPROVED BY']),waktuApprove:text(row['WAKTU APPROVE']),catatanApproval:text(row['Catatan Approval']||row.Catatan_1),
     hasBuktiTransaksi:hasBukti,hasNotaPembelian:hasNota,hasTtdUser:hasTtd,statusDokumen:missing.length?`Dokumen Tidak Lengkap: ${missing.join(', ')}`:'Dokumen Lengkap'
   };
 }
