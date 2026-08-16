@@ -180,6 +180,7 @@ function resolveApiSlug(fnName, params) {
 
 // Publishable/anon key only; never place service-role credentials in the browser.
 window._supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtanNndGljaHJmeGh5eXdzdHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MTU2MTUsImV4cCI6MjA5ODM5MTYxNX0.D_ZJ286uSpLeZEsg_vSf3iEoG-SnokHV62X6hPXreHM';
+var SUPABASE_AUTH_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/auth/v1/user';
 
 function getJwtToken() {
   try { return localStorage.getItem('sppg_jwt') || ''; } catch(e) { return ''; }
@@ -1277,6 +1278,91 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initAuthKeyboardActions);
 } else {
   initAuthKeyboardActions();
+}
+
+// ============================================================
+// PASSWORD RECOVERY: tangani redirect dari link reset password di email
+// ============================================================
+var _recoveryAccessToken = '';
+
+function checkRecoveryRedirect() {
+  var hash = window.location.hash || '';
+  if (hash.indexOf('type=recovery') === -1) return;
+
+  var params = new URLSearchParams(hash.replace(/^#/, ''));
+  var accessToken = params.get('access_token');
+  if (!accessToken) return;
+
+  _recoveryAccessToken = accessToken;
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  openModal('modalSetNewPassword');
+}
+
+function closeNewPasswordModal() {
+  _recoveryAccessToken = '';
+  closeModal('modalSetNewPassword');
+}
+
+function submitNewPassword() {
+  var errorEl = $('newPasswordError');
+  errorEl.classList.remove('show');
+
+  var pass1 = $('newPasswordInput').value;
+  var pass2 = $('newPasswordConfirmInput').value;
+
+  if (!pass1 || pass1.length < 6) {
+    errorEl.querySelector('span').textContent = 'Password minimal 6 karakter.';
+    errorEl.classList.add('show');
+    return;
+  }
+  if (pass1 !== pass2) {
+    errorEl.querySelector('span').textContent = 'Konfirmasi password tidak cocok.';
+    errorEl.classList.add('show');
+    return;
+  }
+  if (!_recoveryAccessToken) {
+    errorEl.querySelector('span').textContent = 'Link reset tidak valid atau sudah kedaluwarsa.';
+    errorEl.classList.add('show');
+    return;
+  }
+
+  var btn = $('btnSetNewPassword');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...';
+
+  fetch(SUPABASE_AUTH_URL, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': window._supabaseKey,
+      'Authorization': 'Bearer ' + _recoveryAccessToken
+    },
+    body: JSON.stringify({ password: pass1 })
+  }).then(function(res) {
+    return res.json().then(function(json) { return { ok: res.ok, json: json }; });
+  }).then(function(r) {
+    btn.disabled = false;
+    btn.innerHTML = 'Simpan Password';
+    if (!r.ok) {
+      errorEl.querySelector('span').textContent = (r.json && r.json.msg) || 'Gagal menyimpan password baru.';
+      errorEl.classList.add('show');
+      return;
+    }
+    _recoveryAccessToken = '';
+    closeModal('modalSetNewPassword');
+    showToast('success', 'Berhasil', 'Password baru berhasil disimpan. Silakan login.');
+  }).catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = 'Simpan Password';
+    errorEl.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
+    errorEl.classList.add('show');
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', checkRecoveryRedirect);
+} else {
+  checkRecoveryRedirect();
 }
 
 // ============================================================

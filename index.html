@@ -7322,6 +7322,28 @@
 </div>
 <!-- ==================== MODAL RECOVERY RESULT ==================== -->
 
+<!-- ==================== MODAL SET NEW PASSWORD (dari link reset email) ==================== -->
+<div id="modalSetNewPassword" class="hidden">
+  <div class="modal-overlay" style="z-index:10001;">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-header">
+        <h3>Buat Password Baru</h3>
+        <button onclick="closeNewPasswordModal()" class="modal-close"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan password baru untuk akun Anda.</p>
+        <div class="form-group"><label class="form-label">Password Baru <span class="req">*</span></label><input type="password" id="newPasswordInput" class="form-input" placeholder="Minimal 6 karakter"></div>
+        <div class="form-group"><label class="form-label">Ulangi Password Baru <span class="req">*</span></label><input type="password" id="newPasswordConfirmInput" class="form-input" placeholder="Ulangi password baru"></div>
+        <div id="newPasswordError" class="form-error" style="margin-top:10px;"><i class="fas fa-exclamation-circle"></i><span></span></div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeNewPasswordModal()" class="btn btn-outline">Batal</button>
+        <button onclick="submitNewPassword()" class="btn btn-primary" id="btnSetNewPassword">Simpan Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE START -->
 
 <!-- SIM-SPPG INLINE FRONTEND BUNDLE END -->
