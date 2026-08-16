@@ -1,6 +1,6 @@
 # Dynamic Action Route Inventory
 
-Refreshed from `app.js` on 2026-08-14 after public-registration cleanup.
+Generated automatically from `app.js` at 2026-08-16T13:34:56.777Z.
 
 ## Summary
 
@@ -27,7 +27,7 @@ Refreshed from `app.js` on 2026-08-14 after public-registration cleanup.
 | `addPendingPayment` | `operations-action` |
 | `addSerahTerima` | `operations-action` |
 | `addSurveiBahanBaku` | `operations-action` |
-| `addTransaction` | `transaction-action` |
+| `addTransaction` | `transaction-create-action` |
 | `approveTransaction` | `approval-payment-action` |
 | `approveTransactionsBulk` | `approval-payment-action` |
 | `createAnnouncement` | `settings-action` |
@@ -37,11 +37,11 @@ Refreshed from `app.js` on 2026-08-14 after public-registration cleanup.
 | `deleteMenuMBG` | `operations-action` |
 | `deletePendingPayment` | `operations-action` |
 | `deleteSerahTerima` | `operations-action` |
-| `deleteSupplier` | `master-action` |
+| `deleteSupplier` | `supplier-delete-action` |
 | `deleteSurvei` | `operations-action` |
 | `deleteTransaction` | `transaction-action` |
 | `deleteUser` | `operations-action` |
-| `editTransaction` | `transaction-action` |
+| `editTransaction` | `transaction-edit-action` |
 | `geocodeAlamat` | `geocode-action` |
 | `getAdminAssignments` | `operations-action` |
 | `getAllUsers` | `operations-action` |
@@ -65,7 +65,7 @@ Refreshed from `app.js` on 2026-08-14 after public-registration cleanup.
 | `getTransactionDetail` | `approval-payment-action` |
 | `getTransactionEditMode` | `operations-action` |
 | `getTransactionSuggestions` | `transaction-action` |
-| `getTransactionSummary` | `transaction-action` |
+| `getTransactionSummary` | `transaction-summary-action` |
 | `getTransactions` | `approval-payment-action` |
 | `getUploadBuktiMode` | `operations-action` |
 | `loginUser` | `auth-public-action` |
@@ -88,7 +88,7 @@ Refreshed from `app.js` on 2026-08-14 after public-registration cleanup.
 | `updateUserProfile` | `secure-user-action` |
 | `uploadFotoProfil` | `secure-user-action` |
 | `uploadFotoSurvei` | `master-action` |
-| `uploadTxFile` | `transaction-action` |
+| `uploadTxFile` | `transaction-file-upload-action` |
 | `verifyUserPayment` | `approval-payment-action` |
 
 ## Declared but Not Called Literally
