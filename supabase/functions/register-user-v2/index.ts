@@ -31,6 +31,22 @@ function validEmail(email: string) {
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function supabaseErrorMessage(error: unknown, fallback: string) {
+  if (!error) return fallback;
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error.trim();
+  if (typeof error === 'object') {
+    const item = error as Record<string, unknown>;
+    const message = clean(item.message);
+    const code = clean(item.code);
+    const details = clean(item.details);
+    const hint = clean(item.hint);
+    const parts = [message, code ? `kode ${code}` : '', details, hint ? `petunjuk: ${hint}` : ''].filter(Boolean);
+    if (parts.length) return parts.join(' — ');
+  }
+  return fallback;
+}
+
 async function requireSuperAdmin(request: Request) {
   const authHeader = request.headers.get('Authorization') || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
@@ -75,7 +91,7 @@ async function createUserBySuperAdmin(request: Request, data: any) {
     .select('ID,EMAIL')
     .eq('EMAIL', email)
     .limit(1);
-  if (duplicate.error) throw duplicate.error;
+  if (duplicate.error) throw new Error(supabaseErrorMessage(duplicate.error, 'Gagal memeriksa email pengguna.'));
   if (duplicate.data?.length) {
     return { success: false, message: 'Email sudah terdaftar.' };
   }
@@ -89,12 +105,14 @@ async function createUserBySuperAdmin(request: Request, data: any) {
       }
     });
     if (invited.error || !invited.data.user) {
-      throw new Error(invited.error?.message || 'Email konfirmasi tidak dapat dikirim.');
+      throw new Error(supabaseErrorMessage(invited.error, 'Email konfirmasi tidak dapat dikirim.'));
     }
     authUserId = invited.data.user.id;
 
     const passwordResult = await supabase.auth.admin.updateUserById(authUserId, { password });
-    if (passwordResult.error) throw passwordResult.error;
+    if (passwordResult.error) {
+      throw new Error(`Gagal menetapkan password: ${supabaseErrorMessage(passwordResult.error, 'password ditolak oleh Supabase Auth.')}`);
+    }
 
     const inserted = await supabase.from('USERS').insert({
       ID: authUserId,
@@ -109,10 +127,12 @@ async function createUserBySuperAdmin(request: Request, data: any) {
       USERNAME: email,
       'NAMA YAYASAN': ''
     });
-    if (inserted.error) throw inserted.error;
+    if (inserted.error) {
+      throw new Error(`Gagal menyimpan profil USER: ${supabaseErrorMessage(inserted.error, 'database menolak data pengguna.')}`);
+    }
 
     try {
-      await supabase.from('AUDIT LOG').insert({
+      const auditResult = await supabase.from('AUDIT LOG').insert({
         TIMESTAMP: new Date().toISOString(),
         USER_EMAIL: actor.email,
         USER_NAME: actor.nama,
@@ -127,6 +147,7 @@ async function createUserBySuperAdmin(request: Request, data: any) {
         IP_USER: '',
         STATUS: 'SUCCESS'
       });
+      if (auditResult.error) console.error('create user audit', auditResult.error);
     } catch (auditError) {
       console.error('create user audit', auditError);
     }
@@ -178,14 +199,14 @@ Deno.serve(async (request) => {
     const result = await createUserBySuperAdmin(request, data);
     return response({ result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : supabaseErrorMessage(error, 'Kesalahan tidak diketahui.');
     if (message === 'AUTH_REQUIRED') {
       return response({ error: 'Sesi tidak valid.', result: { success: false, message: 'Silakan login kembali.' } }, 401);
     }
     if (message === 'SUPER_ADMIN_ONLY') {
       return response({ error: 'Akses ditolak.', result: { success: false, message: 'Hanya SUPER_ADMIN yang dapat menambah user.' } }, 403);
     }
-    console.error('create user failed', message);
+    console.error('create user failed', error);
     return response({
       error: 'Pembuatan akun gagal.',
       result: { success: false, message: 'Pembuatan akun gagal: ' + message }
