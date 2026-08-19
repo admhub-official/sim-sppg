@@ -11,6 +11,7 @@ export default {
       url.pathname === '/' ||
       url.pathname.endsWith('/index.html') ||
       url.pathname.endsWith('/app.js') ||
+      url.pathname.endsWith('/reset-password.html') ||
       url.pathname.endsWith('/supplier-dropdown.js') ||
       url.pathname.endsWith('/yayasan-dropdown-hotfix.js') ||
       url.pathname.endsWith('/transaction-category-supplier-rules.js') ||
