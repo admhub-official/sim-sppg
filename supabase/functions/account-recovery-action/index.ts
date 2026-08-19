@@ -4,6 +4,8 @@ const sb=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVI
 const C={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json'};
 const out=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:C});
 const GENERIC='Jika data akun cocok, instruksi pemulihan akan dikirim ke email terdaftar.';
+const PRODUCTION_ORIGIN='https://sim-sppg.pages.dev';
+const LOCAL_ORIGIN='http://localhost:3000';
 const text=(v:unknown)=>String(v??'').trim();
 const low=(v:unknown)=>text(v).toLowerCase();
 async function sha256(value:string){const bytes=new TextEncoder().encode(value);const digest=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,'0')).join('')}
@@ -12,6 +14,7 @@ function recoveryRedirect(candidate:string){
   try{
     const u=new URL(candidate);
     if(u.protocol!=='http:'&&u.protocol!=='https:')return '';
+    if(u.origin!==PRODUCTION_ORIGIN&&u.origin!==LOCAL_ORIGIN)return '';
     return new URL('/reset-password.html',u.origin).toString();
   }catch(_){return ''}
 }
@@ -19,19 +22,15 @@ async function recoverPassword(data:any,ip:string,origin:string,referer:string){
   const email=low(data?.email);
   if(!email||email.length>254||!email.includes('@'))return{success:true,message:GENERIC};
   if(!(await allow('recoverPassword',ip,email)))return{success:true,message:GENERIC};
-
-  // Prefer the explicit frontend redirect. Fall back to Origin/Referer only for older clients.
   const requestedRedirect=text(data?.redirectTo);
-  const redirectSource=requestedRedirect||origin||referer;
-  const redirectTo=recoveryRedirect(redirectSource);
-  const options=redirectTo?{redirectTo}:undefined;
-  const q=await sb.auth.resetPasswordForEmail(email,options);
+  const redirectTo=recoveryRedirect(requestedRedirect)||recoveryRedirect(origin)||recoveryRedirect(referer)||`${PRODUCTION_ORIGIN}/reset-password.html`;
+  const q=await sb.auth.resetPasswordForEmail(email,{redirectTo});
   if(q.error)console.error('recovery email error',q.error.message);
   return{success:true,message:GENERIC};
 }
 Deno.serve(async req=>{
   if(req.method==='OPTIONS')return new Response('ok',{headers:C});
-  if(req.method==='GET')return out({status:'ok',service:'account-recovery-action',version:6,native:true,persistentRateLimit:true,emailRecoveryOnly:true,explicitRedirect:true});
+  if(req.method==='GET')return out({status:'ok',service:'account-recovery-action',version:7,native:true,persistentRateLimit:true,emailRecoveryOnly:true,explicitRedirect:true,productionOrigin:PRODUCTION_ORIGIN});
   if(req.method!=='POST')return out({error:'Method tidak didukung.'},405);
   if(Number(req.headers.get('content-length')||0)>16000)return out({error:'Payload terlalu besar.'},413);
   try{
