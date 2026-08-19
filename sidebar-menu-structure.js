@@ -149,4 +149,14 @@
     if (relevant) schedule(false);
   });
   observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+
+  // Load the permanent authentication recovery module after the main bundle.
+  var recoveryScriptId = 'simSppgAuthRecoveryScript';
+  if (!document.getElementById(recoveryScriptId)) {
+    var recoveryScript = document.createElement('script');
+    recoveryScript.id = recoveryScriptId;
+    recoveryScript.src = './assets/js/auth-recovery.js?v=20260819';
+    recoveryScript.defer = false;
+    document.head.appendChild(recoveryScript);
+  }
 })();
