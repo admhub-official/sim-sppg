@@ -1,6 +1,8 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer.
  * Application source is served unchanged; no runtime HTML/JS patching is allowed here.
  */
+const version = '20260819-auth-recovery-v2';
+
 export default {
   async fetch(request, env) {
     const response = await env.ASSETS.fetch(request);
@@ -22,6 +24,7 @@ export default {
 
     const headers = new Headers(response.headers);
     headers.set('cache-control', 'no-cache, no-store, must-revalidate');
+    headers.set('x-sim-sppg-version', version);
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
