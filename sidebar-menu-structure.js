@@ -8,7 +8,7 @@
   var GROUPS = [
     { title: 'NAVIGASI', items: ['dashboard', 'profil'] },
     { title: 'OPERASIONAL', items: ['manajemen users', 'semua transaksi', 'approval', 'pending payment', 'riwayat aktivitas'] },
-    { title: 'DATA MASTER', items: ['master bahan baku', 'data supplier'] },
+    { title: 'DATA MASTER', items: ['master sppg', 'master bahan baku', 'data supplier'] },
     { title: 'OPERASIONAL MBG', items: ['survei harga', 'serah terima', 'data menu mbg'] },
     { title: 'PELAPORAN', items: ['laporan'] },
     { title: 'AKUN', items: ['keluar'] }
