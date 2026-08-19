@@ -57,17 +57,21 @@ async function requireSuperAdmin(request: Request) {
 
   const profile = await supabase
     .from('USERS')
-    .select('ID,EMAIL,ROLE,"NAMA LENGKAP"')
+    .select('ID,EMAIL,ROLE,"NAMA LENGKAP","NAMA YAYASAN"')
     .eq('ID', authResult.data.user.id)
     .maybeSingle();
 
   if (profile.error || !profile.data) throw new Error('AUTH_REQUIRED');
   if (normalizeRole(profile.data.ROLE) !== 'SUPER_ADMIN') throw new Error('SUPER_ADMIN_ONLY');
 
+  const yayasan = clean(profile.data['NAMA YAYASAN']);
+  if (!yayasan) throw new Error('SUPER_ADMIN_YAYASAN_REQUIRED');
+
   return {
     id: clean(profile.data.ID),
     email: clean(profile.data.EMAIL).toLowerCase(),
-    nama: clean(profile.data['NAMA LENGKAP']) || clean(profile.data.EMAIL)
+    nama: clean(profile.data['NAMA LENGKAP']) || clean(profile.data.EMAIL),
+    yayasan
   };
 }
 
@@ -125,7 +129,10 @@ async function createUserBySuperAdmin(request: Request, data: any) {
       TIMESTAMP: new Date().toISOString(),
       user: email,
       USERNAME: email,
-      'NAMA YAYASAN': ''
+      // USERS mewajibkan yayasan pada saat INSERT. Akun baru belum memiliki
+      // SPPG/jabatan, jadi gunakan yayasan milik SUPER_ADMIN sebagai default.
+      // Data profil lainnya tetap dapat dilengkapi kemudian dari menu Profil.
+      'NAMA YAYASAN': actor.yayasan
     });
     if (inserted.error) {
       throw new Error(`Gagal menyimpan profil USER: ${supabaseErrorMessage(inserted.error, 'database menolak data pengguna.')}`);
@@ -163,18 +170,14 @@ async function createUserBySuperAdmin(request: Request, data: any) {
     if (authUserId) {
       try {
         const cleanupProfile = await supabase.from('USERS').delete().eq('ID', authUserId);
-        if (cleanupProfile.error) {
-          console.error('create user rollback profile', cleanupProfile.error);
-        }
+        if (cleanupProfile.error) console.error('create user rollback profile', cleanupProfile.error);
       } catch (cleanupError) {
         console.error('create user rollback profile', cleanupError);
       }
 
       try {
         const cleanupAuth = await supabase.auth.admin.deleteUser(authUserId);
-        if (cleanupAuth.error) {
-          console.error('create user rollback auth', cleanupAuth.error);
-        }
+        if (cleanupAuth.error) console.error('create user rollback auth', cleanupAuth.error);
       } catch (cleanupError) {
         console.error('create user rollback auth', cleanupError);
       }
@@ -205,6 +208,12 @@ Deno.serve(async (request) => {
     }
     if (message === 'SUPER_ADMIN_ONLY') {
       return response({ error: 'Akses ditolak.', result: { success: false, message: 'Hanya SUPER_ADMIN yang dapat menambah user.' } }, 403);
+    }
+    if (message === 'SUPER_ADMIN_YAYASAN_REQUIRED') {
+      return response({
+        error: 'Konfigurasi SUPER_ADMIN belum lengkap.',
+        result: { success: false, message: 'Nama Yayasan pada profil SUPER_ADMIN belum diatur. Lengkapi profil SUPER_ADMIN terlebih dahulu.' }
+      }, 400);
     }
     console.error('create user failed', error);
     return response({
