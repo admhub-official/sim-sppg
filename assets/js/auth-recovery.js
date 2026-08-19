@@ -1,6 +1,6 @@
 /* SIM-SPPG account recovery module.
  * Password recovery uses email only. Username/token recovery is removed.
- * This module also strips legacy recovery handlers that may exist in older app.js bundles.
+ * The reset redirect is sent explicitly so Supabase never falls back to the Site URL root.
  */
 (function () {
   'use strict';
@@ -28,6 +28,16 @@
       var onclick = String(node.getAttribute('onclick') || '').toLowerCase();
       if (text.indexOf('lupa username') !== -1 || onclick.indexOf("showrecoverymodal('username')") !== -1) node.remove();
     });
+  }
+
+  function recoveryRedirect() {
+    try {
+      var origin = window.location.origin;
+      if (!/^https?:$/.test(window.location.protocol)) return '';
+      return new URL('/reset-password.html', origin).toString();
+    } catch (_) {
+      return '';
+    }
   }
 
   window.showRecoveryModal = function () {
@@ -72,6 +82,7 @@
     var btn = document.getElementById('btnRecoverySubmit');
     var input = document.getElementById('recEmail');
     var email = input ? String(input.value || '').trim().toLowerCase() : '';
+    var redirectTo = recoveryRedirect();
     if (errorEl) errorEl.classList.remove('show');
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -93,7 +104,7 @@
       return;
     }
 
-    callApi('recoverPassword', [{ email: email }], function (result) {
+    callApi('recoverPassword', [{ email: email, redirectTo: redirectTo }], function (result) {
       if (btn) { btn.disabled = false; btn.innerHTML = 'Kirim Tautan Reset'; }
       if (result && result.success) {
         if (typeof closeModal === 'function') closeModal('modalRecovery');
