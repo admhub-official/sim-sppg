@@ -140,8 +140,23 @@ async function createUserBySuperAdmin(request: Request, data: any) {
     };
   } catch (error) {
     if (authUserId) {
-      await supabase.from('USERS').delete().eq('ID', authUserId).catch(() => undefined);
-      await supabase.auth.admin.deleteUser(authUserId).catch(() => undefined);
+      try {
+        const cleanupProfile = await supabase.from('USERS').delete().eq('ID', authUserId);
+        if (cleanupProfile.error) {
+          console.error('create user rollback profile', cleanupProfile.error);
+        }
+      } catch (cleanupError) {
+        console.error('create user rollback profile', cleanupError);
+      }
+
+      try {
+        const cleanupAuth = await supabase.auth.admin.deleteUser(authUserId);
+        if (cleanupAuth.error) {
+          console.error('create user rollback auth', cleanupAuth.error);
+        }
+      } catch (cleanupError) {
+        console.error('create user rollback auth', cleanupError);
+      }
     }
     throw error;
   }
