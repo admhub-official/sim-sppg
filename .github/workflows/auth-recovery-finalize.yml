@@ -1,0 +1,72 @@
+name: Finalize auth recovery cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove obsolete username recovery from frontend
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          obsolete = '<a onclick="showRecoveryModal(\'username\')">Lupa Username?</a>'
+          if obsolete in s:
+              s = s.replace(obsolete, '', 1)
+
+          # Keep the recovery row stable even if a stale cached script is loaded.
+          s = s.replace(
+              '<div id="recoveryLinks" class="recovery-links">\n<a onclick="showRecoveryModal(\'password\')">Lupa Kata Sandi?</a>\n<a onclick="showRecoveryModal(\'username\')">Lupa Username?</a>\n        </div>',
+              '<div id="recoveryLinks" class="recovery-links">\n<a onclick="showRecoveryModal(\'password\')">Lupa Kata Sandi?</a>\n        </div>',
+              1,
+          )
+
+          p.write_text(s, encoding='utf-8')
+
+          forbidden = [
+              'Lupa Username?',
+              "showRecoveryModal('username')",
+              'recUsername',
+          ]
+          leftovers = [x for x in forbidden if x in s]
+          if leftovers:
+              raise SystemExit('Obsolete frontend references remain: ' + ', '.join(leftovers))
+
+      - name: Remove obsolete username recovery from route inventory
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('docs/dynamic-route-inventory.md')
+          if p.exists():
+              s = p.read_text(encoding='utf-8')
+              s = s.replace('| `recoverUsername` | `account-recovery-action` |\n', '')
+              p.write_text(s, encoding='utf-8')
+
+      - name: Commit cleanup and remove this one-time workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/auth-recovery-finalize.yml
+          git add index.html docs/dynamic-route-inventory.md
+          if git diff --cached --quiet; then
+            echo "No cleanup changes detected."
+            exit 0
+          fi
+          git commit -m "auth: remove obsolete username recovery from frontend"
+          git push origin HEAD:main
