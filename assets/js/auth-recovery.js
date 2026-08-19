@@ -1,9 +1,11 @@
 /* SIM-SPPG account recovery module.
  * Password recovery uses email only. Username/token recovery is removed.
- * Explicitly sends the reset destination so Supabase never falls back to the app root.
+ * Production reset destination is explicit so Supabase never falls back to localhost/site root.
  */
 (function () {
   'use strict';
+
+  var PRODUCTION_ORIGIN = 'https://sim-sppg.pages.dev';
 
   function cleanLegacyRoutes() {
     try {
@@ -31,7 +33,7 @@
   }
 
   function resetRedirect() {
-    return new URL('/reset-password.html', window.location.origin).toString();
+    return PRODUCTION_ORIGIN + '/reset-password.html';
   }
 
   window.showRecoveryModal = function () {
