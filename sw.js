@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260819-auth-recovery-v2';
+const CACHE_VERSION = 'sim-sppg-v20260819-auth-recovery-v3';
 const APP_SHELL = [
   './index.html',
   './app.js',
