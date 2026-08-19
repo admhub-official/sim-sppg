@@ -1,5 +1,5 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260819-stable-recovery-v1';
+const version = '20260819-registration-otp6-v2';
 
 export default {
   async fetch(request, env) {
@@ -19,10 +19,27 @@ export default {
       url.pathname.endsWith('/transaction-category-supplier-rules.js') ||
       url.pathname.endsWith('/sidebar-menu-structure.js');
 
-    if (!noCache) return response;
+    if (!isHtml) {
+      if (!noCache) return response;
+      const headers = new Headers(response.headers);
+      headers.set('cache-control', 'no-cache, no-store, must-revalidate');
+      headers.set('x-sim-sppg-version', version);
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) return response;
+
+    const html = await response.text();
+    const hasRegistrationFlow = html.includes('/assets/js/registration-flow.js');
+    const injected = hasRegistrationFlow
+      ? html
+      : html.replace('</body>', '<script src="/assets/js/registration-flow.js?v=20260819-otp6-v2"></script>\n</body>');
+
     const headers = new Headers(response.headers);
+    headers.set('content-type', 'text/html; charset=UTF-8');
     headers.set('cache-control', 'no-cache, no-store, must-revalidate');
     headers.set('x-sim-sppg-version', version);
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    return new Response(injected, { status: response.status, statusText: response.statusText, headers });
   }
 };
