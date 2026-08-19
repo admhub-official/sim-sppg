@@ -1,0 +1,141 @@
+name: One-time auth recovery cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update frontend recovery flow
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          index = Path('index.html')
+          app = Path('app.js')
+          idx = index.read_text(encoding='utf-8')
+          js = app.read_text(encoding='utf-8') if app.exists() else ''
+
+          # Remove the obsolete username-recovery link from the login UI.
+          old_link = '<a onclick="showRecoveryModal(\'username\')">Lupa Username?</a>'
+          if old_link in idx:
+              idx = idx.replace(old_link, '')
+          elif 'Lupa Username?' in idx:
+              raise SystemExit('Found Lupa Username text but not the expected login link; aborting safely.')
+
+          # Password recovery must request email directly.
+          password_block = re.compile(
+              r"if \(type === 'password'\) \{.*?\} else if \(type === 'username'\) \{.*?\}",
+              re.S,
+          )
+          replacement = """if (type === 'password') {
+              title = 'Lupa Kata Sandi';
+              html = '<p style=\"font-size:13px;color:var(--slate-500);margin-bottom:16px;\">Masukkan email terdaftar Anda. Link reset kata sandi akan dikirim ke email tersebut.</p>' +
+                '<div class=\"form-group\"><label class=\"form-label\">Email <span class=\"req\">*</span></label><input type=\"email\" id=\"recEmail\" class=\"form-input\" placeholder=\"...@gmail.com\" autocomplete=\"email\"></div>';
+            }"""
+          idx, n = password_block.subn(replacement, idx, count=1)
+          if n == 0:
+              raise SystemExit('Password/username recovery modal block not found; aborting safely.')
+
+          # Remove any remaining explicit username-recovery modal invocation/branch.
+          idx = idx.replace("showRecoveryModal('username')", '')
+
+          # Update the submit handler: password recovery now posts { email } only.
+          old_submit = """if (currentRecoveryType === 'password') {
+              data = { username: $('recUsername').value.trim() };
+              if (!data.username) {
+                errorEl.querySelector('span').textContent = 'Username wajib diisi.';
+                errorEl.classList.add('show');
+                btn.disabled = false; btn.innerHTML = 'Verifikasi';
+                return;
+              }
+            } else if (currentRecoveryType === 'username') {
+              data = { email: $('recEmail').value.trim() };
+              if (!data.email) {
+                errorEl.querySelector('span').textContent = 'Email wajib diisi.';
+                errorEl.classList.add('show');
+                btn.disabled = false; btn.innerHTML = 'Verifikasi';
+                return;
+              }
+            }
+
+            var backendFn = currentRecoveryType === 'password' ? 'recoverPassword' : 'recoverUsername';"""
+          new_submit = """if (currentRecoveryType === 'password') {
+              data = { email: $('recEmail').value.trim().toLowerCase() };
+              if (!data.email || !data.email.includes('@')) {
+                errorEl.querySelector('span').textContent = 'Email wajib diisi dengan format yang valid.';
+                errorEl.classList.add('show');
+                btn.disabled = false; btn.innerHTML = 'Verifikasi';
+                return;
+              }
+            }
+
+            var backendFn = 'recoverPassword';"""
+          if old_submit in idx:
+              idx = idx.replace(old_submit, new_submit, 1)
+          else:
+              # Support compact/minified formatting of the same recovery handler.
+              pattern = re.compile(
+                  r"if \(currentRecoveryType === 'password'\) \{.*?var backendFn = currentRecoveryType === 'password' \? 'recoverPassword' : 'recoverUsername';",
+                  re.S,
+              )
+              idx, n = pattern.subn(new_submit, idx, count=1)
+              if n == 0:
+                  raise SystemExit('Password recovery submit handler not found; aborting safely.')
+
+          # Remove obsolete recovery API registrations from the frontend bundle.
+          for token in [
+              ', recoverUsername:1',
+              'recoverUsername:1,',
+              'recoverUsername:1',
+          ]:
+              js = js.replace(token, '')
+
+          # If the recovery implementation exists in app.js, remove its username branch.
+          js = re.sub(
+              r"\s*else if \(type === 'username'\) \{.*?\}",
+              '',
+              js,
+              flags=re.S,
+              count=1,
+          )
+          js = js.replace("showRecoveryModal('username')", '')
+
+          index.write_text(idx, encoding='utf-8')
+          if app.exists():
+              app.write_text(js, encoding='utf-8')
+
+          # Safety assertions: the obsolete mechanism must be gone from runtime frontend sources.
+          combined = idx + '\n' + js
+          forbidden = ['Lupa Username?', 'recoverUsername', "showRecoveryModal('username')", 'recUsername']
+          leftovers = [x for x in forbidden if x in combined]
+          if leftovers:
+              raise SystemExit('Obsolete recovery references remain: ' + ', '.join(leftovers))
+          if 'Masukkan email terdaftar Anda' not in idx or 'backendFn = \'recoverPassword\'' not in idx:
+              raise SystemExit('Email password-recovery flow was not written as expected.')
+      
+      - name: Commit frontend changes and remove this workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/one-time-auth-recovery-cleanup.yml
+          git add index.html app.js
+          if git diff --cached --quiet; then
+            echo "No frontend changes detected."
+            exit 1
+          fi
+          git commit -m "auth: update password recovery to email and remove username recovery"
+          git push origin HEAD:main
