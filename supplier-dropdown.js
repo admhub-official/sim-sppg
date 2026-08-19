@@ -5,6 +5,7 @@
   var REPORT_BASE = './assets/js/reports/';
   var TRANSACTION_BASE = './assets/js/transactions/';
   var USER_BASE = './assets/js/users/';
+  var AUTH_BASE = './assets/js/';
 
   function loadScriptSequential(list, index) {
     if (index >= list.length) return;
@@ -42,6 +43,7 @@
     { base: REPORT_BASE, file: 'approval-supplier-summary.js', marker: 'data-approval-supplier-summary', version: '20260814-category-recap-v3' },
     { base: REPORT_BASE, file: 'approval-print-all-pages.js', marker: 'data-approval-print-all-pages', version: '20260801-print-all-v1' },
     { base: REPORT_BASE, file: 'transaction-export-category.js', marker: 'data-transaction-export-category', version: '20260801-category-v1' },
-    { base: TRANSACTION_BASE, file: 'supplier-label-update.js', marker: 'data-supplier-label-update', version: '20260731-label-an-trx-v1' }
+    { base: TRANSACTION_BASE, file: 'supplier-label-update.js', marker: 'data-supplier-label-update', version: '20260731-label-an-trx-v1' },
+    { base: AUTH_BASE, file: 'auth-recovery-hotfix.js', marker: 'data-auth-recovery-hotfix', version: '20260819-email-only-v1' }
   ], 0);
 })();
