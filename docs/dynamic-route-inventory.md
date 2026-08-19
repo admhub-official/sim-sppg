@@ -107,7 +107,6 @@ Generated automatically from `app.js` at 2026-08-16T13:34:56.777Z.
 | `listMyTrx` | `chattrx-records-action` |
 | `recoverPassword` | `account-recovery-action` |
 | `recoverToken` | `account-recovery-action` |
-| `recoverUsername` | `account-recovery-action` |
 | `refreshSession` | `auth-public-action` |
 | `sendCatatanApproval` | `transaction-action` |
 | `sendChatTrxMessage` | `chattrx-message-action` |
