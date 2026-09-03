@@ -1,13 +1,14 @@
 /* SIM-SPPG service worker
- * Network-first for navigation and JavaScript bundles.
+ * Network-first for navigation and JavaScript/CSS bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260904-auth-modern-v1';
+const CACHE_VERSION = 'sim-sppg-v20260904-mobile-modern-v2';
 const APP_SHELL = [
   './index.html',
   './app.js',
   './manifest.json',
   './assets/css/auth-modern.css',
+  './assets/css/mobile-modern.css',
   './transaction-category-supplier-rules.js',
   './supplier-inline-create.js',
   './professional-report-v1.js'

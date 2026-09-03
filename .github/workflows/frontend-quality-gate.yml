@@ -3,9 +3,23 @@ name: Frontend quality gate
 on:
   push:
     branches: [main]
-    paths: ['app.js','sw.js','_worker.js','index.html','.github/workflows/frontend-quality-gate.yml']
+    paths:
+      - 'app.js'
+      - 'sw.js'
+      - '_worker.js'
+      - 'index.html'
+      - 'assets/css/**'
+      - 'assets/js/turnstile-login.js'
+      - '.github/workflows/frontend-quality-gate.yml'
   pull_request:
-    paths: ['app.js','sw.js','_worker.js','index.html','.github/workflows/frontend-quality-gate.yml']
+    paths:
+      - 'app.js'
+      - 'sw.js'
+      - '_worker.js'
+      - 'index.html'
+      - 'assets/css/**'
+      - 'assets/js/turnstile-login.js'
+      - '.github/workflows/frontend-quality-gate.yml'
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
@@ -25,9 +39,10 @@ jobs:
           node --check app.js
           node --check sw.js
           node --check _worker.js
+          node --check assets/js/turnstile-login.js
       - name: Reject unresolved merge markers
         run: |
-          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html; then exit 1; fi
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html assets/css assets/js/turnstile-login.js; then exit 1; fi
       - name: Validate canonical runtime
         run: |
           grep -Fq "var API_BASE_URL" app.js
@@ -52,6 +67,17 @@ jobs:
           grep -Fq "pageKey()==='approval'" app.js
           if grep -Fq 'class="auth-card-brand"' index.html; then exit 1; fi
           grep -Fq "margin-top: -14px;" index.html
+          test -f assets/css/auth-modern.css
+          test -f assets/css/mobile-modern.css
+          test ! -e assets/js/registration-flow.js
+          if grep -Fq 'registration-flow.js' _worker.js; then
+            echo "::error::Dead registration-flow runtime masih diinjeksi oleh worker."
+            exit 1
+          fi
+          grep -Fq '/assets/css/auth-modern.css' _worker.js
+          grep -Fq '/assets/css/mobile-modern.css' _worker.js
+          grep -Fq './assets/css/auth-modern.css' sw.js
+          grep -Fq './assets/css/mobile-modern.css' sw.js
           test "$(grep -Fc 'function loadApprovalData(page)' app.js)" -eq 1
           if grep -Fq 'function runQueuedApprovalReload()' app.js; then exit 1; fi
           if grep -Fq 'approvalRuntime' _worker.js; then exit 1; fi
@@ -67,7 +93,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re, sys
-          files=[Path('app.js'),Path('sw.js'),Path('_worker.js'),Path('index.html')]
+          files=[Path('app.js'),Path('sw.js'),Path('_worker.js'),Path('index.html'),Path('assets/js/turnstile-login.js')]
           p=re.compile(r"(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*['\"]([A-Za-z0-9._-]{20,})['\"]",re.I)
           findings=[]
           for f in files:
@@ -77,4 +103,4 @@ jobs:
               print('\n'.join(findings),file=sys.stderr); sys.exit(1)
           PY
       - name: Summary
-        run: echo 'Frontend canonical Approval source checks passed.'
+        run: echo 'Frontend canonical runtime, mobile styles, and cleanup checks passed.'
