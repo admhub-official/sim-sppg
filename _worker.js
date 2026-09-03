@@ -1,7 +1,25 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260904-auth-modern-v1';
+const version = '20260904-mobile-modern-v2';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
+
+const RUNTIME_STYLES = [
+  ['/assets/css/auth-modern.css', '20260904-v1'],
+  ['/assets/css/mobile-modern.css', '20260904-v2']
+];
+
+const NO_CACHE_SUFFIXES = [
+  '/app.js',
+  '/reset-password.html',
+  '/assets/css/auth-modern.css',
+  '/assets/css/mobile-modern.css',
+  '/assets/js/auth-recovery.js',
+  '/assets/js/turnstile-login.js',
+  '/supplier-dropdown.js',
+  '/yayasan-dropdown-hotfix.js',
+  '/transaction-category-supplier-rules.js',
+  '/sidebar-menu-structure.js'
+];
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -11,6 +29,14 @@ function json(body, status = 200) {
       'cache-control': 'no-store'
     }
   });
+}
+
+function injectStylesheet(html, href, assetVersion) {
+  if (html.includes(href)) return html;
+  return html.replace(
+    '</head>',
+    '<link rel="stylesheet" href="' + href + '?v=' + assetVersion + '">\n</head>'
+  );
 }
 
 function isAllowedTurnstileHostname(value) {
@@ -108,18 +134,7 @@ export default {
     if (!response || request.method !== 'GET') return response;
 
     const isHtml = url.pathname === '/' || url.pathname.endsWith('/index.html');
-    const noCache =
-      isHtml ||
-      url.pathname.endsWith('/app.js') ||
-      url.pathname.endsWith('/reset-password.html') ||
-      url.pathname.endsWith('/assets/css/auth-modern.css') ||
-      url.pathname.endsWith('/assets/js/auth-recovery.js') ||
-      url.pathname.endsWith('/assets/js/registration-flow.js') ||
-      url.pathname.endsWith('/assets/js/turnstile-login.js') ||
-      url.pathname.endsWith('/supplier-dropdown.js') ||
-      url.pathname.endsWith('/yayasan-dropdown-hotfix.js') ||
-      url.pathname.endsWith('/transaction-category-supplier-rules.js') ||
-      url.pathname.endsWith('/sidebar-menu-structure.js');
+    const noCache = isHtml || NO_CACHE_SUFFIXES.some((suffix) => url.pathname.endsWith(suffix));
 
     if (!isHtml) {
       if (!noCache) return response;
@@ -133,21 +148,10 @@ export default {
     if (!contentType.includes('text/html')) return response;
 
     const html = await response.text();
-    let injected = html;
-
-    if (!injected.includes('/assets/css/auth-modern.css')) {
-      injected = injected.replace(
-        '</head>',
-        '<link rel="stylesheet" href="/assets/css/auth-modern.css?v=20260904-v1">\n</head>'
-      );
-    }
-
-    if (!injected.includes('/assets/js/registration-flow.js')) {
-      injected = injected.replace(
-        '</body>',
-        '<script src="/assets/js/registration-flow.js?v=20260819-otp6-v2"></script>\n</body>'
-      );
-    }
+    let injected = RUNTIME_STYLES.reduce(
+      (current, entry) => injectStylesheet(current, entry[0], entry[1]),
+      html
+    );
 
     if (!injected.includes('/assets/js/turnstile-login.js')) {
       const sitekey = String(env.TURNSTILE_SITEKEY || TURNSTILE_SITEKEY_FALLBACK);
