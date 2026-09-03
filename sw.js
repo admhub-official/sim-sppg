@@ -2,11 +2,12 @@
  * Network-first for navigation and JavaScript bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260904-turnstile-login-v1';
+const CACHE_VERSION = 'sim-sppg-v20260904-auth-modern-v1';
 const APP_SHELL = [
   './index.html',
   './app.js',
   './manifest.json',
+  './assets/css/auth-modern.css',
   './transaction-category-supplier-rules.js',
   './supplier-inline-create.js',
   './professional-report-v1.js'
@@ -57,7 +58,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirst(request, './index.html'));
     return;
   }
-  if (url.origin === self.location.origin && /\.(?:js|html)$/.test(url.pathname)) {
+  if (url.origin === self.location.origin && /\.(?:js|css|html)$/.test(url.pathname)) {
     event.respondWith(networkFirst(request));
     return;
   }

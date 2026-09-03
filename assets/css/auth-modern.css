@@ -1,0 +1,482 @@
+/* SIM-SPPG login experience — clean, mobile-first, and intentionally restrained. */
+
+#authOverlay.auth-architecture {
+  background: #f6f8fb !important;
+  grid-template-columns: minmax(320px, 36vw) minmax(0, 1fr) !important;
+  color: #162033 !important;
+}
+
+#authOverlay .auth-brand-panel {
+  padding: 56px clamp(34px, 4vw, 64px) !important;
+  background: linear-gradient(160deg, #155f8e 0%, #104d74 100%) !important;
+}
+
+#authOverlay .auth-brand-panel::after {
+  left: -170px !important;
+  bottom: -230px !important;
+  width: 500px !important;
+  height: 500px !important;
+  border-color: rgba(255,255,255,.055) !important;
+  box-shadow: 0 0 0 72px rgba(255,255,255,.018), 0 0 0 144px rgba(255,255,255,.012) !important;
+}
+
+#authOverlay .auth-brand-logo {
+  width: 72px !important;
+  height: 72px !important;
+  padding: 9px !important;
+  border-radius: 17px !important;
+  box-shadow: 0 10px 28px rgba(7, 31, 49, .16) !important;
+}
+
+#authOverlay .auth-brand-name {
+  margin-top: 20px !important;
+  font-size: 25px !important;
+  letter-spacing: -.45px !important;
+}
+
+#authOverlay .auth-brand-line {
+  width: 38px !important;
+  height: 2px !important;
+  margin: 22px 0 !important;
+  background: rgba(255,255,255,.72) !important;
+}
+
+#authOverlay .auth-brand-panel h1 {
+  max-width: 390px !important;
+  font-size: clamp(27px, 2.5vw, 36px) !important;
+  line-height: 1.18 !important;
+  letter-spacing: -.7px !important;
+}
+
+#authOverlay .auth-brand-panel p {
+  max-width: 380px !important;
+  margin-top: 16px !important;
+  color: rgba(255,255,255,.73) !important;
+  font-size: 13px !important;
+  line-height: 1.7 !important;
+}
+
+#authOverlay .auth-form-panel {
+  padding: clamp(28px, 5vw, 72px) !important;
+}
+
+#authOverlay .auth-card {
+  width: min(100%, 440px) !important;
+  padding: 36px 38px 32px !important;
+  background: #fff !important;
+  border: 1px solid #e5eaf0 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 14px 38px rgba(15, 35, 55, .065) !important;
+}
+
+#authOverlay .auth-architecture-heading {
+  margin-bottom: 26px !important;
+}
+
+#authOverlay .auth-eyebrow {
+  display: none !important;
+}
+
+#authOverlay .auth-architecture-heading h2 {
+  margin: 0 0 8px !important;
+  color: #172033 !important;
+  font-size: 28px !important;
+  font-weight: 750 !important;
+  line-height: 1.18 !important;
+  letter-spacing: -.6px !important;
+}
+
+#authOverlay .auth-architecture-heading p {
+  max-width: 360px !important;
+  color: #667085 !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+#authOverlay .auth-card .form-group {
+  margin-bottom: 17px !important;
+}
+
+#authOverlay .auth-card .form-label {
+  margin-bottom: 7px !important;
+  color: #344054 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+}
+
+#authOverlay .auth-card .form-input,
+#authOverlay .auth-card input,
+#authOverlay .auth-card select {
+  min-height: 52px !important;
+  padding: 12px 14px !important;
+  color: #182230 !important;
+  background: #fff !important;
+  border: 1px solid #d8e0e8 !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  font-size: 14px !important;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease !important;
+}
+
+#authOverlay .auth-card input::placeholder {
+  color: #98a2b3 !important;
+  opacity: 1 !important;
+}
+
+#authOverlay .auth-card input:hover {
+  border-color: #c4ced8 !important;
+}
+
+#authOverlay .auth-card input:focus,
+#authOverlay .auth-card select:focus {
+  background: #fff !important;
+  border-color: #2778a8 !important;
+  box-shadow: 0 0 0 3px rgba(39, 120, 168, .10) !important;
+}
+
+#authOverlay .auth-card .password-wrap .form-input {
+  padding-right: 50px !important;
+}
+
+#authOverlay .auth-card .toggle-password {
+  width: 48px !important;
+  height: 52px !important;
+  color: #7b8794 !important;
+  border-radius: 0 12px 12px 0 !important;
+}
+
+#authOverlay .auth-card .toggle-password:hover {
+  color: #155f8e !important;
+  background: #f6f9fb !important;
+}
+
+#authOverlay .auth-card .recovery-links {
+  justify-content: flex-end !important;
+  margin: -1px 0 17px !important;
+  font-size: 12px !important;
+}
+
+#authOverlay .auth-card a {
+  color: #176a9a !important;
+  font-weight: 650 !important;
+  text-decoration: none !important;
+}
+
+#authOverlay .auth-card a:hover {
+  color: #104f76 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+
+#authOverlay .auth-card #btnLogin {
+  min-height: 52px !important;
+  margin-top: 0 !important;
+  color: #fff !important;
+  background: #176a9a !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: .05px !important;
+  transition: background-color .18s ease, transform .18s ease, opacity .18s ease !important;
+}
+
+#authOverlay .auth-card #btnLogin:hover:not(:disabled) {
+  background: #12587f !important;
+  box-shadow: none !important;
+}
+
+#authOverlay .auth-card #btnLogin:active:not(:disabled) {
+  transform: translateY(1px) !important;
+}
+
+#authOverlay .auth-card #btnLogin:disabled {
+  color: rgba(255,255,255,.92) !important;
+  background: #8aafc3 !important;
+  cursor: not-allowed !important;
+  opacity: .72 !important;
+  box-shadow: none !important;
+}
+
+#authOverlay .auth-card .form-error.show {
+  margin: 0 0 14px !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+}
+
+#authOverlay #loginTurnstile.turnstile-login-wrap {
+  width: 100% !important;
+  min-height: 72px !important;
+  margin: 14px 0 16px !important;
+  padding: 8px !important;
+  align-items: center !important;
+  background: #f8fafc !important;
+  border: 1px solid #e4eaf0 !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+}
+
+#authOverlay .auth-footer {
+  margin-top: 17px !important;
+  color: #778392 !important;
+  font-size: 11px !important;
+}
+
+#authOverlay .auth-security-note {
+  gap: 8px !important;
+  margin-top: 14px !important;
+  padding: 11px 12px !important;
+  color: #5f6c7b !important;
+  background: #f8fafc !important;
+  border: 1px solid #e6ebf0 !important;
+  border-radius: 10px !important;
+  font-size: 10px !important;
+}
+
+#authOverlay .auth-security-note i {
+  color: #176a9a !important;
+}
+
+#authOverlay a:focus-visible,
+#authOverlay button:focus-visible,
+#authOverlay input:focus-visible {
+  outline: 3px solid rgba(39, 120, 168, .22) !important;
+  outline-offset: 2px !important;
+}
+
+@media (max-width: 820px) {
+  #authOverlay.auth-architecture {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100dvh !important;
+    overflow-y: auto !important;
+    background: #fff !important;
+  }
+
+  #authOverlay .auth-brand-panel {
+    min-height: 0 !important;
+    padding: calc(26px + env(safe-area-inset-top, 0px)) 20px 6px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow: visible !important;
+    color: #172033 !important;
+    background: #fff !important;
+    text-align: center !important;
+  }
+
+  #authOverlay .auth-brand-panel::after,
+  #authOverlay .auth-brand-line,
+  #authOverlay .auth-brand-panel h1,
+  #authOverlay .auth-brand-panel p {
+    display: none !important;
+  }
+
+  #authOverlay .auth-brand-head {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+  }
+
+  #authOverlay .auth-brand-logo {
+    width: 62px !important;
+    height: 62px !important;
+    padding: 8px !important;
+    background: #fff !important;
+    border: 1px solid #e5eaf0 !important;
+    border-radius: 17px !important;
+    box-shadow: 0 8px 22px rgba(15, 45, 65, .08) !important;
+  }
+
+  #authOverlay .auth-brand-name {
+    margin: 0 !important;
+    color: #145f8d !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    letter-spacing: -.25px !important;
+  }
+
+  #authOverlay .auth-form-panel {
+    flex: 1 0 auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 18px 20px calc(30px + env(safe-area-inset-bottom, 0px)) !important;
+    align-items: flex-start !important;
+  }
+
+  #authOverlay .auth-card {
+    width: min(100%, 420px) !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #authOverlay .auth-architecture-heading {
+    margin: 0 0 24px !important;
+    text-align: center !important;
+  }
+
+  #authOverlay .auth-architecture-heading h2 {
+    margin-bottom: 7px !important;
+    font-size: 24px !important;
+    line-height: 1.18 !important;
+    letter-spacing: -.5px !important;
+  }
+
+  #authOverlay .auth-architecture-heading p {
+    max-width: 330px !important;
+    margin-inline: auto !important;
+    color: #6d7887 !important;
+    font-size: 12px !important;
+    line-height: 1.55 !important;
+  }
+
+  #authOverlay .auth-card .form-group {
+    margin-bottom: 16px !important;
+  }
+
+  #authOverlay .auth-card .form-label {
+    font-size: 12px !important;
+  }
+
+  #authOverlay .auth-card .form-input,
+  #authOverlay .auth-card input,
+  #authOverlay .auth-card select {
+    min-height: 52px !important;
+    padding: 12px 14px !important;
+    background: #fbfcfd !important;
+    border-radius: 12px !important;
+    font-size: 16px !important;
+  }
+
+  #authOverlay .auth-card input:focus,
+  #authOverlay .auth-card select:focus {
+    background: #fff !important;
+  }
+
+  #authOverlay .auth-card .toggle-password {
+    height: 52px !important;
+  }
+
+  #authOverlay .auth-card .recovery-links {
+    margin: -2px 0 17px !important;
+    font-size: 12px !important;
+  }
+
+  #authOverlay #loginTurnstile.turnstile-login-wrap {
+    margin: 13px 0 16px !important;
+    background: #fafbfd !important;
+  }
+
+  #authOverlay .auth-card #btnLogin {
+    min-height: 52px !important;
+    border-radius: 12px !important;
+    font-size: 15px !important;
+  }
+
+  #authOverlay .auth-footer {
+    display: none !important;
+  }
+
+  #authOverlay .auth-security-note {
+    justify-content: center !important;
+    max-width: 340px !important;
+    margin: 16px auto 0 !important;
+    padding: 0 !important;
+    color: #718096 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    font-size: 10px !important;
+    line-height: 1.45 !important;
+    text-align: left !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #authOverlay .auth-brand-panel {
+    padding: calc(22px + env(safe-area-inset-top, 0px)) 18px 4px !important;
+  }
+
+  #authOverlay .auth-brand-logo {
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 15px !important;
+  }
+
+  #authOverlay .auth-brand-name {
+    font-size: 17px !important;
+  }
+
+  #authOverlay .auth-form-panel {
+    padding: 16px 18px calc(26px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #authOverlay .auth-architecture-heading {
+    margin-bottom: 22px !important;
+  }
+
+  #authOverlay .auth-architecture-heading h2 {
+    font-size: 22px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  #authOverlay .auth-brand-panel {
+    padding-inline: 14px !important;
+  }
+
+  #authOverlay .auth-form-panel {
+    padding-inline: 14px !important;
+  }
+
+  #authOverlay .auth-brand-logo {
+    width: 52px !important;
+    height: 52px !important;
+  }
+}
+
+@media (max-height: 680px) and (max-width: 820px) {
+  #authOverlay .auth-brand-panel {
+    padding-top: calc(16px + env(safe-area-inset-top, 0px)) !important;
+  }
+
+  #authOverlay .auth-brand-logo {
+    width: 50px !important;
+    height: 50px !important;
+  }
+
+  #authOverlay .auth-brand-head {
+    gap: 7px !important;
+  }
+
+  #authOverlay .auth-form-panel {
+    padding-top: 12px !important;
+  }
+
+  #authOverlay .auth-architecture-heading {
+    margin-bottom: 17px !important;
+  }
+
+  #authOverlay .auth-card .form-group {
+    margin-bottom: 13px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #authOverlay *,
+  #authOverlay *::before,
+  #authOverlay *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

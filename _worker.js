@@ -1,5 +1,5 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260904-turnstile-login-v1';
+const version = '20260904-auth-modern-v1';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
 
@@ -112,6 +112,7 @@ export default {
       isHtml ||
       url.pathname.endsWith('/app.js') ||
       url.pathname.endsWith('/reset-password.html') ||
+      url.pathname.endsWith('/assets/css/auth-modern.css') ||
       url.pathname.endsWith('/assets/js/auth-recovery.js') ||
       url.pathname.endsWith('/assets/js/registration-flow.js') ||
       url.pathname.endsWith('/assets/js/turnstile-login.js') ||
@@ -133,6 +134,13 @@ export default {
 
     const html = await response.text();
     let injected = html;
+
+    if (!injected.includes('/assets/css/auth-modern.css')) {
+      injected = injected.replace(
+        '</head>',
+        '<link rel="stylesheet" href="/assets/css/auth-modern.css?v=20260904-v1">\n</head>'
+      );
+    }
 
     if (!injected.includes('/assets/js/registration-flow.js')) {
       injected = injected.replace(
