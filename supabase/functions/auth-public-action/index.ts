@@ -4,6 +4,7 @@ const url = Deno.env.get('SUPABASE_URL')!;
 const anon = Deno.env.get('SUPABASE_ANON_KEY')!;
 const auth = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
 const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
+const TURNSTILE_VERIFY_URL = 'https://sim-sppg.pages.dev/api/login/turnstile';
 const C = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -13,6 +14,55 @@ const C = {
 const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: C });
 const low = (v: unknown) => String(v ?? '').trim().toLowerCase();
 const text = (v: unknown) => String(v ?? '').trim();
+
+type TurnstileGateResult =
+  | { ok: true }
+  | { ok: false; status: number; error: string };
+
+async function verifyLoginTurnstile(tokenRaw: unknown): Promise<TurnstileGateResult> {
+  const token = text(tokenRaw);
+  if (!token) {
+    return {
+      ok: false,
+      status: 403,
+      error: 'Verifikasi keamanan gagal. Silakan refresh halaman dan coba lagi.'
+    };
+  }
+
+  try {
+    const response = await fetch(TURNSTILE_VERIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ turnstileToken: token })
+    });
+
+    let payload: any = {};
+    try {
+      payload = await response.json();
+    } catch (_) {
+      payload = {};
+    }
+
+    if (!response.ok || payload?.success !== true) {
+      if (response.status >= 500 && payload?.error === 'Konfigurasi server tidak lengkap.') {
+        return { ok: false, status: 500, error: 'Konfigurasi server tidak lengkap.' };
+      }
+      if (response.status >= 500) {
+        return { ok: false, status: 500, error: 'Terjadi kesalahan server.' };
+      }
+      return {
+        ok: false,
+        status: 403,
+        error: 'Verifikasi keamanan gagal. Silakan refresh halaman dan coba lagi.'
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error('turnstile verification gateway', error);
+    return { ok: false, status: 500, error: 'Terjadi kesalahan server.' };
+  }
+}
 
 async function sha256(value: string) {
   const bytes = new TextEncoder().encode(value);
@@ -108,11 +158,12 @@ Deno.serve(async req => {
     return out({
       status: 'ok',
       service: 'auth-public-action',
-      version: 7,
+      version: 8,
       publicRegistration: false,
       persistentRateLimit: true,
       refreshRotation: true,
-      idlePolicy: 'frontend-1-hour'
+      idlePolicy: 'frontend-1-hour',
+      turnstileLogin: true
     });
   }
   if (req.method !== 'POST') return out({ error: 'Method tidak didukung.' }, 405);
@@ -124,7 +175,13 @@ Deno.serve(async req => {
     const p = Array.isArray(body.parameters) ? body.parameters : [];
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
 
-    if (fn === 'loginUser') return out({ result: await login(p[0], p[1], ip) });
+    if (fn === 'loginUser') {
+      const turnstile = await verifyLoginTurnstile(
+        body?.['cf-turnstile-response'] || body?.turnstileToken || p[2]
+      );
+      if (!turnstile.ok) return out({ error: turnstile.error }, turnstile.status);
+      return out({ result: await login(p[0], p[1], ip) });
+    }
     if (fn === 'refreshSession') return out({ result: await refreshSession(p[0], ip) });
     if (fn === 'checkSession') {
       const n = Number(p[0]);
