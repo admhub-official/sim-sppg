@@ -66,8 +66,10 @@ for (const id of requiredEditControls) {
   if (!ids.has(id)) errors.push(`Kontrol Edit Transaksi tidak ditemukan: ${id}`);
 }
 
-if (!source.includes("request('transaction-edit-action', fnName")) {
-  errors.push('Router editTransaction belum diarahkan ke transaction-edit-action.');
+const hasCentralEditRoute = source.includes("'transaction-edit-action': { editTransaction:1 }")
+  && source.includes('API_ROUTE_BY_FUNCTION[fn] = slug');
+if (!hasCentralEditRoute) {
+  errors.push('Router editTransaction belum diarahkan ke transaction-edit-action melalui API route map.');
 }
 if (!source.includes('window.saveEditTransaksi = async function')) {
   errors.push('Handler save Edit Transaksi yang andal belum dimuat.');
