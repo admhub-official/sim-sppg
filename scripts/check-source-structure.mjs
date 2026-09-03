@@ -62,6 +62,7 @@ const maintainedJavaScript = [
   'yayasan-dropdown-hotfix.js',
   'sidebar-menu-structure.js',
   'transaction-category-supplier-rules.js',
+  'assets/js/auth-recovery.js',
   'assets/js/users/role-management.js',
   'assets/js/transactions/edit-supplier-options-fix.js',
   'assets/js/transactions/filter-and-edit-supplier.js',
@@ -85,10 +86,44 @@ for (const file of maintainedJavaScript) {
   }
 }
 
+// Validate the sequential dynamic loader against the filesystem so stale hotfix
+// references cannot silently generate a 404 on every page load.
+const loaderPath = path.join(ROOT, 'supplier-dropdown.js');
+if (fs.existsSync(loaderPath)) {
+  const loaderSource = fs.readFileSync(loaderPath, 'utf8');
+  const loaderBases = {
+    MODULE_BASE: 'assets/js/supplier',
+    REPORT_BASE: 'assets/js/reports',
+    TRANSACTION_BASE: 'assets/js/transactions',
+    USER_BASE: 'assets/js/users',
+    AUTH_BASE: 'assets/js',
+  };
+
+  for (const match of loaderSource.matchAll(/\{\s*base:\s*([A-Z_]+),\s*file:\s*'([^']+)'/g)) {
+    const [, baseName, fileName] = match;
+    const baseDir = loaderBases[baseName];
+    if (!baseDir) {
+      errors.push(`Loader memakai base yang tidak dikenali: ${baseName} untuk ${fileName}`);
+      continue;
+    }
+    const target = path.join(ROOT, baseDir, fileName);
+    if (!fs.existsSync(target)) {
+      errors.push(`Loader mengarah ke modul yang tidak ada: ${relative(target)}`);
+    }
+  }
+
+  if (loaderSource.includes('auth-recovery-hotfix.js')) {
+    errors.push('Dead reference auth-recovery-hotfix.js masih ada di supplier-dropdown.js.');
+  }
+  if (!loaderSource.includes("file: 'auth-recovery.js'")) {
+    errors.push('Canonical auth-recovery.js belum dimuat oleh supplier-dropdown.js.');
+  }
+}
+
 if (errors.length > 0) {
   console.error('Pemeriksaan struktur source gagal:');
   for (const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
 
-console.log('Struktur source, migration, dan workflow valid.');
+console.log('Struktur source, migration, workflow, dan dynamic loader valid.');

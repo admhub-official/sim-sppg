@@ -8,8 +8,11 @@ on:
       - 'sw.js'
       - '_worker.js'
       - 'index.html'
+      - 'supplier-dropdown.js'
       - 'assets/css/**'
+      - 'assets/js/auth-recovery.js'
       - 'assets/js/turnstile-login.js'
+      - 'scripts/check-source-structure.mjs'
       - '.github/workflows/frontend-quality-gate.yml'
   pull_request:
     paths:
@@ -17,8 +20,11 @@ on:
       - 'sw.js'
       - '_worker.js'
       - 'index.html'
+      - 'supplier-dropdown.js'
       - 'assets/css/**'
+      - 'assets/js/auth-recovery.js'
       - 'assets/js/turnstile-login.js'
+      - 'scripts/check-source-structure.mjs'
       - '.github/workflows/frontend-quality-gate.yml'
 
 concurrency:
@@ -39,10 +45,13 @@ jobs:
           node --check app.js
           node --check sw.js
           node --check _worker.js
+          node --check supplier-dropdown.js
+          node --check assets/js/auth-recovery.js
           node --check assets/js/turnstile-login.js
+          node scripts/check-source-structure.mjs
       - name: Reject unresolved merge markers
         run: |
-          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html assets/css assets/js/turnstile-login.js; then exit 1; fi
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html supplier-dropdown.js assets/css assets/js/auth-recovery.js assets/js/turnstile-login.js; then exit 1; fi
       - name: Validate canonical runtime
         run: |
           grep -Fq "var API_BASE_URL" app.js
@@ -68,22 +77,30 @@ jobs:
           if grep -Fq 'class="auth-card-brand"' index.html; then exit 1; fi
           grep -Fq "margin-top: -14px;" index.html
           test -f assets/css/auth-modern.css
-          test -f assets/css/mobile-modern.css
-          test -f assets/css/interaction-modern.css
+          test -f assets/css/ui-modern.css
+          test ! -e assets/css/mobile-modern.css
+          test ! -e assets/css/interaction-modern.css
           test ! -e assets/js/registration-flow.js
           test ! -e .github/auth-redesign-trigger.txt
           if grep -Fq 'registration-flow.js' _worker.js; then
             echo "::error::Dead registration-flow runtime masih diinjeksi oleh worker."
             exit 1
           fi
+          if grep -Fq 'auth-recovery-hotfix.js' supplier-dropdown.js; then
+            echo "::error::Dead auth recovery hotfix masih direferensikan."
+            exit 1
+          fi
+          grep -Fq "file: 'auth-recovery.js'" supplier-dropdown.js
           grep -Fq '/assets/css/auth-modern.css' _worker.js
-          grep -Fq '/assets/css/mobile-modern.css' _worker.js
-          grep -Fq '/assets/css/interaction-modern.css' _worker.js
+          grep -Fq '/assets/css/ui-modern.css' _worker.js
           grep -Fq './assets/css/auth-modern.css' sw.js
-          grep -Fq './assets/css/mobile-modern.css' sw.js
-          grep -Fq './assets/css/interaction-modern.css' sw.js
-          grep -Fq '.modal-box::before' assets/css/interaction-modern.css
-          grep -Fq '.modal-footer .btn' assets/css/interaction-modern.css
+          grep -Fq './assets/css/ui-modern.css' sw.js
+          if grep -Fq '/assets/css/mobile-modern.css' _worker.js || grep -Fq '/assets/css/interaction-modern.css' _worker.js; then exit 1; fi
+          if grep -Fq './assets/css/mobile-modern.css' sw.js || grep -Fq './assets/css/interaction-modern.css' sw.js; then exit 1; fi
+          grep -Fq '.modal-box::before' assets/css/ui-modern.css
+          grep -Fq '.modal-footer .btn' assets/css/ui-modern.css
+          grep -Fq '.stat-card' assets/css/ui-modern.css
+          grep -Fq '.tabs' assets/css/ui-modern.css
           test "$(grep -Fc 'function loadApprovalData(page)' app.js)" -eq 1
           if grep -Fq 'function runQueuedApprovalReload()' app.js; then exit 1; fi
           if grep -Fq 'approvalRuntime' _worker.js; then exit 1; fi
@@ -99,7 +116,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re, sys
-          files=[Path('app.js'),Path('sw.js'),Path('_worker.js'),Path('index.html'),Path('assets/js/turnstile-login.js')]
+          files=[Path('app.js'),Path('sw.js'),Path('_worker.js'),Path('index.html'),Path('supplier-dropdown.js'),Path('assets/js/auth-recovery.js'),Path('assets/js/turnstile-login.js')]
           p=re.compile(r"(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*['\"]([A-Za-z0-9._-]{20,})['\"]",re.I)
           findings=[]
           for f in files:
@@ -109,4 +126,4 @@ jobs:
               print('\n'.join(findings),file=sys.stderr); sys.exit(1)
           PY
       - name: Summary
-        run: echo 'Frontend canonical runtime, mobile surfaces, interaction styles, and cleanup checks passed.'
+        run: echo 'Frontend canonical runtime, consolidated UI styles, dynamic loader, and cleanup checks passed.'
