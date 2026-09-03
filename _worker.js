@@ -1,11 +1,12 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260904-mobile-modern-v2';
+const version = '20260904-interaction-modern-v3';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
 
 const RUNTIME_STYLES = [
   ['/assets/css/auth-modern.css', '20260904-v1'],
-  ['/assets/css/mobile-modern.css', '20260904-v2']
+  ['/assets/css/mobile-modern.css', '20260904-v2'],
+  ['/assets/css/interaction-modern.css', '20260904-v1']
 ];
 
 const NO_CACHE_SUFFIXES = [
@@ -13,6 +14,7 @@ const NO_CACHE_SUFFIXES = [
   '/reset-password.html',
   '/assets/css/auth-modern.css',
   '/assets/css/mobile-modern.css',
+  '/assets/css/interaction-modern.css',
   '/assets/js/auth-recovery.js',
   '/assets/js/turnstile-login.js',
   '/supplier-dropdown.js',

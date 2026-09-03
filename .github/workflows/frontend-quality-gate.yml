@@ -69,15 +69,21 @@ jobs:
           grep -Fq "margin-top: -14px;" index.html
           test -f assets/css/auth-modern.css
           test -f assets/css/mobile-modern.css
+          test -f assets/css/interaction-modern.css
           test ! -e assets/js/registration-flow.js
+          test ! -e .github/auth-redesign-trigger.txt
           if grep -Fq 'registration-flow.js' _worker.js; then
             echo "::error::Dead registration-flow runtime masih diinjeksi oleh worker."
             exit 1
           fi
           grep -Fq '/assets/css/auth-modern.css' _worker.js
           grep -Fq '/assets/css/mobile-modern.css' _worker.js
+          grep -Fq '/assets/css/interaction-modern.css' _worker.js
           grep -Fq './assets/css/auth-modern.css' sw.js
           grep -Fq './assets/css/mobile-modern.css' sw.js
+          grep -Fq './assets/css/interaction-modern.css' sw.js
+          grep -Fq '.modal-box::before' assets/css/interaction-modern.css
+          grep -Fq '.modal-footer .btn' assets/css/interaction-modern.css
           test "$(grep -Fc 'function loadApprovalData(page)' app.js)" -eq 1
           if grep -Fq 'function runQueuedApprovalReload()' app.js; then exit 1; fi
           if grep -Fq 'approvalRuntime' _worker.js; then exit 1; fi
@@ -103,4 +109,4 @@ jobs:
               print('\n'.join(findings),file=sys.stderr); sys.exit(1)
           PY
       - name: Summary
-        run: echo 'Frontend canonical runtime, mobile styles, and cleanup checks passed.'
+        run: echo 'Frontend canonical runtime, mobile surfaces, interaction styles, and cleanup checks passed.'
