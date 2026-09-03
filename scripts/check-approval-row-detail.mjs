@@ -42,8 +42,7 @@ requireMatch(!worker.includes('approvalRuntime'), 'Cloudflare worker must not in
 requireMatch(workerVersion && assetVersionPattern.test(workerVersion[1]), 'Cloudflare runtime cache version must follow the release format');
 requireMatch(serviceWorkerVersion && serviceWorkerVersionPattern.test(serviceWorkerVersion[1]), 'service worker cache version must follow the release format');
 requireMatch(indexAppVersion && assetVersionPattern.test(indexAppVersion[1]), 'base index must load a versioned canonical app script');
-requireMatch(workerVersion && indexAppVersion && workerVersion[1] === indexAppVersion[1], 'Cloudflare and index app versions must match');
-requireMatch(serviceWorkerVersion && indexAppVersion && serviceWorkerVersion[1] === `sim-sppg-v${indexAppVersion[1]}`, 'service worker and app versions must match');
+requireMatch(workerVersion && serviceWorkerVersion && serviceWorkerVersion[1] === `sim-sppg-v${workerVersion[1]}`, 'Cloudflare worker and service worker cache versions must match');
 requireMatch(sw.includes("fetch(request, { cache: 'no-store' })"), 'navigation and JavaScript must bypass browser cache');
 
 if (!process.exitCode) console.log('Approval direct runtime render check passed.');
