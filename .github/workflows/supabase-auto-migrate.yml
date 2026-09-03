@@ -43,6 +43,26 @@ jobs:
             echo "SUPABASE_ACCESS_TOKEN is not configured." >&2
             exit 1
           fi
+      - name: Inspect orphaned remote migration records
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for version in 20260819062846 20260819071456; do
+            file="/tmp/migration-${version}.json"
+            code="$(curl --silent --show-error \
+              --output "$file" \
+              --write-out '%{http_code}' \
+              --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+              "https://api.supabase.com/v1/projects/dmjsgtichrfxhyywstrt/database/migrations/${version}")"
+            echo "Remote migration ${version}: HTTP ${code}"
+            if [[ "$code" == "200" ]]; then
+              jq '{version, name, statements}' "$file"
+            else
+              echo "::warning title=Migration metadata unavailable::Could not fetch ${version} from Supabase Management API (HTTP ${code})."
+            fi
+          done
       - name: Compare and apply migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
