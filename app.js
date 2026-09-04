@@ -152,7 +152,7 @@ var API_ROUTES = {
   'push-public-action': { getPushPublicKey:1 },
   'geocode-action': { geocodeAlamat:1 },
   'register-user-v2': { createUserBySuperAdmin:1 },
-  'auth-public-action': { loginUser:1, refreshSession:1, checkSession:1 },
+  'auth-public-action': { loginUser:1, refreshSession:1, checkSession:1, logoutSession:1 },
   'account-recovery-action': { recoverPassword:1, recoverUsername:1, recoverToken:1 },
   'app-config-action': { getAppConfig:1, getDropdownOptions:1 },
   'notification-dispatch-action': { dispatchNotification:1 },
@@ -343,7 +343,7 @@ function callApi(fnName, params, onSuccess, onFailure) {
 // ============================================================
 // 1. STATE MANAGEMENT
 // ============================================================
-var SESSION_DURATION = 60 * 60 * 1000; // 1 jam tanpa aktivitas
+var SESSION_DURATION = 30 * 60 * 1000; // 30 menit tanpa aktivitas
 var ITEMS_PER_PAGE = 15;
 var CFG_SPPG_FALLBACK = ['DARMARAJA','CIAMIS','TANJUNG MEDAR','PAKUALAM','KIRISIK','CIBUNAR','CINTA JAYA'];
 
@@ -1219,7 +1219,14 @@ function doLogin() {
               if (result.success) {
                 currentUser = result.user;
                 sessionExpiry = result.sessionExpiry;
-                safeStorage('set', 'sppg_session', JSON.stringify({ user: currentUser, expiry: sessionExpiry }));
+                var loginStartedAt = Date.now();
+                safeStorage('set', 'sppg_session', JSON.stringify({
+                  user: currentUser,
+                  expiry: sessionExpiry,
+                  lastActivity: loginStartedAt,
+                  startedAt: loginStartedAt,
+                  absoluteExpiry: loginStartedAt + SESSION_ABSOLUTE_MAX_MS
+                }));
                 $('authOverlay').classList.add('hidden');
                 $('appContainer').classList.remove('hidden');
                 initApp();
@@ -1474,7 +1481,8 @@ function checkSession() {
     var stored = safeStorage('get', 'sppg_session');
     if (!stored) return false;
     var session = JSON.parse(stored);
-    if (!session || !session.expiry || Date.now() > session.expiry) {
+    if (!session || !session.expiry || Date.now() > session.expiry ||
+        (session.absoluteExpiry && Date.now() >= Number(session.absoluteExpiry))) {
       safeStorage('remove', 'sppg_session');
       return false;
     }
@@ -1486,7 +1494,13 @@ function checkSession() {
 }
 
 function logout() { $('modalLogout').classList.remove('hidden'); }
-function executeLogout(isAutoLogout) {
+var _logoutInProgress = false;
+function executeLogout(isAutoLogout, scope) {
+  if (_logoutInProgress) return;
+  _logoutInProgress = true;
+  scope = scope === 'global' ? 'global' : 'local';
+
+  function finishLogout() {
   safeStorage('remove', 'sppg_session');
   try { localStorage.removeItem('sppg_jwt'); } catch(e) {}
   try { localStorage.removeItem('sppg_refresh_token'); } catch(e) {}
@@ -1500,20 +1514,33 @@ function executeLogout(isAutoLogout) {
   if (appLoadingEl) appLoadingEl.classList.add('hidden');
   showLogin();
   closeModal('modalLogout');
+  closeModal('modalSessionWarning');
+  _logoutInProgress = false;
   if (isAutoLogout) {
-    showToast('info', 'Sesi Berakhir', 'Anda otomatis keluar karena aplikasi tidak aktif selama 1 jam.');
+    showToast('info', 'Sesi Berakhir', 'Anda otomatis keluar karena tidak ada aktivitas selama 30 menit.');
   } else {
-    showToast('success', 'Logout', 'Anda telah keluar.');
+    showToast('success', 'Berhasil Keluar', scope === 'global' ? 'Semua perangkat telah dikeluarkan.' : 'Anda telah keluar dari perangkat ini.');
+  }
+  }
+
+  if (typeof callApi === 'function' && getJwtToken()) {
+    callApi('logoutSession', [scope], finishLogout, finishLogout);
+  } else {
+    finishLogout();
   }
 }
 
 // ============================================================
 // 4b. AUTO LOGOUT KARENA TIDAK ADA AKTIVITAS (IDLE)
 // ============================================================
-// Aturan: sesi tetap hidup selama aplikasi terlihat atau pengguna beraktivitas.
-// Jika aplikasi tidak dibuka/tidak aktif selama 1 jam, sesi otomatis berakhir.
-var IDLE_LOGOUT_MS = 60 * 60 * 1000;
+// Hanya interaksi manusia yang memperpanjang sesi; heartbeat, polling, dan refresh token tidak.
+var IDLE_LOGOUT_MS = 30 * 60 * 1000;
+var IDLE_WARNING_MS = 5 * 60 * 1000;
+var SESSION_ABSOLUTE_MAX_MS = 8 * 60 * 60 * 1000;
 var _idleLogoutTimer = null;
+var _idleWarningTimer = null;
+var _idleCountdownTimer = null;
+var _idleWarningActive = false;
 var _idleActivityBound = false;
 var _idleLastPersistAt = 0;
 var _idleLastResetAt = 0;
@@ -1521,14 +1548,20 @@ var _idleLastResetAt = 0;
 function persistIdleSession(now, force) {
   if (!currentUser) return 0;
   now = Number(now) || Date.now();
-  var expiry = now + IDLE_LOGOUT_MS;
+  var existing = null;
+  try { existing = JSON.parse(safeStorage('get', 'sppg_session') || 'null'); } catch (_) {}
+  var startedAt = Number(existing && existing.startedAt) || now;
+  var absoluteExpiry = Number(existing && existing.absoluteExpiry) || (startedAt + SESSION_ABSOLUTE_MAX_MS);
+  var expiry = Math.min(now + IDLE_LOGOUT_MS, absoluteExpiry);
   sessionExpiry = expiry;
   if (force || now - _idleLastPersistAt >= 15000) {
     _idleLastPersistAt = now;
     safeStorage('set', 'sppg_session', JSON.stringify({
       user: currentUser,
       expiry: expiry,
-      lastActivity: now
+      lastActivity: now,
+      startedAt: startedAt,
+      absoluteExpiry: absoluteExpiry
     }));
   }
   return expiry;
@@ -1546,6 +1579,7 @@ function storedIdleExpiry() {
 
 function scheduleIdleLogout(expiry) {
   if (_idleLogoutTimer) clearTimeout(_idleLogoutTimer);
+  if (_idleWarningTimer) clearTimeout(_idleWarningTimer);
   var remaining = Math.max(0, Number(expiry) - Date.now());
   if (!remaining) {
     if (currentUser) executeLogout(true);
@@ -1557,10 +1591,15 @@ function scheduleIdleLogout(expiry) {
     if (!currentExpiry || Date.now() >= currentExpiry) executeLogout(true);
     else scheduleIdleLogout(currentExpiry);
   }, remaining);
+  if (remaining > IDLE_WARNING_MS) {
+    _idleWarningTimer = setTimeout(showSessionWarning, remaining - IDLE_WARNING_MS);
+  } else if (remaining > 0 && document.visibilityState === 'visible') {
+    showSessionWarning();
+  }
 }
 
 function resetIdleLogoutTimer() {
-  if (!currentUser) return;
+  if (!currentUser || _idleWarningActive) return;
   var now = Date.now();
   if (now - _idleLastResetAt < 10000) return;
   _idleLastResetAt = now;
@@ -1569,7 +1608,7 @@ function resetIdleLogoutTimer() {
 
 function startIdleLogoutWatcher() {
   if (!_idleActivityBound) {
-    ['click', 'touchstart', 'scroll', 'keydown', 'mousemove'].forEach(function(evt) {
+    ['pointerdown', 'touchstart', 'keydown', 'input', 'change'].forEach(function(evt) {
       document.addEventListener(evt, resetIdleLogoutTimer, { passive: true, capture: true });
     });
     document.addEventListener('visibilitychange', function() {
@@ -1579,8 +1618,7 @@ function startIdleLogoutWatcher() {
         executeLogout(true);
         return;
       }
-      if (document.visibilityState === 'visible') resetIdleLogoutTimer();
-      else scheduleIdleLogout(expiry);
+      scheduleIdleLogout(expiry);
     });
     _idleActivityBound = true;
   }
@@ -1589,11 +1627,42 @@ function startIdleLogoutWatcher() {
 
 function stopIdleLogoutWatcher() {
   if (_idleLogoutTimer) { clearTimeout(_idleLogoutTimer); _idleLogoutTimer = null; }
+  if (_idleWarningTimer) { clearTimeout(_idleWarningTimer); _idleWarningTimer = null; }
+  if (_idleCountdownTimer) { clearInterval(_idleCountdownTimer); _idleCountdownTimer = null; }
+  _idleWarningActive = false;
+}
+
+function showSessionWarning() {
+  if (!currentUser || document.visibilityState === 'hidden') return;
+  var expiry = storedIdleExpiry();
+  if (!expiry || Date.now() >= expiry) { executeLogout(true); return; }
+  _idleWarningActive = true;
+  var modal = $('modalSessionWarning');
+  if (modal) modal.classList.remove('hidden');
+  function renderCountdown() {
+    var seconds = Math.max(0, Math.ceil((expiry - Date.now()) / 1000));
+    var label = $('sessionWarningCountdown');
+    if (label) label.textContent = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
+    if (!seconds) executeLogout(true);
+  }
+  renderCountdown();
+  if (_idleCountdownTimer) clearInterval(_idleCountdownTimer);
+  _idleCountdownTimer = setInterval(renderCountdown, 1000);
+}
+
+function extendSessionFromWarning() {
+  if (!currentUser) return;
+  _idleWarningActive = false;
+  if (_idleCountdownTimer) { clearInterval(_idleCountdownTimer); _idleCountdownTimer = null; }
+  closeModal('modalSessionWarning');
+  _idleLastResetAt = 0;
+  resetIdleLogoutTimer();
+  if (typeof window.__sppgRefreshAccessToken === 'function') window.__sppgRefreshAccessToken();
+  showToast('success', 'Sesi Dilanjutkan', 'Sesi Anda aman dan kembali aktif.');
 }
 
 function sendPresenceHeartbeat() {
   if (!currentUser || document.visibilityState === 'hidden') return;
-  resetIdleLogoutTimer();
   callApi('updatePresence', [], function(result) {
     if (result && result.success && currentUser) {
       currentUser.lastSeenAt = result.lastSeenAt;
@@ -3291,7 +3360,9 @@ function doUpdateProfil(updateData) {
                 if (updateData['JABATAN']) currentUser.jabatan = updateData['JABATAN'];
                 if (updateData['SPPG']) currentUser.sppg = updateData['SPPG'];
                 if (updateData['NAMA YAYASAN'] !== undefined) currentUser.namaYayasan = updateData['NAMA YAYASAN'];
-                safeStorage('set', 'sppg_session', JSON.stringify({ user: currentUser, expiry: sessionExpiry }));
+                var profileSession = null;
+                try { profileSession = JSON.parse(safeStorage('get', 'sppg_session') || 'null'); } catch (_) {}
+                safeStorage('set', 'sppg_session', JSON.stringify(Object.assign({}, profileSession || {}, { user: currentUser, expiry: sessionExpiry })));
                 renderProfil();
                 closeModal('modalEditProfil');
               } else {
@@ -9580,7 +9651,8 @@ if (dashboardObserverTarget) {
     sessionKey: 'sppg_session',
     clockSkewMs: 60 * 1000,
     refreshLeadMs: 5 * 60 * 1000,
-    idleTimeoutMs: 60 * 60 * 1000,
+    idleTimeoutMs: 30 * 60 * 1000,
+    absoluteTimeoutMs: 8 * 60 * 60 * 1000,
     sessionCheckMs: 30 * 1000,
     logoUrl: 'https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png'
   };
@@ -9727,7 +9799,8 @@ if (dashboardObserverTarget) {
       return false;
     }
     var idleExpiry = Number(session.expiry) || 0;
-    if (!idleExpiry || Date.now() >= idleExpiry) {
+    var absoluteExpiry = Number(session.absoluteExpiry) || 0;
+    if (!idleExpiry || Date.now() >= idleExpiry || (absoluteExpiry && Date.now() >= absoluteExpiry)) {
       clearAuthState('', false);
       return false;
     }
@@ -9756,11 +9829,6 @@ if (dashboardObserverTarget) {
   function tokenNeedsRefresh() {
     var expiry = jwtExpiryMs(storageGet(CONFIG.tokenKey));
     return !expiry || expiry <= Date.now() + CONFIG.refreshLeadMs;
-  }
-
-  function touchVisibleSession() {
-    if (document.visibilityState === 'hidden' || !window.currentUser) return;
-    if (typeof window.resetIdleLogoutTimer === 'function') window.resetIdleLogoutTimer();
   }
 
   function installSessionGuard() {
@@ -9838,8 +9906,6 @@ if (dashboardObserverTarget) {
       }
 
       if (isPublic) return original(action, params, handleSuccess, handleFailure);
-      touchVisibleSession();
-
       function invoke(retried) {
         return original(action, params, handleSuccess, function(error) {
           if (!retried && isAuthFailure(error) && storageGet(CONFIG.refreshTokenKey)) {
@@ -10346,6 +10412,14 @@ updateAuthHeading();
   window.addEventListener('storage', function(event) {
     if (event.key === CONFIG.sessionKey && !event.newValue && window.currentUser) {
       clearAuthState('Sesi telah berakhir di perangkat ini.', true);
+    } else if (event.key === CONFIG.sessionKey && event.newValue && window.currentUser) {
+      try {
+        var syncedSession = JSON.parse(event.newValue);
+        if (syncedSession && syncedSession.expiry && typeof window.scheduleIdleLogout === 'function') {
+          window.sessionExpiry = Number(syncedSession.expiry);
+          window.scheduleIdleLogout(window.sessionExpiry);
+        }
+      } catch (_) {}
     } else if (event.key === CONFIG.tokenKey && event.newValue) {
       window._supabaseToken = event.newValue;
     }
@@ -10360,7 +10434,6 @@ updateAuthHeading();
       return;
     }
     if (document.visibilityState !== 'hidden' && tokenNeedsRefresh()) {
-      touchVisibleSession();
       if (typeof window.__sppgRefreshAccessToken === 'function') {
         window.__sppgRefreshAccessToken().then(function(ok) {
           if (!ok && !isTokenUsable(storageGet(CONFIG.tokenKey))) {

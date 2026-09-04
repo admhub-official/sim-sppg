@@ -118,7 +118,7 @@ async function login(emailRaw: unknown, passwordRaw: unknown, ip: string) {
     success: true,
     token: a.data.session.access_token,
     refreshToken: a.data.session.refresh_token,
-    sessionExpiry: Date.now() + 60 * 60 * 1000,
+    sessionExpiry: Date.now() + 30 * 60 * 1000,
     user: {
       id: r.ID,
       namaLengkap: r['NAMA LENGKAP'],
@@ -152,17 +152,31 @@ async function refreshSession(refreshRaw: unknown, ip: string) {
   };
 }
 
+async function logoutSession(req: Request, scopeRaw: unknown) {
+  const token = text(req.headers.get('authorization')).replace(/^Bearer\s+/i, '');
+  const scope = text(scopeRaw) === 'global' ? 'global' : 'local';
+  if (token.length < 20 || token.length > 4096) {
+    return { success: false, message: 'Sesi tidak valid.' };
+  }
+  const result = await admin.auth.admin.signOut(token, scope);
+  if (result.error) {
+    console.error('logout session', result.error.message);
+    return { success: false, message: 'Sesi tidak dapat dicabut.' };
+  }
+  return { success: true, scope };
+}
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: C });
   if (req.method === 'GET') {
     return out({
       status: 'ok',
       service: 'auth-public-action',
-      version: 8,
+      version: 9,
       publicRegistration: false,
       persistentRateLimit: true,
       refreshRotation: true,
-      idlePolicy: 'frontend-1-hour',
+      idlePolicy: '30-minute-idle-8-hour-absolute',
       turnstileLogin: true
     });
   }
@@ -183,6 +197,7 @@ Deno.serve(async req => {
       return out({ result: await login(p[0], p[1], ip) });
     }
     if (fn === 'refreshSession') return out({ result: await refreshSession(p[0], ip) });
+    if (fn === 'logoutSession') return out({ result: await logoutSession(req, p[0]) });
     if (fn === 'checkSession') {
       const n = Number(p[0]);
       return out({ result: Number.isFinite(n) && Date.now() < n });

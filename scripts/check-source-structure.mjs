@@ -138,6 +138,18 @@ if (fs.existsSync(chatTrxMessagePath) && fs.existsSync(chatTrxConfirmPath)) {
   }
 }
 
+const appSource = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+const indexSource = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const authActionSource = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'auth-public-action', 'index.ts'), 'utf8');
+if (!appSource.includes('var IDLE_LOGOUT_MS = 30 * 60 * 1000')) errors.push('Batas idle frontend harus 30 menit.');
+if (!appSource.includes('var IDLE_WARNING_MS = 5 * 60 * 1000')) errors.push('Peringatan sesi harus muncul 5 menit sebelum logout.');
+if (!appSource.includes('var SESSION_ABSOLUTE_MAX_MS = 8 * 60 * 60 * 1000')) errors.push('Sesi harus memiliki batas absolut 8 jam.');
+const presenceSource = appSource.match(/function sendPresenceHeartbeat\(\)[\s\S]*?\n}/)?.[0] || '';
+if (presenceSource.includes('resetIdleLogoutTimer')) errors.push('Heartbeat tidak boleh memperpanjang sesi pengguna.');
+if (!indexSource.includes('id="modalSessionWarning"') || !indexSource.includes('id="sessionWarningCountdown"')) errors.push('UI peringatan sesi belum tersedia.');
+if (!authActionSource.includes("admin.auth.admin.signOut(token, scope)")) errors.push('Logout harus mencabut sesi Supabase di server.');
+if (!authActionSource.includes("fn === 'logoutSession'")) errors.push('Endpoint logoutSession belum tersedia.');
+
 // Validate the sequential dynamic loader against the filesystem so stale hotfix
 // references cannot silently generate a 404 on every page load.
 const loaderPath = path.join(ROOT, 'supplier-dropdown.js');

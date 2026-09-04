@@ -6086,13 +6086,32 @@
           <i class="fas fa-sign-out-alt"></i>
         </div>
         <h3 id="modalLogoutTitle">Konfirmasi Keluar</h3>
-        <p style="font-size:13px;color:var(--slate-500);margin-top:6px;">Apakah Anda yakin akan keluar?</p>
+        <p style="font-size:13px;color:var(--slate-500);margin-top:6px;">Anda akan keluar dari perangkat ini.</p>
       </div>
       <div class="modal-footer modal-footer-center">
         <button onclick="closeModal('modalLogout')" class="btn btn-outline" style="min-width:120px;">Batal</button>
         <button onclick="executeLogout()" class="btn btn-danger" style="min-width:120px;">
           <i class="fas fa-sign-out-alt"></i> Ya, Keluar
         </button>
+      </div>
+      <button type="button" onclick="executeLogout(false,'global')" style="border:0;background:transparent;color:var(--rose);font-weight:600;padding:4px 16px 20px;cursor:pointer;">Keluar dari semua perangkat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PERINGATAN SESI ==================== -->
+<div id="modalSessionWarning" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="modalSessionWarningTitle" aria-describedby="modalSessionWarningDescription">
+  <div class="modal-overlay">
+    <div class="modal-box modal-center-box">
+      <div class="modal-header modal-header-center">
+        <div class="pin-lock-icon" style="background:#fff7ed;color:#ea580c;"><i class="fas fa-clock"></i></div>
+        <h3 id="modalSessionWarningTitle">Sesi hampir berakhir</h3>
+        <p id="modalSessionWarningDescription" style="font-size:13px;color:var(--slate-500);margin-top:6px;">Untuk melindungi data, Anda akan keluar karena tidak ada aktivitas.</p>
+        <div id="sessionWarningCountdown" aria-live="polite" style="font-size:32px;font-weight:800;color:var(--slate-800);margin-top:12px;font-variant-numeric:tabular-nums;">05:00</div>
+      </div>
+      <div class="modal-footer modal-footer-center">
+        <button onclick="executeLogout(false,'local')" class="btn btn-outline" style="min-width:120px;">Keluar sekarang</button>
+        <button onclick="extendSessionFromWarning()" class="btn btn-primary" style="min-width:120px;"><i class="fas fa-check"></i> Tetap masuk</button>
       </div>
     </div>
   </div>
