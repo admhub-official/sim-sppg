@@ -90,7 +90,11 @@ jobs:
             echo "::error::Dead auth recovery hotfix masih direferensikan."
             exit 1
           fi
-          grep -Fq "file: 'auth-recovery.js'" supplier-dropdown.js
+          grep -Fq './assets/js/auth-recovery.js' index.html
+          if grep -Fq 'auth-recovery.js' supplier-dropdown.js || grep -Fq 'auth-recovery.js' sidebar-menu-structure.js; then
+            echo "::error::Modul recovery harus dimuat satu kali langsung oleh index.html."
+            exit 1
+          fi
           grep -Fq '/assets/css/auth-modern.css' _worker.js
           grep -Fq '/assets/css/ui-modern.css' _worker.js
           grep -Fq './assets/css/auth-modern.css' sw.js
