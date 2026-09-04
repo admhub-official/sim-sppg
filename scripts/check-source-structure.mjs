@@ -158,6 +158,21 @@ if (sidebarSource.includes('registration-flow.js')) errors.push('Sidebar masih m
 if (sidebarSource.includes('auth-recovery.js')) errors.push('Sidebar tidak boleh memuat ulang modul recovery yang sudah dimuat index.html.');
 if (/recoverUsername|recoverToken/.test(appSource)) errors.push('Route recovery lama masih tertinggal di app.js.');
 
+// Transaction edit helpers must not independently wrap the same global modal
+// lifecycle. Multiple wrappers caused repeated refreshes and duplicate API/event
+// side effects in the edit form.
+const editSupplierOptionsSource = fs.readFileSync(path.join(ROOT, 'assets/js/transactions/edit-supplier-options-fix.js'), 'utf8');
+const editTransactionUiSource = fs.readFileSync(path.join(ROOT, 'assets/js/supplier/edit-transaction-ui.js'), 'utf8');
+const editSaveSource = fs.readFileSync(path.join(ROOT, 'assets/js/transactions/edit-save-reliability.js'), 'utf8');
+const editModalWrapperCount = [editSupplierOptionsSource, editTransactionUiSource]
+  .filter((source) => source.includes('window.openModal = function')).length;
+if (editModalWrapperCount > 1) {
+  errors.push('Modal Edit Transaksi dibungkus oleh lebih dari satu runtime helper.');
+}
+if (!editSaveSource.includes('SIM_SPPG_TRANSACTION_CATEGORY_RULES')) {
+  errors.push('Validasi supplier Edit Transaksi harus mengikuti aturan jenis kategori canonical.');
+}
+
 // Validate the sequential dynamic loader against the filesystem so stale hotfix
 // references cannot silently generate a 404 on every page load.
 const loaderPath = path.join(ROOT, 'supplier-dropdown.js');
