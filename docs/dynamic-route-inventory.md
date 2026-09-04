@@ -1,12 +1,12 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-08-16T13:34:56.777Z.
+Generated automatically from `app.js` at 2026-09-04T12:21:31.755Z.
 
 ## Summary
 
-- Literal API calls found: **70**
-- Functions declared in `API_ROUTES`: **90**
-- Routed literal API calls: **70**
+- Literal API calls found: **71**
+- Functions declared in `API_ROUTES`: **91**
+- Routed literal API calls: **71**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
 
@@ -69,6 +69,7 @@ Generated automatically from `app.js` at 2026-08-16T13:34:56.777Z.
 | `getTransactions` | `approval-payment-action` |
 | `getUploadBuktiMode` | `operations-action` |
 | `loginUser` | `auth-public-action` |
+| `logoutSession` | `auth-public-action` |
 | `markAllNotificationsRead` | `reporting-action` |
 | `markNotificationRead` | `reporting-action` |
 | `savePushSubscription` | `push-action` |
@@ -107,6 +108,7 @@ Generated automatically from `app.js` at 2026-08-16T13:34:56.777Z.
 | `listMyTrx` | `chattrx-records-action` |
 | `recoverPassword` | `account-recovery-action` |
 | `recoverToken` | `account-recovery-action` |
+| `recoverUsername` | `account-recovery-action` |
 | `refreshSession` | `auth-public-action` |
 | `sendCatatanApproval` | `transaction-action` |
 | `sendChatTrxMessage` | `chattrx-message-action` |
