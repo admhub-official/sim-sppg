@@ -1,68 +1,68 @@
 import {CORS,json,text,sb,getCaller,applyRoleFilter,handlerError} from '../_shared/chattrx.ts';
 
 const FIELDS=['jenis_transaksi','kategori','nama_item','keterangan','nominal','status_pembayaran'] as const;
-const SYSTEM=`Kamu adalah ChatGPT untuk ChatTrx, asisten ekstraksi data transaksi keuangan organisasi SPPG/Yayasan. Pandu percakapan santai berbahasa Indonesia: jenis transaksi -> kategori -> nama item, keterangan, nominal -> konfirmasi natural -> foto nota -> status pembayaran -> jika lunas foto bukti pembayaran -> ringkasan akhir.
-Jika user memberi beberapa informasi sekaligus, ekstrak semuanya dan jangan tanya ulang. Foto wajib dibaca nominal, tanggal, item, kejernihan dan indikasi manipulasi; tolak jika tidak meyakinkan atau berbeda signifikan. Jangan pernah melompati verifikasi foto. Balas ramah dan singkat. Keluarkan JSON saja sesuai schema yang diminta.`;
+const INCOME=['Anggaran Bahan Baku','Anggaran Sewa Mobil','Anggaran Insentif Fasilitas'] as const;
+const EXPENSE=['Belanja Bahan Baku','Material Bangunan','Gas LPG','Sewa & Utilitas (AC/WIFI)','IPAL','Inventaris Kantor','Cetak & Promosi','Gaji/Upah Karyawan','Operasional Perjalanan','Konsumsi','Dana Talangan','Cicilan','Fee Yayasan','Administrasi & Lainnya'] as const;
+const CATEGORIES=[...INCOME,...EXPENSE] as const;
+const norm=(v:unknown)=>text(v).replace(/\s+/g,' ').toLocaleLowerCase('id-ID');
+const category=(v:unknown)=>CATEGORIES.find(x=>norm(x)===norm(v))||'';
+const categoryType=(v:unknown)=>INCOME.includes(v as any)?'pemasukan':EXPENSE.includes(v as any)?'pengeluaran':'';
+
+const SYSTEM=`Kamu adalah ChatGPT untuk ChatTrx, asisten intake sekaligus reviewer transaksi SPPG/Yayasan.
+
+Percakapan:
+- Pahami seluruh pesan dan semua lampiran sekaligus. Ekstrak semua fakta yang tersedia dan jangan menanyakan ulang data yang sudah jelas.
+- Balas dalam bahasa Indonesia yang hangat, ringkas, natural, dan spesifik. reply harus siap ditampilkan langsung kepada pengguna.
+- Pengguna boleh langsung mengirim nota, bukti pembayaran, PDF, beberapa file, atau koreksi data.
+- Jangan mengarang. Data yang tidak terbukti harus null. Jika draft, pesan, dan lampiran berbeda, catat konflik dan minta satu klarifikasi terpenting; jangan memilih diam-diam.
+- Ketika cukup, rangkum hasil review (item, nominal, kategori, pembayaran, dan validitas bukti). Tetap minta konfirmasi/TTD sebelum penyimpanan permanen.
+
+Kategori resmi, harus persis salah satu nilai berikut:
+Pemasukan: ${INCOME.join('; ')}.
+Pengeluaran: ${EXPENSE.join('; ')}.
+Tentukan jenis_transaksi berdasarkan kategori. Jika belum cukup bukti, kategori harus null; boleh sebutkan dugaan di reply tanpa menyimpannya sebagai fakta.
+
+Lampiran:
+- Keluarkan tepat satu attachment_review per file sesuai index/urutan, termasuk file buram, duplikat, atau tidak relevan.
+- Bedakan nota/invoice dari bukti pembayaran/transfer. Gunakan both hanya bila satu file benar-benar membuktikan keduanya.
+- valid berarti dokumen cukup terbaca dan konsisten untuk fungsinya. Jangan menyatakan manipulasi sebagai kepastian; tulis indikator konkret di warnings.
+- Bandingkan nominal, tanggal, dan item dari semua sumber dan masukkan perbedaan ke conflicts.
+
+Gunakan intent=correct hanya untuk koreksi eksplisit, intent=confirm hanya untuk persetujuan rincian. detail_confirmed hanya true jika pengguna jelas menyetujui rincian. missing_fields hanya dari enum schema. Keluarkan JSON saja.`;
+
 function nextState(d:any){if(!d.jenis_transaksi)return'jenis_transaksi';if(!d.kategori)return'kategori';if(!d.nama_item||!d.keterangan||!Number(d.nominal))return'detail';if(!d.detail_confirmed)return'konfirmasi_detail';if(!d.foto_nota_url||d.verifikasi_nota?.valid!==true)return'nota';if(!d.status_pembayaran)return'status_pembayaran';if(d.status_pembayaran==='sudah_dibayar'&&(!d.foto_bukti_bayar_url||d.verifikasi_bukti_bayar?.valid!==true))return'bukti_bayar';return'ringkasan';}
-function normalizedField(field:string,value:unknown){const v=text(value).toLowerCase();if(field==='jenis_transaksi')return v.includes('pengeluaran')?'pengeluaran':v.includes('pemasukan')?'pemasukan':'';if(field==='status_pembayaran')return v.includes('belum')?'belum_dibayar':(/sudah|lunas/.test(v)?'sudah_dibayar':'');return field==='nominal'?Number(value):v;}
-function chips(state:string,categories:any[]){if(state==='jenis_transaksi')return['Pemasukan','Pengeluaran'];if(state==='kategori')return categories.slice(0,6).map(x=>x.nama_kategori);if(state==='konfirmasi_detail')return['Ya, sudah benar'];if(state==='status_pembayaran')return['Sudah Dibayar/Lunas','Belum Dibayar'];return[]}
-function stateReply(state:string,d:any){
-  if(state==='jenis_transaksi')return'Transaksi ini Pemasukan atau Pengeluaran?';
-  if(state==='kategori')return'Baik, sebutkan kategori transaksinya.';
-  if(state==='detail'){const missing=[];if(!d.nama_item)missing.push('nama item');if(!d.keterangan)missing.push('keterangan');if(!Number(d.nominal))missing.push('nominal');return`Data belum disimpan. Mohon lengkapi ${missing.join(', ')} transaksi.`}
-  if(state==='konfirmasi_detail')return`Mohon konfirmasi: ${d.nama_item} — ${d.keterangan}, nominal Rp${Number(d.nominal).toLocaleString('id-ID')}. Apakah rincian ini sudah benar?`;
-  if(state==='nota')return'Detail sudah dikonfirmasi. Silakan unggah foto nota yang jelas.';
-  if(state==='status_pembayaran')return'Nota sudah terverifikasi. Status pembayarannya Lunas atau Belum Dibayar?';
-  if(state==='bukti_bayar')return'Silakan unggah bukti pembayaran. Jika nota yang sama juga merupakan bukti pembayaran, tulis “pakai nota yang sama”.';
-  return'Data sudah lengkap, tetapi belum disimpan permanen. Periksa ringkasan, bubuhkan TTD, lalu tekan tombol Simpan.';
+function normalizedField(field:string,value:unknown){const v=norm(value);if(field==='jenis_transaksi')return v==='pengeluaran'?'pengeluaran':v==='pemasukan'?'pemasukan':'';if(field==='status_pembayaran')return v.includes('belum')?'belum_dibayar':(/sudah|lunas/.test(v)?'sudah_dibayar':'');if(field==='kategori')return category(value);return field==='nominal'?Number(value):text(value);}
+function chips(state:string,rows:any[]){if(state==='jenis_transaksi')return['Pemasukan','Pengeluaran'];if(state==='kategori'){const usage=new Map(rows.map(x=>[norm(x.nama_kategori),Number(x.jumlah_pemakaian)||0]));return [...CATEGORIES].sort((a,b)=>(usage.get(norm(b))||0)-(usage.get(norm(a))||0)).slice(0,6)}if(state==='konfirmasi_detail')return['Ya, sudah benar'];if(state==='status_pembayaran')return['Sudah Dibayar/Lunas','Belum Dibayar'];return[];}
+function fallbackReply(state:string,d:any){if(state==='jenis_transaksi')return'Ceritakan transaksinya atau kirim notanya—saya bantu baca dan klasifikasikan.';if(state==='kategori')return'Saya sudah menangkap sebagian datanya. Transaksi ini terkait bahan baku, operasional, gaji, atau keperluan lain?';if(state==='detail'){const m=[];if(!d.nama_item)m.push('nama item');if(!d.keterangan)m.push('catatan');if(!Number(d.nominal))m.push('nominal');return`Saya masih perlu ${m.join(', ')} agar catatannya lengkap.`}if(state==='konfirmasi_detail')return`Saya mencatat ${d.nama_item} senilai Rp${Number(d.nominal).toLocaleString('id-ID')}. Apakah rincian ini sudah benar?`;if(state==='nota')return'Silakan kirim nota yang jelas agar saya bisa mencocokkan rinciannya.';if(state==='status_pembayaran')return'Notanya sudah terbaca. Transaksi ini sudah dibayar atau belum?';if(state==='bukti_bayar')return'Silakan kirim bukti pembayaran. Jika nota yang sama juga menjadi bukti, beri tahu saya.';return'Datanya lengkap. Periksa ringkasan, bubuhkan TTD, lalu simpan.';}
+function outputText(raw:any){if(text(raw?.output_text))return text(raw.output_text);for(const item of raw?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&text(part.text))return text(part.text);return'';}
+function attachmentInput(im:any,index:number){if(!im?.base64||!im?.mimeType)return null;const mime=norm(im.mimeType),raw=String(im.base64),url=raw.startsWith('data:')?raw:`data:${mime};base64,${raw}`;return mime==='application/pdf'?{type:'input_file',filename:text(im.name)||`chattrx-${index+1}.pdf`,file_data:url}:{type:'input_image',image_url:url,detail:'high'};}
+
+async function askOpenAI(prompt:string,images:any[]){
+  const key=Deno.env.get('OPENAI_API_KEY');if(!key)throw new Error('Layanan AI ChatTrx belum siap. Hubungi administrator untuk memasang secret OPENAI_API_KEY pada project Supabase.');
+  const content:any[]=[{type:'input_text',text:prompt}];images.forEach((im,i)=>{const item=attachmentInput(im,i);if(item)content.push(item)});
+  const ns={type:['string','null']},review={type:'object',additionalProperties:false,properties:{index:{type:'integer'},kind:{type:'string',enum:['nota','payment','both','unknown']},valid:{type:'boolean'},confidence:{type:'number',minimum:0,maximum:1},reason:{type:'string'},nominal:{type:['number','null']},tanggal:ns,merchant_or_sender:ns,items:{type:'array',items:{type:'string'}},warnings:{type:'array',items:{type:'string'}}},required:['index','kind','valid','confidence','reason','nominal','tanggal','merchant_or_sender','items','warnings']};
+  const conflict={type:'object',additionalProperties:false,properties:{field:{type:'string'},draft_value:ns,incoming_value:ns,source:{type:'string'},question:{type:'string'}},required:['field','draft_value','incoming_value','source','question']};
+  const schema={type:'object',additionalProperties:false,properties:{reply:{type:'string'},intent:{type:'string',enum:['provide_data','correct','confirm','question']},data:{type:'object',additionalProperties:false,properties:{jenis_transaksi:{anyOf:[{type:'string',enum:['pemasukan','pengeluaran']},{type:'null'}]},kategori:{anyOf:[{type:'string',enum:[...CATEGORIES]},{type:'null'}]},nama_item:ns,keterangan:ns,nominal:{type:['number','null']},status_pembayaran:{anyOf:[{type:'string',enum:['sudah_dibayar','belum_dibayar']},{type:'null'}]},detail_confirmed:{type:['boolean','null']}},required:['jenis_transaksi','kategori','nama_item','keterangan','nominal','status_pembayaran','detail_confirmed']},missing_fields:{type:'array',items:{type:'string',enum:['jenis_transaksi','kategori','nama_item','keterangan','nominal','detail_confirmed','foto_nota','status_pembayaran','foto_bukti_bayar']}},conflicts:{type:'array',items:conflict},attachment_reviews:{type:'array',items:review}},required:['reply','intent','data','missing_fields','conflicts','attachment_reviews']};
+  const payload={model:Deno.env.get('OPENAI_MODEL')||'gpt-5.6-terra',store:false,reasoning:{effort:'low'},instructions:SYSTEM,input:[{role:'user',content}],text:{format:{type:'json_schema',name:'chattrx_transaction_review',strict:true,schema}},max_output_tokens:1800};
+  let last='ChatGPT gagal memproses pesan.';for(let attempt=0;attempt<2;attempt++){const res=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(payload)}),raw=await res.json().catch(()=>({}));if(res.ok){const value=outputText(raw);if(!value)throw new Error('ChatGPT tidak mengembalikan data yang dapat diproses.');try{return JSON.parse(value)}catch{throw new Error('Respons ChatGPT tidak valid.')}}last=text(raw?.error?.message)||last;if(![429,500,502,503,504].includes(res.status))throw new Error(last);if(!attempt)await new Promise(r=>setTimeout(r,500));}throw new Error('ChatGPT sedang sibuk. Silakan kirim ulang beberapa saat lagi.');
 }
-function outputText(raw:any){
-  if(text(raw?.output_text))return text(raw.output_text);
-  for(const item of raw?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&text(part?.text))return text(part.text);
-  return'';
-}
-function inputAttachment(im:any,index:number){
-  if(!im?.base64||!im?.mimeType)return null;
-  const mime=text(im.mimeType).toLowerCase();
-  const raw=String(im.base64);
-  const dataUrl=raw.startsWith('data:')?raw:`data:${mime};base64,${raw}`;
-  if(mime==='application/pdf')return{type:'input_file',filename:`chattrx-${index+1}.pdf`,file_data:dataUrl};
-  return{type:'input_image',image_url:dataUrl,detail:'high'};
-}
-async function openai(prompt:string,images:any[]){
-  const key=Deno.env.get('OPENAI_API_KEY');if(!key)throw new Error('OPENAI_API_KEY belum dikonfigurasi pada Supabase Edge Function.');
-  const model=Deno.env.get('OPENAI_MODEL')||'gpt-5.6-terra';
-  const content:any[]=[{type:'input_text',text:prompt}];
-  for(let i=0;i<(images||[]).length;i++){const attachment=inputAttachment(images[i],i);if(attachment)content.push(attachment)}
-  const verificationObject={type:'object',additionalProperties:false,properties:{valid:{type:'boolean'},score:{type:'number'},reason:{type:'string'},nominal_terbaca:{type:['number','null']},tanggal_terbaca:{type:['string','null']},item_terbaca:{type:['string','null']}},required:['valid','score','reason','nominal_terbaca','tanggal_terbaca','item_terbaca']};
-  const schema={type:'object',additionalProperties:false,properties:{reply:{type:'string'},data:{type:'object',additionalProperties:false,properties:{jenis_transaksi:{type:['string','null']},kategori:{type:['string','null']},nama_item:{type:['string','null']},keterangan:{type:['string','null']},nominal:{type:['number','null']},status_pembayaran:{type:['string','null']},detail_confirmed:{type:['boolean','null']}},required:['jenis_transaksi','kategori','nama_item','keterangan','nominal','status_pembayaran','detail_confirmed']},image_type:{type:['string','null']},verification:{anyOf:[verificationObject,{type:'null'}]}},required:['reply','data','image_type','verification']};
-  const payload={model,store:false,reasoning:{effort:'low'},input:[{role:'system',content:[{type:'input_text',text:SYSTEM}]},{role:'user',content}],text:{format:{type:'json_schema',name:'chattrx_transaction_extraction',strict:true,schema}},max_output_tokens:1200};
-  let lastError='ChatGPT gagal memproses pesan.';
-  for(let attempt=0;attempt<2;attempt++){
-    const r=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    const raw=await r.json().catch(()=>({}));
-    if(r.ok){const value=outputText(raw);if(!value)throw new Error('ChatGPT tidak mengembalikan data yang dapat diproses.');try{return JSON.parse(value)}catch{throw new Error('Respons ChatGPT tidak valid.')}}
-    lastError=text(raw?.error?.message)||lastError;
-    if(![429,500,502,503,504].includes(r.status))throw new Error(lastError);
-    if(attempt===0)await new Promise(resolve=>setTimeout(resolve,500));
-  }
-  throw new Error('ChatGPT sedang sibuk. Silakan kirim ulang pesan beberapa saat lagi.');
-}
-async function storeImages(c:any,draftId:string,images:any[]){const out=[];for(let i=0;i<(images||[]).length;i++){const im=images[i];if(!im?.base64)continue;const ext=im.mimeType==='image/png'?'png':im.mimeType==='image/webp'?'webp':im.mimeType==='application/pdf'?'pdf':'jpg';const path=`${c.id}/${draftId}/${crypto.randomUUID()}.${ext}`;const bytes=Uint8Array.from(atob(String(im.base64).replace(/^data:[^,]+,/,'')),x=>x.charCodeAt(0));const u=await sb.storage.from('chattrx-evidence').upload(path,bytes,{contentType:im.mimeType,upsert:false});if(u.error)throw u.error;out.push(path)}return out}
+async function storeFiles(c:any,draftId:string,images:any[]){const paths:string[]=[];for(const im of images){const mime=norm(im.mimeType),ext=mime==='image/png'?'png':mime==='image/webp'?'webp':mime==='application/pdf'?'pdf':'jpg',path=`${c.id}/${draftId}/${crypto.randomUUID()}.${ext}`,bytes=Uint8Array.from(atob(String(im.base64).replace(/^data:[^,]+,/,'')),x=>x.charCodeAt(0)),up=await sb.storage.from('chattrx-evidence').upload(path,bytes,{contentType:mime,upsert:false});if(up.error)throw up.error;paths.push(path)}return paths;}
+function verification(reviews:any[],paths:string[],kinds:string[]){const files=reviews.map((x:any,i:number)=>({...x,path:paths[i]||null})).filter((x:any)=>x.path&&kinds.includes(x.kind));return{valid:files.some((x:any)=>x.valid===true),reason:files.map((x:any)=>x.reason).filter(Boolean).join(' | ')||'Tidak ada lampiran yang cocok.',files};}
+
 Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({error:'Method tidak didukung.'},405);try{
-  const c=await getCaller(req),raw=await req.json(),body=Array.isArray(raw?.parameters)?raw.parameters[0]||{}:raw;let draft:any=null;
-  if(body.draftId){let q:any=sb.from('CHATTRX_DRAFT').select('*').eq('draft_id',text(body.draftId)).maybeSingle();const r=await applyRoleFilter(q,c);if(r.error)throw r.error;draft=r.data;if(!draft)throw new Error('Draft tidak ditemukan atau akses ditolak.');}
-  if(!draft&&body.resume===true){const r=await sb.from('CHATTRX_DRAFT').select('*').eq('user_id',c.id).eq('status','in_progress').order('updated_at',{ascending:false}).limit(1).maybeSingle();if(r.error)throw r.error;draft=r.data}
-  if(!draft){const r=await sb.from('CHATTRX_DRAFT').insert({user_id:c.id,sppg:c.sppg,yayasan:c.yayasan}).select('*').single();if(r.error)throw r.error;draft=r.data}
-  let cq:any=sb.from('CHATTRX_KATEGORI').select('nama_kategori,jumlah_pemakaian').order('jumlah_pemakaian',{ascending:false}).limit(8);const cr=await applyRoleFilter(cq,c,{owner:'',sppg:'sppg',yayasan:'yayasan'});if(cr.error)throw cr.error;
-  if(!text(body.message)&&!(body.images||[]).length){const state=nextState(draft);return json({result:{success:true,draftId:draft.draft_id,state,reply:stateReply(state,draft),chips:chips(state,cr.data||[]),data:draft}})}
-  const paths=await storeImages(c,draft.draft_id,body.images||[]);const ai=await openai(`State saat ini: ${draft.current_state}. Data draft: ${JSON.stringify(draft)}. Pesan user: ${text(body.message)||'(lampiran saja)'}. ${paths.length?'Analisis lampiran sebagai nota atau bukti pembayaran sesuai state.':''}`,body.images||[]);
-  const patch:any={};for(const f of FIELDS)if(ai.data?.[f]!==null&&ai.data?.[f]!==undefined&&text(ai.data[f])){const value=normalizedField(f,ai.data[f]);if(value!==''&&value!==null)patch[f]=value;}
-  if(ai.data?.detail_confirmed===true||(draft.current_state==='konfirmasi_detail'&&/^(ya|iya|sip|oke|ok|benar|sesuai)\b/i.test(text(body.message))))patch.detail_confirmed=true;
-  if(paths.length){const kind=ai.image_type==='payment'||draft.current_state==='bukti_bayar'?'payment':'nota';if(kind==='nota'){patch.foto_nota_url=paths[0];patch.verifikasi_nota=ai.verification||{valid:false,reason:'Foto belum dapat diverifikasi.'};if(paths[1]){patch.foto_bukti_bayar_url=paths[1];patch.verifikasi_bukti_bayar=ai.verification||{valid:false,reason:'Bukti pembayaran belum dapat diverifikasi.'}}}else{patch.foto_bukti_bayar_url=paths[0];patch.verifikasi_bukti_bayar=ai.verification||{valid:false,reason:'Foto belum dapat diverifikasi.'}}}
-  if(!paths.length&&draft.current_state==='bukti_bayar'&&draft.foto_nota_url&&/nota.*sama|foto.*(atas|sama)|pakai.*(nota|foto)/i.test(text(body.message))){patch.foto_bukti_bayar_url=draft.foto_nota_url;patch.verifikasi_bukti_bayar=draft.verifikasi_nota}
-  const merged={...draft,...patch};patch.current_state=nextState(merged);const reply=stateReply(patch.current_state,merged);patch.chat_history=[...(Array.isArray(draft.chat_history)?draft.chat_history:[]),{at:new Date().toISOString(),role:'user',text:text(body.message),attachments:paths},{at:new Date().toISOString(),role:'assistant',text:reply,state:patch.current_state}];patch.updated_at=new Date().toISOString();
-  const u=await sb.from('CHATTRX_DRAFT').update(patch).eq('draft_id',draft.draft_id).eq('user_id',draft.user_id).select('*').single();if(u.error)throw u.error;
-  if(patch.kategori)await sb.from('CHATTRX_KATEGORI').upsert({nama_kategori:patch.kategori,jenis_transaksi:patch.jenis_transaksi||u.data.jenis_transaksi||'keduanya',sppg:u.data.sppg,yayasan:u.data.yayasan},{onConflict:'nama_kategori,jenis_transaksi,sppg,yayasan'});
-  return json({result:{success:true,draftId:draft.draft_id,state:patch.current_state,reply,chips:chips(patch.current_state,cr.data||[]),data:u.data}})
-}catch(e){return handlerError(e)}});
+  const caller=await getCaller(req),raw=await req.json(),body=Array.isArray(raw?.parameters)?raw.parameters[0]||{}:raw;let draft:any=null;
+  if(body.draftId){let q:any=sb.from('CHATTRX_DRAFT').select('*').eq('draft_id',text(body.draftId)).maybeSingle();const found=await applyRoleFilter(q,caller);if(found.error)throw found.error;draft=found.data;if(!draft)throw new Error('Draft tidak ditemukan atau akses ditolak.');}
+  if(!draft&&body.resume===true){const found=await sb.from('CHATTRX_DRAFT').select('*').eq('user_id',caller.id).eq('status','in_progress').order('updated_at',{ascending:false}).limit(1).maybeSingle();if(found.error)throw found.error;draft=found.data;}
+  if(!draft){const made=await sb.from('CHATTRX_DRAFT').insert({user_id:caller.id,sppg:caller.sppg,yayasan:caller.yayasan}).select('*').single();if(made.error)throw made.error;draft=made.data;}
+  let cq:any=sb.from('CHATTRX_KATEGORI').select('nama_kategori,jumlah_pemakaian').order('jumlah_pemakaian',{ascending:false}).limit(50);const categories=await applyRoleFilter(cq,caller,{owner:'',sppg:'sppg',yayasan:'yayasan'});if(categories.error)throw categories.error;
+  const images=(body.images||[]).filter((x:any)=>x?.base64&&x?.mimeType);if(!text(body.message)&&!images.length){const state=nextState(draft);return json({result:{success:true,draftId:draft.draft_id,state,reply:fallbackReply(state,draft),chips:chips(state,categories.data||[]),data:draft}});}
+  const paths=await storeFiles(caller,draft.draft_id,images),context={current_state:draft.current_state,draft:{jenis_transaksi:draft.jenis_transaksi,kategori:draft.kategori,nama_item:draft.nama_item,keterangan:draft.keterangan,nominal:draft.nominal,status_pembayaran:draft.status_pembayaran,detail_confirmed:draft.detail_confirmed},message:text(body.message)||'(hanya lampiran)',attachments:images.map((x:any,i:number)=>({index:i,name:text(x.name)||`lampiran-${i+1}`,mime_type:text(x.mimeType)}))},ai=await askOpenAI(`Konteks giliran:\n${JSON.stringify(context)}`,images);
+  if(!Array.isArray(ai.attachment_reviews)||ai.attachment_reviews.length!==images.length||ai.attachment_reviews.some((x:any,i:number)=>x.index!==i))throw new Error('ChatGPT belum berhasil mereview setiap lampiran. Silakan kirim ulang.');
+  const patch:any={},replace=ai.intent==='correct';for(const field of FIELDS){const incoming=ai.data?.[field];if(incoming===null||incoming===undefined||!text(incoming))continue;const value=normalizedField(field,incoming);if(value===''||value===null||(field==='nominal'&&!Number.isFinite(value)))continue;if(!draft[field]||replace||norm(draft[field])===norm(value))patch[field]=value;}
+  if(patch.kategori)patch.jenis_transaksi=categoryType(patch.kategori);if(ai.data?.detail_confirmed===true&&['confirm','correct'].includes(ai.intent))patch.detail_confirmed=true;if(replace&&Object.keys(patch).some(k=>FIELDS.includes(k as any)))patch.detail_confirmed=ai.data?.detail_confirmed===true;
+  if(paths.length){const note=verification(ai.attachment_reviews,paths,['nota','both']),pay=verification(ai.attachment_reviews,paths,['payment','both']),ni=ai.attachment_reviews.findIndex((x:any)=>['nota','both'].includes(x.kind)&&x.valid),pi=ai.attachment_reviews.findIndex((x:any)=>['payment','both'].includes(x.kind)&&x.valid);if(note.files.length){patch.verifikasi_nota=note;if(ni>=0)patch.foto_nota_url=paths[ni];}if(pay.files.length){patch.verifikasi_bukti_bayar=pay;if(pi>=0)patch.foto_bukti_bayar_url=paths[pi];}}
+  if(!paths.length&&draft.current_state==='bukti_bayar'&&draft.foto_nota_url&&/nota.*sama|foto.*(atas|sama)|pakai.*(nota|foto)/i.test(text(body.message))){patch.foto_bukti_bayar_url=draft.foto_nota_url;patch.verifikasi_bukti_bayar=draft.verifikasi_nota;}
+  const merged={...draft,...patch};patch.current_state=nextState(merged);const reply=text(ai.reply)||fallbackReply(patch.current_state,merged),reviews=ai.attachment_reviews.map((x:any,i:number)=>({...x,path:paths[i]||null}));patch.chat_history=[...(Array.isArray(draft.chat_history)?draft.chat_history:[]),{at:new Date().toISOString(),role:'user',text:text(body.message),attachments:paths},{at:new Date().toISOString(),role:'assistant',text:reply,state:patch.current_state,missing_fields:ai.missing_fields||[],conflicts:ai.conflicts||[],attachment_reviews:reviews}];patch.updated_at=new Date().toISOString();
+  const updated=await sb.from('CHATTRX_DRAFT').update(patch).eq('draft_id',draft.draft_id).eq('user_id',draft.user_id).select('*').single();if(updated.error)throw updated.error;if(patch.kategori)await sb.from('CHATTRX_KATEGORI').upsert({nama_kategori:patch.kategori,jenis_transaksi:patch.jenis_transaksi||updated.data.jenis_transaksi,sppg:updated.data.sppg,yayasan:updated.data.yayasan},{onConflict:'nama_kategori,jenis_transaksi,sppg,yayasan'});
+  return json({result:{success:true,draftId:draft.draft_id,state:patch.current_state,reply,chips:chips(patch.current_state,categories.data||[]),data:updated.data,review:{missingFields:ai.missing_fields||[],conflicts:ai.conflicts||[],attachments:reviews}}});
+}catch(e){return handlerError(e);}});
