@@ -86,6 +86,28 @@ for (const file of maintainedJavaScript) {
   }
 }
 
+const chatTrxMessagePath = path.join(ROOT, 'supabase', 'functions', 'chattrx-message-action', 'index.ts');
+const chatTrxConfirmPath = path.join(ROOT, 'supabase', 'functions', 'chattrx-confirm-action', 'index.ts');
+if (fs.existsSync(chatTrxMessagePath) && fs.existsSync(chatTrxConfirmPath)) {
+  const messageSource = fs.readFileSync(chatTrxMessagePath, 'utf8');
+  const confirmSource = fs.readFileSync(chatTrxConfirmPath, 'utf8');
+  if (!messageSource.includes("d.kategori==='Gaji/Upah Karyawan'&&!d.penerima")) {
+    errors.push('ChatTrx harus meminta penerima untuk transaksi gaji.');
+  }
+  if (!messageSource.includes('function requiresReceipt')) {
+    errors.push('ChatTrx harus menentukan kewajiban nota berdasarkan kategori.');
+  }
+  if (/from\(['"]TRANSAKSI['"]\)/.test(messageSource + confirmSource)) {
+    errors.push('ChatTrx tidak boleh membaca atau menulis tabel TRANSAKSI utama.');
+  }
+  if (!confirmSource.includes("from('CHATTRX_TRANSAKSI').upsert")) {
+    errors.push('Konfirmasi ChatTrx harus menyimpan ke CHATTRX_TRANSAKSI.');
+  }
+  if (/TTD konfirmasi wajib|ttdBase64/.test(confirmSource)) {
+    errors.push('Konfirmasi ChatTrx tidak boleh mewajibkan TTD.');
+  }
+}
+
 // Validate the sequential dynamic loader against the filesystem so stale hotfix
 // references cannot silently generate a 404 on every page load.
 const loaderPath = path.join(ROOT, 'supplier-dropdown.js');
