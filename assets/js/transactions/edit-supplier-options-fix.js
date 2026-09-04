@@ -120,6 +120,13 @@
       return choices('edit');
     });
   }
+  function refreshEditModal() {
+    refreshEdit(true).finally(function () {
+      if (typeof window.refreshEditTransactionForm === 'function') {
+        window.refreshEditTransactionForm();
+      }
+    });
+  }
   function findSupplierModal() {
     var candidates = Array.prototype.slice.call(document.querySelectorAll('[id^="modal"],.modal'));
     return candidates.find(function (node) {
@@ -169,7 +176,7 @@
       var original = window.openModal;
       window.openModal = function (id) {
         var result = original.apply(this, arguments);
-        if (id === 'modalEditTransaksi') setTimeout(function () { refreshEdit(true); }, 0);
+        if (id === 'modalEditTransaksi') setTimeout(refreshEditModal, 0);
         return result;
       };
       window.openModal.__supplierOptionsFix = true;
