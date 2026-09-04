@@ -168,10 +168,15 @@
     selectOption(list, option);
   }
 
-  // Pointer/mouse/touch are captured before legacy onblur hides the list.
-  document.addEventListener('pointerdown', handleEarlySelection, true);
-  document.addEventListener('mousedown', handleEarlySelection, true);
-  document.addEventListener('touchstart', handleEarlySelection, { capture: true, passive: false });
+  // Use one early-selection path per browser. Registering pointerdown together
+  // with mousedown/touchstart makes modern browsers dispatch the same selection
+  // more than once and can duplicate input/change side effects.
+  if ('PointerEvent' in window) {
+    document.addEventListener('pointerdown', handleEarlySelection, true);
+  } else {
+    document.addEventListener('mousedown', handleEarlySelection, true);
+    document.addEventListener('touchstart', handleEarlySelection, { capture: true, passive: false });
+  }
 
   // Styling is limited strictly to actual Yayasan suggestion lists. No position,
   // width, display, disabled, or parent-layout properties are changed.
