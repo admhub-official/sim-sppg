@@ -1,11 +1,11 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-09-04T22:46:11.612Z.
+Generated automatically from `app.js` at 2026-09-04T22:58:28.321Z.
 
 ## Summary
 
 - Literal API calls found: **71**
-- Functions declared in `API_ROUTES`: **99**
+- Functions declared in `API_ROUTES`: **100**
 - Routed literal API calls: **71**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
@@ -124,6 +124,7 @@ Generated automatically from `app.js` at 2026-09-04T22:46:11.612Z.
 | `uploadDocument` | `document-action` |
 | `uploadSerahTerimaFile` | `master-action` |
 | `uploadSupplierFile` | `master-action` |
+| `useDocumentTemplate` | `document-action` |
 
 ## Guardrail
 
