@@ -3,9 +3,10 @@
 Implementasi aktif:
 
 - `transaction-category-supplier-rules.js` menangani daftar kategori dan validasi supplier.
-- `supplier-inline-create.js` menangani penyembunyian field rekening pada transaksi, opsi tambah supplier di dropdown, modal supplier, dan pemilihan otomatis setelah simpan.
-- `_worker.js` hanya memuat kedua runtime tersebut; tidak ada generator patch supplier yang berjalan setelah merge.
-- `sw.js` menggunakan network-first untuk JavaScript dan memasukkan kedua runtime ke app shell.
+- `assets/js/supplier/app-dropdowns.js` menangani dropdown dan opsi tambah supplier.
+- `assets/js/transactions/edit-supplier-options-fix.js` menangani pilihan supplier pada form edit secara terpusat.
+- `supplier-dropdown.js` memuat modul supplier dan transaksi secara berurutan untuk menjaga kompatibilitas bundle lama.
+- `sw.js` menggunakan network-first untuk JavaScript dan hanya melakukan precache terhadap asset shell yang benar-benar tersedia.
 
 Komponen usang yang dihapus:
 

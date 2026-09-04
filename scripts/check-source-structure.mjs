@@ -141,6 +141,7 @@ if (fs.existsSync(chatTrxMessagePath) && fs.existsSync(chatTrxConfirmPath)) {
 const appSource = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
 const indexSource = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const authActionSource = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'auth-public-action', 'index.ts'), 'utf8');
+const serviceWorkerSource = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
 for (const match of indexSource.matchAll(/<script\b[^>]*\bsrc=["']\.\/([^"'?]+)(?:\?[^"']*)?["']/g)) {
   const scriptPath = path.join(ROOT, match[1].replace(/\//g, path.sep));
   if (!fs.existsSync(scriptPath)) errors.push(`index.html memuat script lokal yang tidak ada: ${match[1]}`);
@@ -157,6 +158,15 @@ const sidebarSource = fs.readFileSync(path.join(ROOT, 'sidebar-menu-structure.js
 if (sidebarSource.includes('registration-flow.js')) errors.push('Sidebar masih memuat modul registrasi yang sudah tidak tersedia.');
 if (sidebarSource.includes('auth-recovery.js')) errors.push('Sidebar tidak boleh memuat ulang modul recovery yang sudah dimuat index.html.');
 if (/recoverUsername|recoverToken/.test(appSource)) errors.push('Route recovery lama masih tertinggal di app.js.');
+const appShellMatch = serviceWorkerSource.match(/const APP_SHELL = \[([\s\S]*?)\];/);
+if (!appShellMatch) {
+  errors.push('Daftar APP_SHELL service worker tidak ditemukan.');
+} else {
+  for (const match of appShellMatch[1].matchAll(/['"]\.\/([^'"]+)['"]/g)) {
+    const assetPath = path.join(ROOT, match[1].replace(/\//g, path.sep));
+    if (!fs.existsSync(assetPath)) errors.push(`Service worker melakukan precache file yang tidak ada: ${match[1]}`);
+  }
+}
 
 // Transaction edit helpers must not independently wrap the same global modal
 // lifecycle. Multiple wrappers caused repeated refreshes and duplicate API/event
