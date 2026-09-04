@@ -9,9 +9,13 @@ on:
       - '_worker.js'
       - 'index.html'
       - 'supplier-dropdown.js'
+      - 'yayasan-dropdown-hotfix.js'
+      - 'transaction-category-supplier-rules.js'
       - 'assets/css/**'
       - 'assets/js/auth-recovery.js'
       - 'assets/js/turnstile-login.js'
+      - 'assets/js/supplier/**'
+      - 'assets/js/transactions/**'
       - 'scripts/check-source-structure.mjs'
       - '.github/workflows/frontend-quality-gate.yml'
   pull_request:
@@ -21,9 +25,13 @@ on:
       - '_worker.js'
       - 'index.html'
       - 'supplier-dropdown.js'
+      - 'yayasan-dropdown-hotfix.js'
+      - 'transaction-category-supplier-rules.js'
       - 'assets/css/**'
       - 'assets/js/auth-recovery.js'
       - 'assets/js/turnstile-login.js'
+      - 'assets/js/supplier/**'
+      - 'assets/js/transactions/**'
       - 'scripts/check-source-structure.mjs'
       - '.github/workflows/frontend-quality-gate.yml'
 
@@ -90,7 +98,11 @@ jobs:
             echo "::error::Dead auth recovery hotfix masih direferensikan."
             exit 1
           fi
-          grep -Fq "file: 'auth-recovery.js'" supplier-dropdown.js
+          if grep -Fq "file: 'auth-recovery.js'" supplier-dropdown.js; then
+            echo "::error::auth-recovery.js tidak boleh dimuat ulang oleh dynamic supplier loader."
+            exit 1
+          fi
+          grep -Fq '<script src="./assets/js/auth-recovery.js' index.html
           grep -Fq '/assets/css/auth-modern.css' _worker.js
           grep -Fq '/assets/css/ui-modern.css' _worker.js
           grep -Fq './assets/css/auth-modern.css' sw.js
