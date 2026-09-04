@@ -794,6 +794,11 @@ body.dark-mode .modal-body .sppg-suggestions {
   .topbar-divider { display: none !important; }
   .content { padding-inline: 12px !important; }
   .topbar { padding-inline: 12px !important; }
+
+  .transaction-kpi-value {
+    font-size: clamp(13px, 4.2vw, 17px) !important;
+    letter-spacing: -.25px !important;
+  }
 }
 
 @media (max-width: 360px) {
