@@ -1,5 +1,5 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260905-document-center-v7';
+const version = '20260905-document-menu-v8';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
 

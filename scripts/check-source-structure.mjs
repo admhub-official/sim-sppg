@@ -160,12 +160,18 @@ if (sidebarSource.includes('registration-flow.js')) errors.push('Sidebar masih m
 if (sidebarSource.includes('auth-recovery.js')) errors.push('Sidebar tidak boleh memuat ulang modul recovery yang sudah dimuat index.html.');
 if (/recoverUsername|recoverToken/.test(appSource)) errors.push('Route recovery lama masih tertinggal di app.js.');
 const documentActionPath = path.join(ROOT, 'supabase', 'functions', 'document-action', 'index.ts');
+const settingsActionPath = path.join(ROOT, 'supabase', 'functions', 'settings-action', 'index.ts');
 const documentMigration = migrationFiles.find((file) => file.endsWith('add_document_center.sql'));
 if (!fs.existsSync(documentActionPath)) errors.push('Edge Function Pusat Dokumen belum tersedia.');
 if (!documentMigration) errors.push('Migration Pusat Dokumen belum tersedia.');
 if (!indexSource.includes('id="page-documents"') || !indexSource.includes('./assets/js/documents.js')) errors.push('UI Pusat Dokumen belum terpasang lengkap.');
 if (!indexSource.includes('G-FSK0RC1L24')) errors.push('Google Analytics SIM-SPPG belum terpasang.');
 if (!appSource.includes("'document-action'")) errors.push('Route API Pusat Dokumen belum terdaftar.');
+if (fs.existsSync(settingsActionPath)) {
+  const settingsActionSource = fs.readFileSync(settingsActionPath, 'utf8');
+  if (!settingsActionSource.includes("['dashboard', 'profil', 'documents'")) errors.push('Pusat Dokumen harus tetap tampil meskipun konfigurasi menu lama belum memuatnya.');
+  if (!settingsActionSource.includes("'laporan', 'documents'")) errors.push('Pusat Dokumen harus diizinkan oleh validasi pengaturan menu.');
+}
 if (fs.existsSync(documentActionPath)) {
   const documentActionSource = fs.readFileSync(documentActionPath, 'utf8');
   if (/from\(['"]TRANSAKSI['"]\)|chattrx-evidence|storage\.from\(['"]transaksi/i.test(documentActionSource)) {
