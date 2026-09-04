@@ -2,16 +2,14 @@
  * Network-first for navigation and JavaScript/CSS bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260904-ui-consolidation-v4';
+const CACHE_VERSION = 'sim-sppg-v20260904-runtime-cleanup-v5';
 const APP_SHELL = [
   './index.html',
   './app.js',
   './manifest.json',
   './assets/css/auth-modern.css',
   './assets/css/ui-modern.css',
-  './transaction-category-supplier-rules.js',
-  './supplier-inline-create.js',
-  './professional-report-v1.js'
+  './transaction-category-supplier-rules.js'
 ];
 
 self.addEventListener('install', (event) => {

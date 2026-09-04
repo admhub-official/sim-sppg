@@ -6,8 +6,8 @@ Sistem Informasi Manajemen SPPG berbasis frontend statis, Cloudflare Pages, dan 
 
 - `index.html` — markup aplikasi, komponen halaman/modal, dan CSS antarmuka.
 - `app.js` — logika utama aplikasi, state, integrasi API, validasi, dan navigasi.
-- `professional-report-v1.js` — satu-satunya pusat laporan aktif untuk PDF profesional, Excel multi-sheet, preview, dan print-friendly HTML.
-- `_worker.js` — penyusunan asset runtime Cloudflare Pages serta penonaktifan pusat laporan tabel mentah yang masih tertinggal pada bundle lama.
+- `assets/js/reports/` — modul ekspor dan ringkasan laporan yang melengkapi pusat laporan pada `app.js`.
+- `_worker.js` — penyajian asset runtime Cloudflare Pages, style modern, dan proteksi Turnstile login.
 - `sw.js` — service worker PWA dengan strategi network-first untuk navigasi dan JavaScript.
 - `manifest.json` — metadata instalasi PWA.
 
@@ -16,7 +16,7 @@ Frontend mengakses backend melalui Supabase Edge Functions modular sesuai hak ak
 ## Aturan pengembangan
 
 1. Jangan menduplikasi handler atau generator laporan global.
-2. Semua tindakan pada menu Laporan harus masuk melalui `professional-report-v1.js`.
+2. Jangan menambahkan runtime laporan baru yang menimpa handler global; perluas pusat laporan pada `app.js` atau modul terkait di `assets/js/reports/`.
 3. PDF harus dibuat langsung dengan jsPDF; mode PDF tidak boleh membuka raw HTML melalui `about:blank`.
 4. Kolom teknis seperti path file, UUID internal, token, dan data mentah tidak boleh menjadi kolom utama laporan bisnis.
 5. Setelah mengubah asset utama, naikkan versi cache pada `_worker.js` dan `sw.js`.

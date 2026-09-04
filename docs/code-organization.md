@@ -5,8 +5,8 @@ Dokumen ini menjadi panduan penempatan kode agar frontend dan backend tetap muda
 ## Frontend
 
 - `app.js`: bundle legacy utama. Jangan menambahkan fitur baru langsung ke file ini bila dapat dibuat sebagai modul terpisah.
-- `app-dropdowns.js`: komponen dropdown, autocomplete, dan combobox supplier.
-- `professional-report-v1.js`: generator laporan, print, dan export profesional.
+- `assets/js/supplier/app-dropdowns.js`: komponen dropdown, autocomplete, dan combobox supplier.
+- `assets/js/reports/`: modul ekspor, print, dan ringkasan laporan.
 - `transaction-category-supplier-rules.js`: aturan kategori transaksi dan supplier.
 - `_worker.js`: routing Cloudflare Worker/Pages.
 - `sw.js`: service worker dan cache PWA.

@@ -1490,8 +1490,8 @@ function checkSession() {
     }
     currentUser = session.user;
     sessionExpiry = session.expiry;
-    return true;
     try { window._supabaseToken = safeStorage('get', 'sppg_jwt') || ''; } catch(e) {}
+    return true;
   } catch(e) { return false; }
 }
 
