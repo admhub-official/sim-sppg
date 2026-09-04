@@ -123,7 +123,7 @@ var API_ROUTES = {
   'document-action': {
     listDocuments:1, createDocumentFolder:1, uploadDocument:1, createTextDocument:1,
     getDocumentUrl:1, renameDocumentItem:1, trashDocumentItem:1,
-    restoreDocumentItem:1, moveDocumentFile:1, toggleDocumentFavorite:1
+    restoreDocumentItem:1, moveDocumentFile:1, toggleDocumentFavorite:1, useDocumentTemplate:1
   },
   'approval-payment-action': {
     getTransactions:1, getTransactionDetail:1, approveTransaction:1,
@@ -229,7 +229,7 @@ var API_MUTATION_FUNCTIONS = {
   confirmChatTrx:1, updateMyTrx:1, deleteMyTrx:1,
   createDocumentFolder:1, uploadDocument:1, createTextDocument:1,
   renameDocumentItem:1, trashDocumentItem:1, restoreDocumentItem:1,
-  moveDocumentFile:1, toggleDocumentFavorite:1
+  moveDocumentFile:1, toggleDocumentFavorite:1, useDocumentTemplate:1
 };
 var apiReadCache = Object.create(null);
 var apiReadInFlight = Object.create(null);

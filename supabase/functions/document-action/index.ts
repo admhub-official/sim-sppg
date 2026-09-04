@@ -178,6 +178,8 @@ async function createFolder(caller: Caller, input: any) {
   const isTemplate = input?.isTemplate === true;
   if (isTemplate && !canManageTemplates(caller)) throw new Error('Hanya Admin yang dapat membuat folder template.');
   const parent = await assertFolder(caller, input?.parentId, scope);
+  if (parent && Boolean(parent.is_template) !== isTemplate) throw new Error('Folder biasa dan folder template tidak dapat dicampur.');
+  if (parent?.is_template && !text(parent.sppg) && caller.role !== 'SUPER_ADMIN') throw new Error('Template pusat hanya dapat diubah oleh Super Admin.');
   const name = safeName(input?.name, 'Folder Baru').slice(0, 120);
   const result = await sb.from('DOC_FOLDERS').insert({
     parent_id: parent?.id || null, name, sppg: isTemplate && caller.role === 'SUPER_ADMIN' && input?.global === true ? '' : scope!.sppg,
@@ -197,11 +199,24 @@ function decodeBase64(value: unknown) {
   return bytes;
 }
 
+async function folderStoresPersonalData(folder: any) {
+  let current = folder;
+  for (let depth = 0; current && depth < 20; depth += 1) {
+    if (/penerima\s+manfaat/i.test(text(current.name))) return true;
+    if (!current.parent_id) break;
+    const result = await sb.from('DOC_FOLDERS').select('id,parent_id,name').eq('id', current.parent_id).maybeSingle();
+    current = result.data;
+  }
+  return false;
+}
+
 async function saveFile(caller: Caller, input: any, sourceType: 'UPLOAD' | 'IN_APP') {
   const scope = await resolveScope(caller, input);
   const isTemplate = input?.isTemplate === true;
   if (isTemplate && !canManageTemplates(caller)) throw new Error('Hanya Admin yang dapat membuat template.');
   const folder = await assertFolder(caller, input?.folderId, scope);
+  if (folder && Boolean(folder.is_template) !== isTemplate) throw new Error('File biasa dan template harus disimpan pada lokasi yang sesuai.');
+  if (folder?.is_template && !text(folder.sppg) && caller.role !== 'SUPER_ADMIN') throw new Error('Template pusat hanya dapat diubah oleh Super Admin.');
   const name = safeName(input?.name, sourceType === 'IN_APP' ? 'Dokumen Baru.txt' : 'File');
   if (forbiddenName.test(name)) throw new Error('Jenis file ini tidak diizinkan demi keamanan.');
   const mime = text(input?.mimeType || (sourceType === 'IN_APP' ? 'text/plain' : 'application/octet-stream')).slice(0, 150);
@@ -216,7 +231,8 @@ async function saveFile(caller: Caller, input: any, sourceType: 'UPLOAD' | 'IN_A
   const storagePath = `${scopeKey}/${fileId}/${versionId}${extension}`;
   const upload = await sb.storage.from(BUCKET).upload(storagePath, bytes, { contentType: mime, cacheControl: '3600', upsert: false });
   if (upload.error) throw new Error(`Upload gagal: ${upload.error.message}`);
-  const classification = ['INTERNAL','SPPG_RESTRICTED','CONFIDENTIAL','PERSONAL_DATA'].includes(text(input?.classification)) ? text(input.classification) : 'INTERNAL';
+  const requestedClassification = ['INTERNAL','SPPG_RESTRICTED','CONFIDENTIAL','PERSONAL_DATA'].includes(text(input?.classification)) ? text(input.classification) : 'INTERNAL';
+  const classification = await folderStoresPersonalData(folder) ? 'PERSONAL_DATA' : requestedClassification;
   const inserted = await sb.from('DOC_FILES').insert({
     id: fileId, folder_id: folder?.id || null, name, storage_path: storagePath, mime_type: mime,
     size_bytes: bytes.byteLength, sppg: isTemplate && caller.role === 'SUPER_ADMIN' && input?.global === true ? '' : scope!.sppg,
@@ -282,6 +298,37 @@ async function toggleFavorite(caller: Caller, input: any) {
   return { success: true, favorite: !existing.data };
 }
 
+async function useTemplate(caller: Caller, input: any) {
+  const destinationScope = await resolveScope(caller, input);
+  const source = await sb.from('DOC_FILES').select('*').eq('id', text(input?.fileId)).eq('is_template', true).is('deleted_at', null).maybeSingle();
+  if (source.error || !source.data) throw new Error('Template tidak ditemukan.');
+  const template = source.data;
+  const isGlobal = !text(template.sppg) && !text(template.yayasan);
+  const isOwnScope = text(template.sppg) === destinationScope!.sppg && text(template.yayasan) === destinationScope!.yayasan;
+  if (!isGlobal && caller.role !== 'SUPER_ADMIN' && !isOwnScope) throw new Error('Akses template ditolak.');
+  const targetFolder = await assertFolder(caller, input?.targetFolderId, destinationScope);
+  if (targetFolder?.is_template) throw new Error('Salinan kerja harus disimpan di folder dokumen SPPG.');
+  const fileId = crypto.randomUUID();
+  const versionId = crypto.randomUUID();
+  const scopeKey = destinationScope!.sppg.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) || 'sppg';
+  const extension = (text(template.name).match(/\.[a-zA-Z0-9]{1,10}$/)?.[0] || '').toLowerCase();
+  const storagePath = `${scopeKey}/${fileId}/${versionId}${extension}`;
+  const copied = await sb.storage.from(BUCKET).copy(template.storage_path, storagePath);
+  if (copied.error) throw new Error(`Template gagal disalin: ${copied.error.message}`);
+  const inserted = await sb.from('DOC_FILES').insert({
+    id: fileId, folder_id: targetFolder?.id || null, name: safeName(input?.name, template.name), storage_path: storagePath,
+    mime_type: template.mime_type, size_bytes: template.size_bytes, sppg: destinationScope!.sppg, yayasan: destinationScope!.yayasan,
+    is_template: false, classification: await folderStoresPersonalData(targetFolder) ? 'PERSONAL_DATA' : template.classification,
+    source_type: template.source_type, created_by: caller.id, created_by_email: caller.email
+  }).select('*').single();
+  if (inserted.error) {
+    await sb.storage.from(BUCKET).remove([storagePath]);
+    throw new Error(inserted.error.message);
+  }
+  await audit(caller, 'COPY_TEMPLATE', 'FILE', inserted.data, { templateId: template.id });
+  return { success: true, file: inserted.data, message: 'Template disalin ke Dokumen SPPG dan siap digunakan.' };
+}
+
 const handlers: Record<string, (caller: Caller, input: any) => Promise<any>> = {
   listDocuments,
   createDocumentFolder: createFolder,
@@ -292,12 +339,13 @@ const handlers: Record<string, (caller: Caller, input: any) => Promise<any>> = {
   trashDocumentItem: (caller, input) => mutate(caller, 'TRASH', input),
   restoreDocumentItem: (caller, input) => mutate(caller, 'RESTORE', input),
   moveDocumentFile: (caller, input) => mutate(caller, 'MOVE', input),
-  toggleDocumentFavorite: toggleFavorite
+  toggleDocumentFavorite: toggleFavorite,
+  useDocumentTemplate: useTemplate
 };
 
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (request.method === 'GET') return json({ status: 'ok', service: 'document-action', version: 1 });
+  if (request.method === 'GET') return json({ status: 'ok', service: 'document-action', version: 2 });
   if (request.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
   try {
     const caller = await getCaller(request);
