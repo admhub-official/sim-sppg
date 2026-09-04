@@ -1847,7 +1847,7 @@ function renderSettingsMenuGrid() {
   if (!grid) return;
   var role = settingsHubState.selectedMenuRole;
   var selected = settingsHubState.menuVisibility[role] || [];
-  var required = role === 'SUPER_ADMIN' ? ['dashboard', 'profil', 'settings'] : ['dashboard', 'profil'];
+  var required = role === 'SUPER_ADMIN' ? ['dashboard', 'profil', 'documents', 'settings'] : ['dashboard', 'profil', 'documents'];
   grid.innerHTML = getSettingsMenuOptions(role).map(function(item) {
     var mandatory = required.indexOf(item.page) !== -1;
     var checked = mandatory || selected.indexOf(item.page) !== -1;

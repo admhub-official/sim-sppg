@@ -30,15 +30,15 @@ const MENU_KEYS: Record<string, string> = {
 };
 
 const DEFAULT_MENUS: Record<string, string[]> = {
-  SUPER_ADMIN: ['dashboard', 'profil', 'settings', 'transaksi', 'approval', 'pending-payment', 'audit-log', 'master-bahan', 'master-supplier', 'survei', 'serah-terima', 'menu-mbg', 'laporan'],
-  ADMIN: ['dashboard', 'profil', 'users', 'transaksi', 'approval', 'pending-payment', 'audit-log', 'master-bahan', 'master-supplier', 'survei', 'serah-terima', 'menu-mbg', 'laporan'],
-  USER: ['dashboard', 'profil', 'transaksi', 'approval', 'pending-payment', 'survei', 'serah-terima', 'master-supplier']
+  SUPER_ADMIN: ['dashboard', 'profil', 'documents', 'settings', 'transaksi', 'approval', 'pending-payment', 'audit-log', 'master-bahan', 'master-supplier', 'survei', 'serah-terima', 'menu-mbg', 'laporan'],
+  ADMIN: ['dashboard', 'profil', 'documents', 'users', 'transaksi', 'approval', 'pending-payment', 'audit-log', 'master-bahan', 'master-supplier', 'survei', 'serah-terima', 'menu-mbg', 'laporan'],
+  USER: ['dashboard', 'profil', 'documents', 'transaksi', 'approval', 'pending-payment', 'survei', 'serah-terima', 'master-supplier']
 };
 
 const ALLOWED_MENU_PAGES = new Set([
   'dashboard', 'profil', 'settings', 'users', 'transaksi', 'approval',
   'pending-payment', 'audit-log', 'master-bahan', 'master-supplier',
-  'survei', 'serah-terima', 'menu-mbg', 'laporan'
+  'survei', 'serah-terima', 'menu-mbg', 'laporan', 'documents'
 ]);
 
 async function caller(request: Request): Promise<Caller> {
@@ -92,8 +92,8 @@ async function menuForRole(role: string) {
   const raw = await readSetting(MENU_KEYS[normalized], JSON.stringify(DEFAULT_MENUS[normalized]));
   const menus = parseMenuValue(raw, normalized);
   const mandatory = normalized === 'SUPER_ADMIN'
-    ? ['dashboard', 'profil', 'settings']
-    : ['dashboard', 'profil'];
+    ? ['dashboard', 'profil', 'documents', 'settings']
+    : ['dashboard', 'profil', 'documents'];
   mandatory.forEach(page => {
     if (!menus.includes(page)) menus.unshift(page);
   });
@@ -149,8 +149,8 @@ async function updateMenuVisibility(current: Caller, data: Record<string, unknow
   const requested = Array.isArray(data.menus) ? data.menus.map(text) : [];
   const menus = [...new Set(requested.filter(page => ALLOWED_MENU_PAGES.has(page)))];
   const mandatory = role === 'SUPER_ADMIN'
-    ? ['dashboard', 'profil', 'settings']
-    : ['dashboard', 'profil'];
+    ? ['dashboard', 'profil', 'documents', 'settings']
+    : ['dashboard', 'profil', 'documents'];
   mandatory.forEach(page => {
     if (!menus.includes(page)) menus.unshift(page);
   });
