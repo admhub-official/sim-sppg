@@ -5,6 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>SIM-SPPG - Sistem Informasi Manajemen SPPG</title>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-FSK0RC1L24"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-FSK0RC1L24', { send_page_view: true });
+  </script>
 <!-- Font Awesome: versi SVG+JS — tidak butuh file font (.woff2), jadi tahan dari filter jaringan yang memblokir font -->
 <script defer src="https://use.fontawesome.com/releases/v6.4.0/js/all.js" crossorigin="anonymous"></script>
 
@@ -4963,6 +4971,43 @@
         </div>
       </div>
 
+      <!-- ==================== PUSAT DOKUMEN ==================== -->
+      <div id="page-documents" class="page-section hidden">
+        <div class="doc-center">
+          <aside class="doc-sidebar" aria-label="Navigasi dokumen">
+            <button class="doc-nav active" data-doc-view="files" onclick="openDocumentView('files',this)"><i class="fas fa-folder"></i><span>Dokumen SPPG</span></button>
+            <button class="doc-nav" data-doc-view="templates" onclick="openDocumentView('templates',this)"><i class="fas fa-file-circle-plus"></i><span>Template</span></button>
+            <button class="doc-nav" data-doc-view="recent" onclick="openDocumentView('recent',this)"><i class="fas fa-clock"></i><span>Terbaru</span></button>
+            <button class="doc-nav" data-doc-view="favorites" onclick="openDocumentView('favorites',this)"><i class="fas fa-star"></i><span>Favorit</span></button>
+            <button class="doc-nav" data-doc-view="trash" onclick="openDocumentView('trash',this)"><i class="fas fa-trash-alt"></i><span>Sampah</span></button>
+            <div class="doc-sipgn-note"><i class="fas fa-shield-alt"></i><span>Arsip kerja internal. Data resmi tetap mengacu pada SIPGN.</span></div>
+          </aside>
+          <main class="doc-main">
+            <header class="doc-toolbar">
+              <div>
+                <h2>Pusat Dokumen</h2>
+                <p id="docScopeCaption">Kelola file kerja SPPG secara aman.</p>
+              </div>
+              <div class="doc-toolbar-actions">
+                <select id="docScopeSelect" class="form-input hidden" aria-label="Pilih cakupan SPPG" onchange="changeDocumentScope(this.value)"></select>
+                <button class="btn btn-outline" onclick="openDocumentCreateMenu()"><i class="fas fa-plus"></i> Baru</button>
+                <button class="btn btn-primary" onclick="document.getElementById('docUploadInput').click()"><i class="fas fa-cloud-upload-alt"></i> Upload</button>
+                <input id="docUploadInput" type="file" multiple class="hidden" onchange="uploadDocumentFiles(this.files)">
+              </div>
+            </header>
+            <div class="doc-search-row">
+              <label class="doc-search"><i class="fas fa-search"></i><input id="docSearchInput" type="search" placeholder="Cari file atau folder..." onkeydown="if(event.key==='Enter')searchDocuments()"><button onclick="searchDocuments()">Cari</button></label>
+              <button class="doc-view-toggle" onclick="toggleDocumentLayout()" aria-label="Ubah tampilan"><i id="docLayoutIcon" class="fas fa-list"></i></button>
+            </div>
+            <nav id="docBreadcrumbs" class="doc-breadcrumbs" aria-label="Lokasi folder"></nav>
+            <div id="docUploadProgress" class="doc-upload-progress hidden" aria-live="polite"></div>
+            <div id="docLoading" class="doc-loading hidden"><i class="fas fa-spinner fa-spin"></i><span>Memuat dokumen...</span></div>
+            <div id="docItems" class="doc-items grid" aria-live="polite"></div>
+            <div id="docEmpty" class="doc-empty hidden"><i class="fas fa-folder-open"></i><h3>Belum ada dokumen</h3><p>Buat folder atau upload file untuk memulai.</p></div>
+          </main>
+        </div>
+      </div>
+
       <!-- ==================== SETTINGS HUB (SUPER_ADMIN) ==================== -->
       <div id="page-settings" class="page-section hidden">
         <div class="page-header">
@@ -7378,6 +7423,37 @@
   </div>
 </div>
 
+<div id="modalDocumentCreate" class="hidden" role="dialog" aria-modal="true" aria-labelledby="docCreateTitle">
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal('modalDocumentCreate')">
+    <div class="modal-box" style="max-width:460px;">
+      <div class="modal-header"><div><h3 id="docCreateTitle">Buat Baru</h3><p>Tambahkan folder atau dokumen sederhana.</p></div><button onclick="closeModal('modalDocumentCreate')" class="modal-close"><i class="fas fa-times"></i></button></div>
+      <div class="modal-body">
+        <div class="doc-create-choices">
+          <button onclick="showDocumentCreateForm('folder')"><i class="fas fa-folder-plus"></i><span>Folder</span></button>
+          <button onclick="showDocumentCreateForm('text')"><i class="fas fa-file-lines"></i><span>Dokumen</span></button>
+        </div>
+        <form id="docCreateForm" class="hidden" onsubmit="event.preventDefault();submitDocumentCreate()">
+          <input type="hidden" id="docCreateType" value="folder">
+          <label class="form-label" for="docCreateName">Nama</label>
+          <input id="docCreateName" class="form-input" maxlength="240" required>
+          <div id="docTextContentWrap" class="form-group hidden" style="margin-top:14px;"><label class="form-label" for="docTextContent">Isi dokumen</label><textarea id="docTextContent" class="form-input" rows="8" maxlength="1000000" placeholder="Tulis catatan, notulen, atau isi surat..."></textarea></div>
+          <label id="docTemplateOption" class="doc-checkbox hidden"><input type="checkbox" id="docCreateTemplate"> Jadikan template</label>
+          <div class="modal-footer" style="padding-left:0;padding-right:0;padding-bottom:0;"><button type="button" class="btn btn-outline" onclick="closeModal('modalDocumentCreate')">Batal</button><button type="submit" class="btn btn-primary" id="docCreateSubmit">Simpan</button></div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modalDocumentPreview" class="hidden" role="dialog" aria-modal="true" aria-labelledby="docPreviewTitle">
+  <div class="modal-overlay" onclick="if(event.target===this)closeDocumentPreview()">
+    <div class="modal-box doc-preview-box">
+      <div class="modal-header"><div><h3 id="docPreviewTitle">Preview Dokumen</h3><p id="docPreviewMeta"></p></div><div class="doc-preview-actions"><button class="btn btn-outline btn-sm" onclick="downloadCurrentDocument()"><i class="fas fa-download"></i> Unduh</button><button onclick="closeDocumentPreview()" class="modal-close"><i class="fas fa-times"></i></button></div></div>
+      <div id="docPreviewBody" class="doc-preview-body"></div>
+    </div>
+  </div>
+</div>
+
 <script src="./app.js?v=20260811-mytrx-v2"></script>
 <script src="./assets/js/auth-recovery.js?v=20260904-email-only-v3"></script>
 <script src="./yayasan-dropdown-hotfix.js?v=20260811-mytrx-v2"></script>
@@ -7385,7 +7461,9 @@
 <script src="./sidebar-menu-structure.js?v=20260811-mytrx-v2"></script>
 <script src="./assets/js/chattrx.js?v=20260904-v9"></script>
 <script src="./assets/js/mytrx.js?v=20260904-v3"></script>
+<script src="./assets/js/documents.js?v=20260905-v1"></script>
 <link rel="stylesheet" href="./assets/css/chattrx.css?v=20260904-v7">
+<link rel="stylesheet" href="./assets/css/documents.css?v=20260905-v1">
 <script src="./supplier-dropdown.js?v=20260730-in-app-v1"></script>
 </body>
 </html>

@@ -63,6 +63,7 @@ const maintainedJavaScript = [
   'sidebar-menu-structure.js',
   'transaction-category-supplier-rules.js',
   'assets/js/auth-recovery.js',
+  'assets/js/documents.js',
   'assets/js/users/role-management.js',
   'assets/js/transactions/edit-supplier-options-fix.js',
   'assets/js/transactions/filter-and-edit-supplier.js',
@@ -158,6 +159,28 @@ const sidebarSource = fs.readFileSync(path.join(ROOT, 'sidebar-menu-structure.js
 if (sidebarSource.includes('registration-flow.js')) errors.push('Sidebar masih memuat modul registrasi yang sudah tidak tersedia.');
 if (sidebarSource.includes('auth-recovery.js')) errors.push('Sidebar tidak boleh memuat ulang modul recovery yang sudah dimuat index.html.');
 if (/recoverUsername|recoverToken/.test(appSource)) errors.push('Route recovery lama masih tertinggal di app.js.');
+const documentActionPath = path.join(ROOT, 'supabase', 'functions', 'document-action', 'index.ts');
+const documentMigration = migrationFiles.find((file) => file.endsWith('add_document_center.sql'));
+if (!fs.existsSync(documentActionPath)) errors.push('Edge Function Pusat Dokumen belum tersedia.');
+if (!documentMigration) errors.push('Migration Pusat Dokumen belum tersedia.');
+if (!indexSource.includes('id="page-documents"') || !indexSource.includes('./assets/js/documents.js')) errors.push('UI Pusat Dokumen belum terpasang lengkap.');
+if (!indexSource.includes('G-FSK0RC1L24')) errors.push('Google Analytics SIM-SPPG belum terpasang.');
+if (!appSource.includes("'document-action'")) errors.push('Route API Pusat Dokumen belum terdaftar.');
+if (fs.existsSync(documentActionPath)) {
+  const documentActionSource = fs.readFileSync(documentActionPath, 'utf8');
+  if (/from\(['"]TRANSAKSI['"]\)|chattrx-evidence|storage\.from\(['"]transaksi/i.test(documentActionSource)) {
+    errors.push('Pusat Dokumen tidak boleh menyentuh tabel atau storage transaksi.');
+  }
+  if (!documentActionSource.includes("const BUCKET = 'sppg-documents'")) errors.push('Pusat Dokumen harus memakai bucket privat tersendiri.');
+  if (!documentActionSource.includes('createSignedUrl')) errors.push('Preview dokumen harus memakai URL sementara.');
+}
+if (documentMigration) {
+  const documentMigrationSource = fs.readFileSync(documentMigration, 'utf8');
+  if (!documentMigrationSource.includes("values ('sppg-documents', 'sppg-documents', false")) errors.push('Bucket dokumen harus bersifat privat.');
+  for (const table of ['DOC_FOLDERS', 'DOC_FILES', 'DOC_FAVORITES', 'DOC_AUDIT_LOG']) {
+    if (!documentMigrationSource.includes(`alter table public."${table}" enable row level security`)) errors.push(`RLS ${table} belum diaktifkan.`);
+  }
+}
 const appShellMatch = serviceWorkerSource.match(/const APP_SHELL = \[([\s\S]*?)\];/);
 if (!appShellMatch) {
   errors.push('Daftar APP_SHELL service worker tidak ditemukan.');

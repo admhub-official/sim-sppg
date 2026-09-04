@@ -120,6 +120,11 @@ var API_ROUTES = {
   'chattrx-suggest-action': { getChatTrxSuggestions:1 },
   'chattrx-confirm-action': { confirmChatTrx:1 },
   'chattrx-records-action': { listMyTrx:1, updateMyTrx:1, deleteMyTrx:1 },
+  'document-action': {
+    listDocuments:1, createDocumentFolder:1, uploadDocument:1, createTextDocument:1,
+    getDocumentUrl:1, renameDocumentItem:1, trashDocumentItem:1,
+    restoreDocumentItem:1, moveDocumentFile:1, toggleDocumentFavorite:1
+  },
   'approval-payment-action': {
     getTransactions:1, getTransactionDetail:1, approveTransaction:1,
     submitUserBuktiPembayaran:1, submitUserBulkBuktiPembayaran:1,
@@ -199,7 +204,7 @@ var API_READ_CACHE_TTL = {
   getRekapHarian:15000, getFilterOptions:30000, getAuditLog:10000,
   getNotifications:5000, getUploadBuktiMode:30000,
   getTransactionEditMode:30000, getMyMenuVisibility:30000,
-  getMyAnnouncements:30000, getSettingsHub:15000, listMyTrx:10000
+  getMyAnnouncements:30000, getSettingsHub:15000, listMyTrx:10000, listDocuments:10000
 };
 // Only successful writes invalidate cached reads. Read endpoints that are not
 // cached (for example getTransactionDetail/getFileUrl) must not evict list and
@@ -221,7 +226,10 @@ var API_MUTATION_FUNCTIONS = {
   createUserBySuperAdmin:1,
   recoverPassword:1, updateFeatureSettings:1, updateMenuVisibility:1,
   createAnnouncement:1, setAnnouncementActive:1, dispatchNotification:1,
-  confirmChatTrx:1, updateMyTrx:1, deleteMyTrx:1
+  confirmChatTrx:1, updateMyTrx:1, deleteMyTrx:1,
+  createDocumentFolder:1, uploadDocument:1, createTextDocument:1,
+  renameDocumentItem:1, trashDocumentItem:1, restoreDocumentItem:1,
+  moveDocumentFile:1, toggleDocumentFavorite:1
 };
 var apiReadCache = Object.create(null);
 var apiReadInFlight = Object.create(null);
@@ -292,7 +300,7 @@ function callApi(fnName, params, onSuccess, onFailure) {
   }
 
   var requestUrl = API_BASE_URL + slug;
-  var TIMEOUT_MS = fnName === 'uploadTxFile' ? 60000 : 20000;
+  var TIMEOUT_MS = fnName === 'uploadTxFile' || fnName === 'uploadDocument' ? 60000 : 20000;
   var MAX_RETRY = 2;
 
   function doFetch(attempt) {
@@ -1973,6 +1981,7 @@ var MENU_CONFIG = {
   SUPER_ADMIN: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'documents', label: 'Pusat Dokumen', icon: 'fa-folder-open' },
     { label: 'MENU UTAMA', isHeader: true },
     { page: 'settings', label: 'Pengaturan', icon: 'fa-sliders-h' },
     { page: 'add-user', label: 'Tambah User', icon: 'fa-user-plus' },
@@ -1996,6 +2005,7 @@ var MENU_CONFIG = {
   ADMIN: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'documents', label: 'Pusat Dokumen', icon: 'fa-folder-open' },
     { label: 'MENU UTAMA', isHeader: true },
     { page: 'users', label: 'Manajemen Users', icon: 'fa-users' },
     { page: 'transaksi', label: 'Semua Transaksi', icon: 'fa-exchange-alt' },
@@ -2017,6 +2027,7 @@ var MENU_CONFIG = {
   ],
   AKUNTAN: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
+    { page: 'documents', label: 'Pusat Dokumen', icon: 'fa-folder-open' },
     { label: 'DATA MASTER', isHeader: true },
     { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
     { page: 'master-supplier', label: 'Data Supplier', icon: 'fa-truck' },
@@ -2031,6 +2042,7 @@ var MENU_CONFIG = {
   LAPANGAN: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'documents', label: 'Pusat Dokumen', icon: 'fa-folder-open' },
     { label: 'MENU UTAMA', isHeader: true },
     { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt' },
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
@@ -2045,6 +2057,7 @@ var MENU_CONFIG = {
 PIC: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'documents', label: 'Pusat Dokumen', icon: 'fa-folder-open' },
     { label: 'MENU UTAMA', isHeader: true },
     { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt' },
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
@@ -2061,6 +2074,7 @@ PIC: [
   WAKIL_LAPANGAN: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'documents', label: 'Pusat Dokumen', icon: 'fa-folder-open' },
     { page: 'serah-terima', label: 'Serah Terima', icon: 'fa-dolly' },
     { label: 'AKUN', isHeader: true },
     { action: 'logout', label: 'Keluar', icon: 'fa-sign-out-alt' }
@@ -2068,6 +2082,7 @@ PIC: [
   AHLI_GIZI: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'documents', label: 'Pusat Dokumen', icon: 'fa-folder-open' },
     { page: 'menu-mbg', label: 'Data Menu MBG', icon: 'fa-utensils' },
     { label: 'DATA MASTER', isHeader: true },
     { page: 'master-bahan', label: 'Master Bahan Baku', icon: 'fa-boxes' },
@@ -2077,6 +2092,7 @@ PIC: [
   USER: [
     { page: 'dashboard', label: 'Dashboard', icon: 'fa-th-large' },
     { page: 'profil', label: 'Profil', icon: 'fa-user-circle' },
+    { page: 'documents', label: 'Pusat Dokumen', icon: 'fa-folder-open' },
     { label: 'AKTIVITAS SAYA', isHeader: true },
     { page: 'transaksi', label: 'Transaksi Saya', icon: 'fa-exchange-alt' },
     { page: 'approval', label: 'Approval', icon: 'fa-clipboard-check', badge: 'approvalCount' },
@@ -2493,9 +2509,16 @@ function switchPage(page, el) {
     'master-supplier': 'Data Supplier', 'survei': 'Survei Harga',
     'serah-terima': 'Serah Terima', 'menu-mbg': 'Data Menu MBG',
     'audit-log': 'Riwayat Aktivitas', 'admin-assignment': 'Konfigurasi Admin',
-    'settings': 'Pengaturan', 'add-user': 'Tambah User'
+    'settings': 'Pengaturan', 'add-user': 'Tambah User', 'documents': 'Pusat Dokumen'
   };
   $('pageTitle').textContent = titles[page] || 'Dashboard';
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', 'page_view', {
+      page_title: titles[page] || 'Dashboard',
+      page_location: location.origin + location.pathname + '#' + page,
+      page_path: location.pathname + '#' + page
+    });
+  }
   // R4: Update breadcrumb
   updateBreadcrumb(page, titles[page] || 'Dashboard');
   // R7: Deteksi apakah halaman termasuk menu "Lainnya" di bottom nav
@@ -2510,6 +2533,7 @@ function switchPage(page, el) {
   if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(undefined, undefined, true); restoreFilterBarState('txFilterBar'); }
   if (page === 'chattrx' && window.initChatTrx) window.initChatTrx();
   if (page === 'mytrx' && window.initMyTrx) window.initMyTrx();
+  if (page === 'documents' && window.initDocumentCenter) window.initDocumentCenter();
   if (page === 'approval') { loadFeatureModes(true); loadApprovalData(); restoreFilterBarState('apprFilterBar'); }
   if (page === 'users') { restoreFilterBarState('usersFilterBar'); }
   if (page === 'master-bahan') { loadMasterBB(undefined, undefined, true); restoreFilterBarState('bbFilterBar'); }

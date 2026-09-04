@@ -49,6 +49,7 @@ jobs:
             assets/js/reports/approval-print-all-pages.js
             assets/js/reports/transaction-export-category.js
             transaction-category-supplier-rules.js
+            assets/js/documents.js
             _worker.js
             sw.js
           )
