@@ -4940,13 +4940,13 @@
       <!-- ==================== CHATTRX (ADMIN / SUPER_ADMIN) ==================== -->
       <div id="page-chattrx" class="page-section hidden">
         <div class="chattrx-shell">
-          <div class="chattrx-head"><div><strong><i class="fas fa-comments-dollar"></i> ChatTrx</strong><small>Asisten pencatatan transaksi</small></div><button class="btn btn-outline btn-sm" onclick="resetChatTrx()"><i class="fas fa-plus"></i> Baru</button></div>
-          <div id="chattrxMessages" class="chattrx-messages" aria-live="polite"></div>
+          <div class="chattrx-head"><div class="chattrx-brand"><span class="chattrx-brand-icon"><i class="fas fa-comments-dollar"></i></span><div><strong>ChatTransaksi</strong><small>Asisten pencatatan keuangan</small></div></div><button class="btn btn-outline btn-sm" onclick="resetChatTrx()"><i class="fas fa-plus"></i> Transaksi Baru</button></div>
+          <div id="chattrxMessages" class="chattrx-messages" aria-live="polite"><div id="chattrxWelcome" class="chattrx-welcome"><div class="chattrx-welcome-icon"><i class="fas fa-receipt"></i></div><h3>Catat transaksi dengan lebih mudah</h3><p>Kirim foto bukti transfer, nota, atau PDF. Tambahkan keterangan singkat bila perlu—AI akan membaca dan menyiapkan pencatatannya.</p><div class="chattrx-welcome-actions"><button type="button" onclick="document.getElementById('chattrxFiles').click()"><i class="fas fa-camera"></i> Kirim bukti</button><button type="button" onclick="document.getElementById('chattrxInput').focus()"><i class="fas fa-keyboard"></i> Tulis transaksi</button></div></div></div>
           <div id="chattrxTyping" class="chattrx-typing hidden"><span></span><span></span><span></span> AI sedang memproses...</div>
           <div id="chattrxChips" class="chattrx-chips"></div>
           <div id="chattrxPreview" class="chattrx-preview"></div>
           <div id="chattrxSummary" class="chattrx-summary hidden"></div>
-          <div class="chattrx-compose"><label class="chattrx-attach" title="Lampirkan nota/bukti"><i class="fas fa-paperclip"></i><input id="chattrxFiles" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple onchange="previewChatTrxFiles(this.files)"></label><textarea id="chattrxInput" rows="1" placeholder="Tulis transaksi Anda..." onkeydown="chatTrxKeydown(event)"></textarea><button onclick="sendChatTrx()" aria-label="Kirim"><i class="fas fa-paper-plane"></i></button></div>
+          <div class="chattrx-compose"><label class="chattrx-attach" title="Lampirkan foto atau PDF"><i class="fas fa-paperclip"></i><input id="chattrxFiles" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple onchange="previewChatTrxFiles(this.files)"></label><textarea id="chattrxInput" rows="1" aria-label="Pesan transaksi" placeholder="Contoh: gaji bulan Agustus..." onkeydown="chatTrxKeydown(event)"></textarea><button onclick="sendChatTrx()" aria-label="Kirim transaksi"><i class="fas fa-arrow-up"></i></button></div>
         </div>
       </div>
 
@@ -4954,10 +4954,11 @@
       <div id="page-mytrx" class="page-section hidden">
         <div class="mytrx-page">
           <div class="mytrx-toolbar">
-            <div><h2><i class="fas fa-list-alt"></i> MyTrx</h2><p>Riwayat transaksi yang berhasil ditambahkan melalui ChatTrx.</p></div>
-            <div class="mytrx-filters"><select id="mytrxJenis" onchange="loadMyTrx(1)"><option value="">Semua jenis</option><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select><input id="mytrxSearch" type="search" placeholder="Cari kategori, item, keterangan..." onkeydown="if(event.key==='Enter')loadMyTrx(1)"><button class="btn btn-primary" onclick="loadMyTrx(1)"><i class="fas fa-search"></i> Cari</button></div>
+            <div><h2>MyTrx</h2><p>Riwayat pencatatan yang dikonfirmasi melalui ChatTransaksi.</p></div>
+            <div class="mytrx-filters"><select id="mytrxJenis" onchange="loadMyTrx(1)"><option value="">Semua jenis</option><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select><input id="mytrxSearch" type="search" placeholder="Cari transaksi atau penerima..." onkeydown="if(event.key==='Enter')loadMyTrx(1)"><button class="btn btn-primary" onclick="loadMyTrx(1)"><i class="fas fa-search"></i> Cari</button></div>
           </div>
-          <div class="mytrx-table-wrap"><table class="mytrx-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Item / Keterangan</th><th>Nominal</th><th>Pembayaran</th><th>Bukti</th><th>Aksi</th></tr></thead><tbody id="mytrxRows"></tbody></table><div id="mytrxEmpty" class="mytrx-empty hidden"><i class="fas fa-inbox"></i><p>Belum ada transaksi ChatTrx.</p></div></div>
+          <div class="mytrx-stats"><div class="mytrx-stat"><span>Transaksi ditampilkan</span><strong id="mytrxStatCount">0</strong></div><div class="mytrx-stat in"><span>Total pemasukan</span><strong id="mytrxStatIn">Rp0</strong></div><div class="mytrx-stat out"><span>Total pengeluaran</span><strong id="mytrxStatOut">Rp0</strong></div></div>
+          <div class="mytrx-table-wrap"><table class="mytrx-table"><thead><tr><th>Tanggal</th><th>Transaksi</th><th>Kategori</th><th>Nominal</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="mytrxRows"></tbody></table><div id="mytrxEmpty" class="mytrx-empty hidden"><i class="fas fa-inbox"></i><p>Belum ada transaksi yang tersimpan.</p><small>Mulai pencatatan melalui menu ChatTransaksi.</small></div></div>
           <div id="mytrxPager" class="mytrx-pager"></div>
         </div>
       </div>
@@ -7352,7 +7353,7 @@
   <div class="modal-overlay" onclick="if(event.target===this)closeModal('modalMyTrxEdit')">
     <div class="modal-box">
       <div class="modal-header"><div><h3 id="mytrxEditTitle"><i class="fas fa-edit"></i> Edit MyTrx</h3><p>Perbarui data transaksi yang dicatat ChatTrx.</p></div><button onclick="closeModal('modalMyTrxEdit')" class="modal-close"><i class="fas fa-times"></i></button></div>
-      <div class="modal-body"><form id="mytrxEditForm" class="mytrx-form" onsubmit="event.preventDefault();saveMyTrxEdit()"><input id="mytrxEditId" type="hidden"><label>Jenis transaksi<select id="mytrxEditJenis" required><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select></label><label>Kategori<input id="mytrxEditKategori" required></label><label>Nama item<input id="mytrxEditItem" required></label><label>Keterangan<textarea id="mytrxEditKeterangan" rows="3"></textarea></label><label>Nominal<input id="mytrxEditNominal" type="number" min="1" step="1" required></label><label>Status pembayaran<select id="mytrxEditStatus" required><option value="sudah_dibayar">Sudah Dibayar/Lunas</option><option value="belum_dibayar">Belum Dibayar</option></select></label></form></div>
+      <div class="modal-body"><form id="mytrxEditForm" class="mytrx-form" onsubmit="event.preventDefault();saveMyTrxEdit()"><input id="mytrxEditId" type="hidden"><label>Jenis transaksi<select id="mytrxEditJenis" required><option value="pemasukan">Pemasukan</option><option value="pengeluaran">Pengeluaran</option></select></label><label>Kategori<input id="mytrxEditKategori" required></label><label>Nama item<input id="mytrxEditItem" required></label><label>Penerima<input id="mytrxEditPenerima" placeholder="Opsional"></label><label>Tanggal transaksi<input id="mytrxEditTanggal" type="datetime-local" required></label><label>Nominal<input id="mytrxEditNominal" type="number" min="1" step="1" required></label><label>Status pembayaran<select id="mytrxEditStatus" required><option value="sudah_dibayar">Sudah Dibayar/Lunas</option><option value="belum_dibayar">Belum Dibayar</option></select></label><label class="wide">Keterangan<textarea id="mytrxEditKeterangan" rows="3"></textarea></label></form></div>
       <div class="modal-footer"><button onclick="closeModal('modalMyTrxEdit')" class="btn btn-outline">Batal</button><button onclick="saveMyTrxEdit()" class="btn btn-primary" id="mytrxSaveBtn"><i class="fas fa-save"></i> Simpan</button></div>
     </div>
   </div>
@@ -7362,9 +7363,9 @@
 <script src="./yayasan-dropdown-hotfix.js?v=20260811-mytrx-v2"></script>
 <script src="./transaction-category-supplier-rules.js?v=20260811-mytrx-v2"></script>
 <script src="./sidebar-menu-structure.js?v=20260811-mytrx-v2"></script>
-<script src="./assets/js/chattrx.js?v=20260904-v6"></script>
-<script src="./assets/js/mytrx.js?v=20260904-v2"></script>
-<link rel="stylesheet" href="./assets/css/chattrx.css?v=20260811-v4">
+<script src="./assets/js/chattrx.js?v=20260904-v7"></script>
+<script src="./assets/js/mytrx.js?v=20260904-v3"></script>
+<link rel="stylesheet" href="./assets/css/chattrx.css?v=20260904-v5">
 <script src="./supplier-dropdown.js?v=20260730-in-app-v1"></script>
 </body>
 </html>

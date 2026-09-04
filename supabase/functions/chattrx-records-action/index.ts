@@ -15,7 +15,7 @@ Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{head
   if(fn==='listMyTrx'){
     const page=Math.max(1,Number(p.page)||1),limit=Math.min(100,Math.max(10,Number(p.limit)||25)),from=(page-1)*limit;
     let q:any=sb.from('CHATTRX_TRANSAKSI').select(COLUMNS,{count:'exact'}).order('created_at',{ascending:false}).range(from,from+limit-1);
-    if(text(p.search)){const s=text(p.search).replaceAll(',',' ');q=q.or(`kategori.ilike.%${s}%,nama_item.ilike.%${s}%,keterangan.ilike.%${s}%`)}
+    if(text(p.search)){const s=text(p.search).replaceAll(',',' ');q=q.or(`kategori.ilike.%${s}%,nama_item.ilike.%${s}%,keterangan.ilike.%${s}%,penerima.ilike.%${s}%`)}
     if(['pemasukan','pengeluaran'].includes(text(p.jenis)))q=q.eq('jenis_transaksi',text(p.jenis));
     const r=await applyRoleFilter(q,c,scope);if(r.error)throw r.error;
     return json({result:{data:r.data||[],count:r.count||0,page,limit}});
@@ -26,7 +26,8 @@ Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{head
     if(!['pemasukan','pengeluaran'].includes(jenis))throw new Error('Jenis transaksi tidak valid.');
     if(!['sudah_dibayar','belum_dibayar'].includes(status))throw new Error('Status pembayaran tidak valid.');
     if(!Number.isFinite(nominal)||nominal<=0)throw new Error('Nominal harus lebih dari 0.');
-    const patch={jenis_transaksi:jenis,kategori:text(p.kategori),nama_item:text(p.nama_item),keterangan:text(p.keterangan),nominal,status_pembayaran:status,updated_at:new Date().toISOString()};
+    const tanggal=new Date(text(p.tanggal_transaksi));if(Number.isNaN(tanggal.getTime()))throw new Error('Tanggal transaksi tidak valid.');
+    const patch={jenis_transaksi:jenis,kategori:text(p.kategori),nama_item:text(p.nama_item),penerima:text(p.penerima)||null,tanggal_transaksi:tanggal.toISOString(),keterangan:text(p.keterangan),nominal,status_pembayaran:status,updated_at:new Date().toISOString()};
     if(!patch.kategori||!patch.nama_item)throw new Error('Kategori dan item wajib diisi.');
     const u=await sb.from('CHATTRX_TRANSAKSI').update(patch).eq('transaksi_id',id);if(u.error)throw u.error;
     if(current.draft_id){const d=await sb.from('CHATTRX_DRAFT').update({...patch,updated_at:new Date().toISOString()}).eq('draft_id',current.draft_id);if(d.error)throw d.error}
