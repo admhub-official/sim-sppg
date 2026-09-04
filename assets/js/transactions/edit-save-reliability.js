@@ -46,6 +46,15 @@
       ? '<i class="fas fa-circle-notch fa-spin"></i> Menyimpan...'
       : '<i class="fas fa-save"></i> Simpan Perubahan';
   }
+  function supplierRequired(jenisKategori) {
+    var rules = window.SIM_SPPG_TRANSACTION_CATEGORY_RULES;
+    if (rules && typeof rules.supplierRequired === 'function') {
+      return rules.supplierRequired(jenisKategori);
+    }
+    // Preserve the legacy conservative behavior only if the canonical rule
+    // module has not loaded for some reason.
+    return true;
+  }
 
   window.saveEditTransaksi = async function () {
     var button = document.querySelector('#modalEditTransaksi .modal-footer .btn-primary');
@@ -74,8 +83,8 @@
       fields['Nama Bank Supplier'] = value('editTxSupplierBank');
       fields['No Rekening Supplier'] = value('editTxSupplierAccount');
       fields['Atas Nama Rekening Supplier'] = value('editTxSupplierAccountHolder');
-      if (!fields['Nama Supplier']) {
-        window.showToast('error', 'Supplier Wajib', 'Pilih supplier atau isi nama penjual manual.');
+      if (supplierRequired(fields['Jenis Kategori']) && !fields['Nama Supplier']) {
+        window.showToast('error', 'Supplier Wajib', 'Pilih supplier dari Data Supplier untuk jenis kategori ini.');
         return;
       }
     }
