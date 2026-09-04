@@ -1,5 +1,5 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260904-runtime-cleanup-v5';
+const version = '20260905-document-center-v6';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
 
@@ -13,8 +13,10 @@ const NO_CACHE_SUFFIXES = [
   '/reset-password.html',
   '/assets/css/auth-modern.css',
   '/assets/css/ui-modern.css',
+  '/assets/css/documents.css',
   '/assets/js/auth-recovery.js',
   '/assets/js/turnstile-login.js',
+  '/assets/js/documents.js',
   '/supplier-dropdown.js',
   '/yayasan-dropdown-hotfix.js',
   '/transaction-category-supplier-rules.js',
