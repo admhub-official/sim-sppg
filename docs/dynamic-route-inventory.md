@@ -1,11 +1,11 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-09-04T16:42:24.585Z.
+Generated automatically from `app.js` at 2026-09-04T22:46:11.612Z.
 
 ## Summary
 
 - Literal API calls found: **71**
-- Functions declared in `API_ROUTES`: **89**
+- Functions declared in `API_ROUTES`: **99**
 - Routed literal API calls: **71**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
@@ -98,20 +98,30 @@ Generated automatically from `app.js` at 2026-09-04T16:42:24.585Z.
 |---|---|
 | `checkSession` | `auth-public-action` |
 | `confirmChatTrx` | `chattrx-confirm-action` |
+| `createDocumentFolder` | `document-action` |
+| `createTextDocument` | `document-action` |
 | `deleteMyTrx` | `chattrx-records-action` |
 | `deletePushSubscription` | `push-action` |
 | `dispatchNotification` | `notification-dispatch-action` |
 | `getAppConfig` | `app-config-action` |
 | `getChatTrxSuggestions` | `chattrx-suggest-action` |
+| `getDocumentUrl` | `document-action` |
 | `getFilterOptions` | `reporting-action` |
 | `getRekapHarian` | `reporting-action` |
+| `listDocuments` | `document-action` |
 | `listMyTrx` | `chattrx-records-action` |
+| `moveDocumentFile` | `document-action` |
 | `recoverPassword` | `account-recovery-action` |
 | `refreshSession` | `auth-public-action` |
+| `renameDocumentItem` | `document-action` |
+| `restoreDocumentItem` | `document-action` |
 | `sendCatatanApproval` | `transaction-action` |
 | `sendChatTrxMessage` | `chattrx-message-action` |
 | `showCredentials` | `file-access-action` |
+| `toggleDocumentFavorite` | `document-action` |
+| `trashDocumentItem` | `document-action` |
 | `updateMyTrx` | `chattrx-records-action` |
+| `uploadDocument` | `document-action` |
 | `uploadSerahTerimaFile` | `master-action` |
 | `uploadSupplierFile` | `master-action` |
 
