@@ -1,6 +1,6 @@
 import {CORS,json,text,sb,getCaller,applyRoleFilter,handlerError} from '../_shared/chattrx.ts';
 
-const COLUMNS='transaksi_id,draft_id,jenis_transaksi,kategori,nama_item,keterangan,nominal,status_pembayaran,foto_nota_url,foto_bukti_bayar_url,verifikasi_nota,verifikasi_bukti_bayar,created_at,updated_at';
+const COLUMNS='transaksi_id,draft_id,jenis_transaksi,kategori,nama_item,keterangan,nominal,status_pembayaran,tanggal_transaksi,penerima,foto_nota_url,foto_bukti_bayar_url,verifikasi_nota,verifikasi_bukti_bayar,created_at,updated_at';
 const scope={owner:'user_id',sppg:'sppg',yayasan:'yayasan'};
 
 async function findRecord(id:string,c:any){
