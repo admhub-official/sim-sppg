@@ -141,6 +141,10 @@ if (fs.existsSync(chatTrxMessagePath) && fs.existsSync(chatTrxConfirmPath)) {
 const appSource = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
 const indexSource = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const authActionSource = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'auth-public-action', 'index.ts'), 'utf8');
+for (const match of indexSource.matchAll(/<script\b[^>]*\bsrc=["']\.\/([^"'?]+)(?:\?[^"']*)?["']/g)) {
+  const scriptPath = path.join(ROOT, match[1].replace(/\//g, path.sep));
+  if (!fs.existsSync(scriptPath)) errors.push(`index.html memuat script lokal yang tidak ada: ${match[1]}`);
+}
 if (!appSource.includes('var IDLE_LOGOUT_MS = 30 * 60 * 1000')) errors.push('Batas idle frontend harus 30 menit.');
 if (!appSource.includes('var IDLE_WARNING_MS = 5 * 60 * 1000')) errors.push('Peringatan sesi harus muncul 5 menit sebelum logout.');
 if (!appSource.includes('var SESSION_ABSOLUTE_MAX_MS = 8 * 60 * 60 * 1000')) errors.push('Sesi harus memiliki batas absolut 8 jam.');
@@ -149,6 +153,10 @@ if (presenceSource.includes('resetIdleLogoutTimer')) errors.push('Heartbeat tida
 if (!indexSource.includes('id="modalSessionWarning"') || !indexSource.includes('id="sessionWarningCountdown"')) errors.push('UI peringatan sesi belum tersedia.');
 if (!authActionSource.includes("admin.auth.admin.signOut(token, scope)")) errors.push('Logout harus mencabut sesi Supabase di server.');
 if (!authActionSource.includes("fn === 'logoutSession'")) errors.push('Endpoint logoutSession belum tersedia.');
+const sidebarSource = fs.readFileSync(path.join(ROOT, 'sidebar-menu-structure.js'), 'utf8');
+if (sidebarSource.includes('registration-flow.js')) errors.push('Sidebar masih memuat modul registrasi yang sudah tidak tersedia.');
+if (sidebarSource.includes('auth-recovery.js')) errors.push('Sidebar tidak boleh memuat ulang modul recovery yang sudah dimuat index.html.');
+if (/recoverUsername|recoverToken/.test(appSource)) errors.push('Route recovery lama masih tertinggal di app.js.');
 
 // Validate the sequential dynamic loader against the filesystem so stale hotfix
 // references cannot silently generate a 404 on every page load.
@@ -160,7 +168,6 @@ if (fs.existsSync(loaderPath)) {
     REPORT_BASE: 'assets/js/reports',
     TRANSACTION_BASE: 'assets/js/transactions',
     USER_BASE: 'assets/js/users',
-    AUTH_BASE: 'assets/js',
   };
 
   for (const match of loaderSource.matchAll(/\{\s*base:\s*([A-Z_]+),\s*file:\s*'([^']+)'/g)) {
@@ -179,8 +186,8 @@ if (fs.existsSync(loaderPath)) {
   if (loaderSource.includes('auth-recovery-hotfix.js')) {
     errors.push('Dead reference auth-recovery-hotfix.js masih ada di supplier-dropdown.js.');
   }
-  if (!loaderSource.includes("file: 'auth-recovery.js'")) {
-    errors.push('Canonical auth-recovery.js belum dimuat oleh supplier-dropdown.js.');
+  if (!indexSource.includes('./assets/js/auth-recovery.js')) {
+    errors.push('Canonical auth-recovery.js belum dimuat langsung setelah app.js.');
   }
 }
 

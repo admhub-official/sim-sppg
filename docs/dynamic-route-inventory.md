@@ -1,11 +1,11 @@
 # Dynamic Action Route Inventory
 
-Generated automatically from `app.js` at 2026-09-04T12:21:31.755Z.
+Generated automatically from `app.js` at 2026-09-04T12:31:17.685Z.
 
 ## Summary
 
 - Literal API calls found: **71**
-- Functions declared in `API_ROUTES`: **91**
+- Functions declared in `API_ROUTES`: **89**
 - Routed literal API calls: **71**
 - Unmapped literal API calls: **0**
 - Legacy `dynamic-action` fallback: **0**
@@ -107,8 +107,6 @@ Generated automatically from `app.js` at 2026-09-04T12:21:31.755Z.
 | `getRekapHarian` | `reporting-action` |
 | `listMyTrx` | `chattrx-records-action` |
 | `recoverPassword` | `account-recovery-action` |
-| `recoverToken` | `account-recovery-action` |
-| `recoverUsername` | `account-recovery-action` |
 | `refreshSession` | `auth-public-action` |
 | `sendCatatanApproval` | `transaction-action` |
 | `sendChatTrxMessage` | `chattrx-message-action` |

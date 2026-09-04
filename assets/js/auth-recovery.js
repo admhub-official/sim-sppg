@@ -7,37 +7,11 @@
 
   var PRODUCTION_ORIGIN = 'https://sim-sppg.pages.dev';
 
-  function cleanLegacyRoutes() {
-    try {
-      if (window.API_ROUTES && window.API_ROUTES['account-recovery-action']) {
-        delete window.API_ROUTES['account-recovery-action'].recoverUsername;
-        delete window.API_ROUTES['account-recovery-action'].recoverToken;
-      }
-      if (window.PUBLIC_FN) {
-        delete window.PUBLIC_FN.recoverUsername;
-        delete window.PUBLIC_FN.recoverToken;
-      }
-      if (window.API_ROUTE_BY_FUNCTION) {
-        delete window.API_ROUTE_BY_FUNCTION.recoverUsername;
-        delete window.API_ROUTE_BY_FUNCTION.recoverToken;
-      }
-    } catch (_) {}
-  }
-
-  function removeLegacyLinks() {
-    document.querySelectorAll('a,button').forEach(function (node) {
-      var text = String(node.textContent || '').trim().toLowerCase();
-      var onclick = String(node.getAttribute('onclick') || '').toLowerCase();
-      if (text.indexOf('lupa username') !== -1 || onclick.indexOf("showrecoverymodal('username')") !== -1) node.remove();
-    });
-  }
-
   function resetRedirect() {
     return PRODUCTION_ORIGIN + '/reset-password.html';
   }
 
   window.showRecoveryModal = function () {
-    cleanLegacyRoutes();
     var title = document.getElementById('recoveryTitle');
     var body = document.getElementById('recoveryBody');
     var btn = document.getElementById('btnRecoverySubmit');
@@ -73,7 +47,6 @@
   };
 
   window.submitRecovery = function () {
-    cleanLegacyRoutes();
     var errorEl = document.getElementById('recoveryError');
     var btn = document.getElementById('btnRecoverySubmit');
     var input = document.getElementById('recEmail');
@@ -119,12 +92,4 @@
     });
   };
 
-  cleanLegacyRoutes();
-  removeLegacyLinks();
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      cleanLegacyRoutes();
-      removeLegacyLinks();
-    }, { once: true });
-  }
 })();

@@ -153,7 +153,7 @@ var API_ROUTES = {
   'geocode-action': { geocodeAlamat:1 },
   'register-user-v2': { createUserBySuperAdmin:1 },
   'auth-public-action': { loginUser:1, refreshSession:1, checkSession:1, logoutSession:1 },
-  'account-recovery-action': { recoverPassword:1, recoverUsername:1, recoverToken:1 },
+  'account-recovery-action': { recoverPassword:1 },
   'app-config-action': { getAppConfig:1, getDropdownOptions:1 },
   'notification-dispatch-action': { dispatchNotification:1 },
   'settings-action': {
@@ -163,8 +163,8 @@ var API_ROUTES = {
   }
 };
 var PUBLIC_FN = {
-  loginUser:1, refreshSession:1, checkSession:1, recoverPassword:1, recoverUsername:1,
-  recoverToken:1, getAppConfig:1, getDropdownOptions:1, getPushPublicKey:1
+  loginUser:1, refreshSession:1, checkSession:1, recoverPassword:1,
+  getAppConfig:1, getDropdownOptions:1, getPushPublicKey:1
 };
 var API_ROUTE_BY_FUNCTION = {};
 Object.keys(API_ROUTES).forEach(function(slug) {
@@ -343,7 +343,9 @@ function callApi(fnName, params, onSuccess, onFailure) {
 // ============================================================
 // 1. STATE MANAGEMENT
 // ============================================================
-var SESSION_DURATION = 30 * 60 * 1000; // 30 menit tanpa aktivitas
+var IDLE_LOGOUT_MS = 30 * 60 * 1000;
+var IDLE_WARNING_MS = 5 * 60 * 1000;
+var SESSION_ABSOLUTE_MAX_MS = 8 * 60 * 60 * 1000;
 var ITEMS_PER_PAGE = 15;
 var CFG_SPPG_FALLBACK = ['DARMARAJA','CIAMIS','TANJUNG MEDAR','PAKUALAM','KIRISIK','CIBUNAR','CINTA JAYA'];
 
@@ -1534,9 +1536,6 @@ function executeLogout(isAutoLogout, scope) {
 // 4b. AUTO LOGOUT KARENA TIDAK ADA AKTIVITAS (IDLE)
 // ============================================================
 // Hanya interaksi manusia yang memperpanjang sesi; heartbeat, polling, dan refresh token tidak.
-var IDLE_LOGOUT_MS = 30 * 60 * 1000;
-var IDLE_WARNING_MS = 5 * 60 * 1000;
-var SESSION_ABSOLUTE_MAX_MS = 8 * 60 * 60 * 1000;
 var _idleLogoutTimer = null;
 var _idleWarningTimer = null;
 var _idleCountdownTimer = null;
@@ -8711,91 +8710,6 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
 
 
 // ============================================================
-// RECOVERY (LUPA PASSWORD / USERNAME / TOKEN)
-// ============================================================
-var currentRecoveryType = '';
-
-function showRecoveryModal(type) {
-  currentRecoveryType = type;
-  var title = '';
-  var html = '';
-
-  if (type === 'password') {
-    title = 'Lupa Kata Sandi';
-    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan username Anda. Link reset kata sandi akan dikirim ke email yang terdaftar.</p>' +
-      '<div class="form-group"><label class="form-label">Username <span class="req">*</span></label><input type="text" id="recUsername" class="form-input" placeholder="Username"></div>';
-  } else if (type === 'username') {
-    title = 'Lupa Username';
-    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Masukkan email terdaftar Anda. Username dan link reset kata sandi akan dikirim ke email tersebut.</p>' +
-      '<div class="form-group"><label class="form-label">Email <span class="req">*</span></label><input type="email" id="recEmail" class="form-input" placeholder="...@gmail.com"></div>';
-  } else if (type === 'token') {
-    title = 'Fitur Tidak Tersedia';
-    html = '<p style="font-size:13px;color:var(--slate-500);margin-bottom:16px;">Fitur token login sudah tidak digunakan pada sistem saat ini. Silakan gunakan menu "Lupa Password" untuk reset kata sandi via email.</p>';
-  }
-
-  document.getElementById('recoveryTitle').textContent = title;
-  document.getElementById('recoveryBody').innerHTML = html + '<div id="recoveryError" class="form-error" style="margin-top:10px;"><i class="fas fa-exclamation-circle"></i><span></span></div>';
-  var submitBtn = document.getElementById('btnRecoverySubmit');
-  if (submitBtn) submitBtn.style.display = (type === 'token') ? 'none' : '';
-  openModal('modalRecovery');
-}
-
-function submitRecovery() {
-  var errorEl = $('recoveryError');
-  errorEl.classList.remove('show');
-
-  // "token" mode sudah tidak fungsional di backend — tombol Verifikasi disembunyikan untuk mode ini.
-  if (currentRecoveryType === 'token') {
-    return;
-  }
-
-  var btn = $('btnRecoverySubmit');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Memverifikasi...';
-
-  var data = {};
-
-  if (currentRecoveryType === 'password') {
-    data = { username: $('recUsername').value.trim() };
-    if (!data.username) {
-      errorEl.querySelector('span').textContent = 'Username wajib diisi.';
-      errorEl.classList.add('show');
-      btn.disabled = false; btn.innerHTML = 'Verifikasi';
-      return;
-    }
-  } else if (currentRecoveryType === 'username') {
-    data = { email: $('recEmail').value.trim() };
-    if (!data.email) {
-      errorEl.querySelector('span').textContent = 'Email wajib diisi.';
-      errorEl.classList.add('show');
-      btn.disabled = false; btn.innerHTML = 'Verifikasi';
-      return;
-    }
-  }
-
-  var backendFn = currentRecoveryType === 'password' ? 'recoverPassword' : 'recoverUsername';
-
-    callApi(backendFn, [data], function(result) {
-        btn.disabled = false;
-              btn.innerHTML = 'Verifikasi';
-              if (result.success) {
-                closeModal('modalRecovery');
-                showToast('success', 'Berhasil', result.message || 'Silakan cek email Anda.');
-              } else {
-                errorEl.querySelector('span').textContent = result.message || 'Verifikasi gagal.';
-                errorEl.classList.add('show');
-              }
-      },
-      function(err) {
-        btn.disabled = false;
-              btn.innerHTML = 'Verifikasi';
-              errorEl.querySelector('span').textContent = 'Terjadi kesalahan sistem.';
-              errorEl.classList.add('show');
-      }
-    );
-}
-
-// ============================================================
 // MOBILE UX: Swipe Sidebar, Back Button Android, iframe Resize
 // ============================================================
 (function() {
@@ -9651,8 +9565,7 @@ if (dashboardObserverTarget) {
     sessionKey: 'sppg_session',
     clockSkewMs: 60 * 1000,
     refreshLeadMs: 5 * 60 * 1000,
-    idleTimeoutMs: 30 * 60 * 1000,
-    absoluteTimeoutMs: 8 * 60 * 60 * 1000,
+    idleTimeoutMs: IDLE_LOGOUT_MS,
     sessionCheckMs: 30 * 1000,
     logoUrl: 'https://dmjsgtichrfxhyywstrt.supabase.co/storage/v1/object/public/app-assets/logo.png'
   };
@@ -9662,8 +9575,6 @@ if (dashboardObserverTarget) {
     refreshSession: 1,
     checkSession: 1,
     recoverPassword: 1,
-    recoverUsername: 1,
-    recoverToken: 1,
     getAppConfig: 1,
     getDropdownOptions: 1,
     getPushPublicKey: 1
