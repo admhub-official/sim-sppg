@@ -173,6 +173,8 @@ if (fs.existsSync(documentActionPath)) {
   }
   if (!documentActionSource.includes("const BUCKET = 'sppg-documents'")) errors.push('Pusat Dokumen harus memakai bucket privat tersendiri.');
   if (!documentActionSource.includes('createSignedUrl')) errors.push('Preview dokumen harus memakai URL sementara.');
+  if (!documentActionSource.includes('useDocumentTemplate')) errors.push('Template harus dapat disalin menjadi dokumen kerja tanpa mengubah file asli.');
+  if (!documentActionSource.includes("'PERSONAL_DATA' : requestedClassification")) errors.push('Folder Penerima Manfaat harus otomatis diklasifikasikan sebagai Data Pribadi.');
 }
 if (documentMigration) {
   const documentMigrationSource = fs.readFileSync(documentMigration, 'utf8');
