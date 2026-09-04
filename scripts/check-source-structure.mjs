@@ -97,6 +97,15 @@ if (fs.existsSync(chatTrxMessagePath) && fs.existsSync(chatTrxConfirmPath)) {
   if (!messageSource.includes('function requiresReceipt')) {
     errors.push('ChatTrx harus menentukan kewajiban nota berdasarkan kategori.');
   }
+  if (!messageSource.includes('function wantsEvidenceReuse')) {
+    errors.push('ChatTrx harus mendukung penggunaan satu dokumen sebagai nota dan bukti sesuai instruksi pengguna.');
+  }
+  if (!messageSource.includes('staleEvidenceRequest')) {
+    errors.push('Balasan ChatTrx harus diselaraskan dengan status akhir bukti pada draft.');
+  }
+  if (!messageSource.includes("note.valid||draft.verifikasi_nota?.valid!==true")) {
+    errors.push('Lampiran baru yang tidak valid tidak boleh menimpa nota lama yang sudah valid.');
+  }
   if (/from\(['"]TRANSAKSI['"]\)/.test(messageSource + confirmSource)) {
     errors.push('ChatTrx tidak boleh membaca atau menulis tabel TRANSAKSI utama.');
   }
