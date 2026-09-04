@@ -25,7 +25,4 @@
   var scheduled=false;function schedule(force){if(scheduled)return;scheduled=true;requestAnimationFrame(function(){scheduled=false;organize(!!force)})}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){schedule(true)},{once:true});else schedule(true);window.addEventListener('load',function(){schedule(false)},{once:true});setTimeout(function(){schedule(false)},700);
   observer=new MutationObserver(function(mutations){if(organizing)return;var relevant=mutations.some(function(m){if(m.type==='attributes')return m.target&&m.target.matches&&m.target.matches('.menu-item,[data-page]');return Array.from(m.addedNodes||[]).some(function(node){return node.nodeType===1&&node.matches&&(node.matches('.menu-item,[data-page]')||node.querySelector('.menu-item,[data-page]'))})});if(relevant)schedule(false)});observer.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden']});
-  function load(id,src){if(document.getElementById(id))return;var s=document.createElement('script');s.id=id;s.src=src;s.defer=false;document.head.appendChild(s)}
-  load('simSppgRegistrationFlow','./assets/js/registration-flow.js?v=20260819');
-  var recoveryScriptId='simSppgAuthRecoveryScript';if(!document.getElementById(recoveryScriptId)){var recoveryScript=document.createElement('script');recoveryScript.id=recoveryScriptId;recoveryScript.src='./assets/js/auth-recovery.js?v=20260819';recoveryScript.defer=false;document.head.appendChild(recoveryScript)}
 })();

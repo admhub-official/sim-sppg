@@ -22,8 +22,8 @@ for(const slug of ['auth-public-action','account-recovery-action','app-config-ac
   assert(res.ok,`checkSession failed: ${res.status}`);
 }
 {
-  const {res}=await request('account-recovery-action',{function:'recoverToken',parameters:[{}]});
-  assert(res.ok,`recoverToken compatibility check failed: ${res.status}`);
+  const {res}=await request('account-recovery-action',{function:'recoverPassword',parameters:[{email:''}]});
+  assert(res.ok,`recoverPassword compatibility check failed: ${res.status}`);
 }
 {
   const {res,json}=await request('app-config-action',{function:'getAppConfig',parameters:[]});
