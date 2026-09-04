@@ -115,6 +115,15 @@ if (fs.existsSync(chatTrxMessagePath) && fs.existsSync(chatTrxConfirmPath)) {
   if (!messageSource.includes('basis:ai.basis||null')) {
     errors.push('ChatTrx harus menyimpan dasar fakta dan rekomendasi dari keputusan AI.');
   }
+  if (!messageSource.includes('recent_conversation:recentHistory')) {
+    errors.push('ChatTrx harus memberikan konteks percakapan terbaru kepada AI.');
+  }
+  if (!messageSource.includes('existing_evidence:evidence')) {
+    errors.push('ChatTrx harus memberi tahu AI tentang nota dan bukti yang sudah tersimpan.');
+  }
+  if (!messageSource.includes("text(im.fileName)||text(im.name)")) {
+    errors.push('Nama asli lampiran ChatTrx harus diteruskan ke OpenAI.');
+  }
   if (!messageSource.includes("note.valid||draft.verifikasi_nota?.valid!==true")) {
     errors.push('Lampiran baru yang tidak valid tidak boleh menimpa nota lama yang sudah valid.');
   }
