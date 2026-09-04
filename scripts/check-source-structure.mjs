@@ -106,6 +106,15 @@ if (fs.existsSync(chatTrxMessagePath) && fs.existsSync(chatTrxConfirmPath)) {
   if (!messageSource.includes('prematureConfirmation')) {
     errors.push('ChatTrx tidak boleh menjanjikan tombol konfirmasi sebelum draft benar-benar lengkap.');
   }
+  if (!messageSource.includes('function oneQuestion')) {
+    errors.push('ChatTrx harus membatasi klarifikasi menjadi satu pertanyaan terpenting.');
+  }
+  if (!messageSource.includes("patch.status_pembayaran='sudah_dibayar'")) {
+    errors.push('Bukti pembayaran valid harus otomatis menentukan status sudah dibayar.');
+  }
+  if (!messageSource.includes('basis:ai.basis||null')) {
+    errors.push('ChatTrx harus menyimpan dasar fakta dan rekomendasi dari keputusan AI.');
+  }
   if (!messageSource.includes("note.valid||draft.verifikasi_nota?.valid!==true")) {
     errors.push('Lampiran baru yang tidak valid tidak boleh menimpa nota lama yang sudah valid.');
   }
