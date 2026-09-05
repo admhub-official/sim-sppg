@@ -41,6 +41,10 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function assertBlockedRpc(res, label) {
+  assert([401, 403, 404].includes(res.status), `${label} tidak diblokir: HTTP ${res.status}`);
+}
+
 async function jsonFetch(url, options = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -91,12 +95,20 @@ async function callEdge(slug, token, fn, parameters = []) {
   });
 }
 
-async function callAnonRpc(name, args = {}) {
+async function callRpc(name, token, args = {}) {
   return jsonFetch(`${base}/rest/v1/rpc/${name}`, {
     method: 'POST',
-    headers: { apikey: anon, 'Content-Type': 'application/json' },
+    headers: {
+      apikey: anon,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(args)
   });
+}
+
+async function callAnonRpc(name, args = {}) {
+  return callRpc(name, '', args);
 }
 
 function payload(body) {
@@ -125,6 +137,24 @@ function skip(name, reason) {
   record(name, 'SKIP', reason);
 }
 
+const blockedPaymentArgs = {
+  p_transaksi_id: 'SECURITY-SMOKE-NONEXISTENT',
+  p_proof_id: '00000000-0000-0000-0000-000000000000',
+  p_accepted: true,
+  p_verified_by: 'security-smoke@example.invalid',
+  p_verified_name: 'Security Smoke',
+  p_verification_notes: '',
+  p_verifier_signature_path: null
+};
+
+const blockedRegistrationArgs = {
+  p_auth_user_id: '00000000-0000-0000-0000-000000000000',
+  p_otp_id: '00000000-0000-0000-0000-000000000000',
+  p_email: 'security-smoke@example.invalid',
+  p_username: 'security-smoke',
+  p_full_name: 'Security Smoke'
+};
+
 // Baseline tests: tidak membutuhkan akun fixture.
 await test('Endpoint privat menolak request tanpa JWT', async () => {
   const { res } = await callEdge('transaction-action', '', 'getTransactions', [{}]);
@@ -141,37 +171,19 @@ await test('Unknown route ditolak', async () => {
   assert([401, 403, 404].includes(res.status), `Unknown route merespons HTTP ${res.status}`);
 });
 
-await test('RPC atomik tidak dapat dipanggil langsung oleh authenticated/anon client', async () => {
-  const { res } = await jsonFetch(`${base}/rest/v1/rpc/verify_transaction_payment_atomic`, {
-    method: 'POST',
-    headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      p_transaksi_id: 'SECURITY-SMOKE-NONEXISTENT',
-      p_proof_id: '00000000-0000-0000-0000-000000000000',
-      p_accepted: true,
-      p_verified_by: 'security-smoke@example.invalid',
-      p_verified_name: 'Security Smoke',
-      p_verification_notes: '',
-      p_verifier_signature_path: null
-    })
-  });
-  assert([401, 403, 404].includes(res.status), `RPC tidak diblokir: HTTP ${res.status}`);
+await test('RPC atomik tidak dapat dipanggil langsung oleh anon', async () => {
+  const { res } = await callAnonRpc('verify_transaction_payment_atomic', blockedPaymentArgs);
+  assertBlockedRpc(res, 'RPC atomik');
 });
 
 await test('RPC metadata dokumen transaksi tidak tersedia untuk anon', async () => {
   const { res } = await callAnonRpc('get_transaction_documents', { p_transaction_id: 'SECURITY-SMOKE-NONEXISTENT' });
-  assert([401, 403, 404].includes(res.status), `RPC metadata dokumen terbuka: HTTP ${res.status}`);
+  assertBlockedRpc(res, 'RPC metadata dokumen');
 });
 
 await test('Helper registrasi SECURITY DEFINER tidak tersedia untuk anon', async () => {
-  const { res } = await callAnonRpc('create_user_profile_by_registration', {
-    p_auth_user_id: '00000000-0000-0000-0000-000000000000',
-    p_otp_id: '00000000-0000-0000-0000-000000000000',
-    p_email: 'security-smoke@example.invalid',
-    p_username: 'security-smoke',
-    p_full_name: 'Security Smoke'
-  });
-  assert([401, 403, 404].includes(res.status), `Helper SECURITY DEFINER terbuka: HTTP ${res.status}`);
+  const { res } = await callAnonRpc('create_user_profile_by_registration', blockedRegistrationArgs);
+  assertBlockedRpc(res, 'Helper SECURITY DEFINER');
 });
 
 const haveUser = fixtures.userEmail && fixtures.userPassword;
@@ -186,6 +198,29 @@ if (haveUser) {
     userToken = await login(fixtures.userEmail, fixtures.userPassword);
     const profile = await authProfile(userToken);
     assert(String(profile.email || '').toLowerCase() === fixtures.userEmail.toLowerCase(), 'Email token USER tidak cocok.');
+  });
+
+  await test('Authenticated USER tidak dapat memanggil RPC atomik langsung', async () => {
+    const { res } = await callRpc('verify_transaction_payment_atomic', userToken, blockedPaymentArgs);
+    assertBlockedRpc(res, 'RPC atomik authenticated');
+  });
+
+  await test('Authenticated USER tidak dapat membaca RPC metadata dokumen langsung', async () => {
+    const { res } = await callRpc('get_transaction_documents', userToken, { p_transaction_id: 'SECURITY-SMOKE-NONEXISTENT' });
+    assertBlockedRpc(res, 'RPC metadata dokumen authenticated');
+  });
+
+  await test('Authenticated USER tidak dapat memanggil helper registrasi SECURITY DEFINER', async () => {
+    const { res } = await callRpc('create_user_profile_by_registration', userToken, blockedRegistrationArgs);
+    assertBlockedRpc(res, 'Helper registrasi authenticated');
+  });
+
+  await test('Authenticated USER tidak dapat memanggil helper trash dokumen atomik langsung', async () => {
+    const { res } = await callRpc('trash_document_subtree_atomic', userToken, {
+      p_folder_id: '00000000-0000-0000-0000-000000000000',
+      p_deleted_by: '00000000-0000-0000-0000-000000000000'
+    });
+    assertBlockedRpc(res, 'Helper trash dokumen authenticated');
   });
 
   await test('USER hanya melihat transaksi miliknya', async () => {
@@ -210,6 +245,7 @@ if (haveUser) {
   }
 } else {
   skip('Login dan isolasi USER', 'Fixture SECURITY_TEST_USER_EMAIL/PASSWORD belum tersedia.');
+  skip('Authenticated RPC hardening', 'Fixture SECURITY_TEST_USER_EMAIL/PASSWORD belum tersedia.');
 }
 
 if (haveAdmin) {
