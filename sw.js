@@ -12,6 +12,7 @@ const APP_SHELL = [
   './assets/css/documents.css',
   './assets/js/documents.js',
   './assets/js/pwa-browser-access.js',
+  './assets/js/report-local-date-fix.js',
   './transaction-category-supplier-rules.js'
 ];
 
