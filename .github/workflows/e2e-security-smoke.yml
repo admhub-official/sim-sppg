@@ -5,11 +5,23 @@ on:
   push:
     branches: [main]
     paths:
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
+      - 'scripts/security-smoke-test.mjs'
+      - '.github/workflows/e2e-security-smoke.yml'
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
       - 'scripts/security-smoke-test.mjs'
       - '.github/workflows/e2e-security-smoke.yml'
 
 permissions:
   contents: read
+
+concurrency:
+  group: security-smoke-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   security-smoke:
@@ -34,10 +46,10 @@ jobs:
       SECURITY_TEST_PAYMENT_TRANSACTION_ID: ${{ secrets.SECURITY_TEST_PAYMENT_TRANSACTION_ID }}
       SECURITY_TEST_PAYMENT_PROOF_ID: ${{ secrets.SECURITY_TEST_PAYMENT_PROOF_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Validate smoke script
         run: node --check scripts/security-smoke-test.mjs
       - name: Validate publishable test configuration
