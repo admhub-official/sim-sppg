@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript/CSS bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260905-review-fixes-v5';
+const CACHE_VERSION = 'sim-sppg-v20260906-document-direct-upload-v1';
 const APP_SHELL = [
   './index.html',
   './app.js',
@@ -15,6 +15,7 @@ const APP_SHELL = [
   './assets/js/report-local-date-fix.js',
   './assets/js/accessibility-runtime.js',
   './assets/js/post-auth-vendor-loader.js',
+  './assets/js/document-direct-upload.js',
   './transaction-category-supplier-rules.js'
 ];
 
