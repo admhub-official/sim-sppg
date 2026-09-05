@@ -1,11 +1,15 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260905-document-menu-v8';
+const version = '20260905-security-reliability-v1';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
 
 const RUNTIME_STYLES = [
   ['/assets/css/auth-modern.css', '20260904-v1'],
   ['/assets/css/ui-modern.css', '20260904-v1']
+];
+
+const RUNTIME_SCRIPTS = [
+  ['/assets/js/pwa-browser-access.js', '20260905-v1']
 ];
 
 const NO_CACHE_SUFFIXES = [
@@ -16,7 +20,9 @@ const NO_CACHE_SUFFIXES = [
   '/assets/css/documents.css',
   '/assets/js/auth-recovery.js',
   '/assets/js/turnstile-login.js',
+  '/assets/js/pwa-browser-access.js',
   '/assets/js/documents.js',
+  '/assets/js/mytrx.js',
   '/supplier-dropdown.js',
   '/yayasan-dropdown-hotfix.js',
   '/transaction-category-supplier-rules.js',
@@ -38,6 +44,14 @@ function injectStylesheet(html, href, assetVersion) {
   return html.replace(
     '</head>',
     '<link rel="stylesheet" href="' + href + '?v=' + assetVersion + '">\n</head>'
+  );
+}
+
+function injectScript(html, src, assetVersion) {
+  if (html.includes(src)) return html;
+  return html.replace(
+    '</body>',
+    '<script src="' + src + '?v=' + assetVersion + '"></script>\n</body>'
   );
 }
 
@@ -162,6 +176,11 @@ export default {
         '<script src="/assets/js/turnstile-login.js?v=20260904-v1"></script>\n';
       injected = injected.replace('</body>', turnstileBootstrap + '</body>');
     }
+
+    injected = RUNTIME_SCRIPTS.reduce(
+      (current, entry) => injectScript(current, entry[0], entry[1]),
+      injected
+    );
 
     const headers = new Headers(response.headers);
     headers.set('content-type', 'text/html; charset=UTF-8');
