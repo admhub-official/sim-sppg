@@ -1,41 +1,148 @@
-name: Supabase Auto Deploy
+name: Supabase Production Release
+
 on:
   push:
     branches: [main]
-    paths: ['supabase/functions/**']
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - '.github/workflows/supabase-auto-deploy.yml'
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
-  group: supabase-production-deploy
+  group: supabase-production-release
   cancel-in-progress: false
+
 jobs:
-  deploy-functions:
+  release:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Deploy changed functions
+
+      - name: Resolve changed backend files
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          if [[ -z "$BEFORE" || "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
+            BEFORE="HEAD~1"
+          fi
+          git diff --name-only "$BEFORE" HEAD > /tmp/sim-sppg-changed-files.txt
+          if grep -q '^supabase/migrations/.*\.sql$' /tmp/sim-sppg-changed-files.txt; then
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "migrations=false" >> "$GITHUB_OUTPUT"
+          fi
+          if grep -q '^supabase/functions/_shared/' /tmp/sim-sppg-changed-files.txt; then
+            echo "shared=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "shared=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate migration filenames
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t versions < <(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sed -E 's/^([0-9]+)_.*/\1/' | sort)
+          duplicates=$(printf '%s\n' "${versions[@]}" | uniq -d)
+          if [[ -n "$duplicates" ]]; then
+            echo "Duplicate migration timestamps detected:" >&2
+            echo "$duplicates" >&2
+            exit 1
+          fi
+
+      - name: Validate Supabase credentials
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          MIGRATIONS_CHANGED: ${{ steps.changes.outputs.migrations }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo "SUPABASE_ACCESS_TOKEN is not configured." >&2; exit 1; }
+          if [[ "$MIGRATIONS_CHANGED" == "true" && -z "${SUPABASE_DB_PASSWORD:-}" ]]; then
+            echo "SUPABASE_DB_PASSWORD is required when migrations change. Backend deployment is stopped to prevent schema/function drift." >&2
+            exit 1
+          fi
+
+      - name: Apply pending migrations first
+        if: steps.changes.outputs.migrations == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase link --project-ref dmjsgtichrfxhyywstrt --password "$SUPABASE_DB_PASSWORD"
+          supabase migration list --linked --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Build function deployment set
+        id: functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          BEFORE="${{ github.event.before }}"
+          if [[ -z "$BEFORE" || "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
+            BEFORE="HEAD~1"
+          fi
+          : > /tmp/sim-sppg-functions.txt
+          git diff --name-only "$BEFORE" HEAD -- supabase/functions \
+            | awk -F/ 'NF >= 3 && $3 != "_shared" {print $3}' \
+            | sort -u >> /tmp/sim-sppg-functions.txt
+
+          if [[ "${{ steps.changes.outputs.shared }}" == "true" ]]; then
+            for dir in supabase/functions/*; do
+              [[ -d "$dir" ]] || continue
+              fn="$(basename "$dir")"
+              [[ "$fn" == "_shared" ]] && continue
+              if grep -RqsE "\.\./_shared/|/functions/_shared/" "$dir"; then
+                echo "$fn" >> /tmp/sim-sppg-functions.txt
+              fi
+            done
+          fi
+
+          sort -u /tmp/sim-sppg-functions.txt -o /tmp/sim-sppg-functions.txt
+          echo "Functions selected for deploy:"
+          cat /tmp/sim-sppg-functions.txt || true
+          if [[ -s /tmp/sim-sppg-functions.txt ]]; then
+            echo "has_functions=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_functions=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy selected Edge Functions
+        if: steps.functions.outputs.has_functions == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$SUPABASE_ACCESS_TOKEN"
-          BEFORE="${{ github.event.before }}"
-          [[ -z "$BEFORE" || "$BEFORE" == "0000000000000000000000000000000000000000" ]] && BEFORE="HEAD~1"
-          git diff --name-only "$BEFORE" HEAD -- supabase/functions | awk -F/ 'NF >= 3 {print $3}' | sort -u | while read -r FN; do
+          while read -r FN; do
             [[ -z "$FN" ]] && continue
             case "$FN" in
-              _shared)
-                continue ;;
-              dynamic-action|auth-public-action|account-recovery-action|app-config-action|push-public-action)
+              dynamic-action|register-user-v2|auth-public-action|account-recovery-action|app-config-action|push-public-action)
                 supabase functions deploy "$FN" --project-ref dmjsgtichrfxhyywstrt --no-verify-jwt ;;
               *)
                 supabase functions deploy "$FN" --project-ref dmjsgtichrfxhyywstrt ;;
             esac
-          done
+          done < /tmp/sim-sppg-functions.txt
+
+      - name: Verify deployed function inventory
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase functions list --project-ref dmjsgtichrfxhyywstrt
