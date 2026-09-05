@@ -2,7 +2,7 @@
  * Network-first for navigation and JavaScript/CSS bundles.
  * Backend and Supabase requests are never cached.
  */
-const CACHE_VERSION = 'sim-sppg-v20260905-document-menu-v8';
+const CACHE_VERSION = 'sim-sppg-v20260905-security-reliability-v1';
 const APP_SHELL = [
   './index.html',
   './app.js',
@@ -11,6 +11,7 @@ const APP_SHELL = [
   './assets/css/ui-modern.css',
   './assets/css/documents.css',
   './assets/js/documents.js',
+  './assets/js/pwa-browser-access.js',
   './transaction-category-supplier-rules.js'
 ];
 
@@ -55,14 +56,23 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (isBackendRequest(url)) return;
+
   if (request.mode === 'navigate') {
+    // Recovery/reset pages keep their own cache key. They must never overwrite
+    // the cached application shell used as the offline fallback for index.html.
+    if (url.pathname.endsWith('/reset-password.html')) {
+      event.respondWith(networkFirst(request, request));
+      return;
+    }
     event.respondWith(networkFirst(request, './index.html'));
     return;
   }
+
   if (url.origin === self.location.origin && /\.(?:js|css|html)$/.test(url.pathname)) {
     event.respondWith(networkFirst(request));
     return;
   }
+
   event.respondWith(
     caches.match(request).then((cached) => {
       const network = fetch(request)
