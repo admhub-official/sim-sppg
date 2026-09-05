@@ -1,5 +1,5 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260905-hardening-a11y-v2';
+const version = '20260905-post-auth-vendors-v3';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
 
@@ -11,7 +11,8 @@ const RUNTIME_STYLES = [
 const RUNTIME_SCRIPTS = [
   ['/assets/js/pwa-browser-access.js', '20260905-v2'],
   ['/assets/js/report-local-date-fix.js', '20260905-v1'],
-  ['/assets/js/accessibility-runtime.js', '20260905-v1']
+  ['/assets/js/accessibility-runtime.js', '20260905-v1'],
+  ['/assets/js/post-auth-vendor-loader.js', '20260905-v1']
 ];
 
 const NO_CACHE_SUFFIXES = [
@@ -25,6 +26,7 @@ const NO_CACHE_SUFFIXES = [
   '/assets/js/pwa-browser-access.js',
   '/assets/js/report-local-date-fix.js',
   '/assets/js/accessibility-runtime.js',
+  '/assets/js/post-auth-vendor-loader.js',
   '/assets/js/documents.js',
   '/assets/js/mytrx.js',
   '/supplier-dropdown.js',
@@ -57,6 +59,15 @@ function injectScript(html, src, assetVersion) {
     '</body>',
     '<script src="' + src + '?v=' + assetVersion + '"></script>\n</body>'
   );
+}
+
+function stripEagerHeavyVendors(html) {
+  const patterns = [
+    /\s*<script[^>]+src=["']https:\/\/cdn\.jsdelivr\.net\/npm\/chart\.js@4\.4\.1\/dist\/chart\.umd\.min\.js["'][^>]*><\/script>\s*/gi,
+    /\s*<script[^>]+src=["']https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf\/2\.5\.1\/jspdf\.umd\.min\.js["'][^>]*><\/script>\s*/gi,
+    /\s*<script[^>]+src=["']https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/jspdf-autotable\/3\.8\.2\/jspdf\.plugin\.autotable\.min\.js["'][^>]*><\/script>\s*/gi
+  ];
+  return patterns.reduce((current, pattern) => current.replace(pattern, '\n'), html);
 }
 
 function isAllowedTurnstileHostname(value) {
@@ -168,9 +179,10 @@ export default {
     if (!contentType.includes('text/html')) return response;
 
     const html = await response.text();
-    let injected = RUNTIME_STYLES.reduce(
+    let injected = stripEagerHeavyVendors(html);
+    injected = RUNTIME_STYLES.reduce(
       (current, entry) => injectStylesheet(current, entry[0], entry[1]),
-      html
+      injected
     );
 
     if (!injected.includes('/assets/js/turnstile-login.js')) {
