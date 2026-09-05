@@ -1,5 +1,5 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260905-review-fixes-v5';
+const version = '20260906-document-direct-upload-v1';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
 
@@ -12,7 +12,8 @@ const RUNTIME_SCRIPTS = [
   ['/assets/js/pwa-browser-access.js', '20260905-v2'],
   ['/assets/js/report-local-date-fix.js', '20260905-v1'],
   ['/assets/js/accessibility-runtime.js', '20260905-v3'],
-  ['/assets/js/post-auth-vendor-loader.js', '20260905-v1']
+  ['/assets/js/post-auth-vendor-loader.js', '20260905-v1'],
+  ['/assets/js/document-direct-upload.js', '20260906-v1']
 ];
 
 const NO_CACHE_SUFFIXES = [
@@ -27,6 +28,7 @@ const NO_CACHE_SUFFIXES = [
   '/assets/js/report-local-date-fix.js',
   '/assets/js/accessibility-runtime.js',
   '/assets/js/post-auth-vendor-loader.js',
+  '/assets/js/document-direct-upload.js',
   '/assets/js/documents.js',
   '/assets/js/mytrx.js',
   '/supplier-dropdown.js',
