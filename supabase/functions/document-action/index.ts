@@ -19,6 +19,7 @@ const forbiddenName = /\.(exe|msi|apk|bat|cmd|com|scr|ps1|vbs|js|mjs|cjs|jar|sh|
 
 type Caller = { id: string; email: string; username: string; role: string; sppg: string; yayasan: string };
 type Scope = { sppg: string; yayasan: string };
+type PageResult = { rows: any[]; total: number };
 
 async function getCaller(req: Request): Promise<Caller> {
   const header = req.headers.get('Authorization') || '';
@@ -54,9 +55,9 @@ async function availableScopes(caller: Caller): Promise<Scope[]> {
   return caller.sppg ? [{ sppg: caller.sppg, yayasan: caller.yayasan }] : [];
 }
 
-async function resolveScope(caller: Caller, input: any, allowAll = false): Promise<Scope | null> {
+async function resolveScope(caller: Caller, input: any, allowAll = false, knownScopes?: Scope[]): Promise<Scope | null> {
   const requested = { sppg: text(input?.sppg), yayasan: text(input?.yayasan) };
-  const scopes = await availableScopes(caller);
+  const scopes = knownScopes || await availableScopes(caller);
   if (caller.role === 'SUPER_ADMIN' && allowAll && !requested.sppg) return null;
   if (requested.sppg) {
     if (caller.role === 'SUPER_ADMIN' || scopes.some(scope => scope.sppg === requested.sppg && (!requested.yayasan || scope.yayasan === requested.yayasan))) {
@@ -124,52 +125,129 @@ async function breadcrumbs(folder: any) {
   return items;
 }
 
+function stableSort(rows: any[], recent: boolean) {
+  return rows.sort((a, b) => {
+    if (recent) {
+      const delta = new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+      if (delta) return delta;
+    } else {
+      const delta = text(a.name).localeCompare(text(b.name), 'id-ID', { sensitivity: 'base' });
+      if (delta) return delta;
+    }
+    return text(a.id).localeCompare(text(b.id));
+  });
+}
+
+function configureBaseQuery(query: any, options: {
+  trash: boolean; search: string; folder: any; view: string; isFile: boolean; favoriteIds: string[];
+}) {
+  const { trash, search, folder, view, isFile, favoriteIds } = options;
+  query = trash ? query.not('deleted_at', 'is', null) : query.is('deleted_at', null);
+  if (!trash && !search && view !== 'recent' && view !== 'favorites') {
+    const column = isFile ? 'folder_id' : 'parent_id';
+    query = folder ? query.eq(column, folder.id) : query.is(column, null);
+  }
+  if (search) query = query.ilike('name', `%${search}%`);
+  if (isFile && view === 'favorites') {
+    query = favoriteIds.length ? query.in('id', favoriteIds) : query.eq('id', '00000000-0000-0000-0000-000000000000');
+  }
+  return query;
+}
+
+async function fetchPage(table: 'DOC_FOLDERS' | 'DOC_FILES', columns: string, options: {
+  caller: Caller; scope: Scope | null; templates: boolean; trash: boolean; search: string; folder: any;
+  view: string; isFile: boolean; favoriteIds: string[]; from: number; to: number;
+}): Promise<PageResult> {
+  const { caller, scope, templates, from, to, isFile } = options;
+  const recent = isFile && options.view === 'recent';
+
+  const build = (scopeKind: 'normal' | 'global' | 'assigned') => {
+    let query: any = sb.from(table).select(columns, { count: 'exact' }).eq('is_template', templates);
+    query = configureBaseQuery(query, options);
+    if (scopeKind === 'global') query = query.eq('sppg', '').eq('yayasan', '');
+    else if (scopeKind === 'assigned' && scope) query = query.eq('sppg', scope.sppg).eq('yayasan', scope.yayasan);
+    else if (scope && !templates) query = query.eq('sppg', scope.sppg).eq('yayasan', scope.yayasan);
+    query = recent
+      ? query.order('updated_at', { ascending: false }).order('id', { ascending: true })
+      : query.order('name', { ascending: true }).order('id', { ascending: true });
+    return query;
+  };
+
+  if (templates && scope && caller.role !== 'SUPER_ADMIN') {
+    const fetchThrough = to;
+    const [globalResult, assignedResult] = await Promise.all([
+      build('global').range(0, fetchThrough),
+      build('assigned').range(0, fetchThrough)
+    ]);
+    if (globalResult.error) throw globalResult.error;
+    if (assignedResult.error) throw assignedResult.error;
+    const rows = stableSort([...(globalResult.data || []), ...(assignedResult.data || [])], recent).slice(from, to + 1);
+    return { rows, total: Number(globalResult.count || 0) + Number(assignedResult.count || 0) };
+  }
+
+  const result = await build('normal').range(from, to);
+  if (result.error) throw result.error;
+  return { rows: result.data || [], total: Number(result.count || 0) };
+}
+
 async function listDocuments(caller: Caller, input: any) {
   const view = text(input?.view || 'files').toLowerCase();
-  const scope = await resolveScope(caller, input, caller.role === 'SUPER_ADMIN');
+  const allowedViews = ['files', 'templates', 'recent', 'favorites', 'trash'];
+  if (!allowedViews.includes(view)) throw new Error('Tampilan dokumen tidak valid.');
+
   const scopes = await availableScopes(caller);
+  const scope = await resolveScope(caller, input, caller.role === 'SUPER_ADMIN', scopes);
   if (scope && view !== 'templates' && view !== 'trash') await ensureDefaultFolders(caller, scope);
   const folder = await assertFolder(caller, input?.folderId, scope);
   const search = text(input?.search).slice(0, 100);
   const trash = view === 'trash';
   const templates = view === 'templates';
+  const page = Math.max(1, Number(input?.page) || 1);
+  const pageSize = Math.min(100, Math.max(10, Number(input?.pageSize) || 50));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
-  let folderQuery = sb.from('DOC_FOLDERS').select('id,parent_id,name,sppg,yayasan,is_template,created_by_email,created_at,updated_at,deleted_at').eq('is_template', templates);
-  let fileQuery = sb.from('DOC_FILES').select('id,folder_id,name,mime_type,size_bytes,sppg,yayasan,is_template,classification,source_type,created_by,created_by_email,created_at,updated_at,deleted_at').eq('is_template', templates);
-  if (trash) { folderQuery = folderQuery.not('deleted_at', 'is', null); fileQuery = fileQuery.not('deleted_at', 'is', null); }
-  else { folderQuery = folderQuery.is('deleted_at', null); fileQuery = fileQuery.is('deleted_at', null); }
-  if (!trash && !search && view !== 'recent' && view !== 'favorites') {
-    folderQuery = folder ? folderQuery.eq('parent_id', folder.id) : folderQuery.is('parent_id', null);
-    fileQuery = folder ? fileQuery.eq('folder_id', folder.id) : fileQuery.is('folder_id', null);
-  }
-  if (scope && !templates) {
-      folderQuery = folderQuery.eq('sppg', scope.sppg).eq('yayasan', scope.yayasan);
-      fileQuery = fileQuery.eq('sppg', scope.sppg).eq('yayasan', scope.yayasan);
-  }
-  if (search) { folderQuery = folderQuery.ilike('name', `%${search}%`); fileQuery = fileQuery.ilike('name', `%${search}%`); }
-  if (view === 'recent') fileQuery = fileQuery.order('updated_at', { ascending: false }).limit(50);
-  else fileQuery = fileQuery.order('name').limit(200);
-  folderQuery = folderQuery.order('name').limit(100);
-
-  const [foldersResult, filesResult, favoritesResult] = await Promise.all([
-    folderQuery, fileQuery, sb.from('DOC_FAVORITES').select('file_id').eq('user_id', caller.id)
-  ]);
-  if (foldersResult.error) throw foldersResult.error;
-  if (filesResult.error) throw filesResult.error;
+  const favoritesResult = await sb.from('DOC_FAVORITES').select('file_id').eq('user_id', caller.id);
   if (favoritesResult.error) throw favoritesResult.error;
-  const favoriteIds = new Set((favoritesResult.data || []).map((row: any) => row.file_id));
-  let folders = foldersResult.data || [];
-  let files = (filesResult.data || []).map((file: any) => ({ ...file, favorite: favoriteIds.has(file.id) }));
-  if (templates && scope && caller.role !== 'SUPER_ADMIN') {
-    const visible = (item: any) => (!text(item.sppg) && !text(item.yayasan)) || (text(item.sppg) === scope.sppg && text(item.yayasan) === scope.yayasan);
-    folders = folders.filter(visible);
-    files = files.filter(visible);
-  }
-  if (view === 'favorites') files = files.filter((file: any) => file.favorite);
+  const favoriteIds = (favoritesResult.data || []).map((row: any) => text(row.file_id)).filter(Boolean);
+  const favoriteSet = new Set(favoriteIds);
+
+  const folderColumns = 'id,parent_id,name,sppg,yayasan,is_template,created_by_email,created_at,updated_at,deleted_at';
+  const fileColumns = 'id,folder_id,name,mime_type,size_bytes,sppg,yayasan,is_template,classification,source_type,created_by,created_by_email,created_at,updated_at,deleted_at';
+
+  // Recent/Favorites are file-centric views. Avoid querying unrelated folders.
+  const foldersPage = ['recent', 'favorites'].includes(view)
+    ? { rows: [], total: 0 }
+    : await fetchPage('DOC_FOLDERS', folderColumns, {
+        caller, scope, templates, trash, search, folder, view, isFile: false,
+        favoriteIds, from, to
+      });
+
+  const filesPage = await fetchPage('DOC_FILES', fileColumns, {
+    caller, scope, templates, trash, search, folder, view, isFile: true,
+    favoriteIds, from, to
+  });
+
+  const files = filesPage.rows.map((file: any) => ({ ...file, favorite: favoriteSet.has(text(file.id)) }));
+  const total = Math.max(foldersPage.total, filesPage.total);
+
   return {
-    success: true, folders, files,
-    breadcrumbs: await breadcrumbs(folder), scopes, currentScope: scope,
-    canManageTemplates: canManageTemplates(caller), role: caller.role
+    success: true,
+    folders: foldersPage.rows,
+    files,
+    breadcrumbs: await breadcrumbs(folder),
+    scopes,
+    currentScope: scope,
+    canManageTemplates: canManageTemplates(caller),
+    role: caller.role,
+    pagination: {
+      page,
+      pageSize,
+      folderTotal: foldersPage.total,
+      fileTotal: filesPage.total,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize))
+    }
   };
 }
 
@@ -262,6 +340,10 @@ async function getFile(caller: Caller, input: any) {
   return { success: true, file: { ...file, url: signed.data.signedUrl, expiresIn: 600 } };
 }
 
+function sameScope(a: any, b: any) {
+  return text(a?.sppg) === text(b?.sppg) && text(a?.yayasan) === text(b?.yayasan);
+}
+
 async function mutate(caller: Caller, action: string, input: any) {
   const entityType = text(input?.entityType).toUpperCase() === 'FOLDER' ? 'FOLDER' : 'FILE';
   const table = entityType === 'FOLDER' ? 'DOC_FOLDERS' : 'DOC_FILES';
@@ -269,8 +351,27 @@ async function mutate(caller: Caller, action: string, input: any) {
   if (result.error || !result.data) throw new Error(`${entityType === 'FOLDER' ? 'Folder' : 'File'} tidak ditemukan.`);
   const entity = result.data;
   const scope = await resolveScope(caller, entity);
-  if (caller.role !== 'SUPER_ADMIN' && (entity.sppg !== scope!.sppg || entity.yayasan !== scope!.yayasan)) throw new Error('Akses perubahan ditolak.');
+  if (caller.role !== 'SUPER_ADMIN' && (text(entity.sppg) !== scope!.sppg || text(entity.yayasan) !== scope!.yayasan)) throw new Error('Akses perubahan ditolak.');
   if (entity.is_template && !canManageTemplates(caller)) throw new Error('Template hanya dapat diubah oleh Admin.');
+  if (entity.is_template && !text(entity.sppg) && caller.role !== 'SUPER_ADMIN') throw new Error('Template pusat hanya dapat diubah oleh Super Admin.');
+
+  if (entityType === 'FOLDER' && (action === 'TRASH' || action === 'RESTORE')) {
+    const rpcName = action === 'TRASH' ? 'trash_document_subtree_atomic' : 'restore_document_subtree_atomic';
+    const args = action === 'TRASH'
+      ? { p_folder_id: entity.id, p_deleted_by: caller.id }
+      : { p_folder_id: entity.id };
+    const changed = await sb.rpc(rpcName, args);
+    if (changed.error) throw new Error(changed.error.message);
+    const updated = await sb.from('DOC_FOLDERS').select('*').eq('id', entity.id).single();
+    if (updated.error) throw new Error(updated.error.message);
+    await audit(caller, action, 'FOLDER', updated.data, { subtree: true, changed: changed.data || [] });
+    return {
+      success: true,
+      item: updated.data,
+      message: action === 'TRASH' ? 'Folder beserta seluruh isinya dipindahkan ke Sampah.' : 'Folder beserta isinya berhasil dipulihkan.'
+    };
+  }
+
   let values: any = { updated_at: new Date().toISOString() };
   if (action === 'RENAME') values.name = safeName(input?.name, entity.name);
   if (action === 'TRASH') values = { ...values, deleted_at: new Date().toISOString(), deleted_by: caller.id };
@@ -278,12 +379,28 @@ async function mutate(caller: Caller, action: string, input: any) {
   if (action === 'MOVE') {
     if (entityType !== 'FILE') throw new Error('Pemindahan folder belum tersedia pada versi ini.');
     const target = await assertFolder(caller, input?.folderId, scope);
+    if (target) {
+      if (Boolean(target.is_template) !== Boolean(entity.is_template)) {
+        throw new Error('File biasa dan template tidak dapat dipindahkan ke jenis folder yang berbeda.');
+      }
+      if (!sameScope(target, entity)) {
+        throw new Error('File tidak dapat dipindahkan ke folder dengan cakupan SPPG/Yayasan yang berbeda.');
+      }
+      if (target.is_template && !text(target.sppg) && caller.role !== 'SUPER_ADMIN') {
+        throw new Error('Template pusat hanya dapat diubah oleh Super Admin.');
+      }
+    }
     values.folder_id = target?.id || null;
   }
+
   const updated = await sb.from(table).update(values).eq('id', entity.id).select('*').single();
   if (updated.error) throw new Error(updated.error.message);
   await audit(caller, action, entityType as 'FILE' | 'FOLDER', updated.data);
-  return { success: true, item: updated.data, message: action === 'TRASH' ? 'Dipindahkan ke Sampah.' : action === 'RESTORE' ? 'Berhasil dipulihkan.' : 'Perubahan berhasil disimpan.' };
+  return {
+    success: true,
+    item: updated.data,
+    message: action === 'TRASH' ? 'Dipindahkan ke Sampah.' : action === 'RESTORE' ? 'Berhasil dipulihkan.' : 'Perubahan berhasil disimpan.'
+  };
 }
 
 async function toggleFavorite(caller: Caller, input: any) {
@@ -293,8 +410,14 @@ async function toggleFavorite(caller: Caller, input: any) {
   const globalTemplate = file.data.is_template && !text(file.data.sppg) && !text(file.data.yayasan);
   if (!globalTemplate && caller.role !== 'SUPER_ADMIN' && (!scope || file.data.sppg !== scope.sppg || file.data.yayasan !== scope.yayasan)) throw new Error('Akses file ditolak.');
   const existing = await sb.from('DOC_FAVORITES').select('file_id').eq('user_id', caller.id).eq('file_id', file.data.id).maybeSingle();
-  if (existing.data) await sb.from('DOC_FAVORITES').delete().eq('user_id', caller.id).eq('file_id', file.data.id);
-  else await sb.from('DOC_FAVORITES').insert({ user_id: caller.id, file_id: file.data.id });
+  if (existing.error) throw existing.error;
+  if (existing.data) {
+    const removed = await sb.from('DOC_FAVORITES').delete().eq('user_id', caller.id).eq('file_id', file.data.id);
+    if (removed.error) throw removed.error;
+  } else {
+    const added = await sb.from('DOC_FAVORITES').insert({ user_id: caller.id, file_id: file.data.id });
+    if (added.error) throw added.error;
+  }
   return { success: true, favorite: !existing.data };
 }
 
@@ -345,7 +468,7 @@ const handlers: Record<string, (caller: Caller, input: any) => Promise<any>> = {
 
 Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (request.method === 'GET') return json({ status: 'ok', service: 'document-action', version: 2 });
+  if (request.method === 'GET') return json({ status: 'ok', service: 'document-action', version: 3 });
   if (request.method !== 'POST') return json({ error: 'Method tidak didukung.' }, 405);
   try {
     const caller = await getCaller(request);
