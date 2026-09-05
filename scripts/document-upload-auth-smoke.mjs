@@ -1,22 +1,19 @@
 const base = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const anon = String(process.env.SUPABASE_ANON_KEY || '');
 
-if (!base || !anon) {
-  throw new Error('SUPABASE_URL dan SUPABASE_ANON_KEY wajib tersedia.');
+if (!base) {
+  throw new Error('SUPABASE_URL wajib tersedia.');
 }
 
 async function request(body, authorization) {
-  const headers = {
-    apikey: anon,
-    'Content-Type': 'application/json'
-  };
+  const headers = { 'Content-Type': 'application/json' };
+  if (anon) headers.apikey = anon;
   if (authorization) headers.Authorization = authorization;
-  const response = await fetch(`${base}/functions/v1/document-upload-action`, {
+  return fetch(`${base}/functions/v1/document-upload-action`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body)
   });
-  return response;
 }
 
 const preparePayload = {
@@ -34,10 +31,14 @@ if (![401, 403].includes(noJwt.status)) {
 }
 console.log(`✓ Direct upload menolak request tanpa JWT — HTTP ${noJwt.status}`);
 
-const anonJwt = await request(preparePayload, `Bearer ${anon}`);
-if (![401, 403].includes(anonJwt.status)) {
-  throw new Error(`Direct upload menerima anon key sebagai JWT user: HTTP ${anonJwt.status}`);
+if (anon) {
+  const anonJwt = await request(preparePayload, `Bearer ${anon}`);
+  if (![401, 403].includes(anonJwt.status)) {
+    throw new Error(`Direct upload menerima anon key sebagai JWT user: HTTP ${anonJwt.status}`);
+  }
+  console.log(`✓ Direct upload menolak anon key sebagai JWT user — HTTP ${anonJwt.status}`);
+} else {
+  console.log('○ Uji anon key sebagai JWT dilewati — SUPABASE_ANON_KEY belum dikonfigurasi.');
 }
-console.log(`✓ Direct upload menolak anon key sebagai JWT user — HTTP ${anonJwt.status}`);
 
 console.log('Document direct-upload auth smoke: passed.');
