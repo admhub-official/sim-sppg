@@ -2,8 +2,9 @@
   'use strict';
 
   var activeModal = null;
-  var returnFocus = null;
   var observer = null;
+  var focusOrigins = new WeakMap();
+  var titleSequence = 0;
   var FOCUSABLE = [
     'a[href]',
     'button:not([disabled])',
@@ -28,12 +29,45 @@
     return modal.querySelector('.modal-header h1,.modal-header h2,.modal-header h3,.modal-title,h1,h2,h3');
   }
 
+  function topActiveModal() {
+    var modals = Array.prototype.slice.call(document.querySelectorAll('.modal-overlay.active')).filter(visible);
+    var best = null;
+    var bestZ = -Infinity;
+    modals.forEach(function (modal) {
+      var z = parseInt(window.getComputedStyle(modal).zIndex, 10);
+      if (!Number.isFinite(z)) z = 0;
+      // Pada z-index yang sama, elemen yang lebih akhir di DOM berada di atas.
+      if (!best || z >= bestZ) {
+        best = modal;
+        bestZ = z;
+      }
+    });
+    return best;
+  }
+
+  function rememberFocusOrigin(modal) {
+    if (!modal || focusOrigins.has(modal)) return;
+    var origin = document.activeElement;
+    if (origin && origin !== document.body && !modal.contains(origin)) {
+      focusOrigins.set(modal, origin);
+    }
+  }
+
+  function restoreFocusFrom(modal, fallbackModal) {
+    if (!modal) return;
+    var target = focusOrigins.get(modal);
+    focusOrigins.delete(modal);
+    if (!target || !document.contains(target) || typeof target.focus !== 'function' || !visible(target)) return;
+    if (fallbackModal && !fallbackModal.contains(target)) return;
+    window.setTimeout(function () {
+      if (document.contains(target) && visible(target)) target.focus();
+    }, 0);
+  }
+
   function prepareModal(modal) {
     if (!modal || !modal.classList.contains('active')) return;
     if (activeModal !== modal) {
-      returnFocus = document.activeElement && document.activeElement !== document.body
-        ? document.activeElement
-        : null;
+      rememberFocusOrigin(modal);
       activeModal = modal;
     }
 
@@ -43,7 +77,10 @@
 
     var title = modalTitle(modal);
     if (title) {
-      if (!title.id) title.id = modal.id ? modal.id + '-a11y-title' : 'sim-sppg-modal-title';
+      if (!title.id) {
+        titleSequence += 1;
+        title.id = modal.id ? modal.id + '-a11y-title' : 'sim-sppg-modal-title-' + titleSequence;
+      }
       modal.setAttribute('aria-labelledby', title.id);
     }
 
@@ -58,28 +95,35 @@
     }, 0);
   }
 
-  function closeModalState(modal) {
-    if (!modal) return;
-    modal.removeAttribute('aria-modal');
-    modal.setAttribute('aria-hidden', 'true');
-    if (activeModal !== modal) return;
-
-    activeModal = null;
-    var target = returnFocus;
-    returnFocus = null;
-    if (target && document.contains(target) && typeof target.focus === 'function') {
-      window.setTimeout(function () { target.focus(); }, 0);
-    }
-  }
-
   function syncModals() {
-    var open = document.querySelector('.modal-overlay.active');
-    if (open) prepareModal(open);
-    if (activeModal && !activeModal.classList.contains('active')) closeModalState(activeModal);
+    var top = topActiveModal();
+    var previous = activeModal;
 
-    document.querySelectorAll('.modal-overlay:not(.active)').forEach(function (modal) {
-      if (modal !== activeModal) modal.setAttribute('aria-hidden', 'true');
+    // Jika modal teratas sebelumnya benar-benar ditutup, kembalikan fokus ke
+    // pemicunya. Pada modal bertumpuk, fokus dikembalikan ke modal di bawahnya.
+    if (previous && previous !== top && !previous.classList.contains('active')) {
+      restoreFocusFrom(previous, top || null);
+      activeModal = null;
+    }
+
+    document.querySelectorAll('.modal-overlay').forEach(function (modal) {
+      if (modal === top) {
+        modal.removeAttribute('aria-hidden');
+      } else {
+        modal.setAttribute('aria-hidden', 'true');
+        if (!modal.classList.contains('active')) modal.removeAttribute('aria-modal');
+      }
     });
+
+    if (top) {
+      prepareModal(top);
+      return;
+    }
+
+    if (previous && !previous.classList.contains('active')) {
+      restoreFocusFrom(previous, null);
+      activeModal = null;
+    }
   }
 
   function onModalKeydown(event) {
@@ -96,7 +140,7 @@
     if (event.shiftKey && (document.activeElement === first || !activeModal.contains(document.activeElement))) {
       event.preventDefault();
       last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
+    } else if (!event.shiftKey && (document.activeElement === last || !activeModal.contains(document.activeElement))) {
       event.preventDefault();
       first.focus();
     }
