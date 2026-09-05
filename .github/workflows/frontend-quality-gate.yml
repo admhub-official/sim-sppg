@@ -12,11 +12,8 @@ on:
       - 'yayasan-dropdown-hotfix.js'
       - 'transaction-category-supplier-rules.js'
       - 'assets/css/**'
-      - 'assets/js/auth-recovery.js'
-      - 'assets/js/turnstile-login.js'
-      - 'assets/js/supplier/**'
-      - 'assets/js/transactions/**'
-      - 'scripts/check-source-structure.mjs'
+      - 'assets/js/**'
+      - 'scripts/*.mjs'
       - '.github/workflows/frontend-quality-gate.yml'
   pull_request:
     paths:
@@ -28,11 +25,8 @@ on:
       - 'yayasan-dropdown-hotfix.js'
       - 'transaction-category-supplier-rules.js'
       - 'assets/css/**'
-      - 'assets/js/auth-recovery.js'
-      - 'assets/js/turnstile-login.js'
-      - 'assets/js/supplier/**'
-      - 'assets/js/transactions/**'
-      - 'scripts/check-source-structure.mjs'
+      - 'assets/js/**'
+      - 'scripts/*.mjs'
       - '.github/workflows/frontend-quality-gate.yml'
 
 concurrency:
@@ -49,17 +43,21 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Validate JavaScript syntax
+        shell: bash
         run: |
+          set -euo pipefail
           node --check app.js
           node --check sw.js
           node --check _worker.js
           node --check supplier-dropdown.js
-          node --check assets/js/auth-recovery.js
-          node --check assets/js/turnstile-login.js
+          node --check yayasan-dropdown-hotfix.js
+          node --check transaction-category-supplier-rules.js
+          while IFS= read -r -d '' file; do node --check "$file"; done < <(find assets/js -type f -name '*.js' -print0)
+          while IFS= read -r -d '' file; do node --check "$file"; done < <(find scripts -maxdepth 1 -type f -name '*.mjs' -print0)
           node scripts/check-source-structure.mjs
       - name: Reject unresolved merge markers
         run: |
-          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html supplier-dropdown.js assets/css assets/js/auth-recovery.js assets/js/turnstile-login.js; then exit 1; fi
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html supplier-dropdown.js yayasan-dropdown-hotfix.js transaction-category-supplier-rules.js assets/css assets/js scripts; then exit 1; fi
       - name: Validate canonical runtime
         run: |
           grep -Fq "var API_BASE_URL" app.js
@@ -118,6 +116,8 @@ jobs:
           if grep -Fq 'approvalRuntime' _worker.js; then exit 1; fi
           if grep -Fq '<script src="./approval-transaction-loader.js' _worker.js; then exit 1; fi
           if grep -Fq 'networkFirstAppWithCompatibility' sw.js; then exit 1; fi
+          grep -Fq "removeLegacyRequirementGate" assets/js/pwa-browser-access.js
+          grep -Fq "display-mode: standalone" assets/js/pwa-browser-access.js
       - name: Validate pagination integrations
         run: |
           for token in txServerPaged approvalServerPaged usersServerPaged bbServerPaged supplierServerPaged surveiServerPaged stServerPaged menuServerPaged pendingServerPaged auditServerPaged notifServerPaged; do
@@ -128,7 +128,8 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re, sys
-          files=[Path('app.js'),Path('sw.js'),Path('_worker.js'),Path('index.html'),Path('supplier-dropdown.js'),Path('assets/js/auth-recovery.js'),Path('assets/js/turnstile-login.js')]
+          files=[Path('app.js'),Path('sw.js'),Path('_worker.js'),Path('index.html'),Path('supplier-dropdown.js'),Path('yayasan-dropdown-hotfix.js'),Path('transaction-category-supplier-rules.js')]
+          files += list(Path('assets/js').rglob('*.js'))
           p=re.compile(r"(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\s*[:=]\s*['\"]([A-Za-z0-9._-]{20,})['\"]",re.I)
           findings=[]
           for f in files:
@@ -138,4 +139,4 @@ jobs:
               print('\n'.join(findings),file=sys.stderr); sys.exit(1)
           PY
       - name: Summary
-        run: echo 'Frontend canonical runtime, consolidated UI styles, dynamic loader, and cleanup checks passed.'
+        run: echo 'Frontend canonical runtime, all JavaScript modules, PWA browser contract, dynamic loader, and cleanup checks passed.'
