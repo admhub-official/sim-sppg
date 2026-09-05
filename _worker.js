@@ -9,7 +9,8 @@ const RUNTIME_STYLES = [
 ];
 
 const RUNTIME_SCRIPTS = [
-  ['/assets/js/pwa-browser-access.js', '20260905-v1']
+  ['/assets/js/pwa-browser-access.js', '20260905-v1'],
+  ['/assets/js/report-local-date-fix.js', '20260905-v1']
 ];
 
 const NO_CACHE_SUFFIXES = [
@@ -21,6 +22,7 @@ const NO_CACHE_SUFFIXES = [
   '/assets/js/auth-recovery.js',
   '/assets/js/turnstile-login.js',
   '/assets/js/pwa-browser-access.js',
+  '/assets/js/report-local-date-fix.js',
   '/assets/js/documents.js',
   '/assets/js/mytrx.js',
   '/supplier-dropdown.js',
