@@ -8,12 +8,14 @@ on:
     branches: [main]
     paths:
       - 'scripts/security-smoke-test.mjs'
+      - 'scripts/document-upload-auth-smoke.mjs'
       - '.github/workflows/security-smoke-tests.yml'
       - 'supabase/functions/transaction-action/**'
       - 'supabase/functions/file-access-action/**'
       - 'supabase/functions/operations-action/**'
       - 'supabase/functions/reporting-action/**'
       - 'supabase/functions/master-action/**'
+      - 'supabase/functions/document-upload-action/**'
 
 permissions:
   contents: read
@@ -38,6 +40,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify direct document upload auth boundary
+        run: node scripts/document-upload-auth-smoke.mjs
 
       - name: Detect configured security fixtures
         id: fixtures
