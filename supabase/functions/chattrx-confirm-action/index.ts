@@ -1,10 +1,25 @@
 import {CORS,json,text,sb,getCaller,applyRoleFilter,handlerError} from '../_shared/chattrx.ts';
-const RECEIPT_REQUIRED=['Belanja Bahan Baku','Material Bangunan','Gas LPG','Sewa & Utilitas (AC/WIFI)','IPAL','Inventaris Kantor','Cetak & Promosi','Operasional Perjalanan','Konsumsi','Administrasi & Lainnya'];
-Deno.serve(async(req)=>{if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});if(req.method!=='POST')return json({error:'Method tidak didukung.'},405);try{
-  const c=await getCaller(req),body=await req.json(),p=Array.isArray(body.parameters)?body.parameters[0]||{}:body;let q:any=sb.from('CHATTRX_DRAFT').select('*').eq('draft_id',text(p.draftId)).maybeSingle();const r=await applyRoleFilter(q,c);if(r.error)throw r.error;const d=r.data;if(!d)throw new Error('Draft tidak ditemukan atau akses ditolak.');
-  const notaRequired=RECEIPT_REQUIRED.includes(text(d.kategori));
-  if(d.current_state!=='ringkasan'||!d.tanggal_transaksi||(d.kategori==='Gaji/Upah Karyawan'&&!d.penerima)||(notaRequired&&d.verifikasi_nota?.valid!==true)||(d.status_pembayaran==='sudah_dibayar'&&d.verifikasi_bukti_bayar?.valid!==true))throw new Error('Draft belum lengkap atau dokumen yang diperlukan belum terverifikasi.');
-  const row={draft_id:d.draft_id,user_id:d.user_id,sppg:d.sppg,yayasan:d.yayasan,jenis_transaksi:d.jenis_transaksi,kategori:d.kategori,nama_item:d.nama_item,keterangan:d.keterangan,nominal:Number(d.nominal),status_pembayaran:d.status_pembayaran,tanggal_transaksi:d.tanggal_transaksi,penerima:d.penerima||null,foto_nota_url:d.foto_nota_url||null,foto_bukti_bayar_url:d.foto_bukti_bayar_url||null,ttd_konfirmasi_url:null,verifikasi_nota:d.verifikasi_nota||null,verifikasi_bukti_bayar:d.verifikasi_bukti_bayar||null,chat_history:d.chat_history||[]};
-  const saved=await sb.from('CHATTRX_TRANSAKSI').upsert(row,{onConflict:'draft_id'}).select('transaksi_id').single();if(saved.error)throw saved.error;
-  const u=await sb.from('CHATTRX_DRAFT').update({status:'confirmed',updated_at:new Date().toISOString()}).eq('draft_id',d.draft_id);if(u.error)throw u.error;return json({result:{success:true,message:'Transaksi ChatTrx berhasil disimpan.',transactionId:saved.data.transaksi_id}})
-}catch(e){return handlerError(e)}});
+
+Deno.serve(async(req)=>{
+  if(req.method==='OPTIONS')return new Response('ok',{headers:CORS});
+  if(req.method!=='POST')return json({error:'Method tidak didukung.'},405);
+  try{
+    const c=await getCaller(req);
+    const body=await req.json();
+    const p=Array.isArray(body.parameters)?body.parameters[0]||{}:body;
+    const draftId=text(p.draftId);
+    if(!draftId)throw new Error('ID draft wajib diisi.');
+
+    // Authorization remains in the Edge Function. Business validation and both
+    // writes are performed by one database transaction to prevent partial state.
+    let q:any=sb.from('CHATTRX_DRAFT').select('draft_id').eq('draft_id',draftId).maybeSingle();
+    const scoped=await applyRoleFilter(q,c);
+    if(scoped.error)throw scoped.error;
+    if(!scoped.data)throw new Error('Draft tidak ditemukan atau akses ditolak.');
+
+    const saved=await sb.rpc('confirm_chattrx_atomic',{p_draft_id:scoped.data.draft_id});
+    if(saved.error)throw saved.error;
+
+    return json({result:{success:true,message:'Transaksi ChatTrx berhasil disimpan.',transactionId:saved.data}});
+  }catch(e){return handlerError(e)}
+});
