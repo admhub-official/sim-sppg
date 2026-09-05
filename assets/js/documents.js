@@ -372,7 +372,23 @@
     });
   }
 
-  async function uploadOneDocument(file, index, total) {
+  function currentUploadContext() {
+    return {
+      folderId: state.folderId || '',
+      scope: state.scope ? { sppg: state.scope.sppg, yayasan: state.scope.yayasan } : null,
+      isTemplate: state.view === 'templates'
+    };
+  }
+
+  function uploadRequestPayload(context, extra) {
+    var target = context || currentUploadContext();
+    return Object.assign({}, scopePayload(target.scope), extra || {}, {
+      folderId: target.folderId || '',
+      isTemplate: target.isTemplate === true
+    });
+  }
+
+  async function uploadOneDocument(file, index, total, context) {
     var progress = $('docUploadProgress');
     if (file.size > 15 * 1024 * 1024) throw new Error('Ukuran ' + file.name + ' melebihi 15 MB.');
     var label = 'File ' + (index + 1) + ' / ' + total + ' · ' + file.name;
@@ -381,7 +397,11 @@
       if (progress) progress.innerHTML = uploadProgressMarkup(label + ' — membaca file ' + percent + '%', percent);
     });
     if (progress) progress.innerHTML = uploadProgressMarkup(label + ' — mengirim ke penyimpanan aman', 82);
-    await api('uploadDocument', payload({ folderId: state.folderId, name: file.name, mimeType: file.type || 'application/octet-stream', base64: base64, isTemplate: state.view === 'templates' }));
+    await api('uploadDocument', uploadRequestPayload(context, {
+      name: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      base64: base64
+    }));
     if (progress) progress.innerHTML = uploadProgressMarkup(label + ' — selesai', 100);
   }
 
@@ -396,7 +416,9 @@
     progress.classList.remove('hidden');
     progress.innerHTML = '<div role="alert"><strong>' + state.failedUploads.length + ' file gagal diunggah.</strong><div style="display:grid;gap:8px;margin-top:8px">' +
       state.failedUploads.map(function (entry, index) {
-        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="min-width:0"><b>' + esc(entry.file.name) + '</b><br><small>' + esc(entry.error || 'Upload gagal') + '</small></span>' +
+        var scopeLabel = entry.context && entry.context.scope && entry.context.scope.sppg ? entry.context.scope.sppg : 'scope saat upload';
+        var destination = (entry.context && entry.context.isTemplate ? 'Template' : 'Dokumen') + ' · ' + scopeLabel;
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="min-width:0"><b>' + esc(entry.file.name) + '</b><br><small>' + esc(entry.error || 'Upload gagal') + ' · Tujuan: ' + esc(destination) + '</small></span>' +
           '<button type="button" class="btn btn-outline btn-sm" data-doc-retry="' + index + '"><i class="fas fa-rotate-right"></i> Coba lagi</button></div>';
       }).join('') + '</div></div>';
   }
@@ -404,15 +426,16 @@
   window.uploadDocumentFiles = async function (fileList) {
     var files = Array.prototype.slice.call(fileList || []); if (!files.length) return;
     var progress = $('docUploadProgress'); if (progress) progress.classList.remove('hidden');
+    var context = currentUploadContext();
     state.failedUploads = [];
     var successes = 0;
     for (var i = 0; i < files.length; i += 1) {
       var file = files[i];
       try {
-        await uploadOneDocument(file, i, files.length);
+        await uploadOneDocument(file, i, files.length, context);
         successes += 1;
       } catch (error) {
-        state.failedUploads.push({ file: file, error: error.message || 'gagal' });
+        state.failedUploads.push({ file: file, error: error.message || 'gagal', context: context });
         notify('error', 'Upload gagal', file.name + ' — ' + (error.message || 'Silakan coba lagi.'));
       }
     }
@@ -428,9 +451,9 @@
     var progress = $('docUploadProgress');
     if (progress) progress.querySelectorAll('[data-doc-retry]').forEach(function (button) { button.disabled = true; });
     try {
-      await uploadOneDocument(entry.file, 0, 1);
+      await uploadOneDocument(entry.file, 0, 1, entry.context || currentUploadContext());
       state.failedUploads.splice(index, 1);
-      notify('success', 'Upload berhasil', entry.file.name + ' berhasil diunggah.');
+      notify('success', 'Upload berhasil', entry.file.name + ' berhasil diunggah ke lokasi tujuan awal.');
       state.page = 1;
       await load();
     } catch (error) {
