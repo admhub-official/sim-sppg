@@ -1,7 +1,10 @@
 (function () {
   'use strict';
 
-  var state = { view: 'files', folderId: '', scope: null, data: null, layout: 'grid', currentFile: null, loading: false, dropBound: false };
+  var state = {
+    view: 'files', folderId: '', scope: null, data: null, layout: 'grid', currentFile: null,
+    loading: false, dropBound: false, eventsBound: false, requestSeq: 0, page: 1, pageSize: 50
+  };
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (value) { var node = document.createElement('span'); node.textContent = String(value == null ? '' : value); return node.innerHTML; };
   var attr = function (value) { return esc(value).replace(/"/g, '&quot;'); };
@@ -10,8 +13,8 @@
     return new Promise(function (resolve, reject) { callApi(name, [payload || {}], resolve, reject); });
   }
   function notify(type, title, message) { if (window.showToast) showToast(type, title, message); }
-  function scopePayload() { return state.scope ? { sppg: state.scope.sppg, yayasan: state.scope.yayasan } : {}; }
-  function payload(extra) { return Object.assign({}, scopePayload(), extra || {}); }
+  function scopePayload(scope) { return scope ? { sppg: scope.sppg, yayasan: scope.yayasan } : {}; }
+  function payload(extra) { return Object.assign({}, scopePayload(state.scope), extra || {}); }
   function formatSize(bytes) {
     var size = Number(bytes) || 0;
     if (size < 1024) return size + ' B';
@@ -37,26 +40,63 @@
     return 'fa-file doc-icon-generic';
   }
 
+  function currentItem(type, id) {
+    var rows = type === 'FOLDER' ? (state.data && state.data.folders || []) : (state.data && state.data.files || []);
+    return rows.find(function (row) { return String(row.id) === String(id); }) || null;
+  }
+
+  function setLoading(active) {
+    state.loading = active;
+    if ($('docLoading')) $('docLoading').classList.toggle('hidden', !active);
+    if ($('docItems')) $('docItems').setAttribute('aria-busy', active ? 'true' : 'false');
+  }
+
   async function load() {
-    if (state.loading) return;
-    state.loading = true;
-    $('docLoading').classList.remove('hidden');
-    $('docItems').classList.add('hidden');
-    $('docEmpty').classList.add('hidden');
+    var sequence = ++state.requestSeq;
+    var snapshot = {
+      view: state.view,
+      folderId: state.folderId,
+      scope: state.scope ? { sppg: state.scope.sppg, yayasan: state.scope.yayasan } : null,
+      search: ($('docSearchInput') && $('docSearchInput').value || '').trim(),
+      page: state.page,
+      pageSize: state.pageSize
+    };
+
+    setLoading(true);
+    if ($('docEmpty')) $('docEmpty').classList.add('hidden');
+
     try {
-      var search = ($('docSearchInput').value || '').trim();
-      state.data = await api('listDocuments', payload({ view: state.view, folderId: state.folderId, search: search }));
-      if (!state.scope && state.data.currentScope) state.scope = state.data.currentScope;
-      renderScope(); renderBreadcrumbs(); renderItems(); updateActions();
+      var requestPayload = Object.assign({}, scopePayload(snapshot.scope), {
+        view: snapshot.view,
+        folderId: snapshot.folderId,
+        search: snapshot.search,
+        page: snapshot.page,
+        pageSize: snapshot.pageSize
+      });
+      var result = await api('listDocuments', requestPayload);
+      if (sequence !== state.requestSeq) return;
+      state.data = result;
+      if (!state.scope && result.currentScope) state.scope = result.currentScope;
+      var pagination = result.pagination || {};
+      if (Number(pagination.page) > 0) state.page = Number(pagination.page);
+      renderScope();
+      renderBreadcrumbs();
+      renderItems();
+      renderPagination();
+      updateActions();
     } catch (error) {
+      if (sequence !== state.requestSeq) return;
+      state.data = null;
+      if ($('docItems')) $('docItems').innerHTML = '';
+      if ($('docEmpty')) {
+        $('docEmpty').classList.remove('hidden');
+        $('docEmpty').querySelector('h3').textContent = 'Dokumen belum dapat dimuat';
+        $('docEmpty').querySelector('p').textContent = error.message || 'Silakan coba lagi.';
+      }
+      renderPagination();
       notify('error', 'Dokumen gagal dimuat', error.message || 'Silakan coba lagi.');
-      $('docEmpty').classList.remove('hidden');
-      $('docEmpty').querySelector('h3').textContent = 'Dokumen belum dapat dimuat';
-      $('docEmpty').querySelector('p').textContent = error.message || 'Silakan coba lagi.';
     } finally {
-      state.loading = false;
-      $('docLoading').classList.add('hidden');
-      $('docItems').classList.remove('hidden');
+      if (sequence === state.requestSeq) setLoading(false);
     }
   }
 
@@ -71,84 +111,211 @@
     }).join('');
     select.classList.toggle('hidden', scopes.length < 2);
     var current = state.scope || state.data.currentScope;
-    $('docScopeCaption').textContent = current && current.sppg ? 'Ruang kerja ' + current.sppg + (current.yayasan ? ' — ' + current.yayasan : '') : 'Kelola file kerja SPPG secara aman.';
+    if ($('docScopeCaption')) $('docScopeCaption').textContent = current && current.sppg
+      ? 'Ruang kerja ' + current.sppg + (current.yayasan ? ' — ' + current.yayasan : '')
+      : 'Kelola file kerja SPPG secara aman.';
   }
 
   function renderBreadcrumbs() {
+    var host = $('docBreadcrumbs');
+    if (!host) return;
     var crumbs = state.data && state.data.breadcrumbs || [];
     var rootLabel = state.view === 'templates' ? 'Template' : 'Dokumen SPPG';
-    var html = '<button onclick="openDocumentFolder(\'\')"><i class="fas fa-house"></i> ' + esc(rootLabel) + '</button>';
-    crumbs.forEach(function (crumb) { html += '<i class="fas fa-chevron-right"></i><button onclick="openDocumentFolder(\'' + attr(crumb.id) + '\')">' + esc(crumb.name) + '</button>'; });
-    $('docBreadcrumbs').innerHTML = html;
-    $('docBreadcrumbs').classList.toggle('hidden', ['recent', 'favorites', 'trash'].indexOf(state.view) >= 0);
+    var html = '<button type="button" data-doc-folder-id=""><i class="fas fa-house"></i> ' + esc(rootLabel) + '</button>';
+    crumbs.forEach(function (crumb) {
+      html += '<i class="fas fa-chevron-right" aria-hidden="true"></i><button type="button" data-doc-folder-id="' + attr(crumb.id) + '">' + esc(crumb.name) + '</button>';
+    });
+    host.innerHTML = html;
+    host.classList.toggle('hidden', ['recent', 'favorites', 'trash'].indexOf(state.view) >= 0);
+  }
+
+  function actionButton(action, item, type, icon, title, extraClass) {
+    return '<button type="button" class="doc-item-action' + (extraClass ? ' ' + extraClass : '') + '" data-doc-action="' + action + '" data-doc-id="' + attr(item.id) + '" data-doc-type="' + type + '" title="' + esc(title) + '" aria-label="' + esc(title + ' ' + item.name) + '"><i class="fas ' + icon + '"></i></button>';
   }
 
   function itemActions(item, type) {
-    if (state.view === 'trash') return '<button class="doc-item-action primary" title="Pulihkan" onclick="event.stopPropagation();restoreDocumentItem(\'' + type + '\',\'' + attr(item.id) + '\')"><i class="fas fa-rotate-left"></i></button>';
-    var useTemplate = type === 'FILE' && item.is_template ? '<button class="doc-item-action primary" title="Gunakan template" onclick="event.stopPropagation();useDocumentTemplate(\'' + attr(item.id) + '\',\'' + attr(item.name) + '\')"><i class="fas fa-copy"></i></button>' : '';
-    var favorite = type === 'FILE' ? '<button class="doc-item-action' + (item.favorite ? ' active' : '') + '" title="Favorit" onclick="event.stopPropagation();toggleDocumentFavorite(\'' + attr(item.id) + '\')"><i class="fas fa-star"></i></button>' : '';
+    if (state.view === 'trash') return actionButton('restore', item, type, 'fa-rotate-left', 'Pulihkan', 'primary');
+    var useTemplate = type === 'FILE' && item.is_template ? actionButton('use-template', item, type, 'fa-copy', 'Gunakan template', 'primary') : '';
+    var favorite = type === 'FILE' ? actionButton('favorite', item, type, 'fa-star', 'Favorit', item.favorite ? 'active' : '') : '';
     var immutableTemplate = item.is_template && state.data && !state.data.canManageTemplates;
     if (immutableTemplate) return useTemplate + favorite;
-    return useTemplate + favorite + '<button class="doc-item-action" title="Ubah nama" onclick="event.stopPropagation();renameDocumentItem(\'' + type + '\',\'' + attr(item.id) + '\',\'' + attr(item.name) + '\')"><i class="fas fa-pen"></i></button><button class="doc-item-action danger" title="Pindahkan ke Sampah" onclick="event.stopPropagation();trashDocumentItem(\'' + type + '\',\'' + attr(item.id) + '\')"><i class="fas fa-trash"></i></button>';
+    return useTemplate + favorite +
+      actionButton('rename', item, type, 'fa-pen', 'Ubah nama', '') +
+      actionButton('trash', item, type, 'fa-trash', 'Pindahkan ke Sampah', 'danger');
   }
 
   function renderItems() {
+    var host = $('docItems');
+    if (!host) return;
     var folders = state.data && state.data.folders || [];
     var files = state.data && state.data.files || [];
     var html = '';
     folders.forEach(function (folder) {
-      html += '<article class="doc-item doc-folder" tabindex="0" onclick="openDocumentFolder(\'' + attr(folder.id) + '\')" onkeydown="if(event.key===\'Enter\')openDocumentFolder(\'' + attr(folder.id) + '\')"><div class="doc-item-icon"><i class="fas fa-folder"></i></div><div class="doc-item-info"><strong>' + esc(folder.name) + '</strong><span>Folder' + (folder.is_template ? ' template' : '') + '</span></div><div class="doc-item-actions">' + itemActions(folder, 'FOLDER') + '</div></article>';
+      html += '<article class="doc-item doc-folder" tabindex="0" role="button" data-doc-open="folder" data-doc-id="' + attr(folder.id) + '">' +
+        '<div class="doc-item-icon"><i class="fas fa-folder"></i></div>' +
+        '<div class="doc-item-info"><strong>' + esc(folder.name) + '</strong><span>Folder' + (folder.is_template ? ' template' : '') + '</span></div>' +
+        '<div class="doc-item-actions">' + itemActions(folder, 'FOLDER') + '</div></article>';
     });
     files.forEach(function (file) {
-      html += '<article class="doc-item doc-file" tabindex="0" onclick="previewDocument(\'' + attr(file.id) + '\')" onkeydown="if(event.key===\'Enter\')previewDocument(\'' + attr(file.id) + '\')"><div class="doc-item-icon"><i class="fas ' + iconFor(file) + '"></i></div><div class="doc-item-info"><strong title="' + attr(file.name) + '">' + esc(file.name) + '</strong><span>' + esc(formatSize(file.size_bytes)) + ' · ' + esc(formatDate(file.updated_at)) + '</span><small>' + esc(file.classification === 'PERSONAL_DATA' ? 'Data pribadi' : file.is_template ? 'Template' : 'Dokumen internal') + '</small></div><div class="doc-item-actions">' + itemActions(file, 'FILE') + '</div></article>';
+      html += '<article class="doc-item doc-file" tabindex="0" role="button" data-doc-open="file" data-doc-id="' + attr(file.id) + '">' +
+        '<div class="doc-item-icon"><i class="fas ' + iconFor(file) + '"></i></div>' +
+        '<div class="doc-item-info"><strong title="' + attr(file.name) + '">' + esc(file.name) + '</strong>' +
+        '<span>' + esc(formatSize(file.size_bytes)) + ' · ' + esc(formatDate(file.updated_at)) + '</span>' +
+        '<small>' + esc(file.classification === 'PERSONAL_DATA' ? 'Data pribadi' : file.is_template ? 'Template' : 'Dokumen internal') + '</small></div>' +
+        '<div class="doc-item-actions">' + itemActions(file, 'FILE') + '</div></article>';
     });
-    $('docItems').innerHTML = html;
-    $('docItems').className = 'doc-items ' + state.layout;
-    $('docEmpty').classList.toggle('hidden', !!html);
-    if (!html) {
-      $('docEmpty').querySelector('h3').textContent = state.view === 'favorites' ? 'Belum ada favorit' : state.view === 'trash' ? 'Sampah kosong' : 'Belum ada dokumen';
-      $('docEmpty').querySelector('p').textContent = state.view === 'files' || state.view === 'templates' ? 'Buat folder atau upload file untuk memulai.' : 'Dokumen akan tampil di sini saat tersedia.';
+    host.innerHTML = html;
+    host.className = 'doc-items ' + state.layout;
+    if ($('docEmpty')) {
+      $('docEmpty').classList.toggle('hidden', !!html);
+      if (!html) {
+        $('docEmpty').querySelector('h3').textContent = state.view === 'favorites' ? 'Belum ada favorit' : state.view === 'trash' ? 'Sampah kosong' : 'Belum ada dokumen';
+        $('docEmpty').querySelector('p').textContent = state.view === 'files' || state.view === 'templates'
+          ? 'Buat folder atau upload file untuk memulai.'
+          : 'Dokumen akan tampil di sini saat tersedia.';
+      }
     }
+  }
+
+  function ensurePager() {
+    var pager = $('docPager');
+    if (pager) return pager;
+    var host = $('docItems');
+    if (!host || !host.parentNode) return null;
+    pager = document.createElement('div');
+    pager.id = 'docPager';
+    pager.className = 'doc-pager';
+    pager.setAttribute('aria-label', 'Navigasi halaman dokumen');
+    pager.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 4px;flex-wrap:wrap;font-size:12px;color:var(--slate-500)';
+    host.parentNode.insertBefore(pager, host.nextSibling);
+    pager.addEventListener('click', function (event) {
+      var button = event.target.closest('button[data-doc-page]');
+      if (!button || button.disabled) return;
+      state.page = Math.max(1, Number(button.getAttribute('data-doc-page')) || 1);
+      load();
+    });
+    return pager;
+  }
+
+  function renderPagination() {
+    var pager = ensurePager();
+    if (!pager) return;
+    var p = state.data && state.data.pagination;
+    if (!p || Number(p.totalPages || 1) <= 1) {
+      pager.innerHTML = '';
+      pager.classList.add('hidden');
+      return;
+    }
+    var page = Number(p.page) || state.page;
+    var pages = Math.max(1, Number(p.totalPages) || 1);
+    var fileTotal = Number(p.fileTotal) || 0;
+    var folderTotal = Number(p.folderTotal) || 0;
+    pager.classList.remove('hidden');
+    pager.innerHTML = '<span>' + esc(folderTotal + ' folder · ' + fileTotal + ' file') + '</span><div style="display:flex;align-items:center;gap:8px">' +
+      '<button type="button" class="btn btn-outline btn-sm" data-doc-page="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + ' aria-label="Halaman sebelumnya"><i class="fas fa-chevron-left"></i></button>' +
+      '<strong>Halaman ' + page + ' / ' + pages + '</strong>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-doc-page="' + (page + 1) + '"' + (page >= pages ? ' disabled' : '') + ' aria-label="Halaman berikutnya"><i class="fas fa-chevron-right"></i></button></div>';
   }
 
   function updateActions() {
     var templateLocked = state.view === 'templates' && state.data && !state.data.canManageTemplates;
-    document.querySelectorAll('.doc-toolbar-actions .btn').forEach(function (button) { button.classList.toggle('hidden', templateLocked || ['recent', 'favorites', 'trash'].indexOf(state.view) >= 0); });
+    document.querySelectorAll('.doc-toolbar-actions .btn').forEach(function (button) {
+      button.classList.toggle('hidden', templateLocked || ['recent', 'favorites', 'trash'].indexOf(state.view) >= 0);
+    });
+  }
+
+  function handleItemAction(action, type, id) {
+    var item = currentItem(type, id);
+    if (!item) return;
+    if (action === 'restore') return window.restoreDocumentItem(type, id);
+    if (action === 'use-template') return window.useDocumentTemplate(id, item.name);
+    if (action === 'favorite') return window.toggleDocumentFavorite(id);
+    if (action === 'rename') return window.renameDocumentItem(type, id, item.name);
+    if (action === 'trash') return window.trashDocumentItem(type, id);
+  }
+
+  function bindItemEvents() {
+    if (state.eventsBound) return;
+    state.eventsBound = true;
+    if ($('docItems')) {
+      $('docItems').addEventListener('click', function (event) {
+        var action = event.target.closest('[data-doc-action]');
+        if (action) {
+          event.preventDefault();
+          event.stopPropagation();
+          handleItemAction(action.getAttribute('data-doc-action'), action.getAttribute('data-doc-type'), action.getAttribute('data-doc-id'));
+          return;
+        }
+        var item = event.target.closest('[data-doc-open]');
+        if (!item) return;
+        var id = item.getAttribute('data-doc-id');
+        if (item.getAttribute('data-doc-open') === 'folder') window.openDocumentFolder(id);
+        else window.previewDocument(id);
+      });
+      $('docItems').addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        if (event.target.closest('[data-doc-action]')) return;
+        var item = event.target.closest('[data-doc-open]');
+        if (!item) return;
+        event.preventDefault();
+        var id = item.getAttribute('data-doc-id');
+        if (item.getAttribute('data-doc-open') === 'folder') window.openDocumentFolder(id);
+        else window.previewDocument(id);
+      });
+    }
+    if ($('docBreadcrumbs')) {
+      $('docBreadcrumbs').addEventListener('click', function (event) {
+        var button = event.target.closest('button[data-doc-folder-id]');
+        if (!button) return;
+        window.openDocumentFolder(button.getAttribute('data-doc-folder-id') || '');
+      });
+    }
   }
 
   function bindDropZone() {
     if (state.dropBound) return;
     var zone = document.querySelector('.doc-main'); if (!zone) return;
     state.dropBound = true;
-    ['dragenter', 'dragover'].forEach(function (name) { zone.addEventListener(name, function (event) { event.preventDefault(); if (state.view === 'files' || (state.view === 'templates' && state.data && state.data.canManageTemplates)) zone.classList.add('drag-over'); }); });
-    ['dragleave', 'drop'].forEach(function (name) { zone.addEventListener(name, function (event) { event.preventDefault(); zone.classList.remove('drag-over'); }); });
+    ['dragenter', 'dragover'].forEach(function (name) {
+      zone.addEventListener(name, function (event) {
+        event.preventDefault();
+        if (state.view === 'files' || (state.view === 'templates' && state.data && state.data.canManageTemplates)) zone.classList.add('drag-over');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (name) {
+      zone.addEventListener(name, function (event) { event.preventDefault(); zone.classList.remove('drag-over'); });
+    });
     zone.addEventListener('drop', function (event) {
       if (state.view !== 'files' && state.view !== 'templates') return;
       if (state.view === 'templates' && state.data && !state.data.canManageTemplates) return;
       window.uploadDocumentFiles(event.dataTransfer && event.dataTransfer.files);
     });
   }
-  window.initDocumentCenter = function () { bindDropZone(); load(); };
+
+  window.initDocumentCenter = function () { bindItemEvents(); bindDropZone(); load(); };
   window.openDocumentView = function (view, button) {
-    state.view = view; state.folderId = ''; $('docSearchInput').value = '';
+    state.view = view; state.folderId = ''; state.page = 1;
+    if ($('docSearchInput')) $('docSearchInput').value = '';
     document.querySelectorAll('.doc-nav').forEach(function (item) { item.classList.remove('active'); });
     if (button) button.classList.add('active');
     load();
   };
-  window.openDocumentFolder = function (id) { state.folderId = id || ''; load(); };
+  window.openDocumentFolder = function (id) { state.folderId = id || ''; state.page = 1; load(); };
   window.changeDocumentScope = function (value) {
-    try { state.scope = JSON.parse(decodeURIComponent(value)); state.folderId = ''; load(); }
+    try { state.scope = JSON.parse(decodeURIComponent(value)); state.folderId = ''; state.page = 1; load(); }
     catch (_) { notify('error', 'Cakupan tidak valid', 'Silakan pilih SPPG kembali.'); }
   };
-  window.searchDocuments = function () { load(); };
+  window.searchDocuments = function () { state.page = 1; load(); };
   window.toggleDocumentLayout = function () {
     state.layout = state.layout === 'grid' ? 'list' : 'grid';
-    $('docLayoutIcon').className = 'fas ' + (state.layout === 'grid' ? 'fa-list' : 'fa-border-all');
+    if ($('docLayoutIcon')) $('docLayoutIcon').className = 'fas ' + (state.layout === 'grid' ? 'fa-list' : 'fa-border-all');
     renderItems();
   };
   window.openDocumentCreateMenu = function () {
-    $('docCreateForm').classList.add('hidden'); document.querySelector('.doc-create-choices').classList.remove('hidden');
-    $('docCreateTemplate').checked = state.view === 'templates'; openModal('modalDocumentCreate');
+    if ($('docCreateForm')) $('docCreateForm').classList.add('hidden');
+    var choices = document.querySelector('.doc-create-choices'); if (choices) choices.classList.remove('hidden');
+    if ($('docCreateTemplate')) $('docCreateTemplate').checked = state.view === 'templates';
+    openModal('modalDocumentCreate');
   };
   window.showDocumentCreateForm = function (type) {
     $('docCreateType').value = type; $('docCreateName').value = ''; $('docTextContent').value = '';
@@ -166,22 +333,35 @@
     try {
       var common = payload({ name: name, folderId: state.folderId, parentId: state.folderId, isTemplate: $('docCreateTemplate').checked });
       var result = type === 'folder' ? await api('createDocumentFolder', common) : await api('createTextDocument', Object.assign(common, { content: $('docTextContent').value }));
-      closeModal('modalDocumentCreate'); notify('success', 'Berhasil', result.message); await load();
+      closeModal('modalDocumentCreate'); notify('success', 'Berhasil', result.message); state.page = 1; await load();
     } catch (error) { notify('error', 'Gagal menyimpan', error.message); }
     finally { button.disabled = false; }
   };
   window.uploadDocumentFiles = async function (fileList) {
     var files = Array.prototype.slice.call(fileList || []); if (!files.length) return;
-    var progress = $('docUploadProgress'); progress.classList.remove('hidden');
+    var progress = $('docUploadProgress'); if (progress) progress.classList.remove('hidden');
+    var successes = 0; var failures = [];
     for (var i = 0; i < files.length; i += 1) {
-      var file = files[i]; progress.textContent = 'Mengunggah ' + (i + 1) + ' dari ' + files.length + ': ' + file.name;
+      var file = files[i]; if (progress) progress.textContent = 'Mengunggah ' + (i + 1) + ' dari ' + files.length + ': ' + file.name;
       try {
         if (file.size > 15 * 1024 * 1024) throw new Error('Ukuran ' + file.name + ' melebihi 15 MB.');
-        var base64 = await new Promise(function (resolve, reject) { var reader = new FileReader(); reader.onload = function () { resolve(String(reader.result).split(',')[1]); }; reader.onerror = reject; reader.readAsDataURL(file); });
+        var base64 = await new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function () { resolve(String(reader.result).split(',')[1]); };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
         await api('uploadDocument', payload({ folderId: state.folderId, name: file.name, mimeType: file.type || 'application/octet-stream', base64: base64, isTemplate: state.view === 'templates' }));
-      } catch (error) { notify('error', 'Upload gagal', error.message); }
+        successes += 1;
+      } catch (error) {
+        failures.push(file.name + ': ' + (error.message || 'gagal'));
+        notify('error', 'Upload gagal', file.name + ' — ' + (error.message || 'Silakan coba lagi.'));
+      }
     }
-    $('docUploadInput').value = ''; progress.classList.add('hidden'); notify('success', 'Upload selesai', files.length + ' file telah diproses.'); load();
+    if ($('docUploadInput')) $('docUploadInput').value = '';
+    if (progress) progress.classList.add('hidden');
+    if (successes) notify('success', 'Upload selesai', successes + ' file berhasil diunggah' + (failures.length ? ', ' + failures.length + ' gagal.' : '.'));
+    state.page = 1; load();
   };
   window.previewDocument = async function (id) {
     $('docPreviewBody').innerHTML = '<div class="doc-loading"><i class="fas fa-spinner fa-spin"></i> Menyiapkan preview...</div>'; openModal('modalDocumentPreview');
@@ -195,7 +375,9 @@
       else if (mime.indexOf('audio/') === 0) $('docPreviewBody').innerHTML = '<audio src="' + url + '" controls></audio>';
       else if (mime.indexOf('text/') === 0) { var response = await fetch(file.url); $('docPreviewBody').innerHTML = '<pre>' + esc(await response.text()) + '</pre>'; }
       else $('docPreviewBody').innerHTML = '<div class="doc-preview-fallback"><i class="fas ' + iconFor(file) + '"></i><h3>Preview belum tersedia</h3><p>File tetap aman dan dapat dibuka melalui tombol Unduh.</p></div>';
-    } catch (error) { $('docPreviewBody').innerHTML = '<div class="doc-preview-fallback"><i class="fas fa-triangle-exclamation"></i><h3>File tidak dapat dibuka</h3><p>' + esc(error.message) + '</p></div>'; }
+    } catch (error) {
+      $('docPreviewBody').innerHTML = '<div class="doc-preview-fallback"><i class="fas fa-triangle-exclamation"></i><h3>File tidak dapat dibuka</h3><p>' + esc(error.message) + '</p></div>';
+    }
   };
   window.closeDocumentPreview = function () { state.currentFile = null; closeModal('modalDocumentPreview'); };
   window.downloadCurrentDocument = async function () {
@@ -209,7 +391,8 @@
     catch (error) { notify('error', 'Gagal mengubah nama', error.message); }
   };
   window.trashDocumentItem = async function (type, id) {
-    if (!window.confirm('Pindahkan item ini ke Sampah?')) return;
+    var message = type === 'FOLDER' ? 'Pindahkan folder ini beserta seluruh file dan subfolder di dalamnya ke Sampah?' : 'Pindahkan file ini ke Sampah?';
+    if (!window.confirm(message)) return;
     try { var result = await api('trashDocumentItem', payload({ entityType: type, id: id })); notify('success', 'Dipindahkan', result.message); load(); }
     catch (error) { notify('error', 'Gagal memindahkan', error.message); }
   };
@@ -226,7 +409,8 @@
     try {
       var result = await api('useDocumentTemplate', payload({ fileId: id, name: name.trim() }));
       notify('success', 'Template siap digunakan', result.message);
-      state.view = 'files'; state.folderId = ''; $('docSearchInput').value = '';
+      state.view = 'files'; state.folderId = ''; state.page = 1;
+      if ($('docSearchInput')) $('docSearchInput').value = '';
       document.querySelectorAll('.doc-nav').forEach(function (item) { item.classList.toggle('active', item.getAttribute('data-doc-view') === 'files'); });
       load();
     } catch (error) { notify('error', 'Template gagal digunakan', error.message); }
