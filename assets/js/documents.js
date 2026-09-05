@@ -3,7 +3,8 @@
 
   var state = {
     view: 'files', folderId: '', scope: null, data: null, layout: 'grid', currentFile: null,
-    loading: false, dropBound: false, eventsBound: false, requestSeq: 0, page: 1, pageSize: 50
+    loading: false, dropBound: false, eventsBound: false, uploadEventsBound: false,
+    requestSeq: 0, page: 1, pageSize: 50, failedUploads: []
   };
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (value) { var node = document.createElement('span'); node.textContent = String(value == null ? '' : value); return node.innerHTML; };
@@ -88,13 +89,16 @@
       if (sequence !== state.requestSeq) return;
       state.data = null;
       if ($('docItems')) $('docItems').innerHTML = '';
+      var offline = window.navigator && window.navigator.onLine === false;
       if ($('docEmpty')) {
         $('docEmpty').classList.remove('hidden');
-        $('docEmpty').querySelector('h3').textContent = 'Dokumen belum dapat dimuat';
-        $('docEmpty').querySelector('p').textContent = error.message || 'Silakan coba lagi.';
+        $('docEmpty').querySelector('h3').textContent = offline ? 'Anda sedang offline' : 'Dokumen belum dapat dimuat';
+        $('docEmpty').querySelector('p').textContent = offline
+          ? 'Sambungkan perangkat ke internet lalu coba lagi. Daftar lama tidak ditampilkan sebagai data terbaru.'
+          : (error.message || 'Silakan coba lagi.');
       }
       renderPagination();
-      notify('error', 'Dokumen gagal dimuat', error.message || 'Silakan coba lagi.');
+      notify(offline ? 'warning' : 'error', offline ? 'Pusat Dokumen offline' : 'Dokumen gagal dimuat', offline ? 'Sambungkan internet lalu coba lagi.' : (error.message || 'Silakan coba lagi.'));
     } finally {
       if (sequence === state.requestSeq) setLoading(false);
     }
@@ -272,6 +276,18 @@
     }
   }
 
+  function bindUploadEvents() {
+    if (state.uploadEventsBound) return;
+    var progress = $('docUploadProgress');
+    if (!progress) return;
+    state.uploadEventsBound = true;
+    progress.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-doc-retry]');
+      if (!button || button.disabled) return;
+      window.retryDocumentUpload(Number(button.getAttribute('data-doc-retry')));
+    });
+  }
+
   function bindDropZone() {
     if (state.dropBound) return;
     var zone = document.querySelector('.doc-main'); if (!zone) return;
@@ -292,7 +308,7 @@
     });
   }
 
-  window.initDocumentCenter = function () { bindItemEvents(); bindDropZone(); load(); };
+  window.initDocumentCenter = function () { bindItemEvents(); bindUploadEvents(); bindDropZone(); load(); };
   window.openDocumentView = function (view, button) {
     state.view = view; state.folderId = ''; state.page = 1;
     if ($('docSearchInput')) $('docSearchInput').value = '';
@@ -337,32 +353,94 @@
     } catch (error) { notify('error', 'Gagal menyimpan', error.message); }
     finally { button.disabled = false; }
   };
+
+  function uploadProgressMarkup(message, percent) {
+    var safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+    return '<div role="status" aria-live="polite"><strong>' + esc(message) + '</strong>' +
+      '<div style="height:6px;margin-top:7px;border-radius:999px;background:rgba(148,163,184,.3);overflow:hidden"><span style="display:block;height:100%;width:' + safePercent + '%;background:currentColor;transition:width .15s ease"></span></div></div>';
+  }
+
+  function readFileBase64(file, onProgress) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onprogress = function (event) {
+        if (event.lengthComputable && onProgress) onProgress(Math.round((event.loaded / event.total) * 70));
+      };
+      reader.onload = function () { if (onProgress) onProgress(75); resolve(String(reader.result).split(',')[1]); };
+      reader.onerror = function () { reject(reader.error || new Error('File tidak dapat dibaca.')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadOneDocument(file, index, total) {
+    var progress = $('docUploadProgress');
+    if (file.size > 15 * 1024 * 1024) throw new Error('Ukuran ' + file.name + ' melebihi 15 MB.');
+    var label = 'File ' + (index + 1) + ' / ' + total + ' · ' + file.name;
+    if (progress) progress.innerHTML = uploadProgressMarkup(label + ' — membaca file', 5);
+    var base64 = await readFileBase64(file, function (percent) {
+      if (progress) progress.innerHTML = uploadProgressMarkup(label + ' — membaca file ' + percent + '%', percent);
+    });
+    if (progress) progress.innerHTML = uploadProgressMarkup(label + ' — mengirim ke penyimpanan aman', 82);
+    await api('uploadDocument', payload({ folderId: state.folderId, name: file.name, mimeType: file.type || 'application/octet-stream', base64: base64, isTemplate: state.view === 'templates' }));
+    if (progress) progress.innerHTML = uploadProgressMarkup(label + ' — selesai', 100);
+  }
+
+  function renderFailedUploads() {
+    var progress = $('docUploadProgress');
+    if (!progress) return;
+    if (!state.failedUploads.length) {
+      progress.classList.add('hidden');
+      progress.innerHTML = '';
+      return;
+    }
+    progress.classList.remove('hidden');
+    progress.innerHTML = '<div role="alert"><strong>' + state.failedUploads.length + ' file gagal diunggah.</strong><div style="display:grid;gap:8px;margin-top:8px">' +
+      state.failedUploads.map(function (entry, index) {
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="min-width:0"><b>' + esc(entry.file.name) + '</b><br><small>' + esc(entry.error || 'Upload gagal') + '</small></span>' +
+          '<button type="button" class="btn btn-outline btn-sm" data-doc-retry="' + index + '"><i class="fas fa-rotate-right"></i> Coba lagi</button></div>';
+      }).join('') + '</div></div>';
+  }
+
   window.uploadDocumentFiles = async function (fileList) {
     var files = Array.prototype.slice.call(fileList || []); if (!files.length) return;
     var progress = $('docUploadProgress'); if (progress) progress.classList.remove('hidden');
-    var successes = 0; var failures = [];
+    state.failedUploads = [];
+    var successes = 0;
     for (var i = 0; i < files.length; i += 1) {
-      var file = files[i]; if (progress) progress.textContent = 'Mengunggah ' + (i + 1) + ' dari ' + files.length + ': ' + file.name;
+      var file = files[i];
       try {
-        if (file.size > 15 * 1024 * 1024) throw new Error('Ukuran ' + file.name + ' melebihi 15 MB.');
-        var base64 = await new Promise(function (resolve, reject) {
-          var reader = new FileReader();
-          reader.onload = function () { resolve(String(reader.result).split(',')[1]); };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        await api('uploadDocument', payload({ folderId: state.folderId, name: file.name, mimeType: file.type || 'application/octet-stream', base64: base64, isTemplate: state.view === 'templates' }));
+        await uploadOneDocument(file, i, files.length);
         successes += 1;
       } catch (error) {
-        failures.push(file.name + ': ' + (error.message || 'gagal'));
+        state.failedUploads.push({ file: file, error: error.message || 'gagal' });
         notify('error', 'Upload gagal', file.name + ' — ' + (error.message || 'Silakan coba lagi.'));
       }
     }
     if ($('docUploadInput')) $('docUploadInput').value = '';
-    if (progress) progress.classList.add('hidden');
-    if (successes) notify('success', 'Upload selesai', successes + ' file berhasil diunggah' + (failures.length ? ', ' + failures.length + ' gagal.' : '.'));
+    if (successes) notify('success', 'Upload selesai', successes + ' file berhasil diunggah' + (state.failedUploads.length ? ', ' + state.failedUploads.length + ' gagal.' : '.'));
+    renderFailedUploads();
     state.page = 1; load();
   };
+
+  window.retryDocumentUpload = async function (index) {
+    var entry = state.failedUploads[index];
+    if (!entry || !entry.file) return;
+    var progress = $('docUploadProgress');
+    if (progress) progress.querySelectorAll('[data-doc-retry]').forEach(function (button) { button.disabled = true; });
+    try {
+      await uploadOneDocument(entry.file, 0, 1);
+      state.failedUploads.splice(index, 1);
+      notify('success', 'Upload berhasil', entry.file.name + ' berhasil diunggah.');
+      state.page = 1;
+      await load();
+    } catch (error) {
+      entry.error = error.message || 'gagal';
+      notify('error', 'Retry gagal', entry.file.name + ' — ' + entry.error);
+    } finally {
+      renderFailedUploads();
+    }
+  };
+
   window.previewDocument = async function (id) {
     $('docPreviewBody').innerHTML = '<div class="doc-loading"><i class="fas fa-spinner fa-spin"></i> Menyiapkan preview...</div>'; openModal('modalDocumentPreview');
     try {
