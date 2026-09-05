@@ -111,7 +111,7 @@
         modal.removeAttribute('aria-hidden');
       } else {
         modal.setAttribute('aria-hidden', 'true');
-        if (!modal.classList.contains('active')) modal.removeAttribute('aria-modal');
+        modal.removeAttribute('aria-modal');
       }
     });
 
