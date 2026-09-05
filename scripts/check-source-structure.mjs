@@ -131,8 +131,15 @@ if (fs.existsSync(chatTrxMessagePath) && fs.existsSync(chatTrxConfirmPath)) {
   if (/from\(['"]TRANSAKSI['"]\)/.test(messageSource + confirmSource)) {
     errors.push('ChatTrx tidak boleh membaca atau menulis tabel TRANSAKSI utama.');
   }
-  if (!confirmSource.includes("from('CHATTRX_TRANSAKSI').upsert")) {
-    errors.push('Konfirmasi ChatTrx harus menyimpan ke CHATTRX_TRANSAKSI.');
+
+  const atomicConfirmMigration = migrationFiles
+    .map((file) => fs.readFileSync(file, 'utf8'))
+    .find((source) => source.includes('create or replace function public.confirm_chattrx_atomic'));
+  const writesDirectly = confirmSource.includes("from('CHATTRX_TRANSAKSI').upsert");
+  const writesAtomically = confirmSource.includes("sb.rpc('confirm_chattrx_atomic'")
+    && atomicConfirmMigration?.includes('insert into public."CHATTRX_TRANSAKSI"');
+  if (!writesDirectly && !writesAtomically) {
+    errors.push('Konfirmasi ChatTrx harus menyimpan ke CHATTRX_TRANSAKSI secara langsung atau melalui RPC atomik.');
   }
   if (/TTD konfirmasi wajib|ttdBase64/.test(confirmSource)) {
     errors.push('Konfirmasi ChatTrx tidak boleh mewajibkan TTD.');
