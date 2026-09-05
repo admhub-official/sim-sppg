@@ -7,13 +7,13 @@
       document.referrer.indexOf('android-app://') === 0;
   }
 
-  function syncBrowserInstallUI() {
+  function removeLegacyRequirementGate() {
     var gate = document.getElementById('pwaRequirementGate');
-    if (gate) {
-      gate.classList.add('hidden');
-      gate.setAttribute('aria-hidden', 'true');
-      gate.removeAttribute('aria-modal');
-    }
+    if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
+  }
+
+  function syncBrowserInstallUI() {
+    removeLegacyRequirementGate();
 
     var button = document.getElementById('btnInstallPWA');
     if (!button) return;
@@ -61,19 +61,20 @@
   } catch (_) {}
 
   var observer = new MutationObserver(function () {
-    var gate = document.getElementById('pwaRequirementGate');
-    if (gate && !gate.classList.contains('hidden')) gate.classList.add('hidden');
+    removeLegacyRequirementGate();
     var button = document.getElementById('btnInstallPWA');
     if (button) {
       var standalone = isStandalone();
-      if (standalone && !button.classList.contains('hidden')) button.classList.add('hidden');
-      if (!standalone && button.classList.contains('hidden')) button.classList.remove('hidden');
+      button.classList.toggle('hidden', standalone);
+      button.classList.toggle('show', !standalone);
+      button.setAttribute('aria-hidden', standalone ? 'true' : 'false');
+      button.tabIndex = standalone ? -1 : 0;
     }
   });
 
   function observe() {
     var root = document.getElementById('appContainer') || document.body;
-    if (root) observer.observe(root, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    if (root) observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', observe);
