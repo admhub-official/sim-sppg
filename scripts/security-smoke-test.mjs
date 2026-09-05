@@ -91,6 +91,14 @@ async function callEdge(slug, token, fn, parameters = []) {
   });
 }
 
+async function callAnonRpc(name, args = {}) {
+  return jsonFetch(`${base}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: { apikey: anon, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args)
+  });
+}
+
 function payload(body) {
   return Object.prototype.hasOwnProperty.call(body || {}, 'result') ? body.result : body;
 }
@@ -123,6 +131,11 @@ await test('Endpoint privat menolak request tanpa JWT', async () => {
   assert([401, 403].includes(res.status), `Diterima dengan HTTP ${res.status}`);
 });
 
+await test('Pusat Dokumen menolak request tanpa JWT', async () => {
+  const { res } = await callEdge('document-action', '', 'listDocuments', [{ page: 1, pageSize: 10 }]);
+  assert([401, 403].includes(res.status), `Diterima dengan HTTP ${res.status}`);
+});
+
 await test('Unknown route ditolak', async () => {
   const { res } = await callEdge('transaction-action', anon, '__security_unknown_function__', []);
   assert([401, 403, 404].includes(res.status), `Unknown route merespons HTTP ${res.status}`);
@@ -143,6 +156,22 @@ await test('RPC atomik tidak dapat dipanggil langsung oleh authenticated/anon cl
     })
   });
   assert([401, 403, 404].includes(res.status), `RPC tidak diblokir: HTTP ${res.status}`);
+});
+
+await test('RPC metadata dokumen transaksi tidak tersedia untuk anon', async () => {
+  const { res } = await callAnonRpc('get_transaction_documents', { p_transaction_id: 'SECURITY-SMOKE-NONEXISTENT' });
+  assert([401, 403, 404].includes(res.status), `RPC metadata dokumen terbuka: HTTP ${res.status}`);
+});
+
+await test('Helper registrasi SECURITY DEFINER tidak tersedia untuk anon', async () => {
+  const { res } = await callAnonRpc('create_user_profile_by_registration', {
+    p_auth_user_id: '00000000-0000-0000-0000-000000000000',
+    p_otp_id: '00000000-0000-0000-0000-000000000000',
+    p_email: 'security-smoke@example.invalid',
+    p_username: 'security-smoke',
+    p_full_name: 'Security Smoke'
+  });
+  assert([401, 403, 404].includes(res.status), `Helper SECURITY DEFINER terbuka: HTTP ${res.status}`);
 });
 
 const haveUser = fixtures.userEmail && fixtures.userPassword;
@@ -243,8 +272,8 @@ if (fixtures.otherUserEmail && fixtures.otherUserPassword) {
 if (adminToken && fixtures.paymentTransactionId && fixtures.paymentProofId) {
   await test('Verifikasi pembayaran ganda ditolak', async () => {
     const args = [fixtures.paymentTransactionId, fixtures.paymentProofId, true, 'Security smoke', '', null];
-    const first = await callEdge('transaction-action', adminToken, 'verifyUserPayment', args);
-    const second = await callEdge('transaction-action', adminToken, 'verifyUserPayment', args);
+    const first = await callEdge('approval-payment-action', adminToken, 'verifyUserPayment', args);
+    const second = await callEdge('approval-payment-action', adminToken, 'verifyUserPayment', args);
     assert(first.res.ok || [400, 409].includes(first.res.status), `Percobaan pertama tak terduga: HTTP ${first.res.status}`);
     assert([400, 409].includes(second.res.status), `Verifikasi ganda tidak ditolak: HTTP ${second.res.status}`);
   });
