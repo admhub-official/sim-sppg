@@ -1714,7 +1714,7 @@ function loadMyMenuVisibility() {
     callApi('getMyMenuVisibility', [], function(result) {
       if (result && result.success && Array.isArray(result.menus)) {
         menuVisibilityByRole[result.role || currentUser.role] = result.menus;
-        if (!isPageAllowedForCurrentUser(currentPage)) currentPage = 'dashboard';
+        if (!isPageAllowedForCurrentUser(currentPage)) switchPage('dashboard', null, { replace: true });
         buildSidebar();
         buildBottomNav();
       }
@@ -2133,8 +2133,44 @@ function isPageAllowedForCurrentUser(page) {
 }
 
 function getRestorablePage() {
+  var route = getPageFromUrl();
+  if (route !== null) return isPageAllowedForCurrentUser(route) ? route : 'dashboard';
   var saved = safeStorage('get', getLastPageStorageKey()) || 'dashboard';
   return isPageAllowedForCurrentUser(saved) ? saved : 'dashboard';
+}
+
+// Only page fragments belong to navigation. Auth recovery fragments are handled
+// by the login flow and must never be copied into navigation history.
+function getPageFromUrl() {
+  var hash = window.location.hash || '';
+  if (!hash || hash.indexOf('=') !== -1) return null;
+  return /^#[a-z][a-z0-9-]*$/.test(hash) ? hash.slice(1) : '';
+}
+
+function syncPageUrl(page, replace) {
+  if (!currentUser || (window.location.hash || '').indexOf('=') !== -1) return;
+  var url = window.location.pathname + window.location.search + '#' + page;
+  if (window.location.hash === '#' + page && !replace) return;
+  history[replace ? 'replaceState' : 'pushState']({ sppgPage: page }, '', url);
+}
+
+function restorePageFromHistory() {
+  if (!currentUser) return;
+  var route = getPageFromUrl();
+  if (route === null && window.location.hash) return;
+  var page = route && isPageAllowedForCurrentUser(route) ? route : 'dashboard';
+  if (page === currentPage) {
+    syncPageUrl(page, true);
+    return;
+  }
+  // A history transition closes overlays so they cannot obscure another page.
+  document.querySelectorAll('.modal-overlay.active,.modal-overlay:not(.hidden)').forEach(function(modal) {
+    if (modal.id) closeModal(modal.id);
+  });
+  var lightbox = document.getElementById('modalLightbox');
+  if (lightbox && !lightbox.classList.contains('hidden')) closeLightbox();
+  closeMobileSidebar();
+  switchPage(page, null, { replace: true });
 }
 
 function rememberCurrentPage(page) {
@@ -2472,7 +2508,7 @@ document.addEventListener('click', function(e) {
 /* ============================================================
      APP SHELL & NAVIGATION
      ============================================================ */
-function switchPage(page, el) {
+function switchPage(page, el, navigation) {
   if (!isPageAllowedForCurrentUser(page)) {
     page = 'dashboard';
     el = null;
@@ -2500,6 +2536,7 @@ function switchPage(page, el) {
   currentPage = page;
   document.body.classList.toggle('chattrx-fullscreen', page === 'chattrx');
   rememberCurrentPage(page);
+  syncPageUrl(page, navigation && navigation.replace);
   // Update title
   var titles = {
     'dashboard': 'Dashboard', 'profil': 'Profil', 'users': 'Manajemen Users', 'laporan': 'Laporan',
@@ -2527,7 +2564,7 @@ function switchPage(page, el) {
   updateBottomNavActive();
   updateFabVisibility();
   // Page-specific init
-  if (page === 'dashboard') { loadDashboardData(true); updateChart(); loadMyAnnouncements(); }
+  if (page === 'dashboard' && !(navigation && navigation.initial)) { loadDashboardData(true); updateChart(); loadMyAnnouncements(); }
   if (page === 'settings' && currentUser.role === 'SUPER_ADMIN') { initializeSettingsHubLayout(); loadSettingsHub(); }
   if (page === 'users' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) loadUsers(true);
   if (page === 'transaksi') { loadFeatureModes(true); loadTransactions(undefined, undefined, true); restoreFilterBarState('txFilterBar'); }
@@ -2737,7 +2774,7 @@ function initApp() {
 
   // Kembali ke halaman terakhir yang memang tersedia untuk role pengguna.
   // Dashboard tetap menjadi fallback aman jika menu lama sudah tidak diizinkan.
-  if (currentPage !== 'dashboard') switchPage(currentPage);
+  switchPage(currentPage, null, { replace: true, initial: true });
 
 // Load foto profil ke icon menu (sidebar & bottom-nav) sejak awal, bukan hanya saat buka halaman Profil
   if (currentUser.fotoProfil && String(currentUser.fotoProfil).trim() !== '' && currentUser.fotoProfil !== '-') {
@@ -8783,26 +8820,8 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
     }
   }, { passive: true });
 
-  // --- Android back button: tutup modal/sidebar yang terbuka ---
-  window.addEventListener('popstate', function() {
-    // Tutup modal yang terbuka
-    var openModal = document.querySelector('.modal-overlay:not(.hidden)');
-    if (openModal) {
-      var modalWrap = openModal.closest('[id]');
-      if (modalWrap) { closeModal(modalWrap.id); history.pushState(null, '', location.href); return; }
-    }
-    // Tutup lightbox
-    if (!document.getElementById('modalLightbox').classList.contains('hidden')) {
-      closeLightbox(); history.pushState(null, '', location.href); return;
-    }
-    // Tutup sidebar mobile
-    var sb = document.getElementById('mainSidebar');
-    if (sb && sb.classList.contains('mobile-open')) {
-      closeMobileSidebar(); history.pushState(null, '', location.href); return;
-    }
-  });
-  // Push state awal agar back button bisa ditangkap
-  history.pushState(null, '', location.href);
+  window.addEventListener('popstate', restorePageFromHistory);
+  window.addEventListener('hashchange', restorePageFromHistory);
 })();
 
 // ============================================================

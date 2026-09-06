@@ -55,6 +55,7 @@ jobs:
           while IFS= read -r -d '' file; do node --check "$file"; done < <(find assets/js -type f -name '*.js' -print0)
           while IFS= read -r -d '' file; do node --check "$file"; done < <(find scripts -maxdepth 1 -type f -name '*.mjs' -print0)
           node scripts/check-source-structure.mjs
+          node scripts/check-navigation-history.mjs
       - name: Reject unresolved merge markers
         run: |
           if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' -- app.js sw.js _worker.js index.html supplier-dropdown.js yayasan-dropdown-hotfix.js transaction-category-supplier-rules.js assets/css assets/js scripts; then exit 1; fi
