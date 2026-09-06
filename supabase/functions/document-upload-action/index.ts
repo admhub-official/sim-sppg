@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { readDocumentPrefix, validateDocumentContent } from '../_shared/document-content-validation.mjs';
 
 const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -19,7 +20,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const text = (value: unknown) => String(value ?? '').trim();
 const lower = (value: unknown) => text(value).toLowerCase();
 const safeName = (value: unknown, fallback = 'File') => text(value).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 240) || fallback;
-const forbiddenName = /\.(exe|msi|apk|bat|cmd|com|scr|ps1|vbs|js|mjs|cjs|jar|sh|php|py|rb|pl|cgi|dll)$/i;
+const forbiddenName = /\.(exe|msi|apk|bat|cmd|com|scr|ps1|vbs|js|mjs|cjs|jar|sh|php|py|rb|pl|cgi|dll|html?|svgz?|wasm)$/i;
 const forbiddenMime = /application\/(x-msdownload|x-msdos-program|x-sh|x-executable)/i;
 
 type Caller = { id: string; email: string; username: string; role: string; sppg: string; yayasan: string };
@@ -269,6 +270,7 @@ async function inspectUploadedObject(storagePath: string) {
 async function finalizeUpload(caller: Caller, input: any) {
   const intent = await verifyIntent(input?.intent);
   if (intent.callerId !== caller.id) throw new Error('Intent upload bukan milik pengguna ini.');
+  if (intent.isTemplate && !canManageTemplates(caller)) throw new Error('Hak akses template sudah berubah.');
 
   const existing = await sb.from('DOC_FILES').select('*').eq('id', intent.fileId).maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
@@ -297,7 +299,7 @@ async function finalizeUpload(caller: Caller, input: any) {
   const actualSize = Number(object?.metadata?.size || object?.metadata?.contentLength || 0);
   const actualMime = text(object?.metadata?.mimetype || intent.mimeType).split(';')[0].toLowerCase();
   const expectedMime = text(intent.mimeType).split(';')[0].toLowerCase();
-  if (actualSize && actualSize !== Number(intent.sizeBytes)) {
+  if (!Number.isFinite(actualSize) || actualSize <= 0 || actualSize !== Number(intent.sizeBytes)) {
     await sb.storage.from(BUCKET).remove([intent.storagePath]);
     throw new Error('Ukuran file hasil upload tidak sesuai dengan file yang disiapkan.');
   }
@@ -312,6 +314,17 @@ async function finalizeUpload(caller: Caller, input: any) {
   if (expectedMime && expectedMime !== 'application/octet-stream' && actualMime && actualMime !== expectedMime) {
     await sb.storage.from(BUCKET).remove([intent.storagePath]);
     throw new Error('Tipe file hasil upload tidak sesuai dengan file yang disiapkan.');
+  }
+
+  const signedRead = await sb.storage.from(BUCKET).createSignedUrl(intent.storagePath, 60);
+  if (signedRead.error || !signedRead.data?.signedUrl) throw new Error('Isi file belum dapat diperiksa. Silakan coba lagi.');
+  // Transient read failures keep the object available for a retry.
+  const prefix = await readDocumentPrefix(signedRead.data.signedUrl);
+  try {
+    validateDocumentContent(intent.name, actualMime, prefix);
+  } catch (error) {
+    await sb.storage.from(BUCKET).remove([intent.storagePath]);
+    throw error;
   }
 
   const classification = await folderStoresPersonalData(folder) ? 'PERSONAL_DATA' : intent.requestedClassification;
