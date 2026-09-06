@@ -7,6 +7,7 @@
   var forbiddenMime = /application\/(x-msdownload|x-msdos-program|x-sh|x-executable)/i;
   var failedUploads = [];
   var uploadBusy = false;
+  var uploadGeneration = 0;
 
   function $(id) { return document.getElementById(id); }
   function esc(value) {
@@ -172,15 +173,20 @@
   }
 
   function perform(entry, index, total) {
+    function assertActiveSession() {
+      if (entry.generation !== uploadGeneration) throw new Error('Upload dihentikan karena sesi berakhir.');
+    }
+    assertActiveSession();
     validateFile(entry.file);
     var label = 'File ' + (index + 1) + ' / ' + total + ' · ' + entry.file.name;
     return prepare(entry, label)
       .then(function () {
+        assertActiveSession();
         if (entry.uploaded) return null;
         showProgress(label + ' — mulai upload langsung', 12);
         return uploadToSignedUrl(entry, label).then(function () { entry.uploaded = true; });
       })
-      .then(function () { return finalize(entry, label); });
+      .then(function () { assertActiveSession(); return finalize(entry, label); });
   }
 
   function renderFailures() {
@@ -207,6 +213,12 @@
     if (typeof window.searchDocuments === 'function') window.searchDocuments();
   }
 
+  window.clearDocumentUploadQueue = function () {
+    uploadGeneration += 1;
+    failedUploads = [];
+    renderFailures();
+  };
+
   window.uploadDocumentFiles = async function (fileList) {
     var files = Array.prototype.slice.call(fileList || []);
     if (!files.length) return;
@@ -215,16 +227,19 @@
       return;
     }
     var context = currentContext();
+    var generation = uploadGeneration;
     uploadBusy = true;
     try {
       var successes = 0;
 
       for (var i = 0; i < files.length; i += 1) {
-        var entry = { file: files[i], context: Object.assign({}, context), prepared: null, uploaded: false, finalized: false, error: '' };
+        if (generation !== uploadGeneration) break;
+        var entry = { file: files[i], generation: generation, context: Object.assign({}, context), prepared: null, uploaded: false, finalized: false, error: '' };
         try {
           await perform(entry, i, files.length);
           successes += 1;
         } catch (error) {
+          if (generation !== uploadGeneration) break;
           entry.error = String(error && error.message || 'Upload gagal.');
           failedUploads.push(entry);
           notify('error', 'Upload gagal', entry.file.name + ' — ' + entry.error);
@@ -232,7 +247,7 @@
       }
 
       if ($('docUploadInput')) $('docUploadInput').value = '';
-      if (successes) {
+      if (successes && generation === uploadGeneration) {
         notify('success', 'Upload selesai', successes + ' file berhasil diunggah langsung ke penyimpanan aman' + (failedUploads.length ? ', ' + failedUploads.length + ' perlu dicoba lagi.' : '.'));
         refreshList();
       }

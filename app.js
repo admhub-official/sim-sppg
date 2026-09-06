@@ -1511,6 +1511,7 @@ function executeLogout(isAutoLogout, scope) {
   scope = scope === 'global' ? 'global' : 'local';
 
   function finishLogout() {
+  if (typeof window.clearDocumentUploadQueue === 'function') window.clearDocumentUploadQueue();
   safeStorage('remove', 'sppg_session');
   try { localStorage.removeItem('sppg_jwt'); } catch(e) {}
   try { localStorage.removeItem('sppg_refresh_token'); } catch(e) {}
