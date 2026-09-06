@@ -8,6 +8,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  checks: read
+  statuses: read
 
 jobs:
   merge:
@@ -32,10 +34,33 @@ jobs:
               const sameRepository = pr.head.repo?.full_name === `${context.repo.owner}/${context.repo.repo}`;
               const hasAutoMergeLabel = pr.labels.some((label) => label.name === 'automerge');
               const targetsMain = pr.base.ref === 'main';
-              const isReady = !pr.draft && pr.mergeable_state !== 'dirty';
+              const isReady = pr.state === 'open' && !pr.draft && pr.mergeable_state === 'clean';
+              const testedSha = context.payload.workflow_run.head_sha;
 
-              if (!sameRepository || !hasAutoMergeLabel || !targetsMain || !isReady) {
+              if (!sameRepository || !hasAutoMergeLabel || !targetsMain || !isReady || pr.head.sha !== testedSha) {
                 core.info(`PR #${pr.number} is not eligible for automatic merge.`);
+                continue;
+              }
+
+              // CI success for an older commit does not authorize the current head.
+              // Include external deployment statuses and all current check runs.
+              const checks = await github.paginate(github.rest.checks.listForRef, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: testedSha,
+                filter: 'latest',
+                per_page: 100,
+              });
+              const { data: status } = await github.rest.repos.getCombinedStatusForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: testedSha,
+              });
+              const checksPassed = checks.length > 0 && checks.every(check =>
+                check.status === 'completed' && ['success', 'skipped', 'neutral'].includes(check.conclusion));
+              const statusesPassed = status.total_count === 0 || status.state === 'success';
+              if (!checksPassed || !statusesPassed) {
+                core.info(`PR #${pr.number} still has pending or unsuccessful checks.`);
                 continue;
               }
 
@@ -44,7 +69,7 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: pr.number,
                 merge_method: 'squash',
-                sha: pr.head.sha,
+                sha: testedSha,
               });
 
               core.info(`PR #${pr.number} merged automatically after CI passed.`);
