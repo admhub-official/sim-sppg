@@ -266,10 +266,12 @@
     if (host) host.querySelectorAll('[data-doc-retry]').forEach(function (button) { button.disabled = true; });
     try {
       await perform(entry, 0, 1);
+      if (entry.generation !== uploadGeneration) return;
       failedUploads.splice(index, 1);
       notify('success', 'Upload berhasil', entry.file.name + ' berhasil disimpan ke tujuan awal.');
       refreshList();
     } catch (error) {
+      if (entry.generation !== uploadGeneration) return;
       entry.error = String(error && error.message || 'Upload gagal.');
       notify('error', 'Retry gagal', entry.file.name + ' — ' + entry.error);
     } finally {
