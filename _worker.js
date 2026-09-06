@@ -1,5 +1,5 @@
 /* SIM-SPPG Cloudflare Pages asset delivery layer. */
-const version = '20260906-transaction-mobile-v1';
+const version = '20260906-pwa-cleanup-v1';
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const TURNSTILE_SITEKEY_FALLBACK = '0x4AAAAAAEmHZ4E7lb0zchck';
 
@@ -9,7 +9,7 @@ const RUNTIME_STYLES = [
 ];
 
 const RUNTIME_SCRIPTS = [
-  ['/assets/js/pwa-browser-access.js', '20260905-v2'],
+  ['/assets/js/pwa-browser-access.js', '20260906-v1'],
   ['/assets/js/report-local-date-fix.js', '20260905-v1'],
   ['/assets/js/accessibility-runtime.js', '20260905-v3'],
   ['/assets/js/post-auth-vendor-loader.js', '20260905-v1'],

@@ -117,7 +117,14 @@ jobs:
           if grep -Fq 'approvalRuntime' _worker.js; then exit 1; fi
           if grep -Fq '<script src="./approval-transaction-loader.js' _worker.js; then exit 1; fi
           if grep -Fq 'networkFirstAppWithCompatibility' sw.js; then exit 1; fi
-          grep -Fq "removeLegacyRequirementGate" assets/js/pwa-browser-access.js
+          if grep -Fq 'pwaRequirementGate' index.html app.js assets/js/pwa-browser-access.js; then
+            echo "::error::Gate instalasi PWA wajib tidak boleh dikembalikan."
+            exit 1
+          fi
+          if grep -Fq 'removeLegacyRequirementGate' assets/js/pwa-browser-access.js; then
+            echo "::error::Compatibility patch gate PWA sudah tidak diperlukan."
+            exit 1
+          fi
           grep -Fq "display-mode: standalone" assets/js/pwa-browser-access.js
       - name: Validate pagination integrations
         run: |

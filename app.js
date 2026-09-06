@@ -2772,8 +2772,6 @@ function initApp() {
 
   var appLoadingEl = $('appLoadingOverlay');
   if (appLoadingEl) appLoadingEl.classList.remove('hidden');
-  updatePwaRequirementGate();
-
   loadGlobalDateFilterState();
   currentPage = getRestorablePage();
   if (currentUser.role === 'SUPER_ADMIN') initializeSettingsHubLayout();
@@ -2816,9 +2814,7 @@ function initApp() {
       Promise.all([
         loadMyMenuVisibility(),
         loadDashboardData(true),
-        loadDropdownOptions(),
-        loadUsers(true),
-        loadSuppliers(true)
+        loadDropdownOptions()
       ]).then(function() {
         try { updateChart(); } catch(e) { console.error('updateChart error:', e); }
         if (appLoadingEl) appLoadingEl.classList.add('hidden');
@@ -8949,98 +8945,11 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
   // ============================================================
   var _pwaInstallEvent = null;
   var _pwaInstalled = false;
-  var _pushSubscriptionSynced = false;
-  var _pwaGateBusy = false;
 
   function isStandalonePWA() {
     return window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true ||
       document.referrer.indexOf('android-app://') === 0;
-  }
-
-  function getInstallHelpText() {
-    var ua = navigator.userAgent;
-    var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-    var isAndroid = /android/i.test(ua);
-    if (isIOS) return 'iPhone/iPad: buka lewat Safari, ketuk Bagikan (⬆), pilih “Tambahkan ke Layar Utama”, lalu buka SIM-SPPG dari ikon baru.';
-    if (isAndroid) return 'Android: ketuk Instal Aplikasi. Jika prompt tidak muncul, buka menu ⋮ Chrome lalu pilih “Instal aplikasi”.';
-    return 'Komputer: klik Instal Aplikasi. Jika prompt tidak muncul, gunakan ikon instal di sisi kanan address bar Chrome/Edge.';
-  }
-
-  function getNotificationHelpText() {
-    if (!('Notification' in window) || !('PushManager' in window)) {
-      return 'Perangkat atau browser ini tidak mendukung Web Push. Gunakan Chrome/Edge terbaru atau Safari melalui PWA di iPhone/iPad.';
-    }
-    if (Notification.permission === 'denied') {
-      return 'Izin notifikasi sudah diblokir. Buka pengaturan aplikasi/browser SIM-SPPG, ubah Notifikasi menjadi Izinkan, lalu tekan Periksa Lagi.';
-    }
-    return 'Ketuk Aktifkan Notifikasi lalu pilih Izinkan pada dialog resmi perangkat.';
-  }
-
-  function updatePwaRequirementGate() {
-    var gate = document.getElementById('pwaRequirementGate');
-    if (!gate || !currentUser) {
-      if (gate) gate.classList.add('hidden');
-      return;
-    }
-    var installed = isStandalonePWA();
-    var notificationSupported = 'Notification' in window && 'PushManager' in window;
-    var notificationGranted = notificationSupported && Notification.permission === 'granted';
-    // Izin browser adalah sumber kebenaran untuk UI. Sinkronisasi subscription
-    // dilanjutkan diam-diam ke backend dan tidak boleh memblokir refresh.
-    var ready = installed && notificationGranted;
-    gate.classList.toggle('hidden', ready);
-
-    var installStep = document.getElementById('pwaInstallStep');
-    var notifStep = document.getElementById('pwaNotificationStep');
-    var installStatus = document.getElementById('pwaInstallStatus');
-    var notifStatus = document.getElementById('pwaNotificationStatus');
-    if (installStep) installStep.classList.toggle('complete', installed);
-    if (notifStep) notifStep.classList.toggle('complete', notificationGranted);
-    if (installStatus) installStatus.textContent = installed ? 'Terpasang' : 'Wajib';
-    if (notifStatus) {
-      notifStatus.textContent = !notificationSupported ? 'Tidak didukung' :
-        (Notification.permission === 'denied' ? 'Diblokir' :
-          (notificationGranted ? 'Aktif' : 'Wajib'));
-    }
-
-    var button = document.getElementById('pwaGatePrimaryButton');
-    var help = document.getElementById('pwaGateHelp');
-    if (!button || !help) return;
-    button.disabled = _pwaGateBusy;
-    if (!installed) {
-      button.innerHTML = '<i class="fas fa-download"></i><span>Instal Aplikasi</span>';
-      help.textContent = getInstallHelpText();
-    } else if (!notificationSupported || Notification.permission === 'denied') {
-      button.innerHTML = '<i class="fas fa-cog"></i><span>Aktifkan dari Pengaturan Perangkat</span>';
-      help.textContent = getNotificationHelpText();
-    } else if (!notificationGranted) {
-      button.innerHTML = '<i class="fas fa-bell"></i><span>Aktifkan Notifikasi</span>';
-      help.textContent = getNotificationHelpText();
-    } else {
-      button.innerHTML = '<i class="fas fa-check-circle"></i><span>Notifikasi Aktif</span>';
-      help.textContent = 'Perangkat memenuhi persyaratan. Sinkronisasi penerima notifikasi berjalan otomatis.';
-    }
-  }
-
-  function handlePwaGatePrimary() {
-    if (_pwaGateBusy) return;
-    if (!isStandalonePWA()) {
-      triggerPWAInstall();
-      return;
-    }
-    if (!('Notification' in window) || !('PushManager' in window) || Notification.permission === 'denied') {
-      updatePwaRequirementGate();
-      return;
-    }
-    promptEnablePushNotification();
-  }
-
-  function recheckPwaRequirements() {
-    _pwaInstalled = isStandalonePWA();
-    _pushSubscriptionSynced = false;
-    updatePwaRequirementGate();
-    if (_swRegistration && currentUser) initPushNotification();
   }
 
   // Tangkap event beforeinstallprompt (Chrome/Edge/Android)
@@ -9074,7 +8983,6 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
     if (btn) btn.classList.remove('show');
     showToast('success', 'Berhasil Diinstall!', 'SIM-SPPG kini dapat dibuka seperti aplikasi native.');
     _pwaInstallEvent = null;
-    updatePwaRequirementGate();
   });
 
   function triggerPWAInstall() {
@@ -9089,7 +8997,6 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
         _pwaInstallEvent = null;
         var btn = document.getElementById('btnInstallPWA');
         if (btn) btn.classList.remove('show');
-        updatePwaRequirementGate();
       });
     } else {
       // Fallback manual untuk iOS Safari & browser lain yang tidak support prompt
@@ -9145,7 +9052,6 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
         })
         .then(function(reg) {
           _swRegistration = reg;
-          updatePwaRequirementGate();
           if (currentUser) initPushNotification();
         })
         .catch(function(err) {
@@ -9179,14 +9085,7 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
 
   function sendSubscriptionToServer(subscriptionJson) {
     if (!currentUser) return;
-    callApi('savePushSubscription', [subscriptionJson, deviceLabel()], function(result) {
-      _pushSubscriptionSynced = !!(result && result.success);
-      _pwaGateBusy = false;
-      updatePwaRequirementGate();
-    }, function(err) {
-      _pushSubscriptionSynced = false;
-      _pwaGateBusy = false;
-      updatePwaRequirementGate();
+    callApi('savePushSubscription', [subscriptionJson, deviceLabel()], function() {}, function(err) {
       console.error('Gagal simpan push subscription:', err);
     });
   }
@@ -9207,7 +9106,6 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
 
   function initPushNotification() {
     updatePushButtonUI();
-    updatePwaRequirementGate();
     if (!_swRegistration || !('PushManager' in window) || !currentUser) return;
 
     // Ambil VAPID public key dari backend (sekali per sesi)
@@ -9234,12 +9132,8 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
 
   function subscribeUserToPush() {
     if (!_swRegistration || !PUBLIC_VAPID_KEY) {
-      _pwaGateBusy = false;
-      updatePwaRequirementGate();
       return;
     }
-    _pwaGateBusy = true;
-    updatePwaRequirementGate();
     _swRegistration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY),
@@ -9248,11 +9142,8 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
       updatePushButtonUI();
       showToast('success', 'Notifikasi Aktif', 'Anda akan menerima notifikasi push di perangkat ini.');
     }).catch(function(err) {
-      _pushSubscriptionSynced = false;
-      _pwaGateBusy = false;
       console.error('Gagal subscribe push:', err);
       updatePushButtonUI();
-      updatePwaRequirementGate();
     });
   }
 
@@ -9277,7 +9168,6 @@ function renderPagination(containerId, currentPageNum, totalPages, callbackName)
         showToast('warning', 'Izin Ditolak', 'Anda tidak akan menerima notifikasi push.');
       }
       updatePushButtonUI();
-      updatePwaRequirementGate();
     });
   }
  

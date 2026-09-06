@@ -7,14 +7,7 @@
       document.referrer.indexOf('android-app://') === 0;
   }
 
-  function removeLegacyRequirementGate() {
-    var gate = document.getElementById('pwaRequirementGate');
-    if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
-  }
-
   function syncBrowserInstallUI() {
-    removeLegacyRequirementGate();
-
     var button = document.getElementById('btnInstallPWA');
     if (!button) return;
 
@@ -29,17 +22,7 @@
     if (label) label.textContent = 'Install App';
   }
 
-  function disableLegacyRequirementGate() {
-    if (typeof window.updatePwaRequirementGate === 'function' &&
-        window.updatePwaRequirementGate.__browserAccessOptional !== true) {
-      var optionalUpdate = function () { syncBrowserInstallUI(); };
-      optionalUpdate.__browserAccessOptional = true;
-      window.updatePwaRequirementGate = optionalUpdate;
-    }
-  }
-
   function sync() {
-    disableLegacyRequirementGate();
     syncBrowserInstallUI();
   }
 
@@ -60,27 +43,5 @@
     else if (typeof displayMode.addListener === 'function') displayMode.addListener(sync);
   } catch (_) {}
 
-  var observer = new MutationObserver(function () {
-    removeLegacyRequirementGate();
-    var button = document.getElementById('btnInstallPWA');
-    if (button) {
-      var standalone = isStandalone();
-      button.classList.toggle('hidden', standalone);
-      button.classList.toggle('show', !standalone);
-      button.setAttribute('aria-hidden', standalone ? 'true' : 'false');
-      button.tabIndex = standalone ? -1 : 0;
-    }
-  });
-
-  function observe() {
-    var root = document.getElementById('appContainer') || document.body;
-    if (root) observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', observe);
-  else observe();
-
   sync();
-  window.setTimeout(sync, 250);
-  window.setTimeout(sync, 1500);
 })();
