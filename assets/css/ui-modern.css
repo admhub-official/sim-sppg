@@ -837,3 +837,16 @@ body.dark-mode .modal-body .sppg-suggestions {
     transition: none !important;
   }
 }
+/* Dashboard summaries keep their data visible even when navigation is disabled. */
+.dashboard-summary-header { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.dashboard-summary-header h2 { margin:0 0 6px; font-size:1.3rem; }
+.dashboard-summary-header p, .dashboard-calculation-note, #dashboardLoadStatus { color:var(--text-secondary, #64748b); font-size:.875rem; line-height:1.5; }
+#dashboardStats button.stat-card { font:inherit; color:inherit; text-align:left; width:100%; }
+#dashboardStats button.stat-card:disabled { opacity:1; cursor:default; }
+#dashboardStats button.stat-card:focus-visible { outline:3px solid var(--primary, #2563eb); outline-offset:3px; }
+@media (max-width:640px) {
+  #dashboardStats { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; overflow:visible !important; }
+  #dashboardStats .stat-card { min-width:0 !important; flex-wrap:wrap; }
+  #dashboardStats .stat-info { min-width:0; width:100%; }
+  #dashboardStats .stat-value { font-size:clamp(1rem,4.5vw,1.4rem); overflow-wrap:anywhere; }
+}

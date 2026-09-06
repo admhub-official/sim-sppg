@@ -4889,6 +4889,12 @@
 
             <!-- ==================== DASHBOARD PAGE ==================== -->
       <div id="page-dashboard" class="page-section">
+        <header class="dashboard-summary-header">
+          <div><h2 id="dashboardRoleTitle">Ringkasan aktivitas</h2><p id="dashboardScopeCaption">Data sesuai akses akun Anda.</p></div>
+          <button type="button" class="btn btn-outline" onclick="loadDashboardData()"><i class="fas fa-rotate-right" aria-hidden="true"></i> Perbarui</button>
+        </header>
+        <p id="dashboardLoadStatus" role="status" aria-live="polite"></p>
+        <p class="dashboard-calculation-note">Ringkasan seluruh periode. Pengeluaran dan saldo hanya memperhitungkan pengeluaran yang sudah dibayar.</p>
         <!-- R3: Skeleton Loading Container (ditampilkan saat data belum siap) -->
         <div id="skeletonDashboard" class="skeleton-screen hidden" style="margin-bottom:16px;">
           <div class="stats-grid">
@@ -4911,7 +4917,7 @@
               </div>
             </div>
           </div>
-          <div class="stat-card clickable" onclick="goToTransaksiFiltered('PEMASUKAN')">
+          <button type="button" id="dashboardIncomeAction" class="stat-card clickable" onclick="goToTransaksiFiltered('PEMASUKAN')">
             <div class="stat-icon emerald"><i class="fas fa-arrow-down"></i></div>
             <div class="stat-info">
               <div class="stat-value" id="statPemasukan">Rp 0</div>
@@ -4920,8 +4926,8 @@
                 <i class="fas fa-hand-holding-usd"></i><span>Anggaran masuk</span>
               </div>
             </div>
-          </div>
-          <div class="stat-card clickable" onclick="goToTransaksiFiltered('PENGELUARAN')">
+          </button>
+          <button type="button" id="dashboardExpenseAction" class="stat-card clickable" onclick="goToTransaksiFiltered('PENGELUARAN')">
             <div class="stat-icon rose"><i class="fas fa-arrow-up"></i></div>
             <div class="stat-info">
               <div class="stat-value" id="statPengeluaran">Rp 0</div>
@@ -4930,17 +4936,17 @@
                 <i class="fas fa-shopping-cart"></i><span>Belanja &amp; Operasional</span>
               </div>
             </div>
-          </div>
-          <div class="stat-card clickable" onclick="switchPage('approval')">
+          </button>
+          <button type="button" id="dashboardApprovalAction" class="stat-card clickable" onclick="switchPage('approval')">
             <div class="stat-icon amber"><i class="fas fa-clock"></i></div>
             <div class="stat-info">
               <div class="stat-value" id="statAntrianNominal">Rp 0</div>
-              <div class="stat-label"><span id="statAntrian">0</span> Antrian Approval</div>
+              <div class="stat-label"><span id="statAntrian">0</span> transaksi belum lunas</div>
               <div class="stat-trend" style="color:var(--amber);">
-                <i class="fas fa-hourglass-half"></i><span>Menunggu lunas</span>
+                <i class="fas fa-hourglass-half"></i><span id="dashboardApprovalHint">Lihat status pembayaran</span>
               </div>
             </div>
-          </div>
+          </button>
         </div>
 
       </div>
