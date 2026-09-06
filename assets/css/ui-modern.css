@@ -850,3 +850,26 @@ body.dark-mode .modal-body .sppg-suggestions {
   #dashboardStats .stat-info { min-width:0; width:100%; }
   #dashboardStats .stat-value { font-size:clamp(1rem,4.5vw,1.4rem); overflow-wrap:anywhere; }
 }
+.transaction-mobile-list { display:none; }
+@media (max-width:767px) {
+  #page-transaksi .transaction-desktop-view { display:none; }
+  #page-transaksi .transaction-mobile-list { display:grid; gap:12px; }
+  .transaction-mobile-card { display:flex; flex-direction:column; gap:9px; width:100%; min-width:0; padding:16px; text-align:left; font:inherit; font-size:13px; color:var(--slate-700); background:var(--card-bg,#fff); border:1px solid var(--slate-200,#e2e8f0); border-radius:16px; overflow-wrap:anywhere; cursor:pointer; }
+  .transaction-mobile-card:focus-visible { outline:3px solid var(--primary); outline-offset:2px; }
+  .transaction-mobile-top { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; font-size:12px; }
+  .transaction-mobile-title { font-size:16px; }
+  .transaction-mobile-amount { font-size:20px; color:var(--primary); }
+  .transaction-mobile-note { line-height:1.5; }
+  .transaction-mobile-open { padding-top:10px; border-top:1px solid var(--slate-200,#e2e8f0); color:var(--primary); font-weight:600; }
+  #page-approval .approval-card-main { grid-template-columns:minmax(0,1fr); }
+  #page-approval .approval-card-amount { text-align:left; white-space:normal; overflow-wrap:anywhere; }
+  #page-approval .approval-card-code { overflow-wrap:anywhere; }
+  #page-approval .approval-card-select { min-width:44px; min-height:44px; justify-content:center; }
+  #txFilterBar .filter-toggle-btn, #apprFilterBar .filter-toggle-btn,
+  #txPagination .page-btn, #approvalPagination .page-btn { min-width:44px; min-height:44px; }
+  body.dark-mode .transaction-mobile-card { background:#111b2d; color:#e2e8f0; border-color:#334155; }
+}
+@media print {
+  #page-transaksi .transaction-mobile-list { display:none !important; }
+  #page-transaksi .transaction-desktop-view { display:block !important; }
+}

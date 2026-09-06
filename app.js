@@ -2618,6 +2618,16 @@ function toggleFilterBar(barId) {
   if (!bar) return;
   var collapsed = bar.classList.toggle('collapsed');
   safeStorage('set', 'filterCollapsed_' + barId, collapsed ? '1' : '0');
+  syncFilterBarAccessibility(bar);
+}
+
+function syncFilterBarAccessibility(bar) {
+  var toggle = bar.querySelector('.filter-toggle-btn');
+  var content = bar.querySelector('.filter-collapsible');
+  if (!toggle || !content) return;
+  if (!content.id) content.id = bar.id + 'Controls';
+  toggle.setAttribute('aria-controls', content.id);
+  toggle.setAttribute('aria-expanded', bar.classList.contains('collapsed') ? 'false' : 'true');
 }
 
 function restoreFilterBarState(barId) {
@@ -2628,6 +2638,7 @@ function restoreFilterBarState(barId) {
   // membuka manual (saved === '0'). Ditutup lagi via toggleFilterBar('...').
   var shouldCollapse = saved === null || saved === '1';
   bar.classList.toggle('collapsed', shouldCollapse);
+  syncFilterBarAccessibility(bar);
 }
 
 function toggleSidebar() {
@@ -3834,6 +3845,8 @@ function loadTransactions(page, forceAll, silent) {
       '<div class="skeleton-row"><div class="skeleton-row-cell w-40"></div><div class="skeleton-row-cell"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell w-80"></div><div class="skeleton-row-cell"></div></div>'.repeat(5) +
       '</div></td></tr>';
   }
+  var mobileList = $('transactionMobileList');
+  if (mobileList) mobileList.innerHTML = '<p role="status" class="empty-state">Memuat transaksi…</p>';
 
   var isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
   var isAdmin = currentUser.role === 'ADMIN';
@@ -3937,10 +3950,31 @@ function populateSPPGFilter() {
   sel.value = selected;
 }
 
+function renderTransactionMobileCards(rows, start) {
+  var host = $('transactionMobileList');
+  if (!host) return;
+  if (!rows.length) {
+    host.innerHTML = '<p class="empty-state">Tidak ada transaksi sesuai filter saat ini.</p>';
+    return;
+  }
+  host.innerHTML = rows.map(function(tx, index) {
+    return '<button type="button" class="transaction-mobile-card" data-id="' + esc(tx.id) + '" onclick="openDetailTransaksi(this.dataset.id)">' +
+      '<span class="transaction-mobile-top"><span>#' + (start + index + 1) + ' · ' + esc(tx.kode || '-') + '</span>' + getMetodeBadge(tx.metodeTransaksi) + '</span>' +
+      '<strong class="transaction-mobile-title">' + esc(tx.item || '-') + '</strong>' +
+      '<strong class="transaction-mobile-amount">' + formatRupiah(tx.nominal) + '</strong>' +
+      '<span>' + esc(tx.kategori || '-') + ' · ' + esc(tx.tanggal || '-') + '</span>' +
+      '<span>SPPG: ' + esc(tx.sppg || '-') + '</span>' +
+      '<span>Supplier: ' + esc(tx.supplierName || '-') + '</span>' +
+      (tx.catatan && tx.catatan !== '-' ? '<span class="transaction-mobile-note">' + esc(tx.catatan) + '</span>' : '') +
+      '<span class="transaction-mobile-open">Lihat detail dan tindakan →</span></button>';
+  }).join('');
+}
+
 function renderTransaksiTable() {
   var tbody = $('transaksiTableBody');
   var count = filteredTransactions.length;
   if (!count) {
+    renderTransactionMobileCards([], 0);
     var canAdd = currentUser && currentUser.role; // semua role yang punya akses halaman ini boleh tambah
     tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-illustration"><i class="fas fa-inbox"></i></div><h4>Tidak Ada Transaksi</h4><p>Belum ada transaksi yang tercatat di sini.</p>' +
       (canAdd ? '<button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openAddTransaksiModal()"><i class="fas fa-plus"></i> Tambah Transaksi Pertama</button>' : '') +
@@ -3951,6 +3985,7 @@ function renderTransaksiTable() {
   if (txPage > totalPages) txPage = totalPages;
   var start = (txPage - 1) * ITEMS_PER_PAGE;
   var pageData = txServerPaged ? filteredTransactions : filteredTransactions.slice(start, start + ITEMS_PER_PAGE);
+  renderTransactionMobileCards(pageData, start);
   var html = '';
   pageData.forEach(function(tx, idx) {
     var no = start + idx + 1;

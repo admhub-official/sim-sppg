@@ -92,6 +92,7 @@ jobs:
           node scripts/check-document-content.mjs
           node scripts/check-document-upload-retry.mjs
           node scripts/check-dashboard-role.mjs
+          node scripts/check-transaction-mobile.mjs
 
       - name: Prevent committed secrets
         shell: bash
