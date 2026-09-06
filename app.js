@@ -1511,6 +1511,7 @@ function executeLogout(isAutoLogout, scope) {
   scope = scope === 'global' ? 'global' : 'local';
 
   function finishLogout() {
+  dashboardRequestSequence += 1;
   if (typeof window.clearDocumentUploadQueue === 'function') window.clearDocumentUploadQueue();
   safeStorage('remove', 'sppg_session');
   try { localStorage.removeItem('sppg_jwt'); } catch(e) {}
@@ -1718,6 +1719,7 @@ function loadMyMenuVisibility() {
         if (!isPageAllowedForCurrentUser(currentPage)) switchPage('dashboard', null, { replace: true });
         buildSidebar();
         buildBottomNav();
+        configureDashboardRole();
       }
       resolve(result);
     }, function(error) {
@@ -2387,9 +2389,11 @@ function syncMoreButtonActive(page) {
 }
 
 function goToTransaksiFiltered(kategori) {
+  if (!isPageAllowedForCurrentUser('transaksi')) return;
   switchPage('transaksi');
   setTimeout(function() {
     if ($('txFilterKategori')) {
+      if (currentPage !== 'transaksi' || !isPageAllowedForCurrentUser('transaksi')) return;
       $('txFilterKategori').value = kategori;
       filterTransaksi();
     }
@@ -2960,21 +2964,55 @@ function populatePendingTransaksiSelect() {
 /* ============================================================
      DASHBOARD
      ============================================================ */
+var dashboardRequestSequence = 0;
+
+function configureDashboardRole() {
+  if (!currentUser) return;
+  var role = currentUser.role;
+  var titles = { SUPER_ADMIN: 'Ringkasan seluruh organisasi', ADMIN: 'Ringkasan SPPG kelolaan', USER: 'Ringkasan transaksi saya' };
+  var captions = {
+    SUPER_ADMIN: 'Transaksi seluruh SPPG dan Yayasan yang dapat Anda akses.',
+    ADMIN: 'Transaksi SPPG dan Yayasan sesuai penugasan admin Anda.',
+    USER: 'Transaksi yang dicatat menggunakan akun Anda.'
+  };
+  if ($('dashboardRoleTitle')) $('dashboardRoleTitle').textContent = titles[role] || 'Ringkasan aktivitas';
+  if ($('dashboardScopeCaption')) $('dashboardScopeCaption').textContent = captions[role] || 'Data sesuai akses akun Anda.';
+  [['dashboardIncomeAction', 'transaksi'], ['dashboardExpenseAction', 'transaksi'], ['dashboardApprovalAction', 'approval']].forEach(function(item) {
+    var button = $(item[0]);
+    if (!button) return;
+    button.disabled = !isPageAllowedForCurrentUser(item[1]);
+    button.classList.toggle('clickable', !button.disabled);
+    button.title = button.disabled ? 'Menu ini tidak tersedia untuk akun Anda.' : 'Buka rincian';
+  });
+  if ($('dashboardApprovalHint')) $('dashboardApprovalHint').textContent = role === 'ADMIN' || role === 'SUPER_ADMIN' ? 'Tinjau status di Approval' : 'Lihat status pembayaran';
+}
+
 function loadDashboardData(silent) {
   return new Promise(function(resolve) {
     if (!currentUser) { resolve(); return; }
+    configureDashboardRole();
+    var requestSequence = ++dashboardRequestSequence;
+    var requestUser = currentUser;
+    var status = $('dashboardLoadStatus');
+    if (status) status.textContent = 'Memuat ringkasan…';
+    ['statSaldo', 'statPemasukan', 'statPengeluaran', 'statAntrian', 'statAntrianNominal'].forEach(function(id) { if ($(id)) $(id).textContent = '—'; });
     // R3: Tampilkan skeleton screen, sembunyikan stat cards sementara
     var skeleton = $('skeletonDashboard');
     var statCards = $('dashboardStats');
     if (!silent && skeleton && statCards) { skeleton.classList.remove('hidden'); statCards.classList.add('hidden'); }
-    if (!silent) showLoading(true);
+    function finish(result) {
+      if (requestSequence !== dashboardRequestSequence || currentUser !== requestUser) { resolve(); return; }
+      if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
+      if (status) status.textContent = result && result.success ? 'Ringkasan berhasil diperbarui.' : 'Ringkasan belum dapat dimuat. Tekan Perbarui untuk mencoba lagi.';
+      resolve();
+    }
     // KPI utama selalu all-time. Filter tanggal hanya digunakan pada grafik
     // dan daftar data, sehingga pemuatan awal dan tombol refresh konsisten.
     callApi('getDashboardKPI', [], function(result) {
-        if (!silent) showLoading(false);
+        if (requestSequence !== dashboardRequestSequence || currentUser !== requestUser) { resolve(); return; }
                 // R3: Sembunyikan skeleton, tampilkan stat cards
                 if (skeleton && statCards) { skeleton.classList.add('hidden'); statCards.classList.remove('hidden'); }
-                if (result.success) {
+                if (result && result.success) {
                   $('statSaldo').textContent = formatRupiah(result.saldoBerjalan);
                   $('statPemasukan').textContent = formatRupiah(result.totalPemasukan);
                   $('statPengeluaran').textContent = formatRupiah(result.totalPengeluaran);
@@ -2988,10 +3026,10 @@ function loadDashboardData(silent) {
                   if (badgeSidebar) { badgeSidebar.textContent = cnt; badgeSidebar.style.display = cnt > 0 ? 'inline-flex' : 'none'; }
                   syncApprovalBadgeToBottomNav();
                 }
-                resolve();
+                finish(result);
       },
       function(err) {
-        if (!silent) showLoading(false); resolve();
+        finish(null);
       }
     );
   });

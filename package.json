@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Local development and synchronization tooling for SIM-SPPG",
   "scripts": {
-    "check": "npm run check:structure && npm run check:egress && npm run check:ui-actions && npm run check:navigation && node scripts/check-auto-merge.mjs && node scripts/check-document-content.mjs && node scripts/check-document-upload-retry.mjs",
+    "check": "npm run check:structure && npm run check:egress && npm run check:ui-actions && npm run check:navigation && node scripts/check-auto-merge.mjs && node scripts/check-document-content.mjs && node scripts/check-document-upload-retry.mjs && node scripts/check-dashboard-role.mjs",
     "check:navigation": "node scripts/check-navigation-history.mjs",
     "check:structure": "node scripts/check-source-structure.mjs",
     "check:egress": "node scripts/check-egress-regression.mjs",
