@@ -3,9 +3,11 @@
 
   var MAX_BYTES = 15 * 1024 * 1024;
   var DIRECT_UPLOAD_URL = 'https://dmjsgtichrfxhyywstrt.supabase.co/functions/v1/document-upload-action';
-  var forbiddenName = /\.(exe|msi|apk|bat|cmd|com|scr|ps1|vbs|js|mjs|cjs|jar|sh|php|py|rb|pl|cgi|dll)$/i;
+  var forbiddenName = /\.(exe|msi|apk|bat|cmd|com|scr|ps1|vbs|js|mjs|cjs|jar|sh|php|py|rb|pl|cgi|dll|html?|svgz?|wasm)$/i;
   var forbiddenMime = /application\/(x-msdownload|x-msdos-program|x-sh|x-executable)/i;
   var failedUploads = [];
+  var uploadBusy = false;
+  var uploadGeneration = 0;
 
   function $(id) { return document.getElementById(id); }
   function esc(value) {
@@ -27,9 +29,12 @@
     if (!token) return Promise.reject(new Error('Sesi login tidak tersedia. Silakan login kembali.'));
     var headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
     if (anonKey()) headers.apikey = anonKey();
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 45000);
     return fetch(DIRECT_UPLOAD_URL, {
       method: 'POST',
       headers: headers,
+      signal: controller.signal,
       body: JSON.stringify({ parameters: [Object.assign({ mode: mode }, data || {})] })
     }).then(function (response) {
       return response.text().then(function (raw) {
@@ -41,7 +46,10 @@
         }
         return result;
       });
-    });
+    }).catch(function (error) {
+      if (error && error.name === 'AbortError') throw new Error('Server melewati batas waktu. Silakan coba lagi.');
+      throw error;
+    }).finally(function () { clearTimeout(timer); });
   }
 
   function currentScope() {
@@ -165,15 +173,20 @@
   }
 
   function perform(entry, index, total) {
+    function assertActiveSession() {
+      if (entry.generation !== uploadGeneration) throw new Error('Upload dihentikan karena sesi berakhir.');
+    }
+    assertActiveSession();
     validateFile(entry.file);
     var label = 'File ' + (index + 1) + ' / ' + total + ' · ' + entry.file.name;
     return prepare(entry, label)
       .then(function () {
+        assertActiveSession();
         if (entry.uploaded) return null;
         showProgress(label + ' — mulai upload langsung', 12);
         return uploadToSignedUrl(entry, label).then(function () { entry.uploaded = true; });
       })
-      .then(function () { return finalize(entry, label); });
+      .then(function () { assertActiveSession(); return finalize(entry, label); });
   }
 
   function renderFailures() {
@@ -200,54 +213,76 @@
     if (typeof window.searchDocuments === 'function') window.searchDocuments();
   }
 
-  window.uploadDocumentFiles = async function (fileList) {
-    var files = Array.prototype.slice.call(fileList || []);
-    if (!files.length) return;
-    var context = currentContext();
+  window.clearDocumentUploadQueue = function () {
+    uploadGeneration += 1;
     failedUploads = [];
-    var successes = 0;
-
-    for (var i = 0; i < files.length; i += 1) {
-      var entry = { file: files[i], context: Object.assign({}, context), prepared: null, uploaded: false, finalized: false, error: '' };
-      try {
-        await perform(entry, i, files.length);
-        successes += 1;
-      } catch (error) {
-        entry.error = String(error && error.message || 'Upload gagal.');
-        failedUploads.push(entry);
-        notify('error', 'Upload gagal', entry.file.name + ' — ' + entry.error);
-      }
-    }
-
-    if ($('docUploadInput')) $('docUploadInput').value = '';
-    if (successes) {
-      notify('success', 'Upload selesai', successes + ' file berhasil diunggah langsung ke penyimpanan aman' + (failedUploads.length ? ', ' + failedUploads.length + ' perlu dicoba lagi.' : '.'));
-      refreshList();
-    }
     renderFailures();
   };
 
+  window.uploadDocumentFiles = async function (fileList) {
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return;
+    if (uploadBusy) {
+      notify('info', 'Upload sedang berjalan', 'Tunggu proses saat ini selesai sebelum memilih file lain.');
+      return;
+    }
+    var context = currentContext();
+    var generation = uploadGeneration;
+    uploadBusy = true;
+    try {
+      var successes = 0;
+
+      for (var i = 0; i < files.length; i += 1) {
+        if (generation !== uploadGeneration) break;
+        var entry = { file: files[i], generation: generation, context: Object.assign({}, context), prepared: null, uploaded: false, finalized: false, error: '' };
+        try {
+          await perform(entry, i, files.length);
+          successes += 1;
+        } catch (error) {
+          if (generation !== uploadGeneration) break;
+          entry.error = String(error && error.message || 'Upload gagal.');
+          failedUploads.push(entry);
+          notify('error', 'Upload gagal', entry.file.name + ' — ' + entry.error);
+        }
+      }
+
+      if ($('docUploadInput')) $('docUploadInput').value = '';
+      if (successes && generation === uploadGeneration) {
+        notify('success', 'Upload selesai', successes + ' file berhasil diunggah langsung ke penyimpanan aman' + (failedUploads.length ? ', ' + failedUploads.length + ' perlu dicoba lagi.' : '.'));
+        refreshList();
+      }
+      renderFailures();
+    } finally {
+      uploadBusy = false;
+    }
+  };
+
   window.retryDocumentUpload = async function (index) {
+    if (uploadBusy) return;
     var entry = failedUploads[index];
     if (!entry || !entry.file) return;
+    uploadBusy = true;
     var host = $('docUploadProgress');
     if (host) host.querySelectorAll('[data-doc-retry]').forEach(function (button) { button.disabled = true; });
     try {
       await perform(entry, 0, 1);
+      if (entry.generation !== uploadGeneration) return;
       failedUploads.splice(index, 1);
       notify('success', 'Upload berhasil', entry.file.name + ' berhasil disimpan ke tujuan awal.');
       refreshList();
     } catch (error) {
+      if (entry.generation !== uploadGeneration) return;
       entry.error = String(error && error.message || 'Upload gagal.');
       notify('error', 'Retry gagal', entry.file.name + ' — ' + entry.error);
     } finally {
+      uploadBusy = false;
       renderFailures();
     }
   };
 
   window.__documentDirectUpload = {
     enabled: true,
-    version: '20260906-v1',
+    version: '20260906-v2',
     maxBytes: MAX_BYTES
   };
 })();

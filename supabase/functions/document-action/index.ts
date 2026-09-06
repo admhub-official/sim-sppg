@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { validateDocumentContent } from '../_shared/document-content-validation.mjs';
 
 const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -15,7 +16,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const text = (value: unknown) => String(value ?? '').trim();
 const lower = (value: unknown) => text(value).toLowerCase();
 const safeName = (value: unknown, fallback = 'File') => text(value).replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 240) || fallback;
-const forbiddenName = /\.(exe|msi|apk|bat|cmd|com|scr|ps1|vbs|js|mjs|cjs|jar|sh|php|py|rb|pl|cgi|dll)$/i;
+const forbiddenName = /\.(exe|msi|apk|bat|cmd|com|scr|ps1|vbs|js|mjs|cjs|jar|sh|php|py|rb|pl|cgi|dll|html?|svgz?|wasm)$/i;
 
 type Caller = { id: string; email: string; username: string; role: string; sppg: string; yayasan: string };
 type Scope = { sppg: string; yayasan: string };
@@ -302,6 +303,7 @@ async function saveFile(caller: Caller, input: any, sourceType: 'UPLOAD' | 'IN_A
   const bytes = sourceType === 'IN_APP' ? new TextEncoder().encode(text(input?.content).slice(0, 1_000_000)) : decodeBase64(input?.base64);
   if (!bytes.byteLength) throw new Error('File kosong tidak dapat disimpan.');
   if (bytes.byteLength > MAX_BYTES) throw new Error('Ukuran file maksimal 15 MB pada versi ini.');
+  validateDocumentContent(name, mime, bytes);
   const fileId = crypto.randomUUID();
   const versionId = crypto.randomUUID();
   const scopeKey = (scope!.sppg || 'global').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
