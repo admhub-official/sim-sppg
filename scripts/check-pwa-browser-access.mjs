@@ -10,6 +10,8 @@ for (const [name, source] of [['index.html', indexSource], ['app.js', appSource]
   assert.doesNotMatch(source, /pwaRequirementGate|pwa-requirement-gate|handlePwaGatePrimary|recheckPwaRequirements/, `${name} must not contain the mandatory PWA gate`);
 }
 assert.match(indexSource, /id="btnInstallPWA"/, 'browser install action must remain in the top bar');
+assert.match(indexSource, /#btnInstallPWA\.show\s*\{\s*display:\s*inline-flex\s*!important;/, 'show class must make the install action visible');
+assert.doesNotMatch(indexSource, /#btnInstallPWA\.show\s*\{\s*display:\s*none\s*!important;/, 'responsive CSS must not hide the browser install action');
 
 function runRuntime(standalone) {
   const classes = new Set(['hidden']);

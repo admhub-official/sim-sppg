@@ -115,11 +115,6 @@
       50% { box-shadow: 0 0 0 4px rgba(30,111,156,0); }
     }
 
-    @media (max-width: 360px) {
-      .btn-install-pwa span { display: none; }
-      .btn-install-pwa { padding: 7px 10px; }
-    }
-
     /* ============================================================
        MOBILE PREMIUM UI - Bottom Navigation & Mobile Layout
        ============================================================ */
@@ -1171,9 +1166,31 @@
       color: white;
     }
     .topbar-right .btn-install-pwa {
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 0 12px;
       background: rgba(255,255,255,0.15);
-      border-color: rgba(255,255,255,0.3);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 10px;
       color: white;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .topbar-right .btn-install-pwa:hover,
+    .topbar-right .btn-install-pwa:focus-visible {
+      background: rgba(255,255,255,0.25);
+      border-color: rgba(255,255,255,0.5);
+    }
+    @media (max-width: 767px) {
+      .btn-install-pwa span { display: none; }
+      .topbar-right .btn-install-pwa {
+        width: 36px;
+        padding: 0;
+        justify-content: center;
+      }
     }
     @media (max-width: 480px) {
       .topbar-profile-text { display: none; }
@@ -3383,13 +3400,9 @@
       to { transform: scale(1) rotate(0); opacity: 1; }
     }
 
-    /* Sembunyikan install button secara default — hanya tampil saat ada class .show DAN di desktop */
+    /* Sembunyikan secara default; runtime menampilkan tombol hanya di browser. */
     #btnInstallPWA { display: none !important; }
     #btnInstallPWA.show { display: inline-flex !important; }
-    /* Topbar mobile: install button tidak pernah tampil */
-    @media (max-width: 767px) {
-      #btnInstallPWA.show { display: none !important; }
-    }
     /* Touch device improvements */
     @media (hover: none) and (pointer: coarse) {
       .menu-item:hover { background: transparent; }
